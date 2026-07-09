@@ -8,13 +8,22 @@
 
 ## Active Issues
 
-*None — Session 1 was documentation only. No code was written, no errors encountered.*
+*None currently open.*
 
 ---
 
 ## Resolved Issues
 
-*No resolved issues yet.*
+### NativeWind `className` prop not recognized on React Native components
+**Session:** 3 (2026-07-09)
+**Severity:** Low
+**Symptom:** `npm run type-check --workspace=@wave/mobile` failed with `TS2769: No overload matches this call` on every component using `className` (`SafeAreaView`, `View`, `Text`), even after adding `/// <reference types="nativewind/types" />` in `apps/mobile/nativewind-env.d.ts` as NativeWind's own docs describe.
+**Root Cause:** The triple-slash reference resolved correctly (confirmed the file was included via `tsc --listFiles`), but the `declare module "react-native"` augmentation inside `node_modules/nativewind/types.d.ts` did not merge into the project's type-checking pass in this Expo 51 + TS 5.5 + npm-workspaces setup. Likely a module-identity mismatch between the ambient augmentation and the hoisted `react-native` types package used by the compiler.
+**Fix Applied:** Replaced the triple-slash reference with the same `declare module "react-native" { interface ViewProps { className?: string } ... }` augmentation written directly (not referenced) in `apps/mobile/nativewind-env.d.ts`.
+**Files Changed:** `apps/mobile/nativewind-env.d.ts`
+**Prevention:** If NativeWind type errors resurface after a dependency bump, don't assume the triple-slash reference is being picked up just because it resolves — verify the augmented properties actually appear on a component's props (e.g. temporarily hover/typecheck a `className` usage) before spending time elsewhere.
+
+---
 
 ---
 

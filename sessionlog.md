@@ -137,3 +137,67 @@ None — this session was documentation only. No application code was written.
 ## End State
 
 All foundational documents are complete and consistent with each other. The project is ready for Phase 1 development: monorepo scaffolding, Prisma schema initialization against Neon.tech, and Fastify auth endpoints. The next session should begin by reading `handoff.md` and then starting with the monorepo structure.
+
+---
+
+# Session 3 — 2026-07-09 (Monorepo Scaffold)
+**Model:** Claude Sonnet 5
+**Duration:** ~1 hour
+
+## Session Goals
+
+Scaffold the entire Wave monorepo per `Wave_Technical_Document.md` — folder structure, package configs, Prisma schema, Fastify API modules, Next.js admin shell, Expo mobile shell, CI/CD workflows, and environment templates. Explicitly scoped as "structures and environment setup" only, not full feature implementation.
+
+## Chronological Log
+
+### Context gathering
+Read `Wave_Technical_Document.md`, `design.md`, `handoff.md`, `changes.md`, `debug.md` per the mandatory session-start protocol in `claude.md`. Confirmed the prior session (Session 1) was documentation-only — no code existed yet.
+
+### Root scaffold
+Created root `package.json` (npm workspaces: `apps/*`, `packages/*`), `tsconfig.base.json`, `.gitignore`, `.editorconfig`, `.nvmrc` (Node 20), and an aggregated `.env.example` documenting every env var across the stack.
+
+### packages/db
+Wrote the full Prisma schema — 10 models (`University`, `Profile`, `Checkpoint`, `Shop`, `Product`, `Order`, `OrderStatusHistory`, `RiderVerification`, `StudentDeliveryStats`, `RiderEarning`, `PlatformConfig`) mapped 1:1 to Section 7's SQL, targeting `DATABASE_URL`. Added a seed script for Ashesi University + platform config defaults. Ran `prisma generate` successfully.
+
+### packages/shared
+Zod schemas for every input type referenced in Section 8's API design: auth (register/login/change-password), orders (create/deliver/cancel + server-side total calc input), shops/products, checkpoints, riders (verification submit/review/availability), admin (config/refund).
+
+### packages/api
+Fastify app with env validation (Zod), a Prisma plugin, a Supabase-JWT auth plugin decorating `authenticate`/`requireRole`, and one route module per domain from Section 8: auth, profiles, checkpoints/universities, shops, products, orders, payments, riders, admin. Implemented the discount engine, PIN generation/verification (bcrypt), and server-side order total calculation exactly as specified in Section 9.3 and Section 12 — then copied the tech doc's own test cases into `__tests__/discount.test.ts` and `__tests__/pin.test.ts`.
+
+### apps/admin
+Next.js 14 App Router scaffold with Tailwind (Wave Green token, no gradients/colored shadows per design commandments), a Supabase auth client, and a thin `apiFetch` wrapper pointing at the Fastify API.
+
+### apps/mobile
+Expo scaffold with NativeWind, React Navigation (stack), Zustand auth store, and an Axios client with a request interceptor that attaches the bearer token from the store. One placeholder `WelcomeScreen`.
+
+### CI/CD + Supabase config
+`.github/workflows/ci.yml` (lint/type-check/test on PR), `deploy-api.yml` (Railway on push to main touching api/db/shared), `deploy-admin.yml` (Vercel on push to main touching admin/shared). `supabase/config/README.md` and `supabase/seed-auth.sql` documenting that Supabase here is Auth+Storage+Realtime only.
+
+### Install & verify
+`npm install` at root — 1539 packages, no errors. `prisma generate` succeeded against a placeholder `DATABASE_URL` (schema-only, no live connection needed). Type-checked all five workspaces one at a time — `@wave/db`, `@wave/shared`, `@wave/api`, `@wave/admin` clean on first try; `@wave/mobile` initially failed with `TS2769` (NativeWind's `className` prop not recognized on RN components) — see Decisions Made and `debug.md`. Ran the API's unit test suite: 11/11 pass.
+
+### Git
+No commits existed on this repo yet. Staged everything, made the initial commit on `main` (94 files), then a follow-up commit removing an accidentally-committed `tsconfig.tsbuildinfo` build artifact and adding `*.tsbuildinfo` to `.gitignore`. Created and checked out `develop` per the branching strategy in `claude.md`.
+
+## Decisions Made
+
+| Decision | Rationale | Alternatives Considered |
+|----------|-----------|--------------------------|
+| npm workspaces (not pnpm/turborepo) | Matches the `npm ci`/`npm run` commands already specified in Section 12.5 and Section 15.2 of the tech doc; avoids adding a new tool decision the user hasn't made | pnpm workspaces, Turborepo |
+| Manual scaffold of `apps/mobile` and `apps/admin` instead of running `create-expo-app`/`create-next-app` generators | User said "for now just create structures" — a full generator pulls a heavier template with content not needed yet; manual scaffold is faster, offline-safe, and gives full control over what's committed | Running the official CLI generators |
+| Fixed NativeWind's `className` typing by writing the `declare module "react-native"` augmentation directly in `nativewind-env.d.ts` instead of `/// <reference types="nativewind/types" />` | The triple-slash reference resolved (confirmed via `--listFiles`) but the declaration merge silently didn't apply — inlining the same augmentation fixed it immediately | Downgrading NativeWind, disabling strict mode, using `tw` prop instead of `className` |
+
+## Code / Files Produced
+
+94 files across root config, `packages/{db,shared,api}`, `apps/{admin,mobile}`, `.github/workflows`, and `supabase/`. Full list in `handoff.md` under "Files Created This Session."
+
+## Tests Run
+
+- `npm run type-check` for all five workspaces — all pass.
+- `npx vitest run` in `packages/api` — 11/11 pass (discount engine: 9 tests, PIN verification: 2 tests), matching the exact scenarios in `Wave_Technical_Document.md` Section 12.2.
+- No integration or E2E tests yet — require a live database/Supabase project (Phase 1 next steps).
+
+## End State
+
+Monorepo scaffold is complete, installed, and type-checked on `develop` (branched from `main`, which holds the two scaffold commits). No live external services (Neon, Supabase, Railway, Vercel) are connected yet — every `.env.example` has placeholder values. Next session's first job is standing up the real Neon + Supabase projects and smoke-testing `/v1/auth/register` end-to-end.
