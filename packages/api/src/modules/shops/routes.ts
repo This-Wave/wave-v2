@@ -1,0 +1,46 @@
+import type { FastifyInstance } from "fastify";
+import { createShopSchema, updateShopSchema } from "@wave/shared";
+
+export async function shopRoutes(fastify: FastifyInstance) {
+  fastify.get("/", async (_request, reply) => {
+    const shops = await fastify.prisma.shop.findMany({ where: { isActive: true, isVerified: true } });
+    return reply.send({ shops });
+  });
+
+  fastify.get("/my", { preHandler: [fastify.authenticate, fastify.requireRole("shop_owner")] }, async (request, reply) => {
+    const shop = await fastify.prisma.shop.findFirst({ where: { ownerId: request.user!.id } });
+    return reply.send({ shop });
+  });
+
+  fastify.get("/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const shop = await fastify.prisma.shop.findUnique({
+      where: { id },
+      include: { products: true },
+    });
+    if (!shop) return reply.code(404).send({ error: "Shop not found" });
+    return reply.send({ shop });
+  });
+
+  fastify.post("/", { preHandler: [fastify.authenticate, fastify.requireRole("shop_owner")] }, async (request, reply) => {
+    const parsed = createShopSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    const profile = await fastify.prisma.profile.findUnique({ where: { id: request.user!.id } });
+    const shop = await fastify.prisma.shop.create({
+      data: { ...parsed.data, ownerId: request.user!.id, universityId: profile!.universityId! },
+    });
+    return reply.code(201).send({ shop });
+  });
+
+  fastify.put("/:id", { preHandler: [fastify.authenticate, fastify.requireRole("shop_owner")] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = updateShopSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    const shop = await fastify.prisma.shop.update({ where: { id, ownerId: request.user!.id }, data: parsed.data });
+    return reply.send({ shop });
+  });
+}

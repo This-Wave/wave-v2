@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --wave-green: #2ea64e;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+}

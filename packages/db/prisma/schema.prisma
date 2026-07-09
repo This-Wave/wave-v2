@@ -1,0 +1,282 @@
+// Wave — Prisma schema
+// Targets Neon.tech PostgreSQL 16. See Wave_Technical_Document.md Section 7.
+// Auth users live in Supabase (auth.users) — `profiles.id` references that UUID
+// but Supabase's auth schema is not modeled here since Prisma never queries it.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProfileRole {
+  student
+  rider
+  shop_owner
+  admin
+}
+
+enum ProductStatus {
+  active
+  out_of_stock
+  not_serving
+}
+
+enum DeliveryDay {
+  sunday
+  wednesday
+  special
+}
+
+enum OrderStatus {
+  pending
+  payment_pending
+  confirmed
+  rider_assigned
+  en_route
+  at_checkpoint
+  delivered
+  cancelled
+  refunded
+}
+
+enum RiderIdType {
+  ghana_card
+  student_id
+  passport
+}
+
+enum VerificationStatus {
+  pending
+  approved
+  rejected
+}
+
+enum EarningStatus {
+  pending
+  paid
+}
+
+model University {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  city      String
+  country   String   @default("Ghana")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  profiles    Profile[]
+  checkpoints Checkpoint[]
+  shops       Shop[]
+  orders      Order[]
+
+  @@map("universities")
+}
+
+model Profile {
+  id            String      @id @default(uuid())
+  universityId  String?     @map("university_id")
+  fullName      String      @map("full_name")
+  phone         String      @unique
+  studentId     String?     @map("student_id")
+  role          ProfileRole
+  avatarUrl     String?     @map("avatar_url")
+  pushToken     String?     @map("push_token")
+  isActive      Boolean     @default(true) @map("is_active")
+  isVerified    Boolean     @default(false) @map("is_verified")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  university University? @relation(fields: [universityId], references: [id])
+
+  shops                    Shop[]
+  studentOrders             Order[]                @relation("StudentOrders")
+  riderOrders                Order[]                @relation("RiderOrders")
+  orderStatusChanges        OrderStatusHistory[]
+  riderVerification          RiderVerification[]    @relation("RiderVerifications")
+  reviewedVerifications       RiderVerification[]    @relation("ReviewedVerifications")
+  studentDeliveryStats        StudentDeliveryStats?
+  riderEarnings                RiderEarning[]
+
+  @@map("profiles")
+}
+
+model Checkpoint {
+  id            String   @id @default(uuid())
+  universityId  String   @map("university_id")
+  name          String
+  description   String?
+  latitude      Decimal? @db.Decimal(9, 6)
+  longitude     Decimal? @db.Decimal(9, 6)
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  university University @relation(fields: [universityId], references: [id])
+  orders     Order[]
+
+  @@map("checkpoints")
+}
+
+model Shop {
+  id            String   @id @default(uuid())
+  ownerId       String   @map("owner_id")
+  universityId  String   @map("university_id")
+  name          String
+  description   String?
+  category      String
+  logoUrl       String?  @map("logo_url")
+  phone         String?
+  locationText  String?  @map("location_text")
+  openingTime   DateTime? @db.Time @map("opening_time")
+  closingTime   DateTime? @db.Time @map("closing_time")
+  isActive      Boolean  @default(true) @map("is_active")
+  isVerified    Boolean  @default(false) @map("is_verified")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  owner      Profile    @relation(fields: [ownerId], references: [id])
+  university University @relation(fields: [universityId], references: [id])
+  products   Product[]
+  orders     Order[]
+
+  @@map("shops")
+}
+
+model Product {
+  id          String        @id @default(uuid())
+  shopId      String        @map("shop_id")
+  name        String
+  description String?
+  price       Decimal       @db.Decimal(10, 2)
+  imageUrl    String?       @map("image_url")
+  category    String?
+  status      ProductStatus @default(active)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  shop   Shop    @relation(fields: [shopId], references: [id])
+  orders Order[]
+
+  @@map("products")
+}
+
+model Order {
+  id            String   @id @default(uuid())
+  studentId     String   @map("student_id")
+  riderId       String?  @map("rider_id")
+  shopId        String   @map("shop_id")
+  checkpointId  String   @map("checkpoint_id")
+  universityId  String   @map("university_id")
+
+  itemDescription String   @map("item_description")
+  productId       String?  @map("product_id")
+  itemPrice       Decimal? @db.Decimal(10, 2) @map("item_price")
+  deliveryFee     Decimal  @db.Decimal(10, 2) @map("delivery_fee")
+  discountApplied Decimal  @default(0) @db.Decimal(5, 2) @map("discount_applied")
+  surchargeApplied Decimal @default(0) @db.Decimal(5, 2) @map("surcharge_applied")
+  totalAmount     Decimal  @db.Decimal(10, 2) @map("total_amount")
+
+  deliveryDay     DeliveryDay @map("delivery_day")
+  scheduledDate   DateTime    @db.Date @map("scheduled_date")
+  isSpecialOrder  Boolean     @default(false) @map("is_special_order")
+
+  status OrderStatus @default(pending)
+
+  paystackRef String?   @unique @map("paystack_ref")
+  paidAt      DateTime? @map("paid_at")
+
+  deliveryPinHash String?   @map("delivery_pin_hash")
+  deliveredAt     DateTime? @map("delivered_at")
+
+  notes               String?
+  cancellationReason   String? @map("cancellation_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  student    Profile    @relation("StudentOrders", fields: [studentId], references: [id])
+  rider      Profile?   @relation("RiderOrders", fields: [riderId], references: [id])
+  shop       Shop       @relation(fields: [shopId], references: [id])
+  checkpoint Checkpoint @relation(fields: [checkpointId], references: [id])
+  university University @relation(fields: [universityId], references: [id])
+  product    Product?   @relation(fields: [productId], references: [id])
+
+  statusHistory OrderStatusHistory[]
+  earning       RiderEarning?
+
+  @@map("orders")
+}
+
+model OrderStatusHistory {
+  id        String   @id @default(uuid())
+  orderId   String   @map("order_id")
+  status    String
+  changedBy String?  @map("changed_by")
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  order   Order    @relation(fields: [orderId], references: [id])
+  changer Profile? @relation(fields: [changedBy], references: [id])
+
+  @@map("order_status_history")
+}
+
+model RiderVerification {
+  id               String              @id @default(uuid())
+  riderId          String              @map("rider_id")
+  idType           RiderIdType         @map("id_type")
+  idNumber         String              @map("id_number")
+  idImageUrl       String              @map("id_image_url")
+  selfieUrl        String              @map("selfie_url")
+  status           VerificationStatus  @default(pending)
+  reviewedBy       String?             @map("reviewed_by")
+  rejectionReason  String?             @map("rejection_reason")
+  reviewedAt       DateTime?           @map("reviewed_at")
+  createdAt        DateTime            @default(now()) @map("created_at")
+
+  rider    Profile  @relation("RiderVerifications", fields: [riderId], references: [id])
+  reviewer Profile? @relation("ReviewedVerifications", fields: [reviewedBy], references: [id])
+
+  @@map("rider_verifications")
+}
+
+model StudentDeliveryStats {
+  studentId        String   @id @map("student_id")
+  totalDeliveries  Int      @default(0) @map("total_deliveries")
+  discountEligible Boolean  @default(false) @map("discount_eligible")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  student Profile @relation(fields: [studentId], references: [id])
+
+  @@map("student_delivery_stats")
+}
+
+model RiderEarning {
+  id        String        @id @default(uuid())
+  riderId   String        @map("rider_id")
+  orderId   String        @unique @map("order_id")
+  amount    Decimal       @db.Decimal(10, 2)
+  status    EarningStatus @default(pending)
+  paidAt    DateTime?     @map("paid_at")
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  rider Profile @relation(fields: [riderId], references: [id])
+  order Order   @relation(fields: [orderId], references: [id])
+
+  @@map("rider_earnings")
+}
+
+model PlatformConfig {
+  key         String   @id
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_config")
+}

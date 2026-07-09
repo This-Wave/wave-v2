@@ -1,0 +1,5 @@
+-- Wave — Supabase Auth seed data for local dev.
+-- Supabase here is Auth + Storage + Realtime ONLY. Application tables
+-- (profiles, orders, shops, ...) live in Neon via packages/db/prisma/schema.prisma.
+-- This file seeds nothing yet — placeholder until Supabase project is created
+-- and auth.users test accounts are needed for local development.

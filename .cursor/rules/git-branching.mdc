@@ -1,0 +1,31 @@
+---
+description: Wave project Git branching strategy — never push directly to main
+alwaysApply: true
+---
+
+# Git Branching Strategy
+
+Rarely, if ever, push code directly to `main`. Use structured branches to keep production stable.
+
+## Branches
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Sacred. Stable, deployed, or deployable code only. |
+| `develop` | Integration/staging — features are merged and tested here before `main`. |
+| `feature/feature-name` | New work. Branch off `develop` (or `main` only for hotfix-only cases). Example: `feature/user-authentication`. |
+| `bugfix/bug-description` | Targeted fixes. Example: `bugfix/login-crash`. |
+
+## Workflow
+
+1. Create a branch from `develop` for features or bug fixes.
+2. Open a PR into `develop` when work is ready for integration testing.
+3. Merge `develop` into `main` only when the release is stable and deployable.
+4. Do not commit or push directly to `main` unless the user explicitly requests an emergency hotfix.
+
+## Agent behavior
+
+- Before starting work, confirm the current branch is not `main`.
+- Use descriptive branch names: `feature/...` for features, `bugfix/...` for fixes.
+- When creating PRs, target `develop` by default (not `main`).
+- Only push to `main` when the user explicitly asks.

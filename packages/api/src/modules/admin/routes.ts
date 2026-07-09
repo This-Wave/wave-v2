@@ -1,0 +1,50 @@
+import type { FastifyInstance } from "fastify";
+import { refundOrderSchema, updateConfigSchema } from "@wave/shared";
+
+export async function adminRoutes(fastify: FastifyInstance) {
+  fastify.addHook("preHandler", fastify.authenticate);
+  fastify.addHook("preHandler", fastify.requireRole("admin"));
+
+  fastify.get("/stats", async (_request, reply) => {
+    const [totalOrders, totalUsers, totalShops, pendingRiders] = await Promise.all([
+      fastify.prisma.order.count(),
+      fastify.prisma.profile.count(),
+      fastify.prisma.shop.count(),
+      fastify.prisma.riderVerification.count({ where: { status: "pending" } }),
+    ]);
+    return reply.send({ totalOrders, totalUsers, totalShops, pendingRiders });
+  });
+
+  fastify.get("/users", async (request, reply) => {
+    const { role } = request.query as { role?: string };
+    const users = await fastify.prisma.profile.findMany({ where: role ? { role: role as never } : undefined });
+    return reply.send({ users });
+  });
+
+  fastify.put("/config", async (request, reply) => {
+    const parsed = updateConfigSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    const config = await fastify.prisma.platformConfig.upsert({
+      where: { key: parsed.data.key },
+      create: { key: parsed.data.key, value: parsed.data.value },
+      update: { value: parsed.data.value },
+    });
+    return reply.send({ config });
+  });
+
+  // TODO(Phase 3): call Paystack refund API, not just mark the order.
+  fastify.post("/refund/:orderId", async (request, reply) => {
+    const { orderId } = request.params as { orderId: string };
+    const parsed = refundOrderSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    const order = await fastify.prisma.order.update({
+      where: { id: orderId },
+      data: { status: "refunded", cancellationReason: parsed.data.reason },
+    });
+    return reply.send({ order });
+  });
+}
