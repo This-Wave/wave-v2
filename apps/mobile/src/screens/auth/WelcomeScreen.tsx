@@ -1,34 +1,31 @@
+import { useState } from "react";
 import { SafeAreaView, Text, View } from "react-native";
 import { Truck } from "lucide-react-native";
 import { Button } from "../../components/ui/Button";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
-import { useAuthStore } from "../../store/authStore";
+import { supabase } from "../../lib/supabase";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Welcome">;
 
 // Dev-only shortcut so screens past the login gate can be browsed without a
-// real Supabase phone-OTP round trip. Backend calls made with this fake token
-// will 401 — this is for eyeballing UI/navigation, not for testing API wiring.
-function skipLoginForDev() {
-  useAuthStore.getState().setSession("dev-fake-access-token", "dev-fake-refresh-token");
-  useAuthStore.getState().setProfile({
-    id: "dev-fake-user",
-    universityId: "dev-fake-university",
-    fullName: "Dev Tester",
-    phone: "+233000000000",
-    studentId: "DEV0000",
-    role: "student",
-    avatarUrl: null,
-    pushToken: null,
-    isActive: true,
-    isVerified: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+// real SMS OTP round trip. Signs in as a real, seeded Supabase user (see
+// packages/db/prisma/seed.ts — "Ama Owusu", a frequent-user persona with 7
+// past delivered orders) via phone+password, so AuthProvider picks up a real
+// session and every backend call behaves exactly as it would for a real user.
+async function skipLoginForDev() {
+  const { error } = await supabase.auth.signInWithPassword({
+    phone: "+233241234567",
+    password: "WaveDev123!",
   });
+  if (error) {
+    throw error;
+  }
 }
 
 export function WelcomeScreen({ navigation }: Props) {
+  const [devError, setDevError] = useState<string | null>(null);
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <View className="flex-1 items-center justify-center px-8">
@@ -51,9 +48,15 @@ export function WelcomeScreen({ navigation }: Props) {
         <Button label="Get Started" onPress={() => navigation.navigate("PhoneEntry")} />
         <Button label="I already have an account" variant="secondary" onPress={() => navigation.navigate("PhoneEntry")} />
         {__DEV__ ? (
-          <Text className="mt-1 text-center text-[12px] font-sans-medium text-muted" onPress={skipLoginForDev}>
-            Skip login (dev)
-          </Text>
+          <>
+            <Text
+              className="mt-1 text-center text-[12px] font-sans-medium text-muted"
+              onPress={() => skipLoginForDev().catch((err) => setDevError(err.message))}
+            >
+              Skip login (dev)
+            </Text>
+            {devError ? <Text className="mt-1 text-center text-[11px] text-danger-text">{devError}</Text> : null}
+          </>
         ) : null}
       </View>
     </SafeAreaView>
