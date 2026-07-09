@@ -22,3 +22,13 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(8),
 });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+// Used to create the Prisma profile row after a Supabase phone-OTP signup —
+// the auth user already exists at this point, only the app-level profile is missing.
+export const completeProfileSchema = z.object({
+  fullName: z.string().min(2).max(120),
+  role: z.enum(PROFILE_ROLES),
+  universityId: z.string().uuid().optional(),
+  studentId: z.string().optional(),
+});
+export type CompleteProfileInput = z.infer<typeof completeProfileSchema>;

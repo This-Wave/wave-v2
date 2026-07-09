@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "app.wave.mobile"
@@ -23,7 +25,10 @@
       },
       "package": "app.wave.mobile"
     },
-    "plugins": ["expo-notifications"],
+    "plugins": [
+      "expo-notifications",
+      "expo-font"
+    ],
     "extra": {
       "eas": {
         "projectId": ""
