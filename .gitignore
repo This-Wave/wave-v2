@@ -53,3 +53,7 @@ Thumbs.db
 # Turbo (if adopted later)
 .turbo
 *.tsbuildinfo
+
+# Project docs / session logs (kept locally, not tracked in git)
+*.md
+devlogs/
