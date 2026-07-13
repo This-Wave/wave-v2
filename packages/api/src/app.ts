@@ -22,7 +22,9 @@ declare module "fastify" {
 }
 
 export function buildApp(): FastifyInstance {
-  const app = Fastify({ logger: true });
+  // Default 1MB body limit is too small for base64-encoded verification
+  // photo uploads (see modules/riders/routes.ts POST /verification/upload).
+  const app = Fastify({ logger: true, bodyLimit: 8 * 1024 * 1024 });
   const env = loadEnv();
   app.decorate("config", env);
 

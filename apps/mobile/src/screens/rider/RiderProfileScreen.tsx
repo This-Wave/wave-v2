@@ -1,5 +1,8 @@
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
-import { LogOut, ShieldCheck } from "lucide-react-native";
+import { Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { ChevronRight, LogOut, ShieldCheck } from "lucide-react-native";
+import type { RiderStackParamList } from "../../navigation/RiderNavigator";
 import { Avatar } from "../../components/ui/Avatar";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
@@ -20,8 +23,10 @@ function verificationBadge(status?: string): { label: string; variant: "success"
 }
 
 export function RiderProfileScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RiderStackParamList>>();
   const profile = useAuthStore((s) => s.profile);
   const { data: verification } = useVerificationStatus();
+  const canSubmit = !verification || verification.status === "rejected";
 
   return (
     <SafeAreaView className="flex-1 bg-surface-muted">
@@ -34,15 +39,29 @@ export function RiderProfileScreen() {
           </View>
         </Card>
 
-        <Card className="mb-3 bg-surface">
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-2">
-              <ShieldCheck size={16} color="#555" />
-              <Text className="font-sans-bold text-[13px] text-ink">Verification</Text>
+        <Pressable
+          disabled={!canSubmit}
+          onPress={() => navigation.navigate("SubmitVerification")}
+          className="mb-3"
+        >
+          <Card className="bg-surface">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-2">
+                <ShieldCheck size={16} color="#555" />
+                <Text className="font-sans-bold text-[13px] text-ink">Verification</Text>
+              </View>
+              <View className="flex-row items-center gap-2">
+                <Badge {...verificationBadge(verification?.status)} />
+                {canSubmit ? <ChevronRight size={16} color="#9E9E9E" /> : null}
+              </View>
             </View>
-            <Badge {...verificationBadge(verification?.status)} />
-          </View>
-        </Card>
+            {canSubmit ? (
+              <Text className="mt-2 text-[11px] text-muted">
+                {verification?.status === "rejected" ? "Tap to resubmit your ID and selfie." : "Tap to submit your ID and selfie for review."}
+              </Text>
+            ) : null}
+          </Card>
+        </Pressable>
 
         <View className="overflow-hidden rounded-well border border-border bg-surface">
           <ListRow leading={<LogOut size={18} color="#D32F2F" />} title="Log Out" danger onPress={() => supabase.auth.signOut()} />

@@ -20,3 +20,10 @@ export const setAvailabilitySchema = z.object({
   isActive: z.boolean(),
 });
 export type SetAvailabilityInput = z.infer<typeof setAvailabilitySchema>;
+
+export const uploadVerificationImageSchema = z.object({
+  kind: z.enum(["id", "selfie"]),
+  imageBase64: z.string().min(1),
+  contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+});
+export type UploadVerificationImageInput = z.infer<typeof uploadVerificationImageSchema>;

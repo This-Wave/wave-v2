@@ -121,10 +121,32 @@ export default function RidersPage() {
                   <td className="px-4 py-3 font-mono text-[12px] text-muted">{v.rider.phone}</td>
                   <td className="px-4 py-3 text-muted">{new Date(v.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3">
-                    <div className="h-10 w-14 rounded-[6px] border border-border bg-surface-muted" title={v.idNumber} />
+                    {v.idImageUrl ? (
+                      <a href={v.idImageUrl} target="_blank" rel="noreferrer" title={v.idNumber}>
+                        {/* eslint-disable-next-line @next/next/no-img-element -- external Supabase-signed URLs, not worth configuring next/image remote patterns for */}
+                        <img
+                          src={v.idImageUrl}
+                          alt={`${v.rider.fullName}'s ${v.idType.replace("_", " ")}`}
+                          className="h-10 w-14 rounded-[6px] border border-border object-cover"
+                        />
+                      </a>
+                    ) : (
+                      <div className="h-10 w-14 rounded-[6px] border border-border bg-surface-muted" title={v.idNumber} />
+                    )}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="h-10 w-10 rounded-[6px] border border-border bg-surface-muted" />
+                    {v.selfieUrl ? (
+                      <a href={v.selfieUrl} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- external Supabase-signed URLs, not worth configuring next/image remote patterns for */}
+                        <img
+                          src={v.selfieUrl}
+                          alt={`${v.rider.fullName}'s selfie`}
+                          className="h-10 w-10 rounded-[6px] border border-border object-cover"
+                        />
+                      </a>
+                    ) : (
+                      <div className="h-10 w-10 rounded-[6px] border border-border bg-surface-muted" />
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span

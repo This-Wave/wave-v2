@@ -109,3 +109,24 @@ export function useSubmitVerification() {
     },
   });
 }
+
+export function useUploadVerificationImage() {
+  return useMutation({
+    mutationFn: async ({
+      kind,
+      base64,
+      contentType,
+    }: {
+      kind: "id" | "selfie";
+      base64: string;
+      contentType: "image/jpeg" | "image/png" | "image/webp";
+    }) => {
+      const { data } = await api.post<{ url: string }>("/riders/verification/upload", {
+        kind,
+        imageBase64: base64,
+        contentType,
+      });
+      return data.url;
+    },
+  });
+}

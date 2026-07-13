@@ -27,7 +27,14 @@
     },
     "plugins": [
       "expo-notifications",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Wave uses your photo library to submit your ID and a selfie for rider verification.",
+          "cameraPermission": "Wave uses your camera to take a selfie for rider verification."
+        }
+      ]
     ],
     "extra": {
       "eas": {
