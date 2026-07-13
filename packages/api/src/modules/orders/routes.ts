@@ -32,6 +32,10 @@ const clientSafeOrder = {
   notes: true,
   createdAt: true,
   updatedAt: true,
+  shop: { select: { id: true, name: true, locationText: true, category: true, logoUrl: true } },
+  checkpoint: { select: { id: true, name: true, description: true } },
+  student: { select: { id: true, fullName: true, phone: true, studentId: true } },
+  rider: { select: { id: true, fullName: true, phone: true } },
 } as const;
 
 export async function orderRoutes(fastify: FastifyInstance) {
@@ -127,6 +131,15 @@ export async function orderRoutes(fastify: FastifyInstance) {
     const orders = await fastify.prisma.order.findMany({
       where: { status: "confirmed", riderId: null },
       select: clientSafeOrder,
+    });
+    return reply.send({ orders });
+  });
+
+  fastify.get("/my-deliveries", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {
+    const orders = await fastify.prisma.order.findMany({
+      where: { riderId: request.user!.id },
+      select: clientSafeOrder,
+      orderBy: { createdAt: "desc" },
     });
     return reply.send({ orders });
   });

@@ -101,5 +101,35 @@ export interface Order {
   updatedAt: string;
   shop?: Shop | null;
   checkpoint?: Checkpoint | null;
+  student?: Profile | null;
   rider?: Profile | null;
+}
+
+export type EarningStatus = "pending" | "paid";
+
+export interface RiderEarning {
+  id: string;
+  riderId: string;
+  orderId: string;
+  amount: string;
+  status: EarningStatus;
+  paidAt: string | null;
+  createdAt: string;
+  order?: { id: string; createdAt: string; shop?: { name: string } | null } | null;
+}
+
+export type VerificationStatus = "pending" | "approved" | "rejected";
+
+export interface RiderVerification {
+  id: string;
+  riderId: string;
+  idType: "ghana_card" | "student_id" | "passport";
+  idNumber: string;
+  idImageUrl: string;
+  selfieUrl: string;
+  status: VerificationStatus;
+  rejectionReason: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
 }

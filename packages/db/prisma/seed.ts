@@ -138,6 +138,68 @@ async function main() {
   });
 
   console.log(`Seeded frequent user: ${frequentUser.fullName} (${frequentUser.phone}) — 7 delivered orders`);
+
+  // Real Supabase Auth user for rider dev/testing (password sign-in, no SMS
+  // needed): phone +233551234567 / WaveRider123!
+  const riderUserId = "4e45b6f3-0da4-446b-a547-2cf8138028e0";
+  const rider = await prisma.profile.upsert({
+    where: { id: riderUserId },
+    update: {},
+    create: {
+      id: riderUserId,
+      universityId: ashesi.id,
+      fullName: "Kofi Boateng",
+      phone: "+233551234567",
+      role: "rider",
+      isVerified: true,
+      isActive: true,
+    },
+  });
+
+  await prisma.riderVerification.upsert({
+    where: { id: "00000000-0000-0000-0000-000000000601" },
+    update: {},
+    create: {
+      id: "00000000-0000-0000-0000-000000000601",
+      riderId: rider.id,
+      idType: "ghana_card",
+      idNumber: "GHA-000000000-0",
+      idImageUrl: "https://placehold.co/600x400?text=Ghana+Card",
+      selfieUrl: "https://placehold.co/600x600?text=Selfie",
+      status: "approved",
+      reviewedAt: new Date(),
+    },
+  });
+
+  // Two unclaimed, confirmed orders sitting in the rider's Order Feed.
+  const feedShops = [
+    { id: "00000000-0000-0000-0000-000000000701", item: "2x Waakye, extra egg + gari" },
+    { id: "00000000-0000-0000-0000-000000000702", item: "Kelewele + roasted groundnuts" },
+  ];
+
+  for (const [i, order] of feedShops.entries()) {
+    await prisma.order.upsert({
+      where: { id: order.id },
+      update: {},
+      create: {
+        id: order.id,
+        studentId: frequentUser.id,
+        shopId: shop.id,
+        checkpointId: quad.id,
+        universityId: ashesi.id,
+        itemDescription: order.item,
+        itemPrice: "20.00",
+        deliveryFee: i === 0 ? "5.00" : "6.50",
+        totalAmount: i === 0 ? "25.00" : "26.50",
+        deliveryDay: "sunday",
+        scheduledDate: new Date(),
+        status: "confirmed",
+        paidAt: new Date(),
+      },
+    });
+  }
+
+  console.log(`Seeded rider: ${rider.fullName} (${rider.phone}) — 2 orders available in feed`);
 }
 
 main()

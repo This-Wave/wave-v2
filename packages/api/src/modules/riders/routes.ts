@@ -33,7 +33,11 @@ export async function riderRoutes(fastify: FastifyInstance) {
     "/earnings",
     { preHandler: [fastify.authenticate, fastify.requireRole("rider")] },
     async (request, reply) => {
-      const earnings = await fastify.prisma.riderEarning.findMany({ where: { riderId: request.user!.id } });
+      const earnings = await fastify.prisma.riderEarning.findMany({
+        where: { riderId: request.user!.id },
+        orderBy: { createdAt: "desc" },
+        include: { order: { select: { id: true, createdAt: true, shop: { select: { name: true } } } } },
+      });
       return reply.send({ earnings });
     },
   );

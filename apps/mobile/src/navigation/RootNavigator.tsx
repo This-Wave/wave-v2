@@ -1,6 +1,7 @@
 import { View } from "react-native";
 import { AuthNavigator } from "./AuthNavigator";
 import { StudentNavigator } from "./StudentNavigator";
+import { RiderNavigator } from "./RiderNavigator";
 import { useAuthStore } from "../store/authStore";
 
 export function RootNavigator() {
@@ -16,6 +17,10 @@ export function RootNavigator() {
     return <AuthNavigator />;
   }
 
-  // Rider/Shop/Admin navigators are a follow-up session — see design-import-spec.md.
+  if (profile.role === "rider") {
+    return <RiderNavigator />;
+  }
+
+  // Shop/Admin navigators are a follow-up session — see design-import-spec.md.
   return <StudentNavigator />;
 }

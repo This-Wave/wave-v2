@@ -23,6 +23,19 @@ async function skipLoginForDev() {
   }
 }
 
+// Same idea, seeded as a "rider" role persona (Kofi Boateng — approved
+// verification, 2 unclaimed orders sitting in the feed) so the rider flow
+// can be browsed the same way. See packages/db/prisma/seed.ts.
+async function skipLoginForDevAsRider() {
+  const { error } = await supabase.auth.signInWithPassword({
+    phone: "+233551234567",
+    password: "WaveRider123!",
+  });
+  if (error) {
+    throw error;
+  }
+}
+
 export function WelcomeScreen({ navigation }: Props) {
   const [devError, setDevError] = useState<string | null>(null);
 
@@ -53,7 +66,13 @@ export function WelcomeScreen({ navigation }: Props) {
               className="mt-1 text-center text-[12px] font-sans-medium text-muted"
               onPress={() => skipLoginForDev().catch((err) => setDevError(err.message))}
             >
-              Skip login (dev)
+              Skip login (dev) — student
+            </Text>
+            <Text
+              className="mt-1 text-center text-[12px] font-sans-medium text-muted"
+              onPress={() => skipLoginForDevAsRider().catch((err) => setDevError(err.message))}
+            >
+              Skip login (dev) — rider
             </Text>
             {devError ? <Text className="mt-1 text-center text-[11px] text-danger-text">{devError}</Text> : null}
           </>
