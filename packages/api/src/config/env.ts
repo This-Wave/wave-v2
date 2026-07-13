@@ -11,8 +11,9 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   SUPABASE_ANON_KEY: z.string().min(1),
 
+  // Paystack signs webhooks with an HMAC-SHA512 of this same secret key —
+  // there is no separate webhook signing secret to configure.
   PAYSTACK_SECRET_KEY: z.string().min(1),
-  PAYSTACK_WEBHOOK_SECRET: z.string().optional(),
 
   JWT_SECRET: z.string().min(1),
 });

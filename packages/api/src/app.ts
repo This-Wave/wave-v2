@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import sensible from "@fastify/sensible";
+import rawBody from "fastify-raw-body";
 import { loadEnv, type Env } from "./config/env";
 import prismaPlugin from "./plugins/prisma";
 import authPlugin from "./plugins/auth";
@@ -31,6 +32,11 @@ export function buildApp(): FastifyInstance {
   app.register(helmet);
   app.register(cors, { origin: true });
   app.register(sensible);
+  // Opt-in per-route via { config: { rawBody: true } } — the Paystack
+  // webhook needs the exact raw request bytes to verify its HMAC signature;
+  // JSON.parse -> JSON.stringify round-tripping the body is not guaranteed
+  // to reproduce the original bytes Paystack actually signed.
+  app.register(rawBody, { field: "rawBody", global: false, runFirst: true });
 
   app.register(prismaPlugin);
   app.register(authPlugin);

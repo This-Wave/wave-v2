@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import axios from "axios";
 import { initiatePaystackPayment, verifyPaystackSignature } from "./paystack";
 import { generateDeliveryPin } from "../orders/pin";
 
@@ -9,17 +10,27 @@ export async function paymentRoutes(fastify: FastifyInstance) {
 
     const order = await fastify.prisma.order.findUnique({ where: { id: body.orderId } });
     if (!order) return reply.code(404).send({ error: "Order not found" });
+    if (order.studentId !== request.user!.id) {
+      return reply.code(403).send({ error: "Not your order" });
+    }
 
     const profile = await fastify.prisma.profile.findUnique({ where: { id: order.studentId } });
     const reference = `WAVE-${order.id}-${Date.now()}`;
 
-    const { authorization_url } = await initiatePaystackPayment(fastify.config.PAYSTACK_SECRET_KEY, {
-      email: `${profile!.phone}@wave.app`, // students register by phone, not email
-      amountGhs: Number(order.totalAmount),
-      reference,
-      callbackUrl: `${fastify.config.APP_URL}/payment/callback`,
-      metadata: { order_id: order.id, student_id: order.studentId },
-    });
+    let authorization_url: string;
+    try {
+      ({ authorization_url } = await initiatePaystackPayment(fastify.config.PAYSTACK_SECRET_KEY, {
+        email: `${profile!.phone}@wave.app`, // students register by phone, not email
+        amountGhs: Number(order.totalAmount),
+        reference,
+        callbackUrl: `${fastify.config.APP_URL}/payment/callback`,
+        metadata: { order_id: order.id, student_id: order.studentId },
+      }));
+    } catch (err) {
+      const message = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
+      request.log.error(err, "Paystack initiate failed");
+      return reply.code(502).send({ error: message ?? "Payment provider error, please try again" });
+    }
 
     await fastify.prisma.order.update({ where: { id: order.id }, data: { paystackRef: reference } });
     return reply.send({ payment_url: authorization_url, reference });
@@ -32,7 +43,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     { config: { rawBody: true } },
     async (request, reply) => {
       const signature = request.headers["x-paystack-signature"] as string | undefined;
-      const rawBody = JSON.stringify(request.body);
+      const rawBody = request.rawBody!.toString("utf8");
 
       if (!signature || !verifyPaystackSignature(fastify.config.PAYSTACK_SECRET_KEY, rawBody, signature)) {
         return reply.code(401).send({ error: "Invalid signature" });
