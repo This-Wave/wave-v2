@@ -169,21 +169,39 @@ export async function orderRoutes(fastify: FastifyInstance) {
     return reply.send({ order });
   });
 
-  fastify.patch("/:id/status", { preHandler: fastify.authenticate }, async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const body = request.body as { status?: string; note?: string };
-    if (!body.status) return reply.code(400).send({ error: "status is required" });
+  // Rider-only, self-service mid-delivery transitions. Scoped to the two
+  // states a rider legitimately drives themselves outside of accept/deliver
+  // (which have their own checks) — anything else (delivered, cancelled,
+  // refunded, etc.) must go through a dedicated route.
+  const RIDER_SETTABLE_STATUSES = ["en_route", "at_checkpoint"] as const;
 
-    const order = await fastify.prisma.order.update({
-      where: { id },
-      data: { status: body.status as never },
-      select: clientSafeOrder,
-    });
-    await fastify.prisma.orderStatusHistory.create({
-      data: { orderId: id, status: body.status, changedBy: request.user!.id, note: body.note },
-    });
-    return reply.send({ order });
-  });
+  fastify.patch(
+    "/:id/status",
+    { preHandler: [fastify.authenticate, fastify.requireRole("rider")] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as { status?: string; note?: string };
+      if (!body.status || !RIDER_SETTABLE_STATUSES.includes(body.status as never)) {
+        return reply.code(400).send({ error: `status must be one of: ${RIDER_SETTABLE_STATUSES.join(", ")}` });
+      }
+
+      let order;
+      try {
+        order = await fastify.prisma.order.update({
+          where: { id, riderId: request.user!.id },
+          data: { status: body.status as never },
+          select: clientSafeOrder,
+        });
+      } catch {
+        return reply.code(404).send({ error: "Order not found or not assigned to you" });
+      }
+
+      await fastify.prisma.orderStatusHistory.create({
+        data: { orderId: id, status: body.status, changedBy: request.user!.id, note: body.note },
+      });
+      return reply.send({ order });
+    },
+  );
 
   // Rider marks delivered — requires the correct PIN, verified against the bcrypt hash.
   fastify.patch("/:id/deliver", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {
