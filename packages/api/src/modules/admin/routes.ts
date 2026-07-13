@@ -6,13 +6,53 @@ export async function adminRoutes(fastify: FastifyInstance) {
   fastify.addHook("preHandler", fastify.requireRole("admin"));
 
   fastify.get("/stats", async (_request, reply) => {
-    const [totalOrders, totalUsers, totalShops, pendingRiders] = await Promise.all([
-      fastify.prisma.order.count(),
-      fastify.prisma.profile.count(),
-      fastify.prisma.shop.count(),
-      fastify.prisma.riderVerification.count({ where: { status: "pending" } }),
-    ]);
-    return reply.send({ totalOrders, totalUsers, totalShops, pendingRiders });
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const [totalOrders, totalUsers, totalShops, pendingRiders, ordersToday, activeRiders, revenueTodayResult] =
+      await Promise.all([
+        fastify.prisma.order.count(),
+        fastify.prisma.profile.count(),
+        fastify.prisma.shop.count(),
+        fastify.prisma.riderVerification.count({ where: { status: "pending" } }),
+        fastify.prisma.order.count({ where: { createdAt: { gte: startOfToday } } }),
+        fastify.prisma.profile.count({ where: { role: "rider", isActive: true } }),
+        fastify.prisma.order.aggregate({
+          where: {
+            createdAt: { gte: startOfToday },
+            status: { notIn: ["cancelled", "refunded", "payment_pending", "pending"] },
+          },
+          _sum: { totalAmount: true },
+        }),
+      ]);
+
+    return reply.send({
+      totalOrders,
+      totalUsers,
+      totalShops,
+      pendingRiders,
+      ordersToday,
+      activeRiders,
+      revenueToday: revenueTodayResult._sum.totalAmount ?? 0,
+    });
+  });
+
+  fastify.get("/orders", async (request, reply) => {
+    const { limit } = request.query as { limit?: string };
+    const orders = await fastify.prisma.order.findMany({
+      take: limit ? Math.min(Number(limit), 100) : 20,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        totalAmount: true,
+        createdAt: true,
+        student: { select: { fullName: true } },
+        shop: { select: { name: true } },
+        checkpoint: { select: { name: true } },
+      },
+    });
+    return reply.send({ orders });
   });
 
   fastify.get("/users", async (request, reply) => {

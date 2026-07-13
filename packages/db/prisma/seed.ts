@@ -203,6 +203,24 @@ async function main() {
   }
 
   console.log(`Seeded rider: ${rider.fullName} (${rider.phone}) — 2 orders available in feed`);
+
+  // Real Supabase Auth user for admin dev/testing (password sign-in, no SMS
+  // needed): phone +233271234567 / WaveAdmin123!
+  const admin = await prisma.profile.upsert({
+    where: { id: "f9aa5728-6af6-4d0b-9609-a079e1eea924" },
+    update: {},
+    create: {
+      id: "f9aa5728-6af6-4d0b-9609-a079e1eea924",
+      universityId: ashesi.id,
+      fullName: "Wave Platform Admin",
+      phone: "+233271234567",
+      role: "admin",
+      isVerified: true,
+      isActive: true,
+    },
+  });
+
+  console.log(`Seeded admin: ${admin.fullName} (${admin.phone})`);
 }
 
 main()

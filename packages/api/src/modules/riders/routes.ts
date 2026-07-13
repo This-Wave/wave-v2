@@ -59,11 +59,16 @@ export async function riderRoutes(fastify: FastifyInstance) {
   );
 
   fastify.get(
-    "/admin/riders/pending",
+    "/admin/riders",
     { preHandler: [fastify.authenticate, fastify.requireRole("admin")] },
-    async (_request, reply) => {
-      const pending = await fastify.prisma.riderVerification.findMany({ where: { status: "pending" } });
-      return reply.send({ pending });
+    async (request, reply) => {
+      const { status } = request.query as { status?: "pending" | "approved" | "rejected" };
+      const verifications = await fastify.prisma.riderVerification.findMany({
+        where: { status: status ?? "pending" },
+        orderBy: { createdAt: "desc" },
+        include: { rider: { select: { id: true, fullName: true, phone: true } } },
+      });
+      return reply.send({ verifications });
     },
   );
 
