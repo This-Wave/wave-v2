@@ -16,6 +16,14 @@ const envSchema = z.object({
   PAYSTACK_SECRET_KEY: z.string().min(1),
 
   JWT_SECRET: z.string().min(1),
+
+  // Real phone OTP delivery: Supabase Auth generates/verifies the code, but
+  // delegates the actual SMS send to this Fastify webhook via a "Send SMS
+  // Hook" configured in the Supabase dashboard — which then calls mNotify.
+  // Optional so the app still boots before this is configured.
+  SMS_HOOK_SECRET: z.string().optional(),
+  MNOTIFY_API_KEY: z.string().optional(),
+  MNOTIFY_SENDER_ID: z.string().max(11).default("Wave"),
 });
 
 export type Env = z.infer<typeof envSchema>;

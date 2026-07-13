@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { createClient } from "@supabase/supabase-js";
+import { Webhook, WebhookVerificationError } from "standardwebhooks";
 import { loginSchema, registerSchema } from "@wave/shared";
+import { sendOtpSms } from "./mnotify";
 
 export async function authRoutes(fastify: FastifyInstance) {
   const supabase = createClient(
@@ -90,6 +92,50 @@ export async function authRoutes(fastify: FastifyInstance) {
       const token = authHeader.slice("Bearer ".length);
       await supabase.auth.admin.signOut(token);
       return reply.send({ success: true });
+    },
+  );
+
+  // Supabase Auth's "Send SMS Hook" — Supabase itself still generates,
+  // stores, and verifies the OTP (via signInWithOtp/verifyOtp on the
+  // client, unchanged); this endpoint's only job is delivering the code via
+  // mNotify instead of a built-in provider. Auth'd by Standard Webhooks
+  // signature (configured in Supabase dashboard → Auth → Hooks), not by
+  // fastify.authenticate — Supabase itself is the caller, not a Wave user.
+  fastify.post(
+    "/sms-hook",
+    { config: { rawBody: true } },
+    async (request, reply) => {
+      const rawSecret = fastify.config.SMS_HOOK_SECRET;
+      const mnotifyApiKey = fastify.config.MNOTIFY_API_KEY;
+      if (!rawSecret || !mnotifyApiKey) {
+        request.log.error("SMS hook called but SMS_HOOK_SECRET/MNOTIFY_API_KEY not configured");
+        return reply.code(500).send({ error: "SMS hook not configured" });
+      }
+
+      let payload: { user: { phone: string }; sms: { otp: string } };
+      try {
+        const webhook = new Webhook(rawSecret.replace(/^v1,/, ""));
+        payload = webhook.verify(request.rawBody!, request.headers as Record<string, string>) as typeof payload;
+      } catch (err) {
+        if (err instanceof WebhookVerificationError) {
+          return reply.code(401).send({ error: "Invalid webhook signature" });
+        }
+        throw err;
+      }
+
+      try {
+        await sendOtpSms({
+          apiKey: mnotifyApiKey,
+          senderId: fastify.config.MNOTIFY_SENDER_ID,
+          phone: payload.user.phone,
+          otp: payload.sms.otp,
+        });
+      } catch (err) {
+        request.log.error(err, "mNotify OTP send failed");
+        return reply.code(500).send({ error: "Failed to send SMS" });
+      }
+
+      return reply.code(200).send({});
     },
   );
 }
