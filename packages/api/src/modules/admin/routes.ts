@@ -37,22 +37,53 @@ export async function adminRoutes(fastify: FastifyInstance) {
     });
   });
 
+  const ADMIN_ORDER_SELECT = {
+    id: true,
+    status: true,
+    totalAmount: true,
+    createdAt: true,
+    student: { select: { fullName: true, phone: true } },
+    shop: { select: { name: true } },
+    checkpoint: { select: { name: true } },
+    rider: { select: { fullName: true } },
+  } as const;
+
+  // `limit` (legacy, used by the Dashboard's Recent Orders widget) returns a
+  // flat list capped at 100, no total count needed for a "recent N" view.
+  // Everything else (the Orders page) uses page/pageSize/status.
   fastify.get("/orders", async (request, reply) => {
-    const { limit } = request.query as { limit?: string };
-    const orders = await fastify.prisma.order.findMany({
-      take: limit ? Math.min(Number(limit), 100) : 20,
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        status: true,
-        totalAmount: true,
-        createdAt: true,
-        student: { select: { fullName: true } },
-        shop: { select: { name: true } },
-        checkpoint: { select: { name: true } },
-      },
-    });
-    return reply.send({ orders });
+    const { limit, page, pageSize, status } = request.query as {
+      limit?: string;
+      page?: string;
+      pageSize?: string;
+      status?: string;
+    };
+
+    if (limit) {
+      const orders = await fastify.prisma.order.findMany({
+        take: Math.min(Number(limit), 100),
+        orderBy: { createdAt: "desc" },
+        select: ADMIN_ORDER_SELECT,
+      });
+      return reply.send({ orders });
+    }
+
+    const where = status ? { status: status as never } : undefined;
+    const take = Math.min(Number(pageSize) || 20, 100);
+    const currentPage = Math.max(Number(page) || 1, 1);
+
+    const [orders, total] = await Promise.all([
+      fastify.prisma.order.findMany({
+        where,
+        take,
+        skip: (currentPage - 1) * take,
+        orderBy: { createdAt: "desc" },
+        select: ADMIN_ORDER_SELECT,
+      }),
+      fastify.prisma.order.count({ where }),
+    ]);
+
+    return reply.send({ orders, total, page: currentPage, pageSize: take });
   });
 
   fastify.get("/users", async (request, reply) => {
