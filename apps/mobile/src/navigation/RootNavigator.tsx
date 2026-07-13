@@ -2,6 +2,7 @@ import { View } from "react-native";
 import { AuthNavigator } from "./AuthNavigator";
 import { StudentNavigator } from "./StudentNavigator";
 import { RiderNavigator } from "./RiderNavigator";
+import { ShopNavigator } from "./ShopNavigator";
 import { useAuthStore } from "../store/authStore";
 
 export function RootNavigator() {
@@ -21,6 +22,10 @@ export function RootNavigator() {
     return <RiderNavigator />;
   }
 
-  // Shop/Admin navigators are a follow-up session — see design-import-spec.md.
+  if (profile.role === "shop_owner") {
+    return <ShopNavigator />;
+  }
+
+  // Admin navigator is a follow-up session — see design-import-spec.md.
   return <StudentNavigator />;
 }

@@ -38,22 +38,25 @@ async function main() {
     },
   });
 
+  // Real Supabase Auth user for shop-owner dev/testing (password sign-in, no
+  // SMS needed): phone +233201234567 / WaveShop123!
   const shopOwner = await prisma.profile.upsert({
-    where: { id: "00000000-0000-0000-0000-000000000201" },
+    where: { id: "54b6d4ba-bbdf-4d1b-a17a-6aeecea01633" },
     update: {},
     create: {
-      id: "00000000-0000-0000-0000-000000000201",
+      id: "54b6d4ba-bbdf-4d1b-a17a-6aeecea01633",
       universityId: ashesi.id,
       fullName: "Mama Put Kitchen (Owner)",
       phone: "+233201234567",
       role: "shop_owner",
       isVerified: true,
+      isActive: true,
     },
   });
 
   const shop = await prisma.shop.upsert({
     where: { id: "00000000-0000-0000-0000-000000000301" },
-    update: {},
+    update: { ownerId: shopOwner.id },
     create: {
       id: "00000000-0000-0000-0000-000000000301",
       ownerId: shopOwner.id,

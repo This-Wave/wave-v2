@@ -36,6 +36,18 @@ async function skipLoginForDevAsRider() {
   }
 }
 
+// Same idea, seeded as a "shop_owner" role persona (Mama Put Kitchen) so the
+// shop dashboard/menu flow can be browsed the same way.
+async function skipLoginForDevAsShopOwner() {
+  const { error } = await supabase.auth.signInWithPassword({
+    phone: "+233201234567",
+    password: "WaveShop123!",
+  });
+  if (error) {
+    throw error;
+  }
+}
+
 export function WelcomeScreen({ navigation }: Props) {
   const [devError, setDevError] = useState<string | null>(null);
 
@@ -73,6 +85,12 @@ export function WelcomeScreen({ navigation }: Props) {
               onPress={() => skipLoginForDevAsRider().catch((err) => setDevError(err.message))}
             >
               Skip login (dev) — rider
+            </Text>
+            <Text
+              className="mt-1 text-center text-[12px] font-sans-medium text-muted"
+              onPress={() => skipLoginForDevAsShopOwner().catch((err) => setDevError(err.message))}
+            >
+              Skip login (dev) — shop owner
             </Text>
             {devError ? <Text className="mt-1 text-center text-[11px] text-danger-text">{devError}</Text> : null}
           </>
