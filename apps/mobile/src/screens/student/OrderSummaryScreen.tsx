@@ -2,18 +2,21 @@ import { useMemo, useState } from "react";
 import { SafeAreaView, ScrollView, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { ArrowLeft, Store } from "lucide-react-native";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { IconButton } from "../../components/ui/IconButton";
+import { ScreenHeader } from "../../components/ui/ScreenHeader";
 import { Card } from "../../components/ui/Card";
 import { FeeBreakdownRow } from "../../components/ui/FeeBreakdownRow";
 import { Button } from "../../components/ui/Button";
+import { PinIcon } from "../../components/icons";
 import { useCreateOrder } from "../../lib/orders";
-import { estimateOrderTotal, formatFullDay, formatGhs } from "../../lib/pricing";
-import { DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
+import { estimateOrderTotal, formatFullDay, formatGhs, formatGhsCompact } from "../../lib/pricing";
 
 type Route = RouteProp<StudentStackParamList, "OrderSummary">;
 
+/**
+ * v5 screen 06 "Review order": an elevated summary card, the delivery row, then
+ * the fee ledger with the 26px green total.
+ */
 export function OrderSummaryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
@@ -36,6 +39,7 @@ export function OrderSummaryScreen() {
         deliveryDay: params.isSpecialOrder ? "special" : scheduledDate.getDay() === 0 ? "sunday" : "wednesday",
         scheduledDate: params.scheduledDate,
         isSpecialOrder: params.isSpecialOrder,
+        notes: params.notes,
       });
       navigation.navigate("Payment", { orderId: order.id, totalAmount: Number(order.totalAmount) });
     } catch {
@@ -44,61 +48,47 @@ export function OrderSummaryScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <ScrollView className="flex-1 px-6 pt-1.5" contentContainerStyle={{ paddingBottom: 24 }}>
-        <View className="mb-5 flex-row items-center gap-3">
-          <IconButton icon={ArrowLeft} onPress={() => navigation.goBack()} />
-          <Text className="font-sans-extrabold text-[17px] tracking-tight text-ink">Order Summary</Text>
+    <SafeAreaView className="flex-1 bg-canvas">
+      <ScreenHeader title="Review order" onBack={() => navigation.goBack()} />
+
+      <ScrollView className="flex-1 px-5 pt-5" contentContainerStyle={{ paddingBottom: 24 }}>
+        <Card elevated className="mb-5 p-[18px]">
+          <Text className="mb-1.5 font-sans-semibold text-[12px] uppercase tracking-[0.6px] text-muted">
+            Buying from
+          </Text>
+          <Text className="mb-3.5 font-sans-semibold text-[18px] text-ink">{params.shopName}</Text>
+          <Text className="text-[14px] leading-[22px] text-ink">{params.itemDescription}</Text>
+        </Card>
+
+        <View className="mb-6 flex-row items-center gap-3 rounded-card border border-border bg-surface p-3.5">
+          <PinIcon size={20} />
+          <View className="flex-1">
+            <Text className="font-sans-semibold text-[14px] text-ink">Deliver to {params.checkpointName}</Text>
+            <Text className="text-[12px] text-muted">Included in {formatFullDay(scheduledDate)}&apos;s run</Text>
+          </View>
         </View>
 
-        <Card className="mb-3">
-          <View className="flex-row items-center gap-3">
-            <View className="h-11 w-11 items-center justify-center rounded-well bg-success-bg">
-              <Store size={20} color="#2EA64E" />
-            </View>
-            <View className="flex-1">
-              <Text className="font-sans-bold text-[14px] text-ink">{params.shopName}</Text>
-              <Text className="mt-0.5 text-[11px] text-muted" numberOfLines={2}>
-                {params.itemDescription}
-              </Text>
-            </View>
-          </View>
-          <View className="mt-3 flex-row justify-between border-t border-border pt-3">
-            <Text className="text-[12px] text-muted">Run Day</Text>
-            <Text className="font-sans-semibold text-[12px] text-ink">{formatFullDay(scheduledDate)}</Text>
-          </View>
-          <View className="mt-1.5 flex-row justify-between">
-            <Text className="text-[12px] text-muted">Checkpoint</Text>
-            <Text className="font-sans-semibold text-[12px] text-ink">{params.checkpointName}</Text>
-          </View>
-        </Card>
+        <Text className="mb-3 font-sans-semibold text-[18px] text-ink">Order summary</Text>
+        {params.budget ? <FeeBreakdownRow label="Budget cap" value={`GH₵${params.budget}`} /> : null}
+        <FeeBreakdownRow label="Item cost" value="Charged at pickup" />
+        <FeeBreakdownRow label="Delivery" value={formatGhs(estimate.deliveryFee)} />
+        {estimate.surchargeAmount > 0 ? (
+          <FeeBreakdownRow label="Special order surcharge" value={`+${formatGhs(estimate.surchargeAmount)}`} />
+        ) : null}
+        {estimate.discountAmount > 0 ? (
+          <FeeBreakdownRow label="Loyalty discount" value={`-${formatGhs(estimate.discountAmount)}`} isDiscount />
+        ) : null}
+        <FeeBreakdownRow label="Total" value={formatGhsCompact(estimate.total)} isTotal />
 
-        <Card>
-          <FeeBreakdownRow label="Item cost" value="Charged at pickup" />
-          <FeeBreakdownRow label="Delivery fee" value={formatGhs(estimate.deliveryFee)} />
-          {estimate.surchargeAmount > 0 ? (
-            <FeeBreakdownRow label="Special order surcharge" value={`+${formatGhs(estimate.surchargeAmount)}`} />
-          ) : null}
-          {estimate.discountAmount > 0 ? (
-            <FeeBreakdownRow label="Loyalty discount" value={`-${formatGhs(estimate.discountAmount)}`} isDiscount />
-          ) : null}
-          <FeeBreakdownRow label="Total (est.)" value={formatGhs(estimate.total)} isTotal />
-        </Card>
-
-        <Text className="mt-3 text-center text-[11px] text-muted">
-          Final total is calculated by the server · {DEFAULT_LOYALTY_THRESHOLD} deliveries unlocks a loyalty discount
+        <Text className="mt-4 text-center text-[12px] text-muted">
+          The server recalculates the final total when your order is created.
         </Text>
-
         {error ? <Text className="mt-3 text-center text-[12px] text-danger-text">{error}</Text> : null}
-
-        <View className="mt-6">
-          <Button
-            label={`Proceed to Pay · ${formatGhs(estimate.total)}`}
-            onPress={handleConfirm}
-            loading={createOrder.isPending}
-          />
-        </View>
       </ScrollView>
+
+      <View className="border-t border-border bg-canvas px-5 pb-11 pt-4">
+        <Button label="Confirm & place order" onPress={handleConfirm} loading={createOrder.isPending} />
+      </View>
     </SafeAreaView>
   );
 }

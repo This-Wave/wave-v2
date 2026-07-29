@@ -1,10 +1,10 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Home, Package, Store, User } from "lucide-react-native";
 import { HomeScreen } from "../screens/student/HomeScreen";
 import { OrderHistoryScreen } from "../screens/student/OrderHistoryScreen";
 import { ShopSelectionScreen } from "../screens/student/ShopSelectionScreen";
 import { ProfileScreen } from "../screens/student/ProfileScreen";
 import { createBottomTabBar, type TabConfig } from "../components/ui/BottomTabBar";
+import { BoxIcon, HomeIcon, PinIcon, UserIcon } from "../components/icons";
 
 export type StudentTabParamList = {
   Home: undefined;
@@ -15,11 +15,12 @@ export type StudentTabParamList = {
 
 const Tab = createBottomTabNavigator<StudentTabParamList>();
 
+// v5 tab order and glyphs: home, package, pin, person.
 const TABS: TabConfig[] = [
-  { name: "Home", label: "Home", icon: Home },
-  { name: "Orders", label: "Orders", icon: Package },
-  { name: "Shops", label: "Shops", icon: Store },
-  { name: "Profile", label: "Profile", icon: User },
+  { name: "Home", label: "Home", icon: HomeIcon },
+  { name: "Orders", label: "Orders", icon: BoxIcon },
+  { name: "Shops", label: "Shops", icon: PinIcon },
+  { name: "Profile", label: "Profile", icon: UserIcon },
 ];
 
 const TabBar = createBottomTabBar(TABS);

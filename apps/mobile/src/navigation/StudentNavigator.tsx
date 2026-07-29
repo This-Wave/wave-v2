@@ -5,9 +5,14 @@ import { ShopSelectionScreen } from "../screens/student/ShopSelectionScreen";
 import { DescribeOrderScreen } from "../screens/student/DescribeOrderScreen";
 import { OrderSummaryScreen } from "../screens/student/OrderSummaryScreen";
 import { PaymentScreen } from "../screens/student/PaymentScreen";
+import { PaymentMethodsScreen } from "../screens/student/PaymentMethodsScreen";
+import { AddCardScreen } from "../screens/student/AddCardScreen";
 import { OrderConfirmedScreen } from "../screens/student/OrderConfirmedScreen";
 import { PickupRequestScreen } from "../screens/student/PickupRequestScreen";
 import { OrderTrackingScreen } from "../screens/student/OrderTrackingScreen";
+import { OrderTimelineScreen } from "../screens/student/OrderTimelineScreen";
+import { OrderDetailScreen } from "../screens/student/OrderDetailScreen";
+import { PickupPinScreen } from "../screens/student/PickupPinScreen";
 import { CutoffPassedScreen } from "../screens/student/CutoffPassedScreen";
 import { PaymentFailedScreen } from "../screens/student/PaymentFailedScreen";
 
@@ -23,11 +28,18 @@ export type StudentStackParamList = {
     isSpecialOrder: boolean;
     checkpointId: string;
     checkpointName: string;
+    budget?: string;
+    notes?: string;
   };
   Payment: { orderId: string; totalAmount: number };
+  PaymentMethods: undefined;
+  AddCard: undefined;
   OrderConfirmed: { orderId: string };
   PickupRequest: undefined;
   OrderTracking: { orderId: string };
+  OrderTimeline: { orderId: string };
+  OrderDetail: { orderId: string };
+  PickupPin: { orderId: string };
   CutoffPassed: undefined;
   PaymentFailed: { orderId: string; totalAmount: number };
 };
@@ -42,9 +54,14 @@ export function StudentNavigator() {
       <Stack.Screen name="DescribeOrder" component={DescribeOrderScreen} />
       <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
       <Stack.Screen name="Payment" component={PaymentScreen} />
+      <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
+      <Stack.Screen name="AddCard" component={AddCardScreen} />
       <Stack.Screen name="OrderConfirmed" component={OrderConfirmedScreen} />
       <Stack.Screen name="PickupRequest" component={PickupRequestScreen} />
       <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
+      <Stack.Screen name="OrderTimeline" component={OrderTimelineScreen} />
+      <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+      <Stack.Screen name="PickupPin" component={PickupPinScreen} />
       <Stack.Screen name="CutoffPassed" component={CutoffPassedScreen} />
       <Stack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
     </Stack.Navigator>

@@ -30,7 +30,7 @@ export function IncomingOrderDetailScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-canvas">
       <View className="flex-row items-center gap-3 px-6 pb-3.5 pt-1.5">
         <IconButton icon={ArrowLeft} onPress={() => navigation.goBack()} compact />
         <Text className="flex-1 font-sans-extrabold text-[16px] tracking-tight text-ink">Incoming Order</Text>
@@ -52,15 +52,15 @@ export function IncomingOrderDetailScreen() {
 
         <Card>
           <View className="mb-2.5 flex-row items-center gap-2">
-            <User size={14} color="#555" />
+            <User size={14} color="#6B7D63" />
             <Text className="text-[12px] text-ink">{order?.student?.fullName ?? "Student"}</Text>
           </View>
           <View className="mb-2.5 flex-row items-center gap-2">
-            <MapPin size={14} color="#555" />
+            <MapPin size={14} color="#6B7D63" />
             <Text className="text-[12px] text-ink">{order?.checkpoint?.name ?? "Checkpoint"}</Text>
           </View>
           <View className="flex-row items-center gap-2">
-            <Calendar size={14} color="#555" />
+            <Calendar size={14} color="#6B7D63" />
             <Text className="text-[12px] text-ink capitalize">
               {order?.deliveryDay ?? "—"} run · pickup by rider once accepted
             </Text>

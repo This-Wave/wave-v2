@@ -44,7 +44,7 @@ export function ShopDashboardScreen() {
         </Text>
       </View>
 
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ gap: 14, paddingBottom: 16 }}>
+      <ScrollView className="flex-1 px-4" contentContainerStyle={{ gap: 14, paddingBottom: 128 }}>
         {isLoading ? (
           <View className="flex-row gap-2.5">
             <Skeleton height={80} radius={14} className="flex-1" />

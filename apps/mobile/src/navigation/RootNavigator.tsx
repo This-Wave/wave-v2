@@ -1,8 +1,8 @@
-import { View } from "react-native";
 import { AuthNavigator } from "./AuthNavigator";
 import { StudentNavigator } from "./StudentNavigator";
 import { RiderNavigator } from "./RiderNavigator";
 import { ShopNavigator } from "./ShopNavigator";
+import { SplashScreen } from "../screens/auth/SplashScreen";
 import { useAuthStore } from "../store/authStore";
 
 export function RootNavigator() {
@@ -11,7 +11,7 @@ export function RootNavigator() {
   const isHydrating = useAuthStore((s) => s.isHydrating);
 
   if (isHydrating) {
-    return <View className="flex-1 bg-white" />;
+    return <SplashScreen />;
   }
 
   if (!accessToken || !profile) {
