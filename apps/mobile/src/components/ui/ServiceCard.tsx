@@ -1,29 +1,25 @@
 import { Pressable, Text, View } from "react-native";
-import { ArrowRight, type LucideIcon } from "lucide-react-native";
+import type { ReactNode } from "react";
+import { ChevronRightIcon } from "../icons";
 
 interface ServiceCardProps {
-  icon: LucideIcon;
-  iconBgClass: string;
-  iconColor: string;
+  icon: ReactNode;
   title: string;
   description: string;
   actionLabel: string;
   onPress?: () => void;
 }
 
-export function ServiceCard({ icon: Icon, iconBgClass, iconColor, title, description, actionLabel, onPress }: ServiceCardProps) {
+// v5 card idiom: white, hairline border, 24px radius, 14px icon tile.
+export function ServiceCard({ icon, title, description, actionLabel, onPress }: ServiceCardProps) {
   return (
-    <Pressable onPress={onPress} className="flex-1 rounded-card border border-border bg-surface p-4 active:scale-[0.97]">
-      <View className={`mb-2.5 h-10 w-10 items-center justify-center rounded-well ${iconBgClass}`}>
-        <Icon size={20} color={iconColor} strokeWidth={2} />
-      </View>
-      <Text className="mb-0.5 font-sans-bold text-[14px] text-ink">{title}</Text>
-      <Text className="text-[11px] leading-4 text-muted">{description}</Text>
-      <View className="mt-2.5 flex-row items-center gap-1">
-        <Text className="font-sans-semibold text-[10px]" style={{ color: iconColor }}>
-          {actionLabel}
-        </Text>
-        <ArrowRight size={10} color={iconColor} strokeWidth={2.5} />
+    <Pressable onPress={onPress} className="flex-1 rounded-card border border-border bg-surface p-4">
+      <View className="mb-3 h-[42px] w-[42px] items-center justify-center rounded-tile bg-canvas">{icon}</View>
+      <Text className="mb-1 font-sans-semibold text-[15px] text-ink">{title}</Text>
+      <Text className="text-[12px] leading-[18px] text-muted">{description}</Text>
+      <View className="mt-3 flex-row items-center gap-1.5">
+        <Text className="font-sans-semibold text-[12px] text-wave-500">{actionLabel}</Text>
+        <ChevronRightIcon size={10} />
       </View>
     </Pressable>
   );

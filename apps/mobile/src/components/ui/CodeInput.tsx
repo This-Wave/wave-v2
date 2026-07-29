@@ -9,6 +9,10 @@ interface CodeInputProps {
   onPressCapture?: () => void;
 }
 
+/**
+ * v5 screen 11 cell: 44x58, 18px radius, white with a hairline border; the
+ * "current" cell flips to solid green with a lime numeral.
+ */
 export function CodeInput({
   length = 6,
   value,
@@ -20,32 +24,26 @@ export function CodeInput({
   const cells = Array.from({ length }, (_, i) => value[i] ?? "");
 
   return (
-    <View className="relative flex-row gap-2">
+    <View className="relative flex-row gap-2.5">
       {cells.map((digit, index) => {
         const isActive = editable && index === value.length && state === "default";
-        const isFilled = digit !== "";
 
-        let cellClass = "border-[1.5px] border-border bg-surface-muted";
+        let cellClass = "border border-border bg-surface";
         let textClass = "text-ink";
         if (state === "error") {
-          cellClass = "border-[1.5px] border-danger-text bg-danger-bg";
+          cellClass = "border border-danger-text bg-danger-bg";
           textClass = "text-danger-text";
-        } else if (state === "dark") {
-          cellClass = "bg-dark-cell";
-          textClass = "text-white";
         } else if (isActive) {
-          cellClass = "border-2 border-wave-500 bg-surface-muted";
-        } else if (isFilled) {
-          cellClass = "border-[1.5px] border-wave-500 bg-surface-muted";
+          cellClass = "bg-wave-500";
+          textClass = "text-wave-lime";
         }
 
         return (
           <View
             key={index}
-            className={`h-[54px] flex-1 items-center justify-center rounded-well ${cellClass}`}
-            style={isActive ? { shadowColor: "#2EA64E", shadowOpacity: 0.15, shadowRadius: 3, shadowOffset: { width: 0, height: 0 } } : undefined}
+            className={`h-[58px] flex-1 items-center justify-center rounded-control ${cellClass}`}
           >
-            <Text className={`font-mono-semibold text-[22px] ${textClass}`}>{digit}</Text>
+            <Text className={`font-sans-semibold text-[26px] ${textClass}`}>{digit}</Text>
           </View>
         );
       })}
