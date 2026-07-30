@@ -81,16 +81,16 @@ export default function OrdersPage() {
   const totalPages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
 
   return (
-    <div className="px-8 py-7">
+    <div className="px-10 py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-[22px] font-extrabold tracking-tight text-ink">Orders</h1>
+          <h1 className="text-[26px] font-semibold tracking-tight text-ink">Orders</h1>
           <p className="mt-0.5 text-[13px] text-muted">{total} total</p>
         </div>
         <select
           value={status}
           onChange={(e) => handleStatusChange(e.target.value)}
-          className="rounded-[10px] border border-border bg-surface px-3.5 py-2 text-[12px] font-semibold text-ink outline-none"
+          className="rounded-control border border-border bg-surface px-3.5 py-2 text-[12px] font-semibold text-ink outline-none"
         >
           {STATUS_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -100,10 +100,10 @@ export default function OrdersPage() {
         </select>
       </div>
 
-      <div className="overflow-hidden rounded-[14px] border border-border bg-surface">
+      <div className="overflow-hidden rounded-card border border-border bg-surface">
         <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className="border-b border-border bg-surface-subtle text-[11px] uppercase tracking-wide text-muted">
+            <tr className="border-b border-border bg-canvas text-[11px] uppercase tracking-wide text-muted">
               <th className="px-4 py-3 font-semibold">Student</th>
               <th className="px-4 py-3 font-semibold">Shop</th>
               <th className="px-4 py-3 font-semibold">Checkpoint</th>
@@ -128,7 +128,7 @@ export default function OrdersPage() {
               </tr>
             ) : (
               orders.map((order, i) => (
-                <tr key={order.id} className={i < orders.length - 1 ? "border-b border-surface-muted" : ""}>
+                <tr key={order.id} className={i < orders.length - 1 ? "border-b border-border" : ""}>
                   <td className="px-4 py-3">
                     <div className="font-medium text-ink">{order.student?.fullName ?? "—"}</div>
                     <div className="font-mono text-[11px] text-muted">{order.student?.phone ?? ""}</div>
@@ -138,7 +138,7 @@ export default function OrdersPage() {
                   <td className="px-4 py-3 text-muted">{order.rider?.fullName ?? "—"}</td>
                   <td className="px-4 py-3">
                     <span
-                      className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${STATUS_STYLE[order.status] ?? "bg-surface-muted text-ink"}`}
+                      className={`rounded-pill px-[11px] py-[5px] text-[11px] font-semibold ${STATUS_STYLE[order.status] ?? "bg-surface-muted text-ink"}`}
                     >
                       {order.status.replace(/_/g, " ")}
                     </span>
@@ -163,14 +163,14 @@ export default function OrdersPage() {
             <button
               onClick={() => setPage((p) => Math.max(p - 1, 1))}
               disabled={page <= 1}
-              className="rounded-[8px] border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink disabled:opacity-40"
+              className="rounded-tile border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink disabled:opacity-40"
             >
               Previous
             </button>
             <button
               onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
               disabled={page >= totalPages}
-              className="rounded-[8px] border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink disabled:opacity-40"
+              className="rounded-tile border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink disabled:opacity-40"
             >
               Next
             </button>

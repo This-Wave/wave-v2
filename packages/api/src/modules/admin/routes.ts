@@ -1,5 +1,12 @@
 import type { FastifyInstance } from "fastify";
-import { refundOrderSchema, updateConfigSchema } from "@wave/shared";
+import {
+  adminCreateShopSchema,
+  adminUpdateShopSchema,
+  refundOrderSchema,
+  updateConfigSchema,
+  updateUserRoleSchema,
+  updateUserStatusSchema,
+} from "@wave/shared";
 
 export async function adminRoutes(fastify: FastifyInstance) {
   fastify.addHook("preHandler", fastify.authenticate);
@@ -92,6 +99,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
     return reply.send({ users });
   });
 
+  fastify.get("/config", async (_request, reply) => {
+    const config = await fastify.prisma.platformConfig.findMany({ orderBy: { key: "asc" } });
+    return reply.send({ config });
+  });
+
   fastify.put("/config", async (request, reply) => {
     const parsed = updateConfigSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -117,5 +129,91 @@ export async function adminRoutes(fastify: FastifyInstance) {
       data: { status: "refunded", cancellationReason: parsed.data.reason },
     });
     return reply.send({ order });
+  });
+
+  // --- Users -------------------------------------------------------------
+  // Role reassignment is what promotes a verified student to rider. It is kept
+  // separate from any general profile update so it can never be changed as a
+  // side effect of editing something else.
+  fastify.patch("/users/:id/role", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = updateUserRoleSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    if (id === request.user!.id) {
+      return reply.code(400).send({ error: "You cannot change your own role" });
+    }
+    const user = await fastify.prisma.profile.update({
+      where: { id },
+      data: { role: parsed.data.role },
+    });
+    return reply.send({ user });
+  });
+
+  fastify.patch("/users/:id/status", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = updateUserStatusSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    if (id === request.user!.id) {
+      return reply.code(400).send({ error: "You cannot deactivate your own account" });
+    }
+    const user = await fastify.prisma.profile.update({
+      where: { id },
+      data: { isActive: parsed.data.isActive },
+    });
+    return reply.send({ user });
+  });
+
+  // --- Shops -------------------------------------------------------------
+  // Shop owners manage their own storefront through /v1/shops. These are the
+  // admin-scoped equivalents: create on an owner's behalf, and suspend.
+  fastify.get("/shops", async (_request, reply) => {
+    const shops = await fastify.prisma.shop.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        owner: { select: { id: true, fullName: true, phone: true } },
+        _count: { select: { products: true, orders: true } },
+      },
+    });
+    return reply.send({ shops });
+  });
+
+  fastify.post("/shops", async (request, reply) => {
+    const parsed = adminCreateShopSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    const owner = await fastify.prisma.profile.findUnique({ where: { id: parsed.data.ownerId } });
+    if (!owner) return reply.code(404).send({ error: "Owner not found" });
+    if (owner.role !== "shop_owner") {
+      return reply.code(400).send({ error: "Owner must have the shop_owner role" });
+    }
+    const shop = await fastify.prisma.shop.create({ data: parsed.data });
+    return reply.code(201).send({ shop });
+  });
+
+  fastify.patch("/shops/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = adminUpdateShopSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    const shop = await fastify.prisma.shop.update({ where: { id }, data: parsed.data });
+    return reply.send({ shop });
+  });
+
+  // --- Checkpoints -------------------------------------------------------
+  // Create/update already live on /v1/checkpoints behind requireRole("admin").
+  // This is the cross-university listing the admin table needs, with the order
+  // count that decides whether a checkpoint may be deactivated rather than kept.
+  fastify.get("/checkpoints", async (_request, reply) => {
+    const checkpoints = await fastify.prisma.checkpoint.findMany({
+      orderBy: { name: "asc" },
+      include: { _count: { select: { orders: true } } },
+    });
+    return reply.send({ checkpoints });
   });
 }

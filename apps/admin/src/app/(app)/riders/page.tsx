@@ -60,18 +60,18 @@ export default function RidersPage() {
   }
 
   return (
-    <div className="px-8 py-7">
+    <div className="px-10 py-8">
       <div className="mb-6">
-        <h1 className="text-[22px] font-extrabold tracking-tight text-ink">Rider Verifications</h1>
+        <h1 className="text-[26px] font-semibold tracking-tight text-ink">Rider Verifications</h1>
         <p className="mt-0.5 text-[13px] text-muted">Review submitted IDs and selfies</p>
       </div>
 
-      <div className="mb-5 inline-flex rounded-[10px] border border-border bg-surface p-1">
+      <div className="mb-5 inline-flex rounded-control border border-border bg-surface p-1">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`rounded-[8px] px-4 py-2 text-[12px] font-semibold ${
+            className={`rounded-tile px-4 py-2 text-[12px] font-semibold ${
               tab === t.key ? "bg-ink text-white" : "text-muted"
             }`}
           >
@@ -81,10 +81,10 @@ export default function RidersPage() {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-[14px] border border-border bg-surface">
+      <div className="overflow-hidden rounded-card border border-border bg-surface">
         <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className="border-b border-border bg-surface-subtle text-[11px] uppercase tracking-wide text-muted">
+            <tr className="border-b border-border bg-canvas text-[11px] uppercase tracking-wide text-muted">
               <th className="px-4 py-3 font-semibold">Rider</th>
               <th className="px-4 py-3 font-semibold">Phone</th>
               <th className="px-4 py-3 font-semibold">Submitted</th>
@@ -109,7 +109,7 @@ export default function RidersPage() {
               </tr>
             ) : (
               verifications.map((v, i) => (
-                <tr key={v.id} className={i < verifications.length - 1 ? "border-b border-surface-muted" : ""}>
+                <tr key={v.id} className={i < verifications.length - 1 ? "border-b border-border" : ""}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-wave-500 text-[11px] font-bold text-white">
@@ -127,11 +127,11 @@ export default function RidersPage() {
                         <img
                           src={v.idImageUrl}
                           alt={`${v.rider.fullName}'s ${v.idType.replace("_", " ")}`}
-                          className="h-10 w-14 rounded-[6px] border border-border object-cover"
+                          className="h-10 w-14 rounded-tile border border-border object-cover"
                         />
                       </a>
                     ) : (
-                      <div className="h-10 w-14 rounded-[6px] border border-border bg-surface-muted" title={v.idNumber} />
+                      <div className="h-10 w-14 rounded-tile border border-border bg-surface-muted" title={v.idNumber} />
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -141,16 +141,16 @@ export default function RidersPage() {
                         <img
                           src={v.selfieUrl}
                           alt={`${v.rider.fullName}'s selfie`}
-                          className="h-10 w-10 rounded-[6px] border border-border object-cover"
+                          className="h-10 w-10 rounded-tile border border-border object-cover"
                         />
                       </a>
                     ) : (
-                      <div className="h-10 w-10 rounded-[6px] border border-border bg-surface-muted" />
+                      <div className="h-10 w-10 rounded-tile border border-border bg-surface-muted" />
                     )}
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                      className={`rounded-pill px-[11px] py-[5px] text-[11px] font-semibold ${
                         v.status === "approved"
                           ? "bg-success-bg text-wave-700"
                           : v.status === "rejected"
@@ -167,14 +167,14 @@ export default function RidersPage() {
                         <button
                           onClick={() => handleReview(v.id, "rejected")}
                           disabled={actioning === v.id}
-                          className="rounded-[8px] border border-border bg-surface px-3 py-1.5 text-[11px] font-semibold text-danger-text disabled:opacity-50"
+                          className="rounded-tile border border-border bg-surface px-3 py-1.5 text-[11px] font-semibold text-danger-text disabled:opacity-50"
                         >
                           Reject
                         </button>
                         <button
                           onClick={() => handleReview(v.id, "approved")}
                           disabled={actioning === v.id}
-                          className="rounded-[8px] bg-wave-500 px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50"
+                          className="rounded-tile bg-wave-500 px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50"
                         >
                           Approve
                         </button>
