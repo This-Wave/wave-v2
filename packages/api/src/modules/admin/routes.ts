@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { refundOrderSchema, updateConfigSchema } from "@wave/shared";
+import { endOrderWithRefund } from "../payments/refund";
 
 export async function adminRoutes(fastify: FastifyInstance) {
   fastify.addHook("preHandler", fastify.authenticate);
@@ -105,17 +106,23 @@ export async function adminRoutes(fastify: FastifyInstance) {
     return reply.send({ config });
   });
 
-  // TODO(Phase 3): call Paystack refund API, not just mark the order.
   fastify.post("/refund/:orderId", async (request, reply) => {
     const { orderId } = request.params as { orderId: string };
     const parsed = refundOrderSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
-    const order = await fastify.prisma.order.update({
-      where: { id: orderId },
-      data: { status: "refunded", cancellationReason: parsed.data.reason },
+
+    const result = await endOrderWithRefund({
+      fastify,
+      log: request.log,
+      orderId,
+      reason: parsed.data.reason,
+      actorId: request.user!.id,
+      intent: "refund",
     });
-    return reply.send({ order });
+    if (!result.ok) return reply.code(result.code).send({ error: result.error });
+
+    return reply.send({ order: result.order, refundIssued: result.refundIssued });
   });
 }

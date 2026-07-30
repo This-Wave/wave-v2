@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import axios from "axios";
 import { initiatePaystackPayment, verifyPaystackSignature } from "./paystack";
-import { generateDeliveryPin } from "../orders/pin";
+import { issueDeliveryPin } from "../orders/issuePin";
 
 export async function paymentRoutes(fastify: FastifyInstance) {
   fastify.post("/initiate", { preHandler: fastify.authenticate }, async (request, reply) => {
@@ -54,16 +54,45 @@ export async function paymentRoutes(fastify: FastifyInstance) {
         return reply.send({ received: true });
       }
 
-      const order = await fastify.prisma.order.findUnique({ where: { paystackRef: event.data.reference } });
+      const order = await fastify.prisma.order.findUnique({
+        where: { paystackRef: event.data.reference },
+        include: { student: { select: { phone: true } } },
+      });
       if (!order) return reply.code(404).send({ error: "Order not found for reference" });
 
-      const { hash } = await generateDeliveryPin();
-      await fastify.prisma.order.update({
-        where: { id: order.id },
-        data: { status: "confirmed", paidAt: new Date(), deliveryPinHash: hash },
+      // Paystack retries webhooks until it gets a 2xx. Re-issuing on a retry
+      // would overwrite the hash and silently invalidate the PIN already texted
+      // to the student, so an already-confirmed order is a no-op.
+      if (order.paidAt && order.deliveryPinHash) {
+        return reply.send({ received: true, alreadyProcessed: true });
+      }
+
+      const { smsSent } = await issueDeliveryPin({
+        fastify,
+        log: request.log,
+        phone: order.student.phone,
+        persistHash: (hash) =>
+          fastify.prisma.order
+            .update({
+              where: { id: order.id },
+              data: { status: "confirmed", paidAt: new Date(), deliveryPinHash: hash },
+            })
+            .then(() => undefined),
       });
 
-      // TODO(Phase 3): push PIN to student via Expo Notifications, broadcast to riders via Supabase Realtime.
+      if (!smsSent) {
+        // The order is paid and confirmed either way — do not fail the webhook,
+        // or Paystack will retry and the no-op guard above will strand it. The
+        // student recovers via POST /orders/:id/resend-pin.
+        request.log.error(
+          { orderId: order.id },
+          "Order confirmed but the delivery PIN SMS did not send — student must request a resend",
+        );
+      }
+
+      // TODO(Phase 4): notify the student in-app and broadcast the new order to
+      // riders over a Supabase Realtime broadcast channel (not a table
+      // subscription — orders live in Neon, see ADR-002).
       return reply.send({ received: true });
     },
   );

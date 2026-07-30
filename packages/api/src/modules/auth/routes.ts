@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { createClient } from "@supabase/supabase-js";
 import { Webhook, WebhookVerificationError } from "standardwebhooks";
 import { loginSchema, registerSchema } from "@wave/shared";
-import { sendOtpSms } from "./mnotify";
+import { SmsSendError, sendOtpSms } from "../../lib/sms";
 
 export async function authRoutes(fastify: FastifyInstance) {
   const supabase = createClient(
@@ -131,7 +131,10 @@ export async function authRoutes(fastify: FastifyInstance) {
           otp: payload.sms.otp,
         });
       } catch (err) {
-        request.log.error(err, "mNotify OTP send failed");
+        // Never log the raw axios error — its `config.data` is the SMS body,
+        // which contains the OTP in plaintext. SmsSendError omits it.
+        const detail = err instanceof SmsSendError ? err.message : "unknown SMS failure";
+        request.log.error({ detail }, "mNotify OTP send failed");
         return reply.code(500).send({ error: "Failed to send SMS" });
       }
 
