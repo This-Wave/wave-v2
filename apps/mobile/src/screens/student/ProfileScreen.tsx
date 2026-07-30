@@ -9,7 +9,7 @@ import { ProgressBar } from "../../components/ui/ProgressBar";
 import { ListRow } from "../../components/ui/ListRow";
 import { useAuthStore } from "../../store/authStore";
 import { useMyOrders } from "../../lib/orders";
-import { supabase } from "../../lib/supabase";
+import { signOut } from "../../lib/auth";
 import { DEFAULT_LOYALTY_DISCOUNT_PCT, DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
 
 function initials(name: string): string {
@@ -63,7 +63,7 @@ export function ProfileScreen() {
         </View>
 
         <View className="mt-3 overflow-hidden rounded-well border border-border bg-surface">
-          <ListRow leading={<LogOut size={18} color="#D32F2F" />} title="Log Out" danger onPress={() => supabase.auth.signOut()} />
+          <ListRow leading={<LogOut size={18} color="#D32F2F" />} title="Log Out" danger onPress={() => signOut()} />
         </View>
       </ScrollView>
     </SafeAreaView>

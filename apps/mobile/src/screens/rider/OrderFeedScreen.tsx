@@ -11,6 +11,7 @@ import { Skeleton } from "../../components/ui/Skeleton";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { useAuthStore } from "../../store/authStore";
 import { useAvailableOrders, useSetAvailability } from "../../lib/rider";
+import { useRiderFeedBroadcast } from "../../lib/riderFeed";
 import { formatGhs } from "../../lib/pricing";
 
 export function OrderFeedScreen() {
@@ -19,6 +20,10 @@ export function OrderFeedScreen() {
   const [online, setOnline] = useState(profile?.isActive ?? true);
   const { data: orders, isLoading } = useAvailableOrders();
   const setAvailability = useSetAvailability();
+
+  // Live refresh when a new order is paid for; the poll in `useAvailableOrders`
+  // is the fallback if the socket drops.
+  useRiderFeedBroadcast();
 
   function handleToggle(value: boolean) {
     setOnline(value);
