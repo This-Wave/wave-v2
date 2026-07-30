@@ -2,7 +2,7 @@
   "name": "@wave/mobile",
   "version": "0.1.0",
   "private": true,
-  "description": "Wave student/rider/shop mobile app — React Native (Expo)",
+  "description": "Wave student/rider/shop mobile app \u2014 React Native (Expo)",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -13,8 +13,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@expo-google-fonts/inter": "^0.4.2",
-    "@expo-google-fonts/jetbrains-mono": "^0.4.1",
+    "@expo-google-fonts/geist": "^0.4.2",
     "@expo/metro-runtime": "~3.2.3",
     "@opentelemetry/api": "^1.9.1",
     "@react-native-async-storage/async-storage": "1.23.1",

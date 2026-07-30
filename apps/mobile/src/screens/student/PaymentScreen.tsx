@@ -2,24 +2,30 @@ import { useState } from "react";
 import { Linking, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { ArrowLeft } from "lucide-react-native";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { IconButton } from "../../components/ui/IconButton";
+import { ScreenHeader } from "../../components/ui/ScreenHeader";
 import { PaymentMethodRow } from "../../components/ui/PaymentMethodRow";
 import { Button } from "../../components/ui/Button";
+import { CardIcon, MobileIcon } from "../../components/icons";
+import { colors } from "../../theme/tokens";
 import { useInitiatePayment } from "../../lib/payments";
 import { useAuthStore } from "../../store/authStore";
-import { formatGhs } from "../../lib/pricing";
+import { formatGhs, formatGhsCompact } from "../../lib/pricing";
 
 type Route = RouteProp<StudentStackParamList, "Payment">;
-type Method = "mtn" | "vodafone";
+type Method = "momo" | "card";
 
+/**
+ * Checkout, built on the v5 payment-method rows (screen 15) with the amount
+ * shown in the screen-06 total treatment. Both routes hand off to the same
+ * Paystack checkout — the choice is a hint for which channel to expect.
+ */
 export function PaymentScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
   const profile = useAuthStore((s) => s.profile);
   const initiatePayment = useInitiatePayment();
-  const [method, setMethod] = useState<Method>("mtn");
+  const [method, setMethod] = useState<Method>("momo");
   const [error, setError] = useState<string | null>(null);
 
   async function handlePay() {
@@ -35,45 +41,48 @@ export function PaymentScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <ScrollView className="flex-1 px-6 pt-1.5" contentContainerStyle={{ paddingBottom: 24 }}>
-        <View className="mb-6 flex-row items-center gap-3">
-          <IconButton icon={ArrowLeft} onPress={() => navigation.goBack()} />
-          <Text className="font-sans-extrabold text-[17px] tracking-tight text-ink">Payment</Text>
-        </View>
+    <SafeAreaView className="flex-1 bg-canvas">
+      <ScreenHeader title="Payment" onBack={() => navigation.goBack()} />
 
+      <ScrollView className="flex-1 px-5 pt-5" contentContainerStyle={{ paddingBottom: 24 }}>
         <View className="mb-7 items-center">
-          <Text className="mb-1 text-[12px] font-sans-medium text-muted">Amount Due</Text>
-          <Text className="font-sans-extrabold text-[36px] tracking-tight text-ink">{formatGhs(params.totalAmount)}</Text>
+          <Text className="mb-1.5 font-sans-medium text-[12px] uppercase tracking-[0.6px] text-muted">Amount due</Text>
+          <Text className="font-sans-semibold text-[40px] tracking-tighter text-wave-500">
+            {formatGhsCompact(params.totalAmount)}
+          </Text>
         </View>
 
-        <Text className="mb-2.5 font-sans-semibold text-xs text-text-secondary">Payment Method</Text>
-        <View className="gap-2.5">
+        <Text className="mb-3 font-sans-semibold text-[18px] text-ink">Pay with</Text>
+        <View className="gap-3">
           <PaymentMethodRow
-            label="MTN Mobile Money"
-            logoBgClass="bg-mtn"
-            logoLabel="MTN"
-            selected={method === "mtn"}
-            onPress={() => setMethod("mtn")}
-          >
-            <Text className="text-[12px] text-muted">{profile?.phone}</Text>
-          </PaymentMethodRow>
+            label="Mobile Money"
+            subtitle={profile?.phone ?? "MTN · Telecel · AirtelTigo"}
+            icon={<MobileIcon />}
+            selected={method === "momo"}
+            onPress={() => setMethod("momo")}
+          />
           <PaymentMethodRow
-            label="Vodafone Cash"
-            logoBgClass="bg-vodafone"
-            logoLabel="VOD"
-            selected={method === "vodafone"}
-            onPress={() => setMethod("vodafone")}
+            label="Card"
+            subtitle="Visa or Mastercard"
+            icon={<CardIcon size={18} color={colors.ink} strokeWidth={1.6} />}
+            selected={method === "card"}
+            onPress={() => setMethod("card")}
           />
         </View>
 
-        <Text className="mt-5 text-center text-[11px] text-muted">Payments are secured by Paystack</Text>
+        <Text className="mt-5 text-center text-[12px] text-muted">
+          Payments are secured by Paystack. You&apos;ll finish checkout in your browser.
+        </Text>
         {error ? <Text className="mt-3 text-center text-[12px] text-danger-text">{error}</Text> : null}
-
-        <View className="mt-7">
-          <Button label={`Pay ${formatGhs(params.totalAmount)}`} onPress={handlePay} loading={initiatePayment.isPending} />
-        </View>
       </ScrollView>
+
+      <View className="border-t border-border bg-canvas px-5 pb-11 pt-4">
+        <Button
+          label={`Pay ${formatGhs(params.totalAmount)}`}
+          onPress={handlePay}
+          loading={initiatePayment.isPending}
+        />
+      </View>
     </SafeAreaView>
   );
 }

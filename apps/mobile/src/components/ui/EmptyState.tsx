@@ -4,34 +4,37 @@ import type { LucideIcon } from "lucide-react-native";
 
 type Severity = "neutral" | "error" | "success";
 
+// v5 screens 18/19: 84x84 rounded-24 icon well, 20px title, 14px muted body.
 const SEVERITY_BG: Record<Severity, string> = {
-  neutral: "bg-surface-muted",
+  neutral: "bg-canvas border border-border",
   error: "bg-danger-bg",
-  success: "bg-wave-500",
+  success: "bg-wave-lime",
 };
 
 const SEVERITY_ICON_COLOR: Record<Severity, string> = {
-  neutral: "#9E9E9E",
-  error: "#D32F2F",
-  success: "#fff",
+  neutral: "#6B7D63",
+  error: "#B3453A",
+  success: "#009933",
 };
 
 interface EmptyStateProps {
-  icon: LucideIcon;
+  /** v5 art/icon passed as `art`; `icon` stays for Lucide-based rider/shop screens. */
+  art?: ReactNode;
+  icon?: LucideIcon;
   title: string;
   description: string;
   severity?: Severity;
   children?: ReactNode;
 }
 
-export function EmptyState({ icon: Icon, title, description, severity = "neutral", children }: EmptyStateProps) {
+export function EmptyState({ art, icon: Icon, title, description, severity = "neutral", children }: EmptyStateProps) {
   return (
-    <View className="flex-1 items-center justify-center px-6">
-      <View className={`mb-5 h-16 w-16 items-center justify-center rounded-full ${SEVERITY_BG[severity]}`}>
-        <Icon size={30} color={SEVERITY_ICON_COLOR[severity]} strokeWidth={1.6} />
+    <View className="flex-1 items-center justify-center px-10">
+      <View className={`mb-6 h-[84px] w-[84px] items-center justify-center rounded-card ${SEVERITY_BG[severity]}`}>
+        {art ?? (Icon ? <Icon size={34} color={SEVERITY_ICON_COLOR[severity]} strokeWidth={1.6} /> : null)}
       </View>
-      <Text className="mb-2 text-center font-sans-extrabold text-[21px] text-ink">{title}</Text>
-      <Text className="mb-6 text-center text-[13px] leading-5 text-muted">{description}</Text>
+      <Text className="mb-2.5 text-center font-sans-semibold text-[20px] text-ink">{title}</Text>
+      <Text className="mb-7 text-center text-[14px] leading-[21px] text-muted">{description}</Text>
       {children ? <View className="w-full gap-3">{children}</View> : null}
     </View>
   );

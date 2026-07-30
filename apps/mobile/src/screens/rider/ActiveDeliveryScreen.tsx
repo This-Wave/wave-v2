@@ -40,7 +40,7 @@ export function ActiveDeliveryScreen() {
   const items = order?.itemDescription?.split(/[,\n]/).map((s) => s.trim()).filter(Boolean) ?? [];
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-canvas">
       <View className="px-6 pb-3.5 pt-2">
         <Text className="mb-4 font-sans-extrabold text-[18px] tracking-tight text-ink">Active Delivery</Text>
         <HorizontalStepper steps={steps} />
@@ -52,7 +52,7 @@ export function ActiveDeliveryScreen() {
             <View className="flex-1">
               <Text className="mb-1 font-sans-bold text-[13px] text-ink">{order?.shop?.name ?? "Shop"}</Text>
               <View className="flex-row items-center gap-1">
-                <MapPin size={12} color="#9E9E9E" />
+                <MapPin size={12} color="#6B7D63" />
                 <Text className="text-[11px] text-muted" numberOfLines={1}>
                   {order?.shop?.locationText ?? "Off-campus"}
                 </Text>
@@ -69,7 +69,7 @@ export function ActiveDeliveryScreen() {
           ) : (
             items.map((item, i) => (
               <View key={i} className={`flex-row items-center gap-2 ${i > 0 ? "mt-2" : ""}`}>
-                <CircleDot size={14} color="#2EA64E" />
+                <CircleDot size={14} color="#009933" />
                 <Text className="flex-1 text-[12px] text-ink">{item}</Text>
               </View>
             ))

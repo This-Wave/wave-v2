@@ -32,13 +32,13 @@ export function PinEntryScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-canvas">
       <View className="flex-1 px-6 pt-4">
         <IconButton icon={ArrowLeft} onPress={() => navigation.goBack()} />
 
         <View className="mt-7 items-center">
           <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-success-bg">
-            <ShieldCheck size={30} color="#2EA64E" strokeWidth={1.6} />
+            <ShieldCheck size={30} color="#009933" strokeWidth={1.6} />
           </View>
           <Text className="mb-1.5 font-sans-extrabold text-[20px] tracking-tight text-ink">Confirm Delivery</Text>
           <Text className="mb-7 text-center text-[13px] leading-5 text-muted">

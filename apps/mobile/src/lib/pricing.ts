@@ -64,8 +64,14 @@ export function estimateOrderTotal(input: {
   return { deliveryFee, surchargePct, discountPct, surchargeAmount, discountAmount, total };
 }
 
+// v5 renders currency as `GH\u20B5163.00`; the hero total drops the decimals
+// when the amount is whole (`GH\u20B5163`), matching screens 06 and 13.
 export function formatGhs(amount: number): string {
-  return `GHS ${amount.toFixed(2)}`;
+  return `GH\u20B5${amount.toFixed(2)}`;
+}
+
+export function formatGhsCompact(amount: number): string {
+  return Number.isInteger(amount) ? `GH\u20B5${amount}` : formatGhs(amount);
 }
 
 const DAY_ABBR = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
@@ -78,6 +84,13 @@ export function formatDayChip(date: Date): { dayLabel: string; dateLabel: string
     dayLabel: DAY_ABBR[date.getDay()],
     dateLabel: `${date.getDate()} ${MONTH_ABBR[date.getMonth()]}`,
   };
+}
+
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+// v5 screen 07 day chip: "Thu" above the bare date numeral.
+export function formatDayCell(date: Date): { weekday: string; day: string } {
+  return { weekday: WEEKDAY_SHORT[date.getDay()], day: String(date.getDate()) };
 }
 
 export function formatFullDay(date: Date): string {
