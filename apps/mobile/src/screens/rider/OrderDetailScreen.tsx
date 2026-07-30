@@ -1,16 +1,26 @@
 import { SafeAreaView, ScrollView, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { ArrowLeft, Calendar, MapPin, User } from "lucide-react-native";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
-import { IconButton } from "../../components/ui/IconButton";
-import { Card } from "../../components/ui/Card";
+import { ScreenHeader } from "../../components/ui/ScreenHeader";
 import { Button } from "../../components/ui/Button";
+import { FieldLabel } from "../../components/ui/FieldLabel";
+import { HistoryIcon, PinIcon, UserIcon } from "../../components/icons";
+import { colors, shadowCard } from "../../theme/tokens";
 import { useOrder } from "../../lib/orders";
 import { useAcceptOrder } from "../../lib/rider";
 import { formatGhs } from "../../lib/pricing";
 
 type Route = RouteProp<RiderStackParamList, "OrderDetail">;
+
+function MetaRow({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <View className="flex-row items-center gap-2.5">
+      {icon}
+      <Text className="flex-1 text-[14px] text-ink">{label}</Text>
+    </View>
+  );
+}
 
 export function OrderDetailScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RiderStackParamList>>();
@@ -25,48 +35,47 @@ export function OrderDetailScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-canvas">
-      <View className="flex-row items-center gap-3 px-6 pb-3.5 pt-1.5">
-        <IconButton icon={ArrowLeft} onPress={() => navigation.goBack()} compact />
-        <Text className="flex-1 font-sans-extrabold text-[16px] tracking-tight text-ink">Order Detail</Text>
-      </View>
+      <ScreenHeader title="Order detail" onBack={() => navigation.goBack()} />
 
-      <ScrollView className="flex-1 px-6" contentContainerStyle={{ gap: 12 }}>
-        <Card>
-          <Text className="mb-1 font-sans-bold text-[14px] text-ink">{order?.shop?.name ?? "Shop"}</Text>
-          <Text className="mb-3 text-[11px] text-muted">{order?.shop?.locationText ?? "Off-campus"}</Text>
-          <Text className="mb-1.5 font-sans-semibold text-[11px] uppercase tracking-wider text-muted">Items to buy</Text>
-          <Text className="text-[13px] leading-5 text-ink">{order?.itemDescription ?? "—"}</Text>
-        </Card>
+      <ScrollView className="flex-1" contentContainerStyle={{ padding: 20, gap: 12 }}>
+        <View className="rounded-card border border-border bg-surface p-[18px]" style={shadowCard}>
+          <Text className="font-sans-semibold text-[16px] text-ink">{order?.shop?.name ?? "Shop"}</Text>
+          <Text className="mb-4 mt-0.5 text-[11px] text-muted">
+            {order?.shop?.locationText ?? "Off-campus"}
+          </Text>
+          <FieldLabel>Items to buy</FieldLabel>
+          <Text className="text-[14px] leading-[22px] text-ink">{order?.itemDescription ?? "—"}</Text>
+        </View>
 
-        <Card>
-          <View className="mb-2.5 flex-row items-center gap-2">
-            <User size={14} color="#6B7D63" />
-            <Text className="text-[12px] text-ink">{order?.student?.fullName ?? "Student"}</Text>
-          </View>
-          <View className="mb-2.5 flex-row items-center gap-2">
-            <MapPin size={14} color="#6B7D63" />
-            <Text className="text-[12px] text-ink">{order?.checkpoint?.name ?? "Checkpoint"}</Text>
-          </View>
-          <View className="flex-row items-center gap-2">
-            <Calendar size={14} color="#6B7D63" />
-            <Text className="text-[12px] text-ink capitalize">{order?.deliveryDay ?? "—"} run</Text>
-          </View>
-        </Card>
+        <View className="gap-3.5 rounded-card border border-border bg-surface p-[18px]" style={shadowCard}>
+          <MetaRow
+            icon={<UserIcon size={16} color={colors.muted} strokeWidth={1.7} />}
+            label={order?.student?.fullName ?? "Student"}
+          />
+          <MetaRow
+            icon={<PinIcon size={16} color={colors.muted} strokeWidth={1.7} />}
+            label={order?.checkpoint?.name ?? "Checkpoint"}
+          />
+          <MetaRow
+            icon={<HistoryIcon size={16} color={colors.muted} strokeWidth={1.7} />}
+            label={`${order?.deliveryDay ?? "—"} run`}
+          />
+        </View>
 
-        <View className="rounded-card border border-success-border bg-success-bg p-3.5">
-          <Text className="mb-0.5 text-[11px] text-success-text">Your earnings</Text>
-          <Text className="font-sans-extrabold text-[20px] text-success-text">
+        <View className="rounded-card bg-wave-lime p-[18px]">
+          <Text className="mb-1 font-sans-medium text-[12px] text-wave-500">Your earnings</Text>
+          <Text className="font-sans-semibold text-[32px] leading-[32px] tracking-tight text-wave-500">
             {order ? formatGhs(Number(order.deliveryFee)) : "—"}
           </Text>
         </View>
       </ScrollView>
 
-      <View className="flex-row gap-3 px-6 pb-6 pt-3">
+      <View className="flex-row gap-3 px-5 pb-7 pt-3">
         <View className="flex-1">
           <Button label="Pass" variant="secondary" onPress={() => navigation.goBack()} />
         </View>
         <View className="flex-[2]">
-          <Button label="Accept Order" onPress={handleAccept} loading={acceptOrder.isPending} />
+          <Button label="Accept order" onPress={handleAccept} loading={acceptOrder.isPending} />
         </View>
       </View>
     </SafeAreaView>

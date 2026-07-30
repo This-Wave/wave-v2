@@ -262,3 +262,38 @@ export const SettingsIcon: Icon = ({ size = 18, color = colors.muted, strokeWidt
     />
   </Svg>
 );
+
+export const ShieldIcon: Icon = ({ size = 18, color = colors.muted, strokeWidth = 1.7 }) => (
+  <Svg {...box({ size })} fill="none">
+    <Path
+      d="M12 3l7.5 3v5.5c0 4.6-3.1 8.1-7.5 9.5-4.4-1.4-7.5-4.9-7.5-9.5V6L12 3Z"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+export const ShieldCheckIcon: Icon = ({ size = 18, color = colors.primary, strokeWidth = 1.7 }) => (
+  <Svg {...box({ size })} fill="none">
+    <Path
+      d="M12 3l7.5 3v5.5c0 4.6-3.1 8.1-7.5 9.5-4.4-1.4-7.5-4.9-7.5-9.5V6L12 3Z"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M8.8 12.2l2.2 2.2 4.2-4.4"
+      stroke={color}
+      strokeWidth={strokeWidth + 0.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+export const NavigateIcon: Icon = ({ size = 18, color = colors.ink, strokeWidth = 1.7 }) => (
+  <Svg {...box({ size })} fill="none">
+    <Path d="M3 11l18-8-8 18-2-8-8-2Z" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />
+  </Svg>
+);

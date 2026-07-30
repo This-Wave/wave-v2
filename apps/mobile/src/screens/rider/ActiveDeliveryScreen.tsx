@@ -2,17 +2,18 @@ import { useMemo, useState } from "react";
 import { SafeAreaView, ScrollView, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { CircleDot, MapPin } from "lucide-react-native";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
-import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
+import { FieldLabel } from "../../components/ui/FieldLabel";
 import { HorizontalStepper, type StepState } from "../../components/ui/HorizontalStepper";
+import { NavigateIcon, PinIcon } from "../../components/icons";
+import { colors, shadowCard } from "../../theme/tokens";
 import { useOrder } from "../../lib/orders";
 import { useUpdateOrderStatus } from "../../lib/rider";
 
 type Route = RouteProp<RiderStackParamList, "ActiveDelivery">;
 
-const LABELS = ["Accepted", "At Shop", "En Route", "Delivered"];
+const LABELS = ["Accepted", "At shop", "En route", "Delivered"];
 
 export function ActiveDeliveryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RiderStackParamList>>();
@@ -23,63 +24,84 @@ export function ActiveDeliveryScreen() {
 
   const steps = useMemo(() => {
     const states: StepState[] =
-      step === "at_shop" ? ["done", "active", "upcoming", "upcoming"] : ["done", "done", "active", "upcoming"];
+      step === "at_shop"
+        ? ["done", "active", "upcoming", "upcoming"]
+        : ["done", "done", "active", "upcoming"];
     return LABELS.map((label, i) => ({ label, state: states[i] }));
   }, [step]);
 
   async function handleAdvance() {
     if (step === "at_shop") {
-      await updateStatus.mutateAsync({ orderId: params.orderId, status: "en_route", note: "Picked up from shop" });
+      await updateStatus.mutateAsync({
+        orderId: params.orderId,
+        status: "en_route",
+        note: "Picked up from shop",
+      });
       setStep("en_route");
       return;
     }
-    await updateStatus.mutateAsync({ orderId: params.orderId, status: "at_checkpoint", note: "Arrived at checkpoint" });
+    await updateStatus.mutateAsync({
+      orderId: params.orderId,
+      status: "at_checkpoint",
+      note: "Arrived at checkpoint",
+    });
     navigation.navigate("PinEntry", { orderId: params.orderId });
   }
 
-  const items = order?.itemDescription?.split(/[,\n]/).map((s) => s.trim()).filter(Boolean) ?? [];
+  const items =
+    order?.itemDescription
+      ?.split(/[,\n]/)
+      .map((s) => s.trim())
+      .filter(Boolean) ?? [];
 
   return (
     <SafeAreaView className="flex-1 bg-canvas">
-      <View className="px-6 pb-3.5 pt-2">
-        <Text className="mb-4 font-sans-extrabold text-[18px] tracking-tight text-ink">Active Delivery</Text>
+      <View className="px-5 pb-4 pt-2">
+        <Text className="mb-5 font-sans-semibold text-[18px] tracking-tight text-ink">
+          Active delivery
+        </Text>
         <HorizontalStepper steps={steps} />
       </View>
 
-      <ScrollView className="flex-1 px-6" contentContainerStyle={{ gap: 12 }}>
-        <Card>
-          <View className="mb-2.5 flex-row items-start justify-between">
-            <View className="flex-1">
-              <Text className="mb-1 font-sans-bold text-[13px] text-ink">{order?.shop?.name ?? "Shop"}</Text>
-              <View className="flex-row items-center gap-1">
-                <MapPin size={12} color="#6B7D63" />
-                <Text className="text-[11px] text-muted" numberOfLines={1}>
-                  {order?.shop?.locationText ?? "Off-campus"}
-                </Text>
-              </View>
+      <ScrollView className="flex-1" contentContainerStyle={{ padding: 20, paddingTop: 4, gap: 12 }}>
+        <View className="rounded-card border border-border bg-surface p-[18px]" style={shadowCard}>
+          <View className="mb-4">
+            <Text className="font-sans-semibold text-[15px] text-ink">{order?.shop?.name ?? "Shop"}</Text>
+            <View className="mt-1 flex-row items-center gap-1.5">
+              <PinIcon size={12} color={colors.muted} strokeWidth={1.8} />
+              <Text className="flex-1 text-[11px] text-muted" numberOfLines={1}>
+                {order?.shop?.locationText ?? "Off-campus"}
+              </Text>
             </View>
           </View>
-          <Button label="Navigate" variant="secondary" onPress={() => {}} />
-        </Card>
+          <Button
+            label="Navigate"
+            variant="secondary"
+            icon={<NavigateIcon size={15} color={colors.ink} />}
+            onPress={() => {}}
+          />
+        </View>
 
-        <Card>
-          <Text className="mb-2.5 font-sans-semibold text-[11px] uppercase tracking-wider text-muted">Items</Text>
+        <View className="rounded-card border border-border bg-surface p-[18px]" style={shadowCard}>
+          <FieldLabel>Items</FieldLabel>
           {items.length === 0 ? (
-            <Text className="text-[12px] text-muted">No items listed.</Text>
+            <Text className="text-[13px] text-muted">No items listed.</Text>
           ) : (
             items.map((item, i) => (
-              <View key={i} className={`flex-row items-center gap-2 ${i > 0 ? "mt-2" : ""}`}>
-                <CircleDot size={14} color="#009933" />
-                <Text className="flex-1 text-[12px] text-ink">{item}</Text>
+              <View key={i} className={`flex-row items-center gap-2.5 ${i > 0 ? "mt-3" : ""}`}>
+                <View className="h-[15px] w-[15px] items-center justify-center rounded-full border-[1.7px] border-wave-500">
+                  <View className="h-[5px] w-[5px] rounded-full bg-wave-500" />
+                </View>
+                <Text className="flex-1 text-[14px] text-ink">{item}</Text>
               </View>
             ))
           )}
-        </Card>
+        </View>
       </ScrollView>
 
-      <View className="px-6 pb-6 pt-3">
+      <View className="px-5 pb-7 pt-3">
         <Button
-          label={step === "at_shop" ? "Mark as Collected · En Route" : "Arrived · Confirm Delivery"}
+          label={step === "at_shop" ? "Mark as collected · En route" : "Arrived · Confirm delivery"}
           onPress={handleAdvance}
           loading={updateStatus.isPending}
         />

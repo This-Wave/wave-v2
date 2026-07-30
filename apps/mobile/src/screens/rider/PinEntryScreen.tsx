@@ -2,11 +2,12 @@ import { useState } from "react";
 import { SafeAreaView, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { ArrowLeft, ShieldCheck } from "lucide-react-native";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
 import { IconButton } from "../../components/ui/IconButton";
 import { CodeInput } from "../../components/ui/CodeInput";
 import { Button } from "../../components/ui/Button";
+import { ChevronLeftIcon, ShieldCheckIcon } from "../../components/icons";
+import { colors } from "../../theme/tokens";
 import { useOrder } from "../../lib/orders";
 import { useDeliverOrder } from "../../lib/rider";
 
@@ -33,33 +34,42 @@ export function PinEntryScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-canvas">
-      <View className="flex-1 px-6 pt-4">
-        <IconButton icon={ArrowLeft} onPress={() => navigation.goBack()} />
+      <View className="flex-1 px-5 pt-2">
+        <IconButton onPress={() => navigation.goBack()}>
+          <ChevronLeftIcon />
+        </IconButton>
 
-        <View className="mt-7 items-center">
-          <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-success-bg">
-            <ShieldCheck size={30} color="#009933" strokeWidth={1.6} />
+        <View className="mb-8 mt-9 items-center">
+          <View className="mb-[18px] h-[72px] w-[72px] items-center justify-center rounded-full bg-wave-lime">
+            <ShieldCheckIcon size={32} color={colors.primary} strokeWidth={1.6} />
           </View>
-          <Text className="mb-1.5 font-sans-extrabold text-[20px] tracking-tight text-ink">Confirm Delivery</Text>
-          <Text className="mb-7 text-center text-[13px] leading-5 text-muted">
-            Enter PIN from{" "}
-            <Text className="font-sans-bold text-ink">{order?.student?.fullName ?? "the student"}</Text>
+          <Text className="mb-2.5 font-sans-semibold text-[24px] tracking-tight text-ink">
+            Confirm delivery
+          </Text>
+          <Text className="text-center text-[14px] leading-[22px] text-muted">
+            Enter the PIN from{" "}
+            <Text className="font-sans-semibold text-ink">{order?.student?.fullName ?? "the student"}</Text>
             {"\n"}
             {order?.checkpoint?.name ?? "Checkpoint"}
           </Text>
         </View>
 
         <CodeInput value={pin} onChangeText={setPin} state={error ? "error" : "default"} />
+
         {error ? (
-          <View className="mt-3 rounded-well border border-danger-border bg-danger-bg p-3">
+          <View className="mt-3.5 rounded-control border border-danger-border bg-danger-bg p-3">
             <Text className="text-center text-[12px] text-danger-text">{error}</Text>
           </View>
-        ) : null}
+        ) : (
+          <Text className="mt-3.5 text-center text-[12px] text-muted">
+            The student receives this PIN by SMS when payment succeeds.
+          </Text>
+        )}
 
         <View className="mb-auto" />
-        <View className="pb-6">
+        <View className="pb-7">
           <Button
-            label={error ? "Try Again" : "Confirm Delivery"}
+            label={error ? "Try again" : "Confirm delivery"}
             onPress={handleConfirm}
             loading={deliverOrder.isPending}
             disabled={pin.length < 6}
