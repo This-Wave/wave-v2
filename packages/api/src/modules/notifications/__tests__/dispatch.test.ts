@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
-import { notifyOrderStatus, pushToProfiles } from "../dispatch";
+import { announceNewOrderToRiders, notifyOrderStatus, pushToProfiles } from "../dispatch";
 import { sendExpoPush } from "../expo";
 
 vi.mock("../expo", async () => {
@@ -249,6 +249,83 @@ describe("notifyOrderStatus", () => {
     await expect(
       notifyOrderStatus({ fastify: h.fastify, log: h.log, orderId: "o1", status: "delivered" }),
     ).resolves.toBeUndefined();
+    expect(h.log.error).toHaveBeenCalled();
+  });
+});
+
+type FindManyArgs = { where: Record<string, unknown>; select?: Record<string, boolean> };
+
+describe("announceNewOrderToRiders", () => {
+  /**
+   * Its own harness: the shared one models `where.id.in`, and this query filters
+   * on role/availability/campus instead. Recording the `where` clause is the
+   * point — who gets woken is the whole behaviour.
+   */
+  function riderHarness(
+    riders: { id: string; pushToken: string }[],
+    findManyImpl?: (args: FindManyArgs) => Promise<never>,
+  ) {
+    // Typed parameter so the `where` clause is inspectable in the assertions.
+    const findMany = vi.fn(findManyImpl ?? (async (_args: FindManyArgs) => riders));
+    const fastify = {
+      config: { SUPABASE_URL: "https://x.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "sk" },
+      prisma: { profile: { findMany, updateMany: vi.fn(async () => ({ count: 0 })) } },
+    } as unknown as FastifyInstance;
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() } as unknown as FastifyBaseLogger;
+    return { fastify, log, findMany };
+  }
+
+  const args = (fastify: FastifyInstance, log: FastifyBaseLogger) => ({
+    fastify,
+    log,
+    orderId: "o1",
+    universityId: "uni-1",
+    shopName: "Kofi's Kitchen",
+  });
+
+  test("only wakes verified, online riders at that campus who have a token", async () => {
+    const h = riderHarness([{ id: "rider-1", pushToken: "ExponentPushToken[aaaaaaaaaaaaaaaaaaaaaa]" }]);
+    await announceNewOrderToRiders(args(h.fastify, h.log));
+
+    expect(h.findMany.mock.calls[0]![0]).toMatchObject({
+      where: {
+        role: "rider",
+        isActive: true,
+        isVerified: true,
+        universityId: "uni-1",
+        pushToken: { not: null },
+      },
+    });
+  });
+
+  test("sends one push carrying the order id for the tap target", async () => {
+    // pushToProfiles re-queries for the tokens, so the stub must carry them.
+    const h = riderHarness([
+      { id: "rider-1", pushToken: "ExponentPushToken[aaaaaaaaaaaaaaaaaaaaaa]" },
+      { id: "rider-2", pushToken: "ExponentPushToken[bbbbbbbbbbbbbbbbbbbbbb]" },
+    ]);
+    await announceNewOrderToRiders(args(h.fastify, h.log));
+
+    expect(sendMock).toHaveBeenCalledTimes(1);
+    expect(only()).toMatchObject({
+      title: "New delivery available",
+      data: { type: "new_order", orderId: "o1" },
+    });
+  });
+
+  test("sends nothing when no rider qualifies", async () => {
+    const h = riderHarness([]);
+    await announceNewOrderToRiders(args(h.fastify, h.log));
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+
+  test("swallows a database failure — the webhook must still return 2xx", async () => {
+    // A non-2xx makes Paystack retry into the idempotency guard, which would
+    // strand the order as a no-op.
+    const h = riderHarness([], async (_args: FindManyArgs) => {
+      throw new Error("neon unreachable");
+    });
+    await expect(announceNewOrderToRiders(args(h.fastify, h.log))).resolves.toBeUndefined();
     expect(h.log.error).toHaveBeenCalled();
   });
 });

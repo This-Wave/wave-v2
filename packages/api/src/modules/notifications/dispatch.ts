@@ -231,3 +231,58 @@ export async function notifyOrderStatus(args: {
     );
   }
 }
+
+/**
+ * Tells riders at the order's university that a new order is up for grabs.
+ *
+ * This used to also publish a Supabase Realtime broadcast so an open feed
+ * refreshed instantly. That was removed (2026-08-03): it had never once
+ * succeeded, it was the only thing keeping Wave on Supabase Realtime, and
+ * `useAvailableOrders` already polls. A rider now sees a new order on the next
+ * poll, or immediately if they tap the push.
+ *
+ * Best-effort: a push failure must not fail the webhook that triggered it.
+ */
+export async function announceNewOrderToRiders(args: {
+  fastify: FastifyInstance;
+  log: FastifyBaseLogger;
+  orderId: string;
+  universityId: string;
+  shopName: string;
+}): Promise<void> {
+  const { fastify, log, orderId, universityId, shopName } = args;
+
+  try {
+    // `isActive` is what the rider app's online/offline toggle writes
+    // (PATCH /riders/availability), so going offline really does stop these.
+    // `isVerified` keeps un-approved riders out of the announcements the same
+    // way `GET /orders/available` would refuse them the orders.
+    const riders = await fastify.prisma.profile.findMany({
+      where: {
+        role: "rider",
+        isActive: true,
+        isVerified: true,
+        universityId,
+        pushToken: { not: null },
+      },
+      select: { id: true },
+    });
+    if (riders.length === 0) return;
+
+    await pushToProfiles({
+      fastify,
+      log,
+      profileIds: riders.map((r) => r.id),
+      payload: {
+        title: "New delivery available",
+        body: `An order from ${shopName} is ready to be picked up.`,
+        data: { type: "new_order", orderId },
+      },
+    });
+  } catch (err) {
+    log.error(
+      { err: err instanceof Error ? err.message : "unknown", orderId },
+      "Rider new-order fan-out failed",
+    );
+  }
+}

@@ -2,8 +2,7 @@ import type { FastifyInstance } from "fastify";
 import axios from "axios";
 import { initiatePaystackPayment, verifyPaystackSignature } from "./paystack";
 import { issueDeliveryPin } from "../orders/issuePin";
-import { notifyOrderStatus } from "../notifications/dispatch";
-import { announceNewOrderToRiders } from "../notifications/broadcast";
+import { announceNewOrderToRiders, notifyOrderStatus } from "../notifications/dispatch";
 
 export async function paymentRoutes(fastify: FastifyInstance) {
   fastify.post("/initiate", { preHandler: fastify.authenticate }, async (request, reply) => {
