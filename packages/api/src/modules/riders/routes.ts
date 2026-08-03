@@ -6,8 +6,7 @@ import {
   reviewVerificationSchema,
   uploadVerificationImageSchema,
 } from "@wave/shared";
-
-const VERIFICATION_SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+import { VERIFICATION_BUCKET, ownsVerificationPath, signVerificationImages } from "./images";
 
 export async function riderRoutes(fastify: FastifyInstance) {
   fastify.post(
@@ -18,19 +17,25 @@ export async function riderRoutes(fastify: FastifyInstance) {
       if (!parsed.success) {
         return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
       }
+      const riderId = request.user!.id;
+      const { idImagePath, selfiePath } = parsed.data;
+      if (!ownsVerificationPath(idImagePath, riderId) || !ownsVerificationPath(selfiePath, riderId)) {
+        return reply.code(403).send({ error: "Image paths must be ones you uploaded" });
+      }
       const verification = await fastify.prisma.riderVerification.create({
-        data: { ...parsed.data, riderId: request.user!.id },
+        data: { ...parsed.data, riderId },
       });
-      return reply.code(201).send({ verification });
+      const [signed] = await signVerificationImages(fastify.config, [verification], request.log);
+      return reply.code(201).send({ verification: signed });
     },
   );
 
   // Uploads a rider ID or selfie photo to the private "verifications" Storage
   // bucket using the service-role key (bypasses Storage RLS entirely, so no
-  // client-side Storage policy is needed), then returns a signed URL for the
-  // client to submit via POST /verification. The signed URL expires after
-  // VERIFICATION_SIGNED_URL_TTL_SECONDS — see GOTCHA note in debug.md about
-  // regenerating it for long-term admin review.
+  // client-side Storage policy is needed), then returns the object's *path* for
+  // the client to submit via POST /verification. It deliberately does not return
+  // a signed URL: persisting one is what used to break admin review after 7
+  // days. Read routes sign on demand instead.
   fastify.post(
     "/verification/upload",
     { preHandler: [fastify.authenticate, fastify.requireRole("rider")] },
@@ -46,22 +51,14 @@ export async function riderRoutes(fastify: FastifyInstance) {
 
       const supabase = createClient(fastify.config.SUPABASE_URL, fastify.config.SUPABASE_SERVICE_ROLE_KEY);
       const { error: uploadError } = await supabase.storage
-        .from("verifications")
+        .from(VERIFICATION_BUCKET)
         .upload(path, buffer, { contentType, upsert: true });
       if (uploadError) {
         request.log.error(uploadError, "verification image upload failed");
         return reply.code(502).send({ error: "Upload failed" });
       }
 
-      const { data: signed, error: signError } = await supabase.storage
-        .from("verifications")
-        .createSignedUrl(path, VERIFICATION_SIGNED_URL_TTL_SECONDS);
-      if (signError || !signed) {
-        request.log.error(signError, "failed to sign verification image URL");
-        return reply.code(502).send({ error: "Failed to generate image URL" });
-      }
-
-      return reply.send({ url: signed.signedUrl });
+      return reply.send({ path });
     },
   );
 
@@ -73,7 +70,9 @@ export async function riderRoutes(fastify: FastifyInstance) {
         where: { riderId: request.user!.id },
         orderBy: { createdAt: "desc" },
       });
-      return reply.send({ verification });
+      if (!verification) return reply.send({ verification: null });
+      const [signed] = await signVerificationImages(fastify.config, [verification], request.log);
+      return reply.send({ verification: signed });
     },
   );
 
@@ -116,7 +115,9 @@ export async function riderRoutes(fastify: FastifyInstance) {
         orderBy: { createdAt: "desc" },
         include: { rider: { select: { id: true, fullName: true, phone: true } } },
       });
-      return reply.send({ verifications });
+      return reply.send({
+        verifications: await signVerificationImages(fastify.config, verifications, request.log),
+      });
     },
   );
 
