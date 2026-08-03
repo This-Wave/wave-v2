@@ -42,7 +42,7 @@ export function OrderFeedScreen() {
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ gap: 10, paddingBottom: 16 }}>
+      <ScrollView className="flex-1 px-4" contentContainerStyle={{ gap: 10, paddingBottom: 128 }}>
         <Text className="px-1 text-[12px] text-muted">
           {isLoading ? "Loading orders…" : `${orders?.length ?? 0} orders available near you`}
         </Text>
@@ -65,7 +65,7 @@ export function OrderFeedScreen() {
                 <View className="flex-1">
                   <Text className="font-sans-bold text-[14px] text-ink">{order.shop?.name ?? "Shop"}</Text>
                   <View className="mt-1 flex-row items-center gap-1">
-                    <MapPin size={12} color="#9E9E9E" />
+                    <MapPin size={12} color="#6B7D63" />
                     <Text className="text-[11px] text-muted" numberOfLines={1}>
                       {order.shop?.locationText ?? "Off-campus"} · {order.checkpoint?.name ?? "Checkpoint"}
                     </Text>

@@ -30,7 +30,7 @@ export function RiderProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-surface-muted">
-      <ScrollView className="flex-1 px-6 pt-3" contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView className="flex-1 px-6 pt-3" contentContainerStyle={{ paddingBottom: 128 }}>
         <Card className="mb-3 flex-row items-center gap-3.5 bg-surface">
           <Avatar initials={profile ? initials(profile.fullName) : undefined} size={64} />
           <View>
@@ -47,12 +47,12 @@ export function RiderProfileScreen() {
           <Card className="bg-surface">
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-2">
-                <ShieldCheck size={16} color="#555" />
+                <ShieldCheck size={16} color="#6B7D63" />
                 <Text className="font-sans-bold text-[13px] text-ink">Verification</Text>
               </View>
               <View className="flex-row items-center gap-2">
                 <Badge {...verificationBadge(verification?.status)} />
-                {canSubmit ? <ChevronRight size={16} color="#9E9E9E" /> : null}
+                {canSubmit ? <ChevronRight size={16} color="#6B7D63" /> : null}
               </View>
             </View>
             {canSubmit ? (
@@ -64,7 +64,7 @@ export function RiderProfileScreen() {
         </Pressable>
 
         <View className="overflow-hidden rounded-well border border-border bg-surface">
-          <ListRow leading={<LogOut size={18} color="#D32F2F" />} title="Log Out" danger onPress={() => signOut()} />
+          <ListRow leading={<LogOut size={18} color="#B3453A" />} title="Log Out" danger onPress={() => signOut()} />
         </View>
       </ScrollView>
     </SafeAreaView>

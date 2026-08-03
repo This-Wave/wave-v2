@@ -1,5 +1,5 @@
 import { Text, TextInput, View } from "react-native";
-import { ChevronDown } from "lucide-react-native";
+import { colors } from "../../theme/tokens";
 
 interface PhoneFieldProps {
   value: string;
@@ -7,21 +7,19 @@ interface PhoneFieldProps {
   placeholder?: string;
 }
 
+// Matches the v5 sign-in field (screen 03): one 52px well, the fixed prefix
+// rendered as muted inline text rather than a separate country chip.
 export function PhoneField({ value, onChangeText, placeholder = "54 321 0000" }: PhoneFieldProps) {
   return (
-    <View className="flex-row overflow-hidden rounded-control border-[1.5px] border-wave-500">
-      <View className="flex-row items-center gap-1 border-r-[1.5px] border-border bg-surface-subtle px-3">
-        <Text className="font-sans-bold text-[11px] tracking-wide text-text-secondary">GH</Text>
-        <Text className="font-sans-semibold text-[13px] text-ink">+233</Text>
-        <ChevronDown size={12} color="#9E9E9E" />
-      </View>
+    <View className="h-[52px] flex-row items-center rounded-control border border-border bg-surface px-4">
+      <Text className="font-sans-medium text-[15px] text-muted">+233 </Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#BDBDBD"
+        placeholderTextColor={colors.faint}
         keyboardType="phone-pad"
-        className="flex-1 px-3.5 py-[15px] text-[16px] font-sans-medium text-ink"
+        className="h-[52px] flex-1 font-sans-medium text-[15px] text-ink"
       />
     </View>
   );

@@ -11,11 +11,11 @@ export function ShopSettingsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-surface-muted">
-      <ScrollView className="flex-1 px-6 pt-3" contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView className="flex-1 px-6 pt-3" contentContainerStyle={{ paddingBottom: 128 }}>
         <Card className="mb-3 bg-surface">
           <View className="mb-3 flex-row items-center gap-3">
             <View className="h-12 w-12 items-center justify-center rounded-well bg-surface-muted">
-              <Store size={20} color="#555" />
+              <Store size={20} color="#6B7D63" />
             </View>
             <View className="flex-1">
               <Text className="font-sans-extrabold text-[16px] text-ink">{shop?.name ?? "Your Shop"}</Text>
@@ -24,13 +24,13 @@ export function ShopSettingsScreen() {
           </View>
           {shop?.locationText ? (
             <View className="mb-1.5 flex-row items-center gap-2">
-              <MapPin size={13} color="#9E9E9E" />
+              <MapPin size={13} color="#6B7D63" />
               <Text className="text-[12px] text-muted">{shop.locationText}</Text>
             </View>
           ) : null}
           {shop?.openingTime && shop?.closingTime ? (
             <View className="flex-row items-center gap-2">
-              <Clock size={13} color="#9E9E9E" />
+              <Clock size={13} color="#6B7D63" />
               <Text className="text-[12px] text-muted">
                 {shop.openingTime} – {shop.closingTime}
               </Text>
@@ -48,7 +48,7 @@ export function ShopSettingsScreen() {
         </Card>
 
         <View className="overflow-hidden rounded-well border border-border bg-surface">
-          <ListRow leading={<LogOut size={18} color="#D32F2F" />} title="Log Out" danger onPress={() => signOut()} />
+          <ListRow leading={<LogOut size={18} color="#B3453A" />} title="Log Out" danger onPress={() => signOut()} />
         </View>
       </ScrollView>
     </SafeAreaView>

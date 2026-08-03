@@ -39,7 +39,7 @@ export function MyOrdersScreen() {
         <Text className="font-sans-extrabold text-[20px] tracking-tight text-ink">My Orders</Text>
       </View>
 
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ gap: 12, paddingBottom: 16 }}>
+      <ScrollView className="flex-1 px-4" contentContainerStyle={{ gap: 12, paddingBottom: 128 }}>
         {isLoading ? (
           <>
             <Skeleton height={62} radius={14} />
@@ -59,7 +59,7 @@ export function MyOrdersScreen() {
                       bordered={i < active.length - 1}
                       leading={
                         <View className="h-[34px] w-[34px] items-center justify-center rounded-well bg-surface-muted">
-                          <Store size={15} color="#9E9E9E" />
+                          <Store size={15} color="#6B7D63" />
                         </View>
                       }
                       title={order.shop?.name ?? "Shop"}
@@ -82,7 +82,7 @@ export function MyOrdersScreen() {
                       bordered={i < past.length - 1}
                       leading={
                         <View className="h-[34px] w-[34px] items-center justify-center rounded-well bg-surface-muted">
-                          <Store size={15} color="#9E9E9E" />
+                          <Store size={15} color="#6B7D63" />
                         </View>
                       }
                       title={order.shop?.name ?? "Shop"}

@@ -25,7 +25,7 @@ export function ShopOrdersScreen() {
         <Text className="font-sans-extrabold text-[20px] tracking-tight text-ink">Orders</Text>
       </View>
 
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: 16 }}>
+      <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: 128 }}>
         {isLoading ? (
           <View className="gap-2.5">
             <Skeleton height={62} radius={14} />
@@ -41,7 +41,7 @@ export function ShopOrdersScreen() {
                 bordered={i < orders.length - 1}
                 leading={
                   <View className="h-[34px] w-[34px] items-center justify-center rounded-well bg-surface-muted">
-                    <Store size={15} color="#9E9E9E" />
+                    <Store size={15} color="#6B7D63" />
                   </View>
                 }
                 title={order.student?.fullName ?? "Student"}
