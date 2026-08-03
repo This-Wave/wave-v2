@@ -85,10 +85,10 @@ export function SubmitVerificationScreen() {
 
   if (submitted) {
     return (
-      <SafeAreaView className="flex-1 bg-white">
+      <SafeAreaView className="flex-1 bg-canvas">
         <View className="flex-1 items-center justify-center px-8">
           <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-success-bg">
-            <ShieldCheck size={30} color="#2EA64E" strokeWidth={1.6} />
+            <ShieldCheck size={30} color="#009933" strokeWidth={1.6} />
           </View>
           <Text className="mb-2 text-center font-sans-extrabold text-[20px] text-ink">Submitted for review</Text>
           <Text className="mb-8 text-center text-[13px] leading-5 text-muted">
@@ -101,7 +101,7 @@ export function SubmitVerificationScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-canvas">
       <View className="flex-row items-center gap-3 px-6 pb-3.5 pt-1.5">
         <IconButton icon={ArrowLeft} onPress={() => navigation.goBack()} compact />
         <Text className="flex-1 font-sans-extrabold text-[16px] tracking-tight text-ink">Rider Verification</Text>
@@ -137,7 +137,7 @@ export function SubmitVerificationScreen() {
               <Image source={{ uri: idPhoto.uri }} className="h-full w-full" resizeMode="cover" />
             ) : (
               <>
-                <IdCard size={22} color="#9E9E9E" />
+                <IdCard size={22} color="#6B7D63" />
                 <Text className="mt-1.5 text-[12px] text-muted">Tap to upload a photo of your ID</Text>
               </>
             )}
@@ -154,7 +154,7 @@ export function SubmitVerificationScreen() {
               <Image source={{ uri: selfie.uri }} className="h-full w-full" resizeMode="cover" />
             ) : (
               <>
-                <Camera size={22} color="#9E9E9E" />
+                <Camera size={22} color="#6B7D63" />
                 <Text className="mt-1.5 text-[12px] text-muted">Tap to take a selfie</Text>
               </>
             )}

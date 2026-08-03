@@ -68,7 +68,7 @@ export function EarningsScreen() {
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-6" contentContainerStyle={{ gap: 12, paddingBottom: 16 }}>
+      <ScrollView className="flex-1 px-6" contentContainerStyle={{ gap: 12, paddingBottom: 128 }}>
         {isLoading ? (
           <Skeleton height={110} radius={14} />
         ) : (

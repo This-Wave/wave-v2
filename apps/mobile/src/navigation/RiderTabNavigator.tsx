@@ -1,5 +1,5 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Package, User, Wallet, Zap } from "lucide-react-native";
+import { BoltIcon, BoxIcon, UserIcon, WalletIcon } from "../components/icons";
 import { OrderFeedScreen } from "../screens/rider/OrderFeedScreen";
 import { MyOrdersScreen } from "../screens/rider/MyOrdersScreen";
 import { EarningsScreen } from "../screens/rider/EarningsScreen";
@@ -16,10 +16,10 @@ export type RiderTabParamList = {
 const Tab = createBottomTabNavigator<RiderTabParamList>();
 
 const TABS: TabConfig[] = [
-  { name: "Feed", label: "Feed", icon: Zap },
-  { name: "MyOrders", label: "My Orders", icon: Package },
-  { name: "Earnings", label: "Earnings", icon: Wallet },
-  { name: "Profile", label: "Profile", icon: User },
+  { name: "Feed", label: "Feed", icon: BoltIcon },
+  { name: "MyOrders", label: "My Orders", icon: BoxIcon },
+  { name: "Earnings", label: "Earnings", icon: WalletIcon },
+  { name: "Profile", label: "Profile", icon: UserIcon },
 ];
 
 const TabBar = createBottomTabBar(TABS);

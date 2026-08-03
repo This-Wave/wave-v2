@@ -51,10 +51,10 @@ export default function DashboardPage() {
   }, [accessToken]);
 
   return (
-    <div className="px-8 py-7">
+    <div className="px-10 py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-[22px] font-extrabold tracking-tight text-ink">Platform Overview</h1>
+          <h1 className="text-[26px] font-semibold tracking-tight text-ink">Platform Overview</h1>
           <p className="mt-0.5 text-[13px] text-muted">Today across all Wave activity</p>
         </div>
         <span className="rounded-full bg-success-bg px-3 py-1.5 text-[11px] font-bold text-wave-700">
@@ -74,10 +74,10 @@ export default function DashboardPage() {
       </div>
 
       <h2 className="mb-3 text-[13px] font-bold text-ink">Recent Orders</h2>
-      <div className="overflow-hidden rounded-[14px] border border-border bg-surface">
+      <div className="overflow-hidden rounded-card border border-border bg-surface">
         <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className="border-b border-border bg-surface-subtle text-[11px] uppercase tracking-wide text-muted">
+            <tr className="border-b border-border bg-canvas text-[11px] uppercase tracking-wide text-muted">
               <th className="px-4 py-3 font-semibold">Student</th>
               <th className="px-4 py-3 font-semibold">Shop</th>
               <th className="px-4 py-3 font-semibold">Checkpoint</th>
@@ -100,13 +100,13 @@ export default function DashboardPage() {
               </tr>
             ) : (
               orders.map((order, i) => (
-                <tr key={order.id} className={i < orders.length - 1 ? "border-b border-surface-muted" : ""}>
+                <tr key={order.id} className={i < orders.length - 1 ? "border-b border-border" : ""}>
                   <td className="px-4 py-3 font-medium text-ink">{order.student?.fullName ?? "—"}</td>
                   <td className="px-4 py-3 text-muted">{order.shop?.name ?? "—"}</td>
                   <td className="px-4 py-3 text-muted">{order.checkpoint?.name ?? "—"}</td>
                   <td className="px-4 py-3">
                     <span
-                      className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${STATUS_STYLE[order.status] ?? "bg-surface-muted text-ink"}`}
+                      className={`rounded-pill px-[11px] py-[5px] text-[11px] font-semibold ${STATUS_STYLE[order.status] ?? "bg-surface-muted text-ink"}`}
                     >
                       {order.status.replace(/_/g, " ")}
                     </span>
@@ -127,12 +127,12 @@ export default function DashboardPage() {
 function StatTile({ label, value, attention }: { label: string; value: string; attention?: boolean }) {
   return (
     <div
-      className={`rounded-[14px] border p-4 ${
+      className={`rounded-card border p-4 ${
         attention ? "border-danger-bg bg-danger-bg" : "border-border bg-surface"
       }`}
     >
       <p className={`mb-1.5 text-[11px] ${attention ? "text-danger-text" : "text-muted"}`}>{label}</p>
-      <p className={`text-[24px] font-extrabold tracking-tight ${attention ? "text-danger-text" : "text-ink"}`}>
+      <p className={`text-[24px] font-semibold tracking-tight ${attention ? "text-danger-text" : "text-ink"}`}>
         {value}
       </p>
     </div>
