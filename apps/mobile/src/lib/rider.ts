@@ -10,10 +10,10 @@ export function useAvailableOrders() {
       const { data } = await api.get<{ orders: Order[] }>("/orders/available");
       return data.orders;
     },
-    // A Realtime broadcast (see `useRiderFeedBroadcast`) is what makes a new
-    // order show up instantly. This poll is now only the fallback for a dropped
-    // socket or a failed publish, so it does not need to be aggressive.
-    refetchInterval: 30_000,
+    // Back to 10s now the Realtime broadcast is gone (2026-08-03): this poll is
+    // the only thing that surfaces a new order to an open feed, so it carries
+    // the latency the broadcast used to hide.
+    refetchInterval: 10_000,
   });
 }
 
