@@ -1,5 +1,13 @@
--- Wave — Supabase Auth seed data for local dev.
+-- Superseded by packages/db/scripts/seed-auth.ts — do not add seeding here.
+--
+-- Supabase Auth users cannot be created correctly with SQL: a row inserted
+-- straight into auth.users skips GoTrue's password hashing and identity rows,
+-- so the account exists but can never sign in. The seeder uses the service-role
+-- admin API instead, and pins each user's UUID so it matches the Profile ids
+-- that packages/db/prisma/seed.ts writes into Neon.
+--
+--   npm run db:seed        # Neon: universities, profiles, shops, orders
+--   npm run db:seed:auth   # Supabase: the four dev accounts
+--
 -- Supabase here is Auth + Storage + Realtime ONLY. Application tables
 -- (profiles, orders, shops, ...) live in Neon via packages/db/prisma/schema.prisma.
--- This file seeds nothing yet — placeholder until Supabase project is created
--- and auth.users test accounts are needed for local development.
