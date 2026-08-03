@@ -4,7 +4,7 @@ import { Card } from "../../components/ui/Card";
 import { ToggleSwitch } from "../../components/ui/ToggleSwitch";
 import { ListRow } from "../../components/ui/ListRow";
 import { useMyShop } from "../../lib/shopOwner";
-import { supabase } from "../../lib/supabase";
+import { signOut } from "../../lib/auth";
 
 export function ShopSettingsScreen() {
   const { data: shop } = useMyShop();
@@ -48,7 +48,7 @@ export function ShopSettingsScreen() {
         </Card>
 
         <View className="overflow-hidden rounded-well border border-border bg-surface">
-          <ListRow leading={<LogOut size={18} color="#B3453A" />} title="Log Out" danger onPress={() => supabase.auth.signOut()} />
+          <ListRow leading={<LogOut size={18} color="#B3453A" />} title="Log Out" danger onPress={() => signOut()} />
         </View>
       </ScrollView>
     </SafeAreaView>

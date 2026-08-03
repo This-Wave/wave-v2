@@ -15,6 +15,7 @@ import { orderRoutes } from "./modules/orders/routes";
 import { paymentRoutes } from "./modules/payments/routes";
 import { riderRoutes } from "./modules/riders/routes";
 import { adminRoutes } from "./modules/admin/routes";
+import { notificationRoutes } from "./modules/notifications/routes";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -52,6 +53,7 @@ export function buildApp(): FastifyInstance {
   app.register(paymentRoutes, { prefix: "/v1/payments" });
   app.register(riderRoutes, { prefix: "/v1/riders" });
   app.register(adminRoutes, { prefix: "/v1/admin" });
+  app.register(notificationRoutes, { prefix: "/v1/notifications" });
 
   return app;
 }

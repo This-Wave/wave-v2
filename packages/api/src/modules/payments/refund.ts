@@ -2,6 +2,7 @@ import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import axios from "axios";
 import { refundPaystackPayment } from "./paystack";
 import { clientSafeOrder } from "../orders/select";
+import { notifyOrderStatus } from "../notifications/dispatch";
 
 /**
  * Orders whose refund is mid-flight, so a double-click cannot fire two refunds.
@@ -104,6 +105,12 @@ export async function endOrderWithRefund(
     await fastify.prisma.orderStatusHistory.create({
       data: { orderId, status: nextStatus, changedBy: actorId, note: reason },
     });
+
+    // Notified here rather than at each call site so all three routes that end
+    // an order (student cancel, shop-cancel, admin refund) tell the student the
+    // same thing — and so the copy follows `nextStatus`, which is the only
+    // place that knows whether money actually moved.
+    await notifyOrderStatus({ fastify, log, orderId, status: nextStatus });
 
     return { ok: true, order: updated, refundIssued };
   } finally {

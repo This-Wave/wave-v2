@@ -9,7 +9,7 @@ import { Badge } from "../../components/ui/Badge";
 import { ListRow } from "../../components/ui/ListRow";
 import { useAuthStore } from "../../store/authStore";
 import { useVerificationStatus } from "../../lib/rider";
-import { supabase } from "../../lib/supabase";
+import { signOut } from "../../lib/auth";
 
 function initials(name: string): string {
   return name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
@@ -64,7 +64,7 @@ export function RiderProfileScreen() {
         </Pressable>
 
         <View className="overflow-hidden rounded-well border border-border bg-surface">
-          <ListRow leading={<LogOut size={18} color="#B3453A" />} title="Log Out" danger onPress={() => supabase.auth.signOut()} />
+          <ListRow leading={<LogOut size={18} color="#B3453A" />} title="Log Out" danger onPress={() => signOut()} />
         </View>
       </ScrollView>
     </SafeAreaView>

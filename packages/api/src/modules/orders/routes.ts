@@ -9,6 +9,7 @@ import { verifyDeliveryPin } from "./pin";
 import { issueDeliveryPin } from "./issuePin";
 import { clientSafeOrder } from "./select";
 import { endOrderWithRefund } from "../payments/refund";
+import { notifyOrderStatus } from "../notifications/dispatch";
 
 export async function orderRoutes(fastify: FastifyInstance) {
   // POST /orders — student places a "Buy For Me" order.
@@ -138,6 +139,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
       data: { riderId: request.user!.id, status: "rider_assigned" },
       select: clientSafeOrder,
     });
+    await notifyOrderStatus({ fastify, log: request.log, orderId: id, status: "rider_assigned" });
     return reply.send({ order });
   });
 
@@ -171,6 +173,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
       await fastify.prisma.orderStatusHistory.create({
         data: { orderId: id, status: body.status, changedBy: request.user!.id, note: body.note },
       });
+      await notifyOrderStatus({ fastify, log: request.log, orderId: id, status: body.status });
       return reply.send({ order });
     },
   );
@@ -201,6 +204,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
       update: { totalDeliveries: { increment: 1 } },
     });
 
+    await notifyOrderStatus({ fastify, log: request.log, orderId: id, status: "delivered" });
     return reply.send({ order: updated });
   });
 

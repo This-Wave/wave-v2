@@ -13,6 +13,7 @@ import {
 } from "@expo-google-fonts/geist";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { AuthProvider } from "./src/providers/AuthProvider";
+import { NotificationProvider } from "./src/providers/NotificationProvider";
 import { queryClient } from "./src/lib/queryClient";
 
 SplashScreen.preventAutoHideAsync();
@@ -43,10 +44,12 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <NavigationContainer>
-          <RootNavigator />
-          <StatusBar style="dark" />
-        </NavigationContainer>
+        <NotificationProvider>
+          <NavigationContainer>
+            <RootNavigator />
+            <StatusBar style="dark" />
+          </NavigationContainer>
+        </NotificationProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

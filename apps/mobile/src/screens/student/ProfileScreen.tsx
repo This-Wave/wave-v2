@@ -8,7 +8,7 @@ import { BellIcon, CardIcon, ChevronRightIcon, LogoutIcon, MessageIcon, PinIcon 
 import { colors, shadowCard } from "../../theme/tokens";
 import { useAuthStore } from "../../store/authStore";
 import { useMyOrders } from "../../lib/orders";
-import { supabase } from "../../lib/supabase";
+import { signOut } from "../../lib/auth";
 import { DEFAULT_LOYALTY_DISCOUNT_PCT, DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
 import { initialsOf } from "./orderPresenters";
 import { useState, type ReactNode } from "react";
@@ -122,7 +122,7 @@ export function ProfileScreen() {
         cancelLabel="Stay signed in"
         onConfirm={() => {
           setConfirmLogout(false);
-          supabase.auth.signOut();
+          signOut();
         }}
         onCancel={() => setConfirmLogout(false)}
       />

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import axios from "axios";
 import { initiatePaystackPayment, verifyPaystackSignature } from "./paystack";
 import { issueDeliveryPin } from "../orders/issuePin";
+import { announceNewOrderToRiders, notifyOrderStatus } from "../notifications/dispatch";
 
 export async function paymentRoutes(fastify: FastifyInstance) {
   fastify.post("/initiate", { preHandler: fastify.authenticate }, async (request, reply) => {
@@ -56,7 +57,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
 
       const order = await fastify.prisma.order.findUnique({
         where: { paystackRef: event.data.reference },
-        include: { student: { select: { phone: true } } },
+        include: { student: { select: { phone: true } }, shop: { select: { name: true } } },
       });
       if (!order) return reply.code(404).send({ error: "Order not found for reference" });
 
@@ -90,9 +91,18 @@ export async function paymentRoutes(fastify: FastifyInstance) {
         );
       }
 
-      // TODO(Phase 4): notify the student in-app and broadcast the new order to
-      // riders over a Supabase Realtime broadcast channel (not a table
-      // subscription — orders live in Neon, see ADR-002).
+      // Both are best-effort and never throw, so a push outage cannot stop the
+      // webhook returning 2xx — a non-2xx here makes Paystack retry, and the
+      // idempotency guard above would then strand the retry as a no-op.
+      await notifyOrderStatus({ fastify, log: request.log, orderId: order.id, status: "confirmed" });
+      await announceNewOrderToRiders({
+        fastify,
+        log: request.log,
+        orderId: order.id,
+        universityId: order.universityId,
+        shopName: order.shop?.name ?? "a nearby shop",
+      });
+
       return reply.send({ received: true });
     },
   );

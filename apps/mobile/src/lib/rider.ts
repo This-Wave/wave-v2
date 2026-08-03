@@ -10,7 +10,10 @@ export function useAvailableOrders() {
       const { data } = await api.get<{ orders: Order[] }>("/orders/available");
       return data.orders;
     },
-    refetchInterval: 10000,
+    // Back to 10s now the Realtime broadcast is gone (2026-08-03): this poll is
+    // the only thing that surfaces a new order to an open feed, so it carries
+    // the latency the broadcast used to hide.
+    refetchInterval: 10_000,
   });
 }
 
