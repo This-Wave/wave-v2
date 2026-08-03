@@ -1,11 +1,16 @@
 import { describe, expect, test, vi, beforeEach } from "vitest";
 
-const createSignedUrls = vi.fn();
+// vi.hoisted so the mock factory below (which vitest lifts above the imports)
+// can reference this without a temporal-dead-zone error. The alternative,
+// top-level `await import(...)`, is not valid under this package's CommonJS
+// target and fails `npm run type-check`.
+const { createSignedUrls } = vi.hoisted(() => ({ createSignedUrls: vi.fn() }));
+
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({ storage: { from: () => ({ createSignedUrls }) } }),
 }));
 
-const { ownsVerificationPath, signVerificationImages } = await import("../images");
+import { ownsVerificationPath, signVerificationImages } from "../images";
 
 const config = { SUPABASE_URL: "https://example.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "service-role" };
 const RIDER = "4e45b6f3-0da4-446b-a547-2cf8138028e0";
