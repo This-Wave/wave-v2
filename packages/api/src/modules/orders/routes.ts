@@ -134,11 +134,21 @@ export async function orderRoutes(fastify: FastifyInstance) {
 
   fastify.patch("/:id/accept", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const order = await fastify.prisma.order.update({
-      where: { id, riderId: null, status: "confirmed" },
-      data: { riderId: request.user!.id, status: "rider_assigned" },
-      select: clientSafeOrder,
-    });
+    // The `riderId: null, status: "confirmed"` predicate is the claim lock: two
+    // riders tapping Accept on the same feed entry both reach here, and only one
+    // update can match. The loser matches no row, and Prisma throws P2025 rather
+    // than returning null — so this must be caught, or the second rider gets a
+    // 500 for what is ordinary contention.
+    let order;
+    try {
+      order = await fastify.prisma.order.update({
+        where: { id, riderId: null, status: "confirmed" },
+        data: { riderId: request.user!.id, status: "rider_assigned" },
+        select: clientSafeOrder,
+      });
+    } catch {
+      return reply.code(409).send({ error: "This order has already been accepted by another rider" });
+    }
     await notifyOrderStatus({ fastify, log: request.log, orderId: id, status: "rider_assigned" });
     return reply.send({ order });
   });

@@ -62,6 +62,23 @@ describe("PATCH /:id/accept", () => {
       data: { riderId: "rider-1", status: "rider_assigned" },
     });
   });
+
+  test("losing the race returns 409, not a 500", async () => {
+    // When the claim predicate matches nothing — because another rider got there
+    // first — Prisma throws P2025 rather than returning null. Found against a real
+    // database: the second accept surfaced as a 500. Two riders tapping the same
+    // feed entry is ordinary contention, not a server fault.
+    const prisma = makePrisma();
+    prisma.order.update.mockRejectedValueOnce(
+      Object.assign(new Error("Record to update not found."), { code: "P2025" }),
+    );
+
+    const res = await (await app(prisma, RIDER)).inject({ method: "PATCH", url: "/order-1/accept" });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toMatch(/already been accepted/i);
+    expect(notifyOrderStatus).not.toHaveBeenCalled();
+  });
 });
 
 describe("PATCH /:id/status", () => {
