@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { Wallet } from "lucide-react-native";
-import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import { ListRow } from "../../components/ui/ListRow";
@@ -31,10 +30,12 @@ function isSameWeek(a: Date, b: Date) {
 export function EarningsScreen() {
   const [range, setRange] = useState<RangeKey>("today");
   const { data: earnings, isLoading } = useRiderEarnings();
-  const now = new Date();
-
   const filtered = useMemo(() => {
     if (!earnings) return [];
+    // Read the clock inside the memo: a `now` computed during render is a new
+    // object every pass, so listing it as a dependency would recompute on every
+    // render and omitting it left the dependency list dishonest.
+    const now = new Date();
     return earnings.filter((e) => {
       const created = new Date(e.createdAt);
       if (range === "today") return isSameDay(created, now);

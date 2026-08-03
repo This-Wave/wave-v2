@@ -11,7 +11,7 @@ import { useAuthStore } from "../../store/authStore";
 type Props = NativeStackScreenProps<AuthStackParamList, "ProfileSetup">;
 
 // Uses the v5 onboarding dot rail plus the standard labelled-field stack.
-export function ProfileSetupScreen({}: Props) {
+export function ProfileSetupScreen(_props: Props) {
   const { data: universities } = useUniversities();
   const [fullName, setFullName] = useState("");
   const [studentId, setStudentId] = useState("");
