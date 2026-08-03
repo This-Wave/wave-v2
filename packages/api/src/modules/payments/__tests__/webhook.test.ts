@@ -12,8 +12,7 @@ const { notifyOrderStatus, announceNewOrderToRiders, issueDeliveryPin } = vi.hoi
   issueDeliveryPin: vi.fn(),
 }));
 
-vi.mock("../../notifications/dispatch", () => ({ notifyOrderStatus }));
-vi.mock("../../notifications/broadcast", () => ({ announceNewOrderToRiders }));
+vi.mock("../../notifications/dispatch", () => ({ notifyOrderStatus, announceNewOrderToRiders }));
 vi.mock("../../orders/issuePin", () => ({ issueDeliveryPin }));
 
 import { paymentRoutes } from "../routes";
