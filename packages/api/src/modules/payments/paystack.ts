@@ -3,12 +3,20 @@ import crypto from "node:crypto";
 
 const PAYSTACK_BASE_URL = "https://api.paystack.co";
 
+/** Paystack channel ids. Wave only ever offers these two in Ghana. */
+export type PaystackChannel = "card" | "mobile_money";
+
 export interface InitiatePaymentParams {
   email: string;
   amountGhs: number; // GHS — converted to pesewas before sending (GOTCHA-002)
   reference: string;
   callbackUrl: string;
   metadata?: Record<string, unknown>;
+  /**
+   * Restricts the checkout to the method the student picked, so choosing
+   * "Mobile Money" doesn't land them on a card form. Omitted means offer both.
+   */
+  channels?: PaystackChannel[];
 }
 
 export async function initiatePaystackPayment(secretKey: string, params: InitiatePaymentParams) {
@@ -20,7 +28,7 @@ export async function initiatePaystackPayment(secretKey: string, params: Initiat
       reference: params.reference,
       callback_url: params.callbackUrl,
       metadata: params.metadata,
-      channels: ["card", "mobile_money"],
+      channels: params.channels ?? ["card", "mobile_money"],
     },
     { headers: { Authorization: `Bearer ${secretKey}` } },
   );
