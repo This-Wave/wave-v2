@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { SafeAreaView, Text, View } from "react-native";
-import { Truck } from "lucide-react-native";
-import { Button } from "../../components/ui/Button";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
+import { Button } from "../../components/ui/Button";
+import { ImagePlaceholder } from "../../components/ui/ImagePlaceholder";
 import { supabase } from "../../lib/supabase";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Welcome">;
@@ -48,30 +48,64 @@ async function skipLoginForDevAsShopOwner() {
   }
 }
 
+// v5 screen 02 — three panels behind one pager, driven by the dot rail up top.
+const SLIDES = [
+  {
+    title: "Never miss\na run again",
+    body: "We batch every off-campus order into one scheduled run — book pickup or ask us to buy for you before the cutoff.",
+  },
+  {
+    title: "Tell us what\nyou need",
+    body: "Describe the items and set a budget cap. Your runner buys them, keeps the receipt, and brings the change back.",
+  },
+  {
+    title: "Collect at\nyour checkpoint",
+    body: "Track the run live, then show your six-digit pickup code to the runner when they reach your hall.",
+  },
+];
+
 export function WelcomeScreen({ navigation }: Props) {
   const [devError, setDevError] = useState<string | null>(null);
+  const [index, setIndex] = useState(0);
+  const slide = SLIDES[index];
+  const isLast = index === SLIDES.length - 1;
+
+  function handleContinue() {
+    if (isLast) {
+      navigation.navigate("PhoneEntry");
+      return;
+    }
+    setIndex((i) => i + 1);
+  }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <View className="flex-1 items-center justify-center px-8">
-        <View className="mb-11 flex-row items-center gap-2.5">
-          <Text className="font-sans-extrabold text-[28px] tracking-tight text-ink">wave</Text>
-        </View>
-        <View className="mb-9 h-[150px] w-[180px] items-center justify-center gap-2 rounded-card bg-surface-muted">
-          <Truck size={52} color="#D0D0D0" strokeWidth={1.4} />
-          <Text className="text-[11px] font-sans-medium text-faint">Campus Delivery</Text>
-        </View>
-        <Text className="mb-3 text-center font-sans-extrabold text-[26px] leading-8 tracking-tight text-ink">
-          Campus deliveries,{"\n"}made simple.
-        </Text>
-        <Text className="mb-2 text-center text-[14px] leading-5 text-muted">
-          Order from any shop in Accra · Pick up at a campus checkpoint
-        </Text>
-        <Text className="text-center text-[12px] font-sans-medium text-faint">Piloting at Ashesi University</Text>
+    <SafeAreaView className="flex-1 bg-canvas">
+      <View className="h-16" />
+
+      <View className="mb-7 flex-row justify-center gap-2 px-7">
+        {SLIDES.map((_, i) => (
+          <View key={i} className={`h-2 rounded-full ${i === index ? "w-6 bg-wave-500" : "w-2 bg-border"}`} />
+        ))}
       </View>
-      <View className="gap-2.5 px-6 pb-6">
-        <Button label="Get Started" onPress={() => navigation.navigate("PhoneEntry")} />
-        <Button label="I already have an account" variant="secondary" onPress={() => navigation.navigate("PhoneEntry")} />
+
+      <View className="flex-1 items-center justify-center px-7">
+        <ImagePlaceholder height={290} radius={24} style={{ marginBottom: 32 }} />
+        <Text className="mb-3.5 text-center font-sans-semibold text-[30px] leading-[34px] tracking-tighter text-ink">
+          {slide.title}
+        </Text>
+        <Text className="max-w-[300px] text-center text-[16px] leading-6 text-muted">{slide.body}</Text>
+      </View>
+
+      <View className="gap-3 px-7 pb-11">
+        <Button label={isLast ? "Continue" : "Next"} onPress={handleContinue} />
+        {!isLast ? (
+          <Text
+            className="text-center font-sans-medium text-[13px] text-muted"
+            onPress={() => navigation.navigate("PhoneEntry")}
+          >
+            Skip
+          </Text>
+        ) : null}
         {__DEV__ ? (
           <>
             <Text
@@ -81,18 +115,18 @@ export function WelcomeScreen({ navigation }: Props) {
               Skip login (dev) — student
             </Text>
             <Text
-              className="mt-1 text-center text-[12px] font-sans-medium text-muted"
+              className="text-center text-[12px] font-sans-medium text-muted"
               onPress={() => skipLoginForDevAsRider().catch((err) => setDevError(err.message))}
             >
               Skip login (dev) — rider
             </Text>
             <Text
-              className="mt-1 text-center text-[12px] font-sans-medium text-muted"
+              className="text-center text-[12px] font-sans-medium text-muted"
               onPress={() => skipLoginForDevAsShopOwner().catch((err) => setDevError(err.message))}
             >
               Skip login (dev) — shop owner
             </Text>
-            {devError ? <Text className="mt-1 text-center text-[11px] text-danger-text">{devError}</Text> : null}
+            {devError ? <Text className="text-center text-[11px] text-danger-text">{devError}</Text> : null}
           </>
         ) : null}
       </View>

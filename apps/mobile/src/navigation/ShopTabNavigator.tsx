@@ -1,5 +1,5 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { LayoutDashboard, Package, Settings, Utensils } from "lucide-react-native";
+import { BoxIcon, DashboardIcon, MenuIcon, SettingsIcon } from "../components/icons";
 import { ShopDashboardScreen } from "../screens/shop/ShopDashboardScreen";
 import { ShopOrdersScreen } from "../screens/shop/ShopOrdersScreen";
 import { MenuScreen } from "../screens/shop/MenuScreen";
@@ -16,10 +16,10 @@ export type ShopTabParamList = {
 const Tab = createBottomTabNavigator<ShopTabParamList>();
 
 const TABS: TabConfig[] = [
-  { name: "Dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { name: "Orders", label: "Orders", icon: Package },
-  { name: "Menu", label: "Menu", icon: Utensils },
-  { name: "Settings", label: "Settings", icon: Settings },
+  { name: "Dashboard", label: "Dashboard", icon: DashboardIcon },
+  { name: "Orders", label: "Orders", icon: BoxIcon },
+  { name: "Menu", label: "Menu", icon: MenuIcon },
+  { name: "Settings", label: "Settings", icon: SettingsIcon },
 ];
 
 const TabBar = createBottomTabBar(TABS);

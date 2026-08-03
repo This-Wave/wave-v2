@@ -48,7 +48,7 @@ export function MenuScreen() {
         <SearchBar value={query} onChangeText={setQuery} placeholder="Search menu..." />
       </View>
 
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: 16 }}>
+      <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: 128 }}>
         {isLoading ? (
           <View className="gap-2.5">
             <Skeleton height={62} radius={14} />

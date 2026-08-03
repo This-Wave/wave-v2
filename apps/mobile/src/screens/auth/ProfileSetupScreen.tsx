@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SafeAreaView, Text, View } from "react-native";
+import { SafeAreaView, ScrollView, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
 import { TextField } from "../../components/ui/TextField";
@@ -10,6 +10,7 @@ import { useAuthStore } from "../../store/authStore";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "ProfileSetup">;
 
+// Uses the v5 onboarding dot rail plus the standard labelled-field stack.
 export function ProfileSetupScreen({}: Props) {
   const { data: universities } = useUniversities();
   const [fullName, setFullName] = useState("");
@@ -48,18 +49,26 @@ export function ProfileSetupScreen({}: Props) {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <View className="flex-1 px-6 pt-4">
-        <View className="mb-7 flex-row gap-1.5">
-          <View className="h-[3px] flex-1 rounded-full bg-wave-500" />
-          <View className="h-[3px] flex-1 rounded-full bg-border" />
-        </View>
-        <Text className="mb-1 font-sans-extrabold text-[22px] tracking-tight text-ink">Set up your profile</Text>
-        <Text className="mb-7 text-[13px] text-muted">Step 1 of 2 · Your identity</Text>
+    <SafeAreaView className="flex-1 bg-canvas">
+      <View className="h-14" />
+      <View className="mb-7 flex-row justify-center gap-2">
+        <View className="h-2 w-2 rounded-full bg-border" />
+        <View className="h-2 w-6 rounded-full bg-wave-500" />
+      </View>
 
-        <View className="gap-4">
-          <TextField label="Full Name" value={fullName} onChangeText={setFullName} placeholder="Kwame Mensah" />
-          <TextField label="Student ID" value={studentId} onChangeText={setStudentId} placeholder="AUC/CS/21/0042" mono />
+      <ScrollView className="flex-1 px-7" contentContainerStyle={{ paddingBottom: 24 }}>
+        <Text className="mb-2.5 font-sans-semibold text-[28px] tracking-tight text-ink">Set up your profile</Text>
+        <Text className="mb-8 text-[14px] text-muted">Step 2 of 2 · Your identity</Text>
+
+        <View className="gap-5">
+          <TextField label="Full name" value={fullName} onChangeText={setFullName} placeholder="Kwame Mensah" />
+          <TextField
+            label="Student ID"
+            value={studentId}
+            onChangeText={setStudentId}
+            placeholder="AUC/CS/21/0042"
+            mono
+          />
           <TextField
             label="University"
             value={selectedUniversity?.name ?? "Loading..."}
@@ -68,11 +77,11 @@ export function ProfileSetupScreen({}: Props) {
           />
         </View>
 
-        {error ? <Text className="mt-3 text-[12px] text-danger-text">{error}</Text> : null}
+        {error ? <Text className="mt-4 text-[12px] text-danger-text">{error}</Text> : null}
+      </ScrollView>
 
-        <View className="mt-auto pb-6">
-          <Button label="Continue" onPress={handleContinue} loading={loading} disabled={fullName.trim().length < 2} />
-        </View>
+      <View className="border-t border-border px-5 pb-11 pt-4">
+        <Button label="Continue" onPress={handleContinue} loading={loading} disabled={fullName.trim().length < 2} />
       </View>
     </SafeAreaView>
   );
