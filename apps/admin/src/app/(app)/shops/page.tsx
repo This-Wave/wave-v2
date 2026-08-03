@@ -7,6 +7,7 @@ import { PageHeader } from "../../../components/ui/PageHeader";
 import { DataTable, type Column } from "../../../components/ui/DataTable";
 import { StatusPill } from "../../../components/ui/StatusPill";
 import { Button, RowAction } from "../../../components/ui/Button";
+import { CreateShopModal } from "../../../components/CreateShopModal";
 
 interface Shop {
   id: string;
@@ -22,6 +23,7 @@ export default function ShopsPage() {
   const { accessToken } = useAdminAuth();
   const [shops, setShops] = useState<Shop[] | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const load = useCallback(() => {
     if (!accessToken) return;
@@ -108,8 +110,17 @@ export default function ShopsPage() {
       <PageHeader
         title="Shops"
         subtitle="Directory and moderation"
-        action={<Button label="Add shop" />}
+        action={<Button label="Add shop" onClick={() => setCreating(true)} />}
       />
+
+      <CreateShopModal
+        open={creating}
+        accessToken={accessToken}
+        onClose={() => setCreating(false)}
+        onCreated={load}
+        existingCategories={[...new Set((shops ?? []).map((s) => s.category).filter(Boolean))].sort()}
+      />
+
       <DataTable columns={columns} rows={shops} rowKey={(s) => s.id} emptyMessage="No shops yet." />
     </div>
   );
