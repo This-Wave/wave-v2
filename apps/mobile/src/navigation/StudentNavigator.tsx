@@ -6,7 +6,7 @@ import { DescribeOrderScreen } from "../screens/student/DescribeOrderScreen";
 import { OrderSummaryScreen } from "../screens/student/OrderSummaryScreen";
 import { PaymentScreen } from "../screens/student/PaymentScreen";
 import { PaymentMethodsScreen } from "../screens/student/PaymentMethodsScreen";
-import { AddCardScreen } from "../screens/student/AddCardScreen";
+import { CheckpointsScreen } from "../screens/student/CheckpointsScreen";
 import { OrderConfirmedScreen } from "../screens/student/OrderConfirmedScreen";
 import { PickupRequestScreen } from "../screens/student/PickupRequestScreen";
 import { OrderTrackingScreen } from "../screens/student/OrderTrackingScreen";
@@ -33,7 +33,7 @@ export type StudentStackParamList = {
   };
   Payment: { orderId: string; totalAmount: number };
   PaymentMethods: undefined;
-  AddCard: undefined;
+  Checkpoints: undefined;
   OrderConfirmed: { orderId: string };
   PickupRequest: undefined;
   OrderTracking: { orderId: string };
@@ -55,7 +55,7 @@ export function StudentNavigator() {
       <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
       <Stack.Screen name="Payment" component={PaymentScreen} />
       <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
-      <Stack.Screen name="AddCard" component={AddCardScreen} />
+      <Stack.Screen name="Checkpoints" component={CheckpointsScreen} />
       <Stack.Screen name="OrderConfirmed" component={OrderConfirmedScreen} />
       <Stack.Screen name="PickupRequest" component={PickupRequestScreen} />
       <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />

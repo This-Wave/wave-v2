@@ -4,7 +4,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import { Avatar } from "../../components/ui/Avatar";
 import { Dialog } from "../../components/ui/Dialog";
-import { BellIcon, CardIcon, ChevronRightIcon, LogoutIcon, MessageIcon, PinIcon } from "../../components/icons";
+import { CardIcon, ChevronRightIcon, LogoutIcon, PinIcon } from "../../components/icons";
 import { colors, shadowCard } from "../../theme/tokens";
 import { useAuthStore } from "../../store/authStore";
 import { useMyOrders } from "../../lib/orders";
@@ -107,9 +107,16 @@ export function ProfileScreen() {
           <ProfileRow
             icon={<PinIcon size={18} color={colors.ink} strokeWidth={1.6} />}
             label="Delivery checkpoints"
+            onPress={() => navigation.navigate("Checkpoints")}
           />
-          <ProfileRow icon={<BellIcon size={18} />} label="Notifications" />
-          <ProfileRow icon={<MessageIcon size={18} />} label="Help & support" />
+          {/*
+            "Notifications" and "Help & support" rows were removed rather than
+            wired. Notifications had no settings to change — nothing in the schema
+            stores a per-student preference. Help & support had no destination:
+            Wave has no support number, email or hours, and inventing one would
+            send a stranded student somewhere that does not answer. Both should
+            come back when there is something real behind them.
+          */}
           <ProfileRow icon={<LogoutIcon size={18} />} label="Log out" muted onPress={() => setConfirmLogout(true)} />
         </View>
       </ScrollView>

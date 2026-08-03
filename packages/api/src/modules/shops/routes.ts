@@ -40,7 +40,16 @@ export async function shopRoutes(fastify: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
-    const shop = await fastify.prisma.shop.update({ where: { id, ownerId: request.user!.id }, data: parsed.data });
+    // Scoped to the caller's own shop. A non-owner matches no row, and Prisma
+    // throws P2025 rather than returning null — without this catch that surfaces
+    // as a 500 for what is really "not yours". 404 rather than 403 so the route
+    // cannot be used to discover which shop ids exist.
+    let shop;
+    try {
+      shop = await fastify.prisma.shop.update({ where: { id, ownerId: request.user!.id }, data: parsed.data });
+    } catch {
+      return reply.code(404).send({ error: "Shop not found" });
+    }
     return reply.send({ shop });
   });
 }

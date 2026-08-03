@@ -13,6 +13,33 @@ export function useMyShop() {
   });
 }
 
+/**
+ * Pause or resume the storefront. Optimistic: the toggle should move under the
+ * owner's thumb, not after a round trip — but it rolls back and refetches if the
+ * request fails, so the switch can never sit in a state the server disagrees with.
+ */
+export function useSetShopServing(shopId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (isActive: boolean) => {
+      const { data } = await api.put<{ shop: Shop }>(`/shops/${shopId}`, { isActive });
+      return data.shop;
+    },
+    onMutate: async (isActive) => {
+      await queryClient.cancelQueries({ queryKey: ["shops", "my"] });
+      const previous = queryClient.getQueryData<Shop | null>(["shops", "my"]);
+      queryClient.setQueryData<Shop | null>(["shops", "my"], (s) => (s ? { ...s, isActive } : s));
+      return { previous };
+    },
+    onError: (_err, _isActive, context) => {
+      queryClient.setQueryData(["shops", "my"], context?.previous);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["shops", "my"] });
+    },
+  });
+}
+
 export function useShopOrders() {
   return useQuery({
     queryKey: ["orders", "shop"],
