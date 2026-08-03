@@ -15,6 +15,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font -- the rule
+            tells you to move this to pages/_document.js, which does not exist
+            in the App Router; a <head> in the root layout is already the
+            every-page equivalent it is asking for. */}
         <link
           href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap"
           rel="stylesheet"
