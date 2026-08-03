@@ -59,3 +59,6 @@ Thumbs.db
 *.md
 !README.md
 devlogs/
+
+# Compiled workspace output (packages/*/dist) — built at deploy time
+packages/*/dist/
