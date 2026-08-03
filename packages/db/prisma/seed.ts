@@ -167,8 +167,11 @@ async function main() {
       riderId: rider.id,
       idType: "ghana_card",
       idNumber: "GHA-000000000-0",
-      idImageUrl: "https://placehold.co/600x400?text=Ghana+Card",
-      selfieUrl: "https://placehold.co/600x600?text=Selfie",
+      // Absolute URLs rather than bucket paths: nothing has been uploaded to
+      // Storage for the seeded rider, and the read path passes legacy absolute
+      // URLs through unsigned, so these still render in admin review.
+      idImagePath: "https://placehold.co/600x400?text=Ghana+Card",
+      selfiePath: "https://placehold.co/600x600?text=Selfie",
       status: "approved",
       reviewedAt: new Date(),
     },

@@ -69,11 +69,11 @@ export function SubmitVerificationScreen() {
     if (!idPhoto || !selfie || !idNumber.trim()) return;
     setError(null);
     try {
-      const [idImageUrl, selfieUrl] = await Promise.all([
+      const [idImagePath, selfiePath] = await Promise.all([
         uploadImage.mutateAsync({ kind: "id", base64: idPhoto.base64, contentType: contentTypeFor(idPhoto.uri) }),
         uploadImage.mutateAsync({ kind: "selfie", base64: selfie.base64, contentType: contentTypeFor(selfie.uri) }),
       ]);
-      await submitVerification.mutateAsync({ idType, idNumber: idNumber.trim(), idImageUrl, selfieUrl });
+      await submitVerification.mutateAsync({ idType, idNumber: idNumber.trim(), idImagePath, selfiePath });
       setSubmitted(true);
     } catch {
       setError("Something went wrong submitting your verification. Please try again.");

@@ -124,12 +124,14 @@ export function useUploadVerificationImage() {
       base64: string;
       contentType: "image/jpeg" | "image/png" | "image/webp";
     }) => {
-      const { data } = await api.post<{ url: string }>("/riders/verification/upload", {
+      // Returns the object's Storage path, which is what POST /verification
+      // stores. Signed URLs are minted per read, never persisted.
+      const { data } = await api.post<{ path: string }>("/riders/verification/upload", {
         kind,
         imageBase64: base64,
         contentType,
       });
-      return data.url;
+      return data.path;
     },
   });
 }

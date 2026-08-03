@@ -10,8 +10,9 @@ interface Verification {
   id: string;
   idType: string;
   idNumber: string;
-  idImageUrl: string;
-  selfieUrl: string;
+  // Signed per request by the API; null when the object could not be signed.
+  idImageUrl: string | null;
+  selfieUrl: string | null;
   status: VerificationStatus;
   createdAt: string;
   rider: { id: string; fullName: string; phone: string };

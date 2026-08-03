@@ -125,8 +125,10 @@ export interface RiderVerification {
   riderId: string;
   idType: "ghana_card" | "student_id" | "passport";
   idNumber: string;
-  idImageUrl: string;
-  selfieUrl: string;
+  // Signed fresh on every read and null if signing failed — the DB stores the
+  // Storage path, not these URLs.
+  idImageUrl: string | null;
+  selfieUrl: string | null;
   status: VerificationStatus;
   rejectionReason: string | null;
   reviewedBy: string | null;

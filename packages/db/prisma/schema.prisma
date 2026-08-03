@@ -232,8 +232,11 @@ model RiderVerification {
   riderId          String              @map("rider_id")
   idType           RiderIdType         @map("id_type")
   idNumber         String              @map("id_number")
-  idImageUrl       String              @map("id_image_url")
-  selfieUrl        String              @map("selfie_url")
+  // Storage paths inside the private "verifications" bucket, never URLs. A
+  // signed URL expires, so persisting one meant admin review broke a week
+  // after submission; the API signs these fresh on every read instead.
+  idImagePath      String              @map("id_image_path")
+  selfiePath       String              @map("selfie_path")
   status           VerificationStatus  @default(pending)
   reviewedBy       String?             @map("reviewed_by")
   rejectionReason  String?             @map("rejection_reason")
