@@ -27,6 +27,47 @@ export async function initiatePaystackPayment(secretKey: string, params: Initiat
   return response.data.data as { authorization_url: string; access_code: string; reference: string };
 }
 
+export interface RefundParams {
+  /** The `reference` the charge was initiated with (Order.paystackRef). */
+  reference: string;
+  /** Omit for a full refund. Partial amounts are in GHS and converted to pesewas. */
+  amountGhs?: number;
+  note?: string;
+}
+
+export interface PaystackRefund {
+  id: number;
+  /** Paystack's own refund state: "pending" | "processing" | "processed" | "failed". */
+  status: string;
+  amount: number; // pesewas
+  currency: string;
+}
+
+/**
+ * Refunds a charge. Paystack accepts the original transaction reference in the
+ * `transaction` field, so no separate transaction id lookup is needed.
+ *
+ * A refund is queued, not instant — a successful call means Paystack accepted
+ * it, and MoMo reversals in particular settle asynchronously. Throws on any
+ * non-2xx, including Paystack's own "transaction has been fully refunded"
+ * rejection, which is the backstop against a double refund.
+ */
+export async function refundPaystackPayment(
+  secretKey: string,
+  params: RefundParams,
+): Promise<PaystackRefund> {
+  const response = await axios.post(
+    `${PAYSTACK_BASE_URL}/refund`,
+    {
+      transaction: params.reference,
+      ...(params.amountGhs !== undefined ? { amount: Math.round(params.amountGhs * 100) } : {}),
+      merchant_note: params.note,
+    },
+    { headers: { Authorization: `Bearer ${secretKey}` } },
+  );
+  return response.data.data as PaystackRefund;
+}
+
 export function verifyPaystackSignature(secretKey: string, rawBody: string, signature: string): boolean {
   const hash = crypto.createHmac("sha512", secretKey).update(rawBody).digest("hex");
   return hash === signature;

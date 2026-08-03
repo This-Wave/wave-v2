@@ -5,38 +5,10 @@ import {
   deliverOrderSchema,
 } from "@wave/shared";
 import { calculateDiscount, calculateOrderTotal, isStandardDeliveryDay } from "./discount";
-import { generateDeliveryPin, verifyDeliveryPin } from "./pin";
-
-// Order fields that are safe to return to clients — delivery_pin_hash is
-// NEVER selected here (see GOTCHA-003 in debug.md).
-const clientSafeOrder = {
-  id: true,
-  studentId: true,
-  riderId: true,
-  shopId: true,
-  checkpointId: true,
-  universityId: true,
-  itemDescription: true,
-  productId: true,
-  itemPrice: true,
-  deliveryFee: true,
-  discountApplied: true,
-  surchargeApplied: true,
-  totalAmount: true,
-  deliveryDay: true,
-  scheduledDate: true,
-  isSpecialOrder: true,
-  status: true,
-  paidAt: true,
-  deliveredAt: true,
-  notes: true,
-  createdAt: true,
-  updatedAt: true,
-  shop: { select: { id: true, name: true, locationText: true, category: true, logoUrl: true } },
-  checkpoint: { select: { id: true, name: true, description: true } },
-  student: { select: { id: true, fullName: true, phone: true, studentId: true } },
-  rider: { select: { id: true, fullName: true, phone: true } },
-} as const;
+import { verifyDeliveryPin } from "./pin";
+import { issueDeliveryPin } from "./issuePin";
+import { clientSafeOrder } from "./select";
+import { endOrderWithRefund } from "../payments/refund";
 
 export async function orderRoutes(fastify: FastifyInstance) {
   // POST /orders — student places a "Buy For Me" order.
@@ -232,20 +204,102 @@ export async function orderRoutes(fastify: FastifyInstance) {
     return reply.send({ order: updated });
   });
 
-  fastify.patch("/:id/cancel", { preHandler: fastify.authenticate }, async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const parsed = cancelOrderSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
-    }
-    const order = await fastify.prisma.order.update({
-      where: { id },
-      data: { status: "cancelled", cancellationReason: parsed.data.reason },
-      select: clientSafeOrder,
-    });
-    // TODO(Phase 3): trigger Paystack refund.
-    return reply.send({ order });
-  });
+  // The window in which a student may cancel their own order. Once a rider is
+  // en route the order is physically in motion, so cancellation (and with it a
+  // self-served refund) has to go through an admin instead.
+  const STUDENT_CANCELLABLE_STATUSES = [
+    "pending",
+    "payment_pending",
+    "confirmed",
+    "rider_assigned",
+  ] as const;
+
+  fastify.patch(
+    "/:id/cancel",
+    { preHandler: [fastify.authenticate, fastify.requireRole("student")] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const parsed = cancelOrderSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+      }
+
+      const order = await fastify.prisma.order.findUnique({
+        where: { id },
+        select: { studentId: true, status: true },
+      });
+      if (!order || order.studentId !== request.user!.id) {
+        return reply.code(404).send({ error: "Order not found" });
+      }
+      if (!STUDENT_CANCELLABLE_STATUSES.includes(order.status as never)) {
+        return reply.code(409).send({
+          error: `An order that is ${order.status} can no longer be cancelled here — contact support`,
+        });
+      }
+
+      const result = await endOrderWithRefund({
+        fastify,
+        log: request.log,
+        orderId: id,
+        reason: parsed.data.reason,
+        actorId: request.user!.id,
+        intent: "cancel",
+      });
+      if (!result.ok) return reply.code(result.code).send({ error: result.error });
+
+      return reply.send({ order: result.order, refundIssued: result.refundIssued });
+    },
+  );
+
+  // Re-issues a delivery PIN and texts it again. Needed because the plaintext
+  // PIN is never stored — if the confirmation SMS failed or was lost, there is
+  // nothing to re-read, only something to re-issue.
+  const PIN_RESEND_COOLDOWN_MS = 60_000;
+  const lastPinResend = new Map<string, number>();
+
+  fastify.post(
+    "/:id/resend-pin",
+    { preHandler: [fastify.authenticate, fastify.requireRole("student")] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+
+      const order = await fastify.prisma.order.findUnique({
+        where: { id },
+        select: { id: true, studentId: true, status: true, student: { select: { phone: true } } },
+      });
+      if (!order || order.studentId !== request.user!.id) {
+        return reply.code(404).send({ error: "Order not found" });
+      }
+      if (!["confirmed", "rider_assigned", "en_route", "at_checkpoint"].includes(order.status)) {
+        return reply.code(409).send({ error: "This order has no active delivery PIN" });
+      }
+
+      // Each send costs money, so throttle. Per-process, which is enough at
+      // pilot scale on a single Railway instance.
+      const since = Date.now() - (lastPinResend.get(order.id) ?? 0);
+      if (since < PIN_RESEND_COOLDOWN_MS) {
+        return reply.code(429).send({
+          error: `Please wait ${Math.ceil((PIN_RESEND_COOLDOWN_MS - since) / 1000)}s before requesting another PIN`,
+        });
+      }
+      lastPinResend.set(order.id, Date.now());
+
+      const { smsSent } = await issueDeliveryPin({
+        fastify,
+        log: request.log,
+        phone: order.student.phone,
+        persistHash: (hash) =>
+          fastify.prisma.order
+            .update({ where: { id: order.id }, data: { deliveryPinHash: hash } })
+            .then(() => undefined),
+      });
+
+      if (!smsSent) {
+        return reply.code(502).send({ error: "Could not send the PIN by SMS. Please try again." });
+      }
+      return reply.send({ sent: true });
+    },
+  );
 
   fastify.patch("/:id/shop-accept", { preHandler: [fastify.authenticate, fastify.requireRole("shop_owner")] }, async (request, reply) => {
     const { id } = request.params as { id: string };
@@ -257,19 +311,34 @@ export async function orderRoutes(fastify: FastifyInstance) {
     return reply.send({ order });
   });
 
+  // The shop rejecting a paid order refunds it. IncomingOrderDetailScreen
+  // already promises the student "you will be fully refunded automatically",
+  // which until now was not true.
   fastify.patch("/:id/shop-cancel", { preHandler: [fastify.authenticate, fastify.requireRole("shop_owner")] }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const parsed = cancelOrderSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
-    const order = await fastify.prisma.order.update({
-      where: { id },
-      data: { status: "cancelled", cancellationReason: parsed.data.reason },
-      select: clientSafeOrder,
+
+    const shop = await fastify.prisma.shop.findFirst({ where: { ownerId: request.user!.id } });
+    const order = shop
+      ? await fastify.prisma.order.findUnique({ where: { id }, select: { shopId: true } })
+      : null;
+    if (!order || order.shopId !== shop!.id) {
+      return reply.code(404).send({ error: "Order not found" });
+    }
+
+    const result = await endOrderWithRefund({
+      fastify,
+      log: request.log,
+      orderId: id,
+      reason: parsed.data.reason,
+      actorId: request.user!.id,
+      intent: "cancel",
     });
-    return reply.send({ order });
+    if (!result.ok) return reply.code(result.code).send({ error: result.error });
+
+    return reply.send({ order: result.order, refundIssued: result.refundIssued });
   });
 }
-
-export { generateDeliveryPin };
