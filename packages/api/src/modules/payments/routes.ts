@@ -5,8 +5,14 @@ import { generateDeliveryPin } from "../orders/pin";
 
 export async function paymentRoutes(fastify: FastifyInstance) {
   fastify.post("/initiate", { preHandler: fastify.authenticate }, async (request, reply) => {
-    const body = request.body as { orderId?: string };
+    const body = request.body as { orderId?: string; method?: "momo" | "card" };
     if (!body.orderId) return reply.code(400).send({ error: "orderId is required" });
+    // The student already picked a method on the checkout screen; carrying it
+    // through means Paystack opens on that channel instead of asking twice.
+    const channels =
+      body.method === "momo" ? (["mobile_money"] as const)
+      : body.method === "card" ? (["card"] as const)
+      : undefined;
 
     const order = await fastify.prisma.order.findUnique({ where: { id: body.orderId } });
     if (!order) return reply.code(404).send({ error: "Order not found" });
@@ -23,8 +29,9 @@ export async function paymentRoutes(fastify: FastifyInstance) {
         email: `${profile!.phone}@wave.app`, // students register by phone, not email
         amountGhs: Number(order.totalAmount),
         reference,
-        callbackUrl: `${fastify.config.APP_URL}/payment/callback`,
+        callbackUrl: `${fastify.config.APP_URL}/v1/payments/callback`,
         metadata: { order_id: order.id, student_id: order.studentId },
+        channels: channels ? [...channels] : undefined,
       }));
     } catch (err) {
       const message = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
@@ -71,7 +78,52 @@ export async function paymentRoutes(fastify: FastifyInstance) {
   fastify.get("/verify/:ref", { preHandler: fastify.authenticate }, async (request, reply) => {
     const { ref } = request.params as { ref: string };
     const order = await fastify.prisma.order.findUnique({ where: { paystackRef: ref } });
-    if (!order) return reply.code(404).send({ error: "Order not found" });
+    // 404 rather than 403 on someone else's order: a distinguishable "exists but
+    // not yours" would let anyone probe whether a reference is real.
+    if (!order || order.studentId !== request.user!.id) {
+      return reply.code(404).send({ error: "Order not found" });
+    }
     return reply.send({ status: order.status, paidAt: order.paidAt });
+  });
+
+  /**
+   * Where Paystack sends the student's browser after checkout.
+   *
+   * Nothing here is trusted or acted on — the webhook is what confirms an order.
+   * This exists purely so the in-app browser lands on a real page instead of a
+   * 404, which is what it did before: `callback_url` pointed at a route that was
+   * never implemented.
+   */
+  fastify.get("/callback", async (_request, reply) => {
+    return reply.type("text/html; charset=utf-8").send(`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Wave — payment received</title>
+<style>
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         background:#F3F7EF; color:#10210B; font-family:system-ui,-apple-system,sans-serif; padding:24px; }
+  .card { max-width:340px; text-align:center; background:#fff; border:1px solid #DCE8D3;
+          border-radius:24px; padding:32px 24px; }
+  .mark { width:56px; height:56px; border-radius:50%; background:#009933; margin:0 auto 16px;
+          display:flex; align-items:center; justify-content:center; }
+  h1 { font-size:19px; margin:0 0 8px; letter-spacing:-0.01em; }
+  p { font-size:14px; line-height:1.5; color:#6B7D63; margin:0; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </div>
+    <h1>Payment received</h1>
+    <p>You can close this window and return to Wave. Your order updates automatically.</p>
+  </div>
+</body>
+</html>`);
   });
 }
