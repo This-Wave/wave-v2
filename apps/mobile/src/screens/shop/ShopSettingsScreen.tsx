@@ -3,11 +3,12 @@ import { Clock, LogOut, MapPin, Store } from "lucide-react-native";
 import { Card } from "../../components/ui/Card";
 import { ToggleSwitch } from "../../components/ui/ToggleSwitch";
 import { ListRow } from "../../components/ui/ListRow";
-import { useMyShop } from "../../lib/shopOwner";
+import { useMyShop, useSetShopServing } from "../../lib/shopOwner";
 import { signOut } from "../../lib/auth";
 
 export function ShopSettingsScreen() {
   const { data: shop } = useMyShop();
+  const setServing = useSetShopServing(shop?.id);
 
   return (
     <SafeAreaView className="flex-1 bg-surface-muted">
@@ -39,12 +40,21 @@ export function ShopSettingsScreen() {
         </Card>
 
         <Card className="mb-3 flex-row items-center justify-between bg-surface">
-          <View>
+          <View className="flex-1 pr-3">
             <Text className="font-sans-bold text-[13px] text-ink">Serving</Text>
-            <Text className="mt-0.5 text-[11px] text-muted">Toggle off to pause new orders</Text>
+            <Text className="mt-0.5 text-[11px] text-muted">
+              {setServing.isError
+                ? "Could not update — check your connection and try again."
+                : shop?.isActive === false
+                  ? "Paused. Students cannot see your shop."
+                  : "Toggle off to pause new orders"}
+            </Text>
           </View>
-          {/* Read-only for now: PUT /shops/:id doesn't accept isActive yet — see debug.md. */}
-          <ToggleSwitch value={shop?.isActive ?? false} onValueChange={() => {}} />
+          <ToggleSwitch
+            value={shop?.isActive ?? false}
+            disabled={!shop || setServing.isPending}
+            onValueChange={(next) => setServing.mutate(next)}
+          />
         </Card>
 
         <View className="overflow-hidden rounded-well border border-border bg-surface">

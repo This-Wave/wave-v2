@@ -6,7 +6,8 @@ import { Badge } from "../../components/ui/Badge";
 import { SearchBar } from "../../components/ui/SearchBar";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Skeleton } from "../../components/ui/Skeleton";
-import { useMyShop, useShopProducts, useUpdateProductStatus } from "../../lib/shopOwner";
+import { useCreateProduct, useMyShop, useShopProducts, useUpdateProductStatus } from "../../lib/shopOwner";
+import { AddProductSheet } from "../../components/shop/AddProductSheet";
 import { formatGhs } from "../../lib/pricing";
 
 const STATUS_BADGE: Record<ProductStatus, { label: string; variant: "success" | "neutral" | "warning" }> = {
@@ -25,7 +26,9 @@ export function MenuScreen() {
   const { data: shop } = useMyShop();
   const { data: products, isLoading } = useShopProducts(shop?.id);
   const updateStatus = useUpdateProductStatus(shop?.id);
+  const createProduct = useCreateProduct(shop?.id);
   const [query, setQuery] = useState("");
+  const [adding, setAdding] = useState(false);
 
   const filtered = useMemo(() => {
     if (!products) return [];
@@ -38,7 +41,12 @@ export function MenuScreen() {
     <SafeAreaView className="flex-1 bg-surface-muted">
       <View className="flex-row items-center justify-between px-6 pb-3 pt-2">
         <Text className="font-sans-extrabold text-[20px] tracking-tight text-ink">Menu</Text>
-        <Pressable className="flex-row items-center gap-1.5 rounded-well bg-wave-500 px-3.5 py-2" onPress={() => {}}>
+        <Pressable
+          className="flex-row items-center gap-1.5 rounded-well bg-wave-500 px-3.5 py-2"
+          disabled={!shop}
+          style={!shop ? { opacity: 0.5 } : undefined}
+          onPress={() => setAdding(true)}
+        >
           <Plus size={15} color="#fff" strokeWidth={2.5} />
           <Text className="font-sans-semibold text-[12px] text-white">Add Item</Text>
         </Pressable>
@@ -84,6 +92,14 @@ export function MenuScreen() {
           </View>
         )}
       </ScrollView>
+
+      <AddProductSheet
+        visible={adding}
+        onClose={() => setAdding(false)}
+        submitting={createProduct.isPending}
+        error={createProduct.isError ? "Could not save the item. Check the details and try again." : null}
+        onSubmit={(input) => createProduct.mutateAsync(input)}
+      />
     </SafeAreaView>
   );
 }

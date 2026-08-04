@@ -9,6 +9,7 @@ import { Button } from "../../components/ui/Button";
 import { HorizontalStepper, type StepState } from "../../components/ui/HorizontalStepper";
 import { useOrder } from "../../lib/orders";
 import { useUpdateOrderStatus } from "../../lib/rider";
+import { openMapsSearch } from "../../lib/maps";
 
 type Route = RouteProp<RiderStackParamList, "ActiveDelivery">;
 
@@ -26,6 +27,14 @@ export function ActiveDeliveryScreen() {
       step === "at_shop" ? ["done", "active", "upcoming", "upcoming"] : ["done", "done", "active", "upcoming"];
     return LABELS.map((label, i) => ({ label, state: states[i] }));
   }, [step]);
+
+  // Shops have no coordinates, only free text — so the map opens on a search.
+  // Name and location together disambiguate ("Berekuso Fresh Mart" alone is not
+  // a place a map knows). Empty when we have neither, which disables the button.
+  const destination = useMemo(
+    () => [order?.shop?.name, order?.shop?.locationText].filter(Boolean).join(", "),
+    [order?.shop?.name, order?.shop?.locationText],
+  );
 
   async function handleAdvance() {
     if (step === "at_shop") {
@@ -59,7 +68,12 @@ export function ActiveDeliveryScreen() {
               </View>
             </View>
           </View>
-          <Button label="Navigate" variant="secondary" onPress={() => {}} />
+          <Button
+            label="Navigate"
+            variant="secondary"
+            disabled={!destination}
+            onPress={() => openMapsSearch(destination)}
+          />
         </Card>
 
         <Card>

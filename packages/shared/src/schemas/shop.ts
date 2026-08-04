@@ -12,7 +12,13 @@ export const createShopSchema = z.object({
 });
 export type CreateShopInput = z.infer<typeof createShopSchema>;
 
-export const updateShopSchema = createShopSchema.partial();
+// `isActive` is update-only: a shop is created active, and pausing it is a
+// deliberate later action. This is what backs the "Serving" toggle in the shop
+// owner's settings — pausing hides the storefront from students without
+// deleting anything.
+export const updateShopSchema = createShopSchema.partial().extend({
+  isActive: z.boolean().optional(),
+});
 export type UpdateShopInput = z.infer<typeof updateShopSchema>;
 
 export const createProductSchema = z.object({

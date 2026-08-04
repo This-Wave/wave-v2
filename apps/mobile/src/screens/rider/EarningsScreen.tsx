@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { Wallet } from "lucide-react-native";
-import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import { ListRow } from "../../components/ui/ListRow";
 import { EmptyState } from "../../components/ui/EmptyState";
@@ -105,8 +104,25 @@ export function EarningsScreen() {
           </View>
         )}
 
-        {!isLoading && filtered.length > 0 ? (
-          <Button label={`Request Payout · ${formatGhs(pendingTotal)}`} onPress={() => {}} disabled={pendingTotal <= 0} />
+        {/*
+          The "Request Payout" button was removed rather than wired. There is no
+          payout endpoint, no payout model, and no record of a rider's payment
+          details anywhere in the schema — so the button could only ever have
+          done nothing. A rider tapping it and seeing no confirmation would
+          reasonably assume their money was on its way.
+
+          What is true today is stated instead: the pending total is real, and
+          settlement happens off-app.
+        */}
+        {!isLoading && pendingTotal > 0 ? (
+          <View className="mt-1 rounded-card border border-border bg-surface p-4">
+            <Text className="font-sans-semibold text-[13px] text-ink">
+              {formatGhs(pendingTotal)} awaiting payout
+            </Text>
+            <Text className="mt-1 text-[12px] leading-[17px] text-muted">
+              Payouts are settled by the Wave team. Nothing to do here.
+            </Text>
+          </View>
         ) : null}
       </ScrollView>
     </SafeAreaView>
