@@ -2,15 +2,45 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CreateProductInput, ProductStatus } from "@wave/shared";
 import { api } from "./api";
 import type { Order, Product, Shop } from "../types";
+import { useShopStore } from "../store/shopStore";
 
-export function useMyShop() {
+/**
+ * Every shop this owner holds. An owner may have more than one (product
+ * decision, 2026-08-04), so this is a list — the API orders it by name, which is
+ * what makes "the first one" a stable default rather than an arbitrary row.
+ */
+export function useMyShops() {
   return useQuery({
     queryKey: ["shops", "my"],
     queryFn: async () => {
-      const { data } = await api.get<{ shop: Shop | null }>("/shops/my");
-      return data.shop;
+      const { data } = await api.get<{ shops: Shop[] }>("/shops/my");
+      return data.shops;
     },
   });
+}
+
+/**
+ * The shop the shop-side screens are currently acting on, plus everything needed
+ * to switch between them.
+ *
+ * Falls back to the first shop when nothing is selected, and also when the
+ * selected id is no longer in the list — otherwise deleting or losing access to
+ * a shop would leave every shop screen blank with no way to recover.
+ */
+export function useSelectedShop() {
+  const { data: shops, isLoading } = useMyShops();
+  const selectedShopId = useShopStore((s) => s.selectedShopId);
+  const setSelectedShopId = useShopStore((s) => s.setSelectedShopId);
+
+  const shop = shops?.find((s) => s.id === selectedShopId) ?? shops?.[0] ?? null;
+
+  return {
+    shop,
+    shops: shops ?? [],
+    isLoading,
+    hasMultiple: (shops?.length ?? 0) > 1,
+    selectShop: setSelectedShopId,
+  };
 }
 
 /**
@@ -27,8 +57,12 @@ export function useSetShopServing(shopId: string | undefined) {
     },
     onMutate: async (isActive) => {
       await queryClient.cancelQueries({ queryKey: ["shops", "my"] });
-      const previous = queryClient.getQueryData<Shop | null>(["shops", "my"]);
-      queryClient.setQueryData<Shop | null>(["shops", "my"], (s) => (s ? { ...s, isActive } : s));
+      const previous = queryClient.getQueryData<Shop[]>(["shops", "my"]);
+      // Patch only the shop being toggled — the cache holds every shop this
+      // owner has, so a blanket update would flip all of them at once.
+      queryClient.setQueryData<Shop[]>(["shops", "my"], (shops) =>
+        shops?.map((s) => (s.id === shopId ? { ...s, isActive } : s)),
+      );
       return { previous };
     },
     onError: (_err, _isActive, context) => {

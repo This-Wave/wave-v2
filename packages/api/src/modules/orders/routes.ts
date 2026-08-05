@@ -117,11 +117,23 @@ export async function orderRoutes(fastify: FastifyInstance) {
     return reply.send({ orders });
   });
 
+  // Every order across every shop this owner holds.
+  //
+  // This previously resolved a single shop with `findFirst` and listed only that
+  // shop's orders, so an owner with more than one shop could not see — and
+  // therefore could not fulfil — orders placed with the others. They were not
+  // hidden behind a filter; they were absent. Filtering on the relation rather
+  // than a collected id list keeps it one query and cannot drift out of sync
+  // with what /shops/my returns.
+  //
+  // `shopId` is already on clientSafeOrder, so a client with several shops can
+  // group these without a second request.
   fastify.get("/shop", { preHandler: [fastify.authenticate, fastify.requireRole("shop_owner")] }, async (request, reply) => {
-    const shop = await fastify.prisma.shop.findFirst({ where: { ownerId: request.user!.id } });
-    const orders = shop
-      ? await fastify.prisma.order.findMany({ where: { shopId: shop.id }, select: clientSafeOrder })
-      : [];
+    const orders = await fastify.prisma.order.findMany({
+      where: { shop: { ownerId: request.user!.id } },
+      select: clientSafeOrder,
+      orderBy: { createdAt: "desc" },
+    });
     return reply.send({ orders });
   });
 

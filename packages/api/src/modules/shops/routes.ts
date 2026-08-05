@@ -7,9 +7,16 @@ export async function shopRoutes(fastify: FastifyInstance) {
     return reply.send({ shops });
   });
 
+  // An owner may hold several shops (product decision, 2026-08-04). This used to
+  // be a `findFirst` returning `{ shop }`, which silently picked an arbitrary one
+  // — with no ordering, not even consistently the same one between requests.
+  // Ordered by name so the client's default selection is stable.
   fastify.get("/my", { preHandler: [fastify.authenticate, fastify.requireRole("shop_owner")] }, async (request, reply) => {
-    const shop = await fastify.prisma.shop.findFirst({ where: { ownerId: request.user!.id } });
-    return reply.send({ shop });
+    const shops = await fastify.prisma.shop.findMany({
+      where: { ownerId: request.user!.id },
+      orderBy: { name: "asc" },
+    });
+    return reply.send({ shops });
   });
 
   fastify.get("/:id", async (request, reply) => {
