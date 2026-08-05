@@ -26,6 +26,24 @@ export class SmsSendError extends Error {
   }
 }
 
+/**
+ * mNotify is inconsistent about where it puts the reason for a failure: some
+ * responses use `message`, others `error`. Reading only `message` discarded the
+ * actionable half — a real 402 arrived as a bare "HTTP 402" when the body said
+ * "insufficient wallet balance. please top up your account and try again".
+ *
+ * Only these two known scalar fields are read, never the whole body: the request
+ * payload contains the OTP or delivery PIN, and an unbounded dump would put it
+ * straight into a log line. That is the property `SmsSendError` exists to hold.
+ */
+function providerReason(data: unknown): string | undefined {
+  if (typeof data === "string") return data.slice(0, 200);
+  if (!data || typeof data !== "object") return undefined;
+  const body = data as { message?: unknown; error?: unknown };
+  const reason = body.message ?? body.error;
+  return typeof reason === "string" ? reason.slice(0, 200) : undefined;
+}
+
 export interface SendSmsParams {
   apiKey: string;
   senderId: string;
@@ -47,7 +65,7 @@ export async function sendSms(params: SendSmsParams): Promise<void> {
     });
   } catch (err) {
     if (axios.isAxiosError(err)) {
-      throw new SmsSendError(err.response?.status, err.response?.data?.message);
+      throw new SmsSendError(err.response?.status, providerReason(err.response?.data));
     }
     throw new SmsSendError();
   }
