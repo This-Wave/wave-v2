@@ -3,16 +3,19 @@ import { Clock, LogOut, MapPin, Store } from "lucide-react-native";
 import { Card } from "../../components/ui/Card";
 import { ToggleSwitch } from "../../components/ui/ToggleSwitch";
 import { ListRow } from "../../components/ui/ListRow";
-import { useMyShop, useSetShopServing } from "../../lib/shopOwner";
+import { useSelectedShop, useSetShopServing } from "../../lib/shopOwner";
+import { ShopSwitcher } from "../../components/shop/ShopSwitcher";
 import { signOut } from "../../lib/auth";
 
 export function ShopSettingsScreen() {
-  const { data: shop } = useMyShop();
+  const { shop, shops, selectShop } = useSelectedShop();
   const setServing = useSetShopServing(shop?.id);
 
   return (
     <SafeAreaView className="flex-1 bg-surface-muted">
       <ScrollView className="flex-1 px-6 pt-3" contentContainerStyle={{ paddingBottom: 128 }}>
+        <ShopSwitcher shops={shops} selectedId={shop?.id} onSelect={selectShop} />
+
         <Card className="mb-3 bg-surface">
           <View className="mb-3 flex-row items-center gap-3">
             <View className="h-12 w-12 items-center justify-center rounded-well bg-surface-muted">

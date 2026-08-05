@@ -6,7 +6,8 @@ import { Badge } from "../../components/ui/Badge";
 import { SearchBar } from "../../components/ui/SearchBar";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Skeleton } from "../../components/ui/Skeleton";
-import { useCreateProduct, useMyShop, useShopProducts, useUpdateProductStatus } from "../../lib/shopOwner";
+import { useCreateProduct, useSelectedShop, useShopProducts, useUpdateProductStatus } from "../../lib/shopOwner";
+import { ShopSwitcher } from "../../components/shop/ShopSwitcher";
 import { AddProductSheet } from "../../components/shop/AddProductSheet";
 import { formatGhs } from "../../lib/pricing";
 
@@ -23,7 +24,7 @@ const STATUS_CYCLE: Record<ProductStatus, ProductStatus> = {
 };
 
 export function MenuScreen() {
-  const { data: shop } = useMyShop();
+  const { shop, shops, selectShop } = useSelectedShop();
   const { data: products, isLoading } = useShopProducts(shop?.id);
   const updateStatus = useUpdateProductStatus(shop?.id);
   const createProduct = useCreateProduct(shop?.id);
@@ -50,6 +51,10 @@ export function MenuScreen() {
           <Plus size={15} color="#fff" strokeWidth={2.5} />
           <Text className="font-sans-semibold text-[12px] text-white">Add Item</Text>
         </Pressable>
+      </View>
+
+      <View className="px-6">
+        <ShopSwitcher shops={shops} selectedId={shop?.id} onSelect={selectShop} />
       </View>
 
       <View className="px-6 pb-3">

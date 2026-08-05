@@ -9,7 +9,8 @@ import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { EmptyState } from "../../components/ui/EmptyState";
-import { useMyShop, useShopCancelOrder, useShopOrders } from "../../lib/shopOwner";
+import { useSelectedShop, useShopCancelOrder, useShopOrders } from "../../lib/shopOwner";
+import { ShopSwitcher } from "../../components/shop/ShopSwitcher";
 import { formatGhs } from "../../lib/pricing";
 
 function isToday(dateStr: string): boolean {
@@ -18,8 +19,14 @@ function isToday(dateStr: string): boolean {
 
 export function ShopDashboardScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ShopStackParamList>>();
-  const { data: shop, isLoading: shopLoading } = useMyShop();
-  const { data: orders, isLoading: ordersLoading } = useShopOrders();
+  const { shop, shops, selectShop, isLoading: shopLoading } = useSelectedShop();
+  const { data: allOrders, isLoading: ordersLoading } = useShopOrders();
+  // /orders/shop returns every order across every shop this owner holds, so the
+  // dashboard narrows to the one being viewed.
+  const orders = useMemo(
+    () => (shop ? allOrders?.filter((o) => o.shopId === shop.id) : allOrders),
+    [allOrders, shop],
+  );
   const cancelOrder = useShopCancelOrder();
 
   const incoming = orders?.filter((o) => o.status === "confirmed" && !o.riderId) ?? [];
@@ -42,6 +49,10 @@ export function ShopDashboardScreen() {
         <Text className="text-[12px] text-muted">
           {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })}
         </Text>
+      </View>
+
+      <View className="px-6">
+        <ShopSwitcher shops={shops} selectedId={shop?.id} onSelect={selectShop} />
       </View>
 
       <ScrollView className="flex-1 px-4" contentContainerStyle={{ gap: 14, paddingBottom: 128 }}>
