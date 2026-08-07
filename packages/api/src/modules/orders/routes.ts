@@ -7,7 +7,7 @@ import {
 import { calculateDiscount, calculateOrderTotal, isStandardDeliveryDay } from "./discount";
 import { verifyDeliveryPin } from "./pin";
 import { issueDeliveryPin } from "./issuePin";
-import { clientSafeOrder } from "./select";
+import { clientSafeOrder, feedOrder } from "./select";
 import { endOrderWithRefund } from "../payments/refund";
 import { notifyOrderStatus } from "../notifications/dispatch";
 
@@ -101,9 +101,12 @@ export async function orderRoutes(fastify: FastifyInstance) {
   });
 
   fastify.get("/available", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {
+    // feedOrder, NOT clientSafeOrder — these orders are unclaimed, so the rider
+    // reading them has no relationship to the student yet and must not receive
+    // their name, phone or student ID. See select.ts.
     const orders = await fastify.prisma.order.findMany({
       where: { status: "confirmed", riderId: null },
-      select: clientSafeOrder,
+      select: feedOrder,
     });
     return reply.send({ orders });
   });
