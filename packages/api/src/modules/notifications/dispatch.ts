@@ -160,6 +160,32 @@ const RIDER_COPY: Partial<Record<NotifiableStatus, (c: CopyContext) => PushPaylo
 };
 
 /**
+ * The shop owner hears about the two things that change what they should be
+ * doing: a paid order that now needs preparing, and an order that has been
+ * called off so they can stop.
+ *
+ * Deliberately silent on rider_assigned / en_route / at_checkpoint / delivered
+ * — the shop's involvement ends when the runner collects, and four more pushes
+ * per order would train them to ignore all of them.
+ */
+const SHOP_COPY: Partial<Record<NotifiableStatus, (c: CopyContext) => PushPayload | null>> = {
+  confirmed: () => ({
+    title: "New paid order",
+    body: "A student has paid for an order. Open Wave to accept it.",
+  }),
+  cancelled: (c) => ({
+    title: "Order cancelled",
+    body: c.reason ? `An order was cancelled: ${c.reason}.` : "An order was cancelled.",
+  }),
+  refunded: (c) => ({
+    title: "Order cancelled",
+    body: c.reason
+      ? `An order was cancelled and refunded: ${c.reason}.`
+      : "An order was cancelled and refunded.",
+  }),
+};
+
+/**
  * Announces an order's new status to the people it affects.
  *
  * Best-effort by design (see `pushToProfiles`). Reads the order fresh rather
@@ -186,7 +212,10 @@ export async function notifyOrderStatus(args: {
         riderId: true,
         status: true,
         cancellationReason: true,
-        shop: { select: { name: true } },
+        orderType: true,
+        // ownerId, so the shop owner can be told what is happening to an order
+        // they are fulfilling. Nothing before this ever notified them.
+        shop: { select: { name: true, ownerId: true } },
         checkpoint: { select: { name: true } },
         rider: { select: { fullName: true } },
       },
@@ -194,7 +223,9 @@ export async function notifyOrderStatus(args: {
     if (!order) return;
 
     const context: CopyContext = {
-      shopName: order.shop?.name ?? "your shop",
+      // A pickup has no shop, so the copy has to name the thing generically or
+      // it reads as "Your your shop order is in".
+      shopName: order.shop?.name ?? (order.orderType === "pickup" ? "package" : "your shop"),
       checkpointName: order.checkpoint?.name ?? "your checkpoint",
       riderName: order.rider?.fullName ?? "Your rider",
       reason: order.cancellationReason,
@@ -221,6 +252,21 @@ export async function notifyOrderStatus(args: {
           log,
           profileIds: [order.riderId],
           payload: { ...rider, data },
+        });
+      }
+    }
+
+    // Shop owners were told nothing at all — they had to open the app and look.
+    // Only the statuses that require them to act or stop acting.
+    const shopCopyFor = SHOP_COPY[status as NotifiableStatus];
+    if (shopCopyFor && order.shop?.ownerId) {
+      const owner = shopCopyFor(context);
+      if (owner) {
+        await pushToProfiles({
+          fastify,
+          log,
+          profileIds: [order.shop.ownerId],
+          payload: { ...owner, data },
         });
       }
     }

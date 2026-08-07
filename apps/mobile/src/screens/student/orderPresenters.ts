@@ -62,7 +62,10 @@ export function orderSteps(order: Order): Step[] {
       detail: order.rider?.fullName ?? (idx < 1 ? "Assigned before the run" : undefined),
     },
     {
-      label: `Picked up from ${order.shop?.name ?? "the shop"}`,
+      label:
+        order.orderType === "pickup"
+          ? `Collected from ${order.originCheckpoint?.name ?? "the checkpoint"}`
+          : `Picked up from ${order.shop?.name ?? "the shop"}`,
       detail: idx < 2 ? "Not yet" : undefined,
     },
     {

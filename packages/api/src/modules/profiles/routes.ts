@@ -65,18 +65,4 @@ export async function profileRoutes(fastify: FastifyInstance) {
     });
     return reply.send({ profile });
   });
-
-  // Avatar upload goes through Supabase Storage from the client;
-  // this endpoint just persists the resulting public/signed URL.
-  fastify.post("/avatar", { preHandler: fastify.authenticate }, async (request, reply) => {
-    const body = request.body as { avatarUrl?: string };
-    if (!body.avatarUrl) {
-      return reply.code(400).send({ error: "avatarUrl is required" });
-    }
-    const profile = await fastify.prisma.profile.update({
-      where: { id: request.user!.id },
-      data: { avatarUrl: body.avatarUrl },
-    });
-    return reply.send({ profile });
-  });
 }

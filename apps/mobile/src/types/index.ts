@@ -78,7 +78,11 @@ export interface Order {
   id: string;
   studentId: string;
   riderId: string | null;
-  shopId: string;
+  orderType: "buy_for_me" | "pickup";
+  originCheckpointId: string | null;
+  originCheckpoint?: Checkpoint | null;
+  /** Null on a pickup order — there is no shop involved. */
+  shopId: string | null;
   checkpointId: string;
   universityId: string;
   productId: string | null;
@@ -94,6 +98,7 @@ export interface Order {
   isSpecialOrder: boolean;
   paystackRef: string | null;
   paidAt: string | null;
+  shopAcceptedAt: string | null;
   deliveredAt: string | null;
   notes: string | null;
   cancellationReason: string | null;
@@ -114,6 +119,7 @@ export interface RiderEarning {
   amount: string;
   status: EarningStatus;
   paidAt: string | null;
+  shopAcceptedAt: string | null;
   createdAt: string;
   order?: { id: string; createdAt: string; shop?: { name: string } | null } | null;
 }

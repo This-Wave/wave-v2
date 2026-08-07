@@ -73,7 +73,12 @@ export function HomeScreen() {
 
   const orderedBefore = useMemo(() => {
     const ids = new Set(
-      (orders ?? []).filter((o) => o.status === "delivered").map((o) => o.shopId),
+      (orders ?? [])
+        .filter((o) => o.status === "delivered")
+        .map((o) => o.shopId)
+        // Pickups have no shop, and a null in this set would match nothing
+        // anyway — filtered for clarity rather than correctness.
+        .filter((id): id is string => !!id),
     );
     return (shops ?? []).filter((s) => ids.has(s.id));
   }, [orders, shops]);

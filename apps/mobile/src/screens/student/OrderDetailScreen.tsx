@@ -58,13 +58,24 @@ export function OrderDetailScreen() {
           <Text className="mt-3 font-sans-bold text-heading text-ink">
             {order.shop?.name ?? "Package pickup"}
           </Text>
+          {order.orderType === "pickup" && order.originCheckpoint ? (
+            <Text className="mt-1 font-sans text-body text-muted">
+              {order.originCheckpoint.name} → {order.checkpoint?.name}
+            </Text>
+          ) : null}
           <Text className="mb-7 mt-1 font-sans text-body text-muted">{whenLine(order)}</Text>
 
           <Text className="mb-3 font-sans-medium text-subheading text-ink">What you ordered</Text>
           <RowGroup>
             <Row
               title={order.itemDescription ?? "—"}
-              meta={order.checkpoint?.name ? `Delivered to ${order.checkpoint.name}` : undefined}
+              meta={
+                order.orderType === "pickup"
+                  ? `Collected from ${order.originCheckpoint?.name ?? "a checkpoint"}`
+                  : order.checkpoint?.name
+                    ? `Delivered to ${order.checkpoint.name}`
+                    : undefined
+              }
               leading={<Thumb uri={order.shop?.logoUrl} />}
               chevron={false}
             />

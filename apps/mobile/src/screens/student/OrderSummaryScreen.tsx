@@ -48,6 +48,7 @@ export function OrderSummaryScreen() {
     setError(null);
     try {
       const order = await createOrder.mutateAsync({
+        orderType: "buy_for_me",
         shopId: params.shopId,
         checkpointId: params.checkpointId,
         itemDescription: params.itemDescription,

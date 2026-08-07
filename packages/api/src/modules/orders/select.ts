@@ -16,9 +16,11 @@
 /** Columns on the order row itself. Never includes `deliveryPinHash`. */
 const orderScalars = {
   id: true,
+  orderType: true,
   studentId: true,
   riderId: true,
   shopId: true,
+  originCheckpointId: true,
   checkpointId: true,
   universityId: true,
   itemDescription: true,
@@ -33,6 +35,7 @@ const orderScalars = {
   isSpecialOrder: true,
   status: true,
   paidAt: true,
+  shopAcceptedAt: true,
   deliveredAt: true,
   notes: true,
   cancellationReason: true,
@@ -63,6 +66,7 @@ export const clientSafeOrder = {
   ...orderScalars,
   shop: shopSelect,
   checkpoint: checkpointSelect,
+  originCheckpoint: checkpointSelect,
   student: studentSelect,
   rider: riderSelect,
 } as const;
@@ -84,4 +88,7 @@ export const feedOrder = {
   ...orderScalars,
   shop: shopSelect,
   checkpoint: checkpointSelect,
+  // A pickup's origin is a public campus location, not personal information —
+  // and a rider cannot judge the job without knowing where they are collecting.
+  originCheckpoint: checkpointSelect,
 } as const;

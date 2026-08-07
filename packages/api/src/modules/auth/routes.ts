@@ -68,32 +68,15 @@ export async function authRoutes(fastify: FastifyInstance) {
     });
   });
 
-  fastify.post("/refresh", async (request, reply) => {
-    const body = request.body as { refresh_token?: string };
-    if (!body.refresh_token) {
-      return reply.code(400).send({ error: "refresh_token is required" });
-    }
-    const { data, error } = await supabase.auth.refreshSession({ refresh_token: body.refresh_token });
-    if (error || !data.session) {
-      return reply.code(401).send({ error: "Invalid refresh token" });
-    }
-    return reply.send({
-      access_token: data.session.access_token,
-      refresh_token: data.session.refresh_token,
-      expires_at: data.session.expires_at,
-    });
-  });
-
-  fastify.post(
-    "/logout",
-    { preHandler: fastify.authenticate },
-    async (request, reply) => {
-      const authHeader = request.headers.authorization!;
-      const token = authHeader.slice("Bearer ".length);
-      await supabase.auth.admin.signOut(token);
-      return reply.send({ success: true });
-    },
-  );
+  // NOTE: there is deliberately no /refresh and no /logout here.
+  //
+  // Both existed with zero callers. Session lifecycle belongs entirely to the
+  // Supabase client SDK, which the mobile app and the admin app both use
+  // directly — it refreshes on its own schedule and signs out through
+  // `lib/auth.ts` (the only place allowed to call supabase.auth.signOut, so the
+  // push token is detached first). A second, server-side path to end a session
+  // would have bypassed that and left a signed-out device still receiving
+  // notifications.
 
   // Supabase Auth's "Send SMS Hook" — Supabase itself still generates,
   // stores, and verifies the OTP (via signInWithOtp/verifyOtp on the

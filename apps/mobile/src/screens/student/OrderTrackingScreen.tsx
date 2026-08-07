@@ -59,9 +59,11 @@ export function OrderTrackingScreen() {
               {headline(order?.status)}
             </Text>
             <Text className="mt-1 font-sans text-body text-muted">
-              {order?.checkpoint?.name
-                ? `Handing over at ${order.checkpoint.name}`
-                : "Delivery in progress"}
+              {order?.orderType === "pickup" && order.originCheckpoint
+                ? `${order.originCheckpoint.name} → ${order.checkpoint?.name}`
+                : order?.checkpoint?.name
+                  ? `Handing over at ${order.checkpoint.name}`
+                  : "Delivery in progress"}
             </Text>
           </View>
 

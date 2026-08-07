@@ -18,6 +18,7 @@ import {
 import { CheckIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useCheckpoints } from "../../lib/checkpoints";
+import { useCreateOrder } from "../../lib/orders";
 import { useAuthStore } from "../../store/authStore";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
 import { formatFullDay, formatGhs, upcomingRunDays } from "../../lib/pricing";
@@ -26,13 +27,14 @@ import { formatFullDay, formatGhs, upcomingRunDays } from "../../lib/pricing";
  * Campus-to-campus package pickup: move something already on campus from one
  * checkpoint to another.
  *
- * ⚠️ This flow has no backend. `POST /orders` requires a `shopId`, and a pickup
- * has no shop — so the confirm button cannot create anything and simply returns.
- * v5 hid that behind a convincing four-step form with time slots. The screen now
- * says so out loud rather than taking details it will throw away.
+ * This used to be a dead form — `POST /orders` required a `shopId` and an order
+ * carried only one checkpoint, so there was nothing to submit to. The
+ * 20260807150000 migration made `shop_id` nullable and added
+ * `origin_checkpoint_id`, so a pickup is now a real order that goes through the
+ * same payment, dispatch and PIN handover as everything else.
  *
- * Both checkpoint fields are real pickers here; v5 cycled to the next checkpoint
- * on each tap, with no way to see the options or go back.
+ * The one thing a pickup does differently: there is no item cost, so the
+ * delivery fee is the whole price.
  */
 export function PickupRequestScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
@@ -44,10 +46,39 @@ export function PickupRequestScreen() {
   const [toId, setToId] = useState<string | null>(null);
   const [dayIndex, setDayIndex] = useState(0);
   const [picker, setPicker] = useState<"from" | "to" | "day" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const createOrder = useCreateOrder();
 
   const days = useMemo(() => upcomingRunDays(new Date(), 4), []);
   const from = checkpoints?.find((c) => c.id === fromId) ?? checkpoints?.[0];
   const to = checkpoints?.find((c) => c.id === toId) ?? checkpoints?.[1] ?? checkpoints?.[0];
+
+  async function handleContinue() {
+    if (!from || !to) return;
+    if (from.id === to.id) {
+      setError("Collection and drop-off have to be different checkpoints.");
+      return;
+    }
+    setError(null);
+    const scheduled = days[dayIndex];
+    try {
+      const order = await createOrder.mutateAsync({
+        orderType: "pickup",
+        originCheckpointId: from.id,
+        checkpointId: to.id,
+        itemDescription: description.trim(),
+        deliveryDay: scheduled.getDay() === 0 ? "sunday" : "wednesday",
+        scheduledDate: scheduled.toISOString(),
+        isSpecialOrder: false,
+      });
+      navigation.navigate("Payment", {
+        orderId: order.id,
+        totalAmount: Number(order.totalAmount),
+      });
+    } catch {
+      setError("Couldn't create your pickup. Please try again.");
+    }
+  }
 
   return (
     <Screen>
@@ -57,16 +88,9 @@ export function PickupRequestScreen() {
         <Gutter>
           <Text className="mb-2 font-sans-bold text-heading text-ink">Move a package</Text>
           <Text className="mb-8 font-sans text-body text-muted">
-            Get something carried from one checkpoint to another on the next run.
+            Get something carried from one checkpoint to another on the next Wave. You pay the
+            delivery fee only — there's nothing to buy.
           </Text>
-
-          <View className="mb-6 rounded-card bg-surface p-5">
-            <Text className="mb-1 font-sans-semibold text-meta text-muted">NOT LIVE YET</Text>
-            <Text className="font-sans text-body text-ink">
-              Package pickup isn't running for the pilot — every Wave order currently goes through a
-              shop. You can see how it will work, but nothing is submitted.
-            </Text>
-          </View>
 
           <View className="mb-6">
             <Field
@@ -100,7 +124,15 @@ export function PickupRequestScreen() {
       </ScreenBody>
 
       <ActionBar>
-        <Button label="Package pickup isn't available yet" disabled />
+        {error ? (
+          <Text className="mb-3 font-sans text-body text-danger">{error}</Text>
+        ) : null}
+        <Button
+          label="Review pickup"
+          onPress={handleContinue}
+          loading={createOrder.isPending}
+          disabled={description.trim().length < 3 || !from || !to || from.id === to.id}
+        />
       </ActionBar>
 
       <Sheet

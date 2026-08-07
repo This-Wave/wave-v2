@@ -64,12 +64,41 @@ export async function orderRoutes(fastify: FastifyInstance) {
       const itemPrice = product ? Number(product.price) : 0;
       const totalAmount = calculateOrderTotal({ itemPrice, deliveryFee, discountPct, surchargePct });
 
+      // A pickup has no shop to buy from, so there is nothing to charge for the
+      // items — the delivery fee is the whole price. The Zod refinements already
+      // guarantee productId is absent, so `product` is null and itemPrice is 0.
+      const isPickup = input.orderType === "pickup";
+
+      // Both checkpoints must exist on the student's own campus. Without this a
+      // student could name any checkpoint UUID in the country as their origin.
+      const profile = await fastify.prisma.profile.findUnique({
+        where: { id: request.user!.id },
+      });
+      const universityId = profile?.universityId;
+      if (!universityId) {
+        return reply.code(400).send({ error: "Your profile has no campus set" });
+      }
+
+      const checkpointIds = [input.checkpointId, input.originCheckpointId].filter(
+        (id): id is string => !!id,
+      );
+      const validCheckpoints = await fastify.prisma.checkpoint.count({
+        where: { id: { in: checkpointIds }, universityId, isActive: true },
+      });
+      if (validCheckpoints !== checkpointIds.length) {
+        return reply
+          .code(400)
+          .send({ error: "That checkpoint is not active on your campus" });
+      }
+
       const order = await fastify.prisma.order.create({
         data: {
           studentId: request.user!.id,
-          shopId: input.shopId,
+          orderType: input.orderType,
+          shopId: isPickup ? null : input.shopId,
+          originCheckpointId: isPickup ? input.originCheckpointId : null,
           checkpointId: input.checkpointId,
-          universityId: (await fastify.prisma.profile.findUnique({ where: { id: request.user!.id } }))!.universityId!,
+          universityId,
           itemDescription: input.itemDescription,
           productId: input.productId,
           itemPrice,
@@ -330,15 +359,58 @@ export async function orderRoutes(fastify: FastifyInstance) {
     },
   );
 
-  fastify.patch("/:id/shop-accept", { preHandler: [fastify.authenticate, fastify.requireRole("shop_owner")] }, async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const order = await fastify.prisma.order.update({
-      where: { id },
-      data: { status: "confirmed" },
-      select: clientSafeOrder,
-    });
-    return reply.send({ order });
-  });
+  // The shop acknowledging a paid order.
+  //
+  // This used to set `status: "confirmed"` on an order that was already
+  // `confirmed` — a no-op — and it had **no ownership check at all**, so any
+  // shop owner could call it against any order in the system.
+  //
+  // Acceptance is now recorded as a timestamp rather than a status change.
+  // Introducing an `awaiting_shop` status would gate the rider feed and sit on
+  // the money path; a timestamp records the same fact and gates nothing.
+  fastify.patch(
+    "/:id/shop-accept",
+    { preHandler: [fastify.authenticate, fastify.requireRole("shop_owner")] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+
+      // Scope by ownership *in the predicate*, so an order belonging to someone
+      // else's shop simply does not match rather than being read and rejected.
+      const result = await fastify.prisma.order.updateMany({
+        where: {
+          id,
+          shop: { ownerId: request.user!.id },
+          status: "confirmed",
+          shopAcceptedAt: null,
+        },
+        data: { shopAcceptedAt: new Date() },
+      });
+
+      if (result.count === 0) {
+        // Already accepted is not a failure — the shop tapped twice, and the
+        // outcome they wanted is true either way.
+        const existing = await fastify.prisma.order.findFirst({
+          where: { id, shop: { ownerId: request.user!.id } },
+          select: clientSafeOrder,
+        });
+        if (!existing) {
+          return reply.code(404).send({ error: "Order not found" });
+        }
+        if (existing.status !== "confirmed") {
+          return reply
+            .code(409)
+            .send({ error: "This order can no longer be accepted" });
+        }
+        return reply.send({ order: existing });
+      }
+
+      const order = await fastify.prisma.order.findUnique({
+        where: { id },
+        select: clientSafeOrder,
+      });
+      return reply.send({ order });
+    },
+  );
 
   // The shop rejecting a paid order refunds it. IncomingOrderDetailScreen
   // already promises the student "you will be fully refunded automatically",

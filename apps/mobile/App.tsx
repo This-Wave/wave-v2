@@ -12,6 +12,7 @@ import {
   DMSans_700Bold,
 } from "@expo-google-fonts/dm-sans";
 import { RootNavigator } from "./src/navigation/RootNavigator";
+import { navigationRef } from "./src/lib/navigationRef";
 import { AuthProvider } from "./src/providers/AuthProvider";
 import { NotificationProvider } from "./src/providers/NotificationProvider";
 import { queryClient } from "./src/lib/queryClient";
@@ -46,7 +47,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <NotificationProvider>
-          <NavigationContainer>
+          <NavigationContainer ref={navigationRef}>
             <RootNavigator />
             <StatusBar style="dark" />
           </NavigationContainer>

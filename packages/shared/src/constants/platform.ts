@@ -26,5 +26,8 @@ export const ORDER_STATUSES = [
 ] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
+export const ORDER_TYPES = ["buy_for_me", "pickup"] as const;
+export type OrderType = (typeof ORDER_TYPES)[number];
+
 export const DELIVERY_DAYS = ["sunday", "wednesday", "special"] as const;
 export type DeliveryDay = (typeof DELIVERY_DAYS)[number];

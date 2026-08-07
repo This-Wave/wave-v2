@@ -31,6 +31,14 @@ enum DeliveryDay {
   special
 }
 
+enum OrderType {
+  // A runner buys the items from a shop and delivers them.
+  buy_for_me
+  // A runner collects a package the student already has at one checkpoint and
+  // carries it to another. No shop, no item cost — the delivery fee is all of it.
+  pickup
+}
+
 enum OrderStatus {
   pending
   payment_pending
@@ -118,7 +126,9 @@ model Checkpoint {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   university University @relation(fields: [universityId], references: [id])
-  orders     Order[]
+  // Two relations because a pickup order references a checkpoint twice.
+  orders        Order[] @relation("OrderDropoff")
+  pickupOrders  Order[] @relation("OrderPickup")
 
   @@map("checkpoints")
 }
@@ -170,9 +180,17 @@ model Order {
   id            String   @id @default(uuid())
   studentId     String   @map("student_id")
   riderId       String?  @map("rider_id")
-  shopId        String   @map("shop_id")
+  // Null for a package pickup: there is no shop involved, the student already
+  // has the thing and just needs it carried.
+  shopId        String?  @map("shop_id")
+  // Where a package is collected FROM. Null for a Buy For Me order, whose
+  // origin is the shop.
+  originCheckpointId String? @map("origin_checkpoint_id")
+  // Where the order is handed to the student. Always set, for both kinds.
   checkpointId  String   @map("checkpoint_id")
   universityId  String   @map("university_id")
+
+  orderType     OrderType @default(buy_for_me) @map("order_type")
 
   itemDescription String   @map("item_description")
   productId       String?  @map("product_id")
@@ -188,6 +206,10 @@ model Order {
 
   status OrderStatus @default(pending)
 
+  // When the shop confirmed they will fulfil this order. Advisory: it does not
+  // gate anything, it records an acknowledgement the dashboard and riders can see.
+  shopAcceptedAt DateTime? @map("shop_accepted_at")
+
   paystackRef String?   @unique @map("paystack_ref")
   paidAt      DateTime? @map("paid_at")
 
@@ -202,8 +224,9 @@ model Order {
 
   student    Profile    @relation("StudentOrders", fields: [studentId], references: [id])
   rider      Profile?   @relation("RiderOrders", fields: [riderId], references: [id])
-  shop       Shop       @relation(fields: [shopId], references: [id])
-  checkpoint Checkpoint @relation(fields: [checkpointId], references: [id])
+  shop       Shop?      @relation(fields: [shopId], references: [id])
+  checkpoint Checkpoint @relation("OrderDropoff", fields: [checkpointId], references: [id])
+  originCheckpoint Checkpoint? @relation("OrderPickup", fields: [originCheckpointId], references: [id])
   university University @relation(fields: [universityId], references: [id])
   product    Product?   @relation(fields: [productId], references: [id])
 
