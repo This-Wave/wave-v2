@@ -1,12 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import axios from "axios";
-import { initiatePaystackPayment, verifyPaystackSignature } from "./paystack";
-import { issueDeliveryPin } from "../orders/issuePin";
 import {
-  announceNewOrderToRiders,
-  notifyGoodsPaid,
-  notifyOrderStatus,
-} from "../notifications/dispatch";
+  fetchPaystackTransaction,
+  initiatePaystackPayment,
+  verifyPaystackSignature,
+} from "./paystack";
+import { confirmDeliveryFeePaid, confirmGoodsPaid } from "./confirm";
 
 export async function paymentRoutes(fastify: FastifyInstance) {
   fastify.post("/initiate", { preHandler: fastify.authenticate }, async (request, reply) => {
@@ -145,78 +144,116 @@ export async function paymentRoutes(fastify: FastifyInstance) {
       // issue and the rider announcement, and the order would sit paid but
       // unconfirmed with nothing in the logs to say why.
       if (goodsOrder && goodsOrder.goodsPaystackRef === event.data.reference) {
-        if (goodsOrder.goodsPaidAt) {
-          return reply.send({ received: true, alreadyProcessed: true });
-        }
-        await fastify.prisma.order.update({
-          where: { id: goodsOrder.id },
-          data: { goodsPaidAt: new Date() },
+        const { alreadyProcessed } = await confirmGoodsPaid({
+          fastify,
+          log: request.log,
+          orderId: goodsOrder.id,
         });
-        await notifyGoodsPaid({ fastify, log: request.log, orderId: goodsOrder.id });
-        return reply.send({ received: true });
+        return reply.send({ received: true, ...(alreadyProcessed ? { alreadyProcessed } : {}) });
       }
 
       const order = await fastify.prisma.order.findUnique({
         where: { paystackRef: event.data.reference },
-        include: { student: { select: { phone: true } }, shop: { select: { name: true } } },
+        select: { id: true },
       });
       if (!order) return reply.code(404).send({ error: "Order not found for reference" });
 
-      // Paystack retries webhooks until it gets a 2xx. Re-issuing on a retry
-      // would overwrite the hash and silently invalidate the PIN already texted
-      // to the student, so an already-confirmed order is a no-op.
-      if (order.paidAt && order.deliveryPinHash) {
-        return reply.send({ received: true, alreadyProcessed: true });
-      }
-
-      const { smsSent } = await issueDeliveryPin({
-        fastify,
-        log: request.log,
-        phone: order.student.phone,
-        persistHash: (hash) =>
-          fastify.prisma.order
-            .update({
-              where: { id: order.id },
-              data: { status: "confirmed", paidAt: new Date(), deliveryPinHash: hash },
-            })
-            .then(() => undefined),
-      });
-
-      if (!smsSent) {
-        // The order is paid and confirmed either way — do not fail the webhook,
-        // or Paystack will retry and the no-op guard above will strand it. The
-        // student recovers via POST /orders/:id/resend-pin.
-        request.log.error(
-          { orderId: order.id },
-          "Order confirmed but the delivery PIN SMS did not send — student must request a resend",
-        );
-      }
-
-      // Both are best-effort and never throw, so a push outage cannot stop the
-      // webhook returning 2xx — a non-2xx here makes Paystack retry, and the
-      // idempotency guard above would then strand the retry as a no-op.
-      await notifyOrderStatus({ fastify, log: request.log, orderId: order.id, status: "confirmed" });
-      await announceNewOrderToRiders({
+      // All the actual work lives in confirmDeliveryFeePaid, shared with the
+      // pull path in GET /verify/:ref so the two can never drift. It is
+      // idempotent, which is what makes Paystack's retries safe.
+      const { alreadyProcessed } = await confirmDeliveryFeePaid({
         fastify,
         log: request.log,
         orderId: order.id,
-        universityId: order.universityId,
-        shopName: order.shop?.name ?? "a nearby shop",
       });
 
-      return reply.send({ received: true });
+      return reply.send({ received: true, ...(alreadyProcessed ? { alreadyProcessed } : {}) });
     },
   );
 
+  /**
+   * Has this order been paid for?
+   *
+   * The app polls this throughout checkout. It used to read only our own
+   * database, which meant it could answer "not paid" forever for a payment that
+   * genuinely succeeded — because the ONLY thing that ever set `paidAt` was the
+   * webhook. If that webhook never arrives, nothing else ever looks.
+   *
+   * It never arrives in local development at all: `APP_URL` is `localhost`, and
+   * Paystack cannot call a laptop. In production it usually does, but "usually"
+   * is not a property you want on the money path — deliveries get delayed,
+   * retried past their limit, or dropped.
+   *
+   * So when our record says unpaid, this asks **Paystack** directly before
+   * answering. That call is server-to-server with the secret key, so it is
+   * exactly as trustworthy as the webhook; the client contributes nothing but a
+   * reference it already had. On a confirmed success it runs the same
+   * `confirmDeliveryFeePaid` the webhook runs — issuing the PIN, moving the
+   * status, announcing to riders — and the idempotency guard inside means
+   * whichever path arrives second is a no-op.
+   */
+  async function reconcileWithPaystack(args: {
+    reference: string;
+    isGoods: boolean;
+    orderId: string;
+    log: typeof fastify.log;
+  }): Promise<void> {
+    let transaction;
+    try {
+      transaction = await fetchPaystackTransaction(fastify.config.PAYSTACK_SECRET_KEY, args.reference);
+    } catch (err) {
+      // Never fail the poll on a provider blip — the next one may succeed, and
+      // the webhook may land in the meantime.
+      args.log.warn({ err: (err as Error).message }, "Paystack verify lookup failed");
+      return;
+    }
+    if (transaction?.status !== "success") return;
+
+    args.log.info(
+      { orderId: args.orderId, reference: args.reference },
+      "Payment confirmed by polling Paystack — webhook had not arrived",
+    );
+    if (args.isGoods) {
+      await confirmGoodsPaid({ fastify, log: args.log, orderId: args.orderId });
+    } else {
+      await confirmDeliveryFeePaid({ fastify, log: args.log, orderId: args.orderId });
+    }
+  }
+
   fastify.get("/verify/:ref", { preHandler: fastify.authenticate }, async (request, reply) => {
     const { ref } = request.params as { ref: string };
-    const order = await fastify.prisma.order.findUnique({ where: { paystackRef: ref } });
+
+    // Either charge on an order can be polled, so look the reference up in both
+    // columns. A goods reference is only ever set on a shop_pickup.
+    let order = await fastify.prisma.order.findUnique({ where: { paystackRef: ref } });
+    let isGoods = false;
+    if (!order) {
+      order = await fastify.prisma.order.findUnique({ where: { goodsPaystackRef: ref } });
+      isGoods = !!order;
+    }
+
     // 404 rather than 403 on someone else's order: a distinguishable "exists but
     // not yours" would let anyone probe whether a reference is real.
     if (!order || order.studentId !== request.user!.id) {
       return reply.code(404).send({ error: "Order not found" });
     }
-    return reply.send({ status: order.status, paidAt: order.paidAt });
+
+    const settled = isGoods ? !!order.goodsPaidAt : !!order.paidAt;
+    if (!settled) {
+      await reconcileWithPaystack({
+        reference: ref,
+        isGoods,
+        orderId: order.id,
+        log: request.log,
+      });
+      const refreshed = await fastify.prisma.order.findUnique({ where: { id: order.id } });
+      if (refreshed) order = refreshed;
+    }
+
+    return reply.send({
+      status: order.status,
+      paidAt: isGoods ? order.goodsPaidAt : order.paidAt,
+    });
   });
 
   /**

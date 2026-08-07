@@ -76,6 +76,49 @@ export async function refundPaystackPayment(
   return response.data.data as PaystackRefund;
 }
 
+export interface PaystackTransaction {
+  /** "success" | "failed" | "abandoned" | "ongoing" | "pending" | … */
+  status: string;
+  reference: string;
+  amount: number; // pesewas
+  currency: string;
+  paid_at: string | null;
+}
+
+/**
+ * Asks Paystack directly whether a transaction succeeded.
+ *
+ * This is the **backstop for the webhook**, and it is exactly as trustworthy:
+ * both are server-to-server exchanges authenticated with the secret key, and
+ * neither takes the client's word for anything. The client can only ever supply
+ * a reference, which it already knows.
+ *
+ * Two situations need it:
+ *  - **Local development.** Paystack cannot reach `localhost`, so the webhook
+ *    never arrives and an order would sit `payment_pending` forever after a
+ *    genuinely successful payment.
+ *  - **Production.** Webhooks get delayed, retried, or dropped. Without a pull
+ *    path, a single lost delivery strands a paid order with no way back.
+ *
+ * Returns null when Paystack has no such transaction, so a made-up reference
+ * reads as "not paid" rather than an error.
+ */
+export async function fetchPaystackTransaction(
+  secretKey: string,
+  reference: string,
+): Promise<PaystackTransaction | null> {
+  try {
+    const response = await axios.get(
+      `${PAYSTACK_BASE_URL}/transaction/verify/${encodeURIComponent(reference)}`,
+      { headers: { Authorization: `Bearer ${secretKey}` } },
+    );
+    return response.data?.data as PaystackTransaction;
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+    throw err;
+  }
+}
+
 export function verifyPaystackSignature(secretKey: string, rawBody: string, signature: string): boolean {
   const hash = crypto.createHmac("sha512", secretKey).update(rawBody).digest("hex");
   return hash === signature;
