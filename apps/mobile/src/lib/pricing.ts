@@ -97,3 +97,59 @@ export function formatFullDay(date: Date): string {
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   return `${dayNames[date.getDay()]}, ${date.getDate()} ${MONTH_ABBR[date.getMonth()]}`;
 }
+
+/**
+ * Every day of a month, classified for the Wave calendar.
+ *
+ * The three kinds mirror what the server will accept in `POST /orders`:
+ *
+ *  - **standard** — a Sunday or Wednesday whose noon cutoff hasn't passed.
+ *    No surcharge. `isSpecialOrder: false`.
+ *  - **rush** — any other day at least `DEFAULT_SPECIAL_ORDER_LEAD_HOURS` away.
+ *    `isSpecialOrder: true`, and the server charges the surcharge.
+ *  - **disabled** — the past, today after cutoff, and anything inside the lead
+ *    time. The server would reject these, so the calendar must not offer them.
+ *
+ * Keeping the rule here rather than in the screen means the calendar and the
+ * order it produces cannot disagree about what day it is asking for.
+ */
+export function classifyMonth(
+  month: Date,
+  now: Date = new Date(),
+): { date: Date; kind: "standard" | "rush" | "disabled" }[] {
+  const year = month.getFullYear();
+  const monthIndex = month.getMonth();
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const leadMs = DEFAULT_SPECIAL_ORDER_LEAD_HOURS * 60 * 60 * 1000;
+
+  return Array.from({ length: daysInMonth }, (_, i) => {
+    const date = new Date(year, monthIndex, i + 1);
+    date.setHours(0, 0, 0, 0);
+
+    if (RUN_DAYS.includes(date.getDay())) {
+      // A Wave day is open until noon on the day itself.
+      const cutoff = new Date(date);
+      cutoff.setHours(CUTOFF_HOUR, 0, 0, 0);
+      return { date, kind: cutoff.getTime() > now.getTime() ? "standard" : "disabled" };
+    }
+
+    // A rush order needs a full day's notice, measured to the START of the
+    // chosen day — a delivery at 9am cannot be arranged by promising 24 hours
+    // from midnight that night.
+    return {
+      date,
+      kind: date.getTime() - now.getTime() >= leadMs ? "rush" : "disabled",
+    };
+  });
+}
+
+/** Is this date one of Wave's two standing run days? */
+export function isStandardRunDay(date: Date): boolean {
+  return RUN_DAYS.includes(date.getDay());
+}
+
+/** The `deliveryDay` value the API expects for a chosen date. */
+export function deliveryDayFor(date: Date, isSpecialOrder: boolean): "sunday" | "wednesday" | "special" {
+  if (isSpecialOrder) return "special";
+  return date.getDay() === 0 ? "sunday" : "wednesday";
+}

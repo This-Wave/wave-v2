@@ -1,7 +1,12 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import type { NavigatorScreenParams } from "@react-navigation/native";
 import { StudentTabNavigator, type StudentTabParamList } from "./StudentTabNavigator";
+import { WaveCalendarScreen } from "../screens/student/WaveCalendarScreen";
+import { ChooseServiceScreen } from "../screens/student/ChooseServiceScreen";
 import { ShopSelectionScreen } from "../screens/student/ShopSelectionScreen";
+import { ShopMenuScreen } from "../screens/student/ShopMenuScreen";
+import { SuggestShopScreen } from "../screens/student/SuggestShopScreen";
+import { SuggestOrderSummaryScreen } from "../screens/student/SuggestOrderSummaryScreen";
 import { DescribeOrderScreen } from "../screens/student/DescribeOrderScreen";
 import { OrderSummaryScreen } from "../screens/student/OrderSummaryScreen";
 import { PaymentScreen } from "../screens/student/PaymentScreen";
@@ -15,26 +20,66 @@ import { PickupPinScreen } from "../screens/student/PickupPinScreen";
 import { CutoffPassedScreen } from "../screens/student/CutoffPassedScreen";
 import { PaymentFailedScreen } from "../screens/student/PaymentFailedScreen";
 
+/**
+ * A chosen basket line, as it travels between screens.
+ *
+ * `itemsPreview` carries names and prices purely so the summary can render a
+ * priced list without re-fetching the menu. The server is still handed only
+ * `items` — `{ productId, quantity }` — and prices everything itself.
+ */
+export interface BasketLine {
+  productId: string;
+  quantity: number;
+}
+
+export interface BasketPreviewLine {
+  name: string;
+  unitPrice: number;
+  quantity: number;
+}
+
+/** The Wave a flow is being booked onto. Threaded from the calendar onward. */
+interface WaveParams {
+  scheduledDate: string;
+  isSpecialOrder: boolean;
+}
+
 export type StudentStackParamList = {
   Tabs: NavigatorScreenParams<StudentTabParamList> | undefined;
-  ShopSelection: undefined;
-  DescribeOrder: { shopId: string; shopName: string; isSpecialOrder?: boolean };
+  WaveCalendar: undefined;
+  ChooseService: WaveParams;
+  // Undefined when entered from Home's "Buy for me" tile, which books the next
+  // open Wave — the calendar is the deliberate path, not the only one.
+  ShopSelection: WaveParams | undefined;
+  ShopMenu: { shopId: string; shopName: string } & WaveParams;
+  SuggestShop: { initialQuery?: string } & WaveParams;
+  SuggestOrderSummary: {
+    suggestionId: string;
+    shopName: string;
+    locationText?: string;
+    manualItems: { name: string; quantity: number }[];
+  } & WaveParams;
+  DescribeOrder: {
+    shopId: string;
+    shopName: string;
+    items: BasketLine[];
+    itemsPreview: BasketPreviewLine[];
+    notes?: string;
+  } & WaveParams;
   OrderSummary: {
     shopId: string;
     shopName: string;
-    itemDescription: string;
-    scheduledDate: string;
-    isSpecialOrder: boolean;
+    items: BasketLine[];
+    itemsPreview: BasketPreviewLine[];
     checkpointId: string;
     checkpointName: string;
-    budget?: string;
     notes?: string;
-  };
+  } & WaveParams;
   Payment: { orderId: string; totalAmount: number };
   PaymentMethods: undefined;
   Checkpoints: undefined;
   OrderConfirmed: { orderId: string };
-  PickupRequest: undefined;
+  PickupRequest: WaveParams | undefined;
   OrderTracking: { orderId: string };
   OrderDetail: { orderId: string };
   PickupPin: { orderId: string };
@@ -48,7 +93,12 @@ export function StudentNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Tabs" component={StudentTabNavigator} />
+      <Stack.Screen name="WaveCalendar" component={WaveCalendarScreen} />
+      <Stack.Screen name="ChooseService" component={ChooseServiceScreen} />
       <Stack.Screen name="ShopSelection" component={ShopSelectionScreen} />
+      <Stack.Screen name="ShopMenu" component={ShopMenuScreen} />
+      <Stack.Screen name="SuggestShop" component={SuggestShopScreen} />
+      <Stack.Screen name="SuggestOrderSummary" component={SuggestOrderSummaryScreen} />
       <Stack.Screen name="DescribeOrder" component={DescribeOrderScreen} />
       <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
       <Stack.Screen name="Payment" component={PaymentScreen} />

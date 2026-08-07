@@ -2,7 +2,11 @@ import type { FastifyInstance } from "fastify";
 import axios from "axios";
 import { initiatePaystackPayment, verifyPaystackSignature } from "./paystack";
 import { issueDeliveryPin } from "../orders/issuePin";
-import { announceNewOrderToRiders, notifyOrderStatus } from "../notifications/dispatch";
+import {
+  announceNewOrderToRiders,
+  notifyGoodsPaid,
+  notifyOrderStatus,
+} from "../notifications/dispatch";
 
 export async function paymentRoutes(fastify: FastifyInstance) {
   fastify.post("/initiate", { preHandler: fastify.authenticate }, async (request, reply) => {
@@ -44,6 +48,71 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     return reply.send({ payment_url: authorization_url, reference });
   });
 
+  /**
+   * The second charge on a suggested-shop order: the goods.
+   *
+   * Separate from `/initiate` rather than a flag on it, because the two charges
+   * differ in every respect that matters — different amount, different Paystack
+   * reference column, different precondition, and a different thing goes wrong
+   * if they are confused. Sharing a handler would mean one `if` deciding which
+   * of two reference columns to write, on the money path.
+   *
+   * The amount is `totalAmount - deliveryFee-and-adjustments already paid`,
+   * computed here from the order rather than sent by the client.
+   */
+  fastify.post("/initiate-goods", { preHandler: fastify.authenticate }, async (request, reply) => {
+    const body = request.body as { orderId?: string; method?: "momo" | "card" };
+    if (!body.orderId) return reply.code(400).send({ error: "orderId is required" });
+    const channels =
+      body.method === "momo" ? (["mobile_money"] as const)
+      : body.method === "card" ? (["card"] as const)
+      : undefined;
+
+    const order = await fastify.prisma.order.findUnique({ where: { id: body.orderId } });
+    if (!order) return reply.code(404).send({ error: "Order not found" });
+    if (order.studentId !== request.user!.id) {
+      return reply.code(403).send({ error: "Not your order" });
+    }
+    if (order.orderType !== "shop_pickup") {
+      return reply.code(409).send({ error: "This order was paid in full when you placed it" });
+    }
+    if (order.goodsPaidAt) {
+      return reply.code(409).send({ error: "You've already paid for the goods on this order" });
+    }
+
+    const goodsAmount = Number(order.itemPrice ?? 0);
+    if (goodsAmount <= 0) {
+      return reply
+        .code(409)
+        .send({ error: "Your runner hasn't recorded what the items cost yet" });
+    }
+
+    const profile = await fastify.prisma.profile.findUnique({ where: { id: order.studentId } });
+    const reference = `WAVEGOODS-${order.id}-${Date.now()}`;
+
+    let authorization_url: string;
+    try {
+      ({ authorization_url } = await initiatePaystackPayment(fastify.config.PAYSTACK_SECRET_KEY, {
+        email: profile?.email ?? `${profile!.phone}@wave.app`,
+        amountGhs: goodsAmount,
+        reference,
+        callbackUrl: `${fastify.config.APP_URL}/v1/payments/callback`,
+        metadata: { order_id: order.id, student_id: order.studentId, kind: "goods" },
+        channels: channels ? [...channels] : undefined,
+      }));
+    } catch (err) {
+      const message = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
+      request.log.error(err, "Paystack goods initiate failed");
+      return reply.code(502).send({ error: message ?? "Payment provider error, please try again" });
+    }
+
+    await fastify.prisma.order.update({
+      where: { id: order.id },
+      data: { goodsPaystackRef: reference },
+    });
+    return reply.send({ payment_url: authorization_url, reference, amountGhs: goodsAmount });
+  });
+
   // Public endpoint — Paystack calls this directly. Signature verification
   // is mandatory before trusting the payload (see Section 10.3).
   fastify.post(
@@ -59,6 +128,31 @@ export async function paymentRoutes(fastify: FastifyInstance) {
 
       const event = request.body as { event: string; data: { reference: string; status: string } };
       if (event.event !== "charge.success") {
+        return reply.send({ received: true });
+      }
+
+      // A goods charge is the second payment on a suggested-shop order and has
+      // its own reference column. It is handled and returned here, before the
+      // delivery-fee path below — that path issues a PIN and announces the order
+      // to riders, neither of which must happen twice.
+      const goodsOrder = await fastify.prisma.order.findUnique({
+        where: { goodsPaystackRef: event.data.reference },
+        select: { id: true, goodsPaidAt: true, studentId: true, goodsPaystackRef: true },
+      });
+      // Re-check the reference on the row rather than trusting the lookup to
+      // have been the only filter. Belt and braces on the money path: if this
+      // branch ever claimed a delivery-fee webhook it would swallow the PIN
+      // issue and the rider announcement, and the order would sit paid but
+      // unconfirmed with nothing in the logs to say why.
+      if (goodsOrder && goodsOrder.goodsPaystackRef === event.data.reference) {
+        if (goodsOrder.goodsPaidAt) {
+          return reply.send({ received: true, alreadyProcessed: true });
+        }
+        await fastify.prisma.order.update({
+          where: { id: goodsOrder.id },
+          data: { goodsPaidAt: new Date() },
+        });
+        await notifyGoodsPaid({ fastify, log: request.log, orderId: goodsOrder.id });
         return reply.send({ received: true });
       }
 

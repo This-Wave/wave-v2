@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -19,6 +20,8 @@ import {
 import { useOrder } from "../../lib/orders";
 import { buildOrderLedger } from "../../lib/ledger";
 import { currentStepIndex, orderSteps, shortOrderRef, statusPill } from "./orderPresenters";
+import { describeWave } from "../../lib/wave";
+import { isStandardRunDay } from "../../lib/pricing";
 
 type Route = RouteProp<StudentStackParamList, "OrderDetail">;
 
@@ -36,6 +39,14 @@ export function OrderDetailScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
   const { data: order } = useOrder(params.orderId);
+
+  // Reordering books onto the next open Wave; the calendar is how you pick a
+  // different one. Computed before the early return so hook order stays stable.
+  const nextWaveDate = useMemo(() => {
+    const next = describeWave();
+    const date = next?.date ?? new Date();
+    return { scheduledDate: date.toISOString(), isSpecialOrder: !isStandardRunDay(date) };
+  }, []);
 
   if (!order) {
     return (
@@ -102,14 +113,20 @@ export function OrderDetailScreen() {
         </Gutter>
       </ScreenBody>
 
+      {/* Reordering opens the shop's menu rather than pre-filling a basket.
+          Prices and availability move between Waves, so silently rebuilding an
+          old basket would quote a total the shop may no longer honour — and an
+          out-of-stock line would fail at checkout instead of at the menu. */}
       {order.shop ? (
         <ActionBar>
           <Button
-            label="Order this again"
+            label="Order from here again"
             onPress={() =>
-              navigation.navigate("DescribeOrder", {
+              navigation.navigate("ShopMenu", {
                 shopId: order.shop!.id,
                 shopName: order.shop!.name,
+                scheduledDate: nextWaveDate.scheduledDate,
+                isSpecialOrder: nextWaveDate.isSpecialOrder,
               })
             }
           />

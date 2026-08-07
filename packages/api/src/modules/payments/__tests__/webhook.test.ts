@@ -6,13 +6,19 @@ import type { FastifyInstance } from "fastify";
 // can reference these without a temporal-dead-zone error. The alternative,
 // top-level `await import(...)`, is not valid under this package's CommonJS
 // target and fails `npm run type-check`.
-const { notifyOrderStatus, announceNewOrderToRiders, issueDeliveryPin } = vi.hoisted(() => ({
-  notifyOrderStatus: vi.fn(),
-  announceNewOrderToRiders: vi.fn(),
-  issueDeliveryPin: vi.fn(),
-}));
+const { notifyOrderStatus, announceNewOrderToRiders, notifyGoodsPaid, issueDeliveryPin } =
+  vi.hoisted(() => ({
+    notifyOrderStatus: vi.fn(),
+    announceNewOrderToRiders: vi.fn(),
+    notifyGoodsPaid: vi.fn(),
+    issueDeliveryPin: vi.fn(),
+  }));
 
-vi.mock("../../notifications/dispatch", () => ({ notifyOrderStatus, announceNewOrderToRiders }));
+vi.mock("../../notifications/dispatch", () => ({
+  notifyOrderStatus,
+  announceNewOrderToRiders,
+  notifyGoodsPaid,
+}));
 vi.mock("../../orders/issuePin", () => ({ issueDeliveryPin }));
 
 import { paymentRoutes } from "../routes";

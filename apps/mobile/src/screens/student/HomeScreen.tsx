@@ -26,6 +26,7 @@ import { colors } from "../../theme/tokens";
 import { useShops } from "../../lib/shops";
 import { useMyOrders } from "../../lib/orders";
 import { useWave } from "../../lib/wave";
+import { isStandardRunDay } from "../../lib/pricing";
 import { orderProgress, statusPill } from "./orderPresenters";
 import type { Order, Shop } from "../../types";
 
@@ -67,6 +68,19 @@ export function HomeScreen() {
     [shops, category],
   );
 
+  /**
+   * The Wave a Home tap books onto: the next open one. Tapping a shop from Home
+   * is the shortcut past the calendar, so it needs a date to carry forward —
+   * the calendar remains the way to pick a different one.
+   */
+  const waveDate = useMemo(
+    () => ({
+      scheduledDate: (wave?.date ?? new Date()).toISOString(),
+      isSpecialOrder: wave ? !isStandardRunDay(wave.date) : false,
+    }),
+    [wave],
+  );
+
   const live = (orders ?? []).find((o) =>
     ["confirmed", "rider_assigned", "en_route", "at_checkpoint"].includes(o.status),
   );
@@ -95,10 +109,13 @@ export function HomeScreen() {
 
       <ScreenBody bottomInset={32}>
         <Gutter className="pb-4 pt-1">
+          {/* The countdown opens the calendar. It used to drop straight into
+              the shop list, which meant the *only* Wave a student could order
+              onto was the next one — there was no route to a later date at all. */}
           {wave && !wave.closed ? (
-            <WaveBanner wave={wave} onPress={() => navigation.navigate("ShopSelection")} />
+            <WaveBanner wave={wave} onPress={() => navigation.navigate("WaveCalendar")} />
           ) : (
-            <WaveClosedBanner onPress={() => navigation.navigate("CutoffPassed")} />
+            <WaveClosedBanner onPress={() => navigation.navigate("WaveCalendar")} />
           )}
         </Gutter>
 
@@ -106,7 +123,9 @@ export function HomeScreen() {
           <SearchCapsule
             waveLabel={wave?.dateLabel ?? "Next Wave"}
             onPressQuery={() => navigation.navigate("ShopSelection")}
-            onPressWave={() => navigation.navigate("ShopSelection")}
+            // The Wave half of the capsule is a date affordance, so it opens the
+            // date picker rather than repeating what the query half does.
+            onPressWave={() => navigation.navigate("WaveCalendar")}
             onSubmit={() => navigation.navigate("ShopSelection")}
           />
         </Gutter>
@@ -159,6 +178,7 @@ export function HomeScreen() {
           loading={shopsLoading}
           shops={visible}
           navigation={navigation}
+          waveDate={waveDate}
           emptyNote={category ? `No ${titleCase(category)} shops on this Wave.` : undefined}
         />
 
@@ -168,6 +188,7 @@ export function HomeScreen() {
             loading={false}
             shops={orderedBefore}
             navigation={navigation}
+            waveDate={waveDate}
           />
         ) : null}
       </ScreenBody>
@@ -206,12 +227,14 @@ function Section({
   shops,
   loading,
   navigation,
+  waveDate,
   emptyNote,
 }: {
   title: string;
   shops: Shop[];
   loading: boolean;
   navigation: Nav;
+  waveDate: { scheduledDate: string; isSpecialOrder: boolean };
   emptyNote?: string;
 }) {
   return (
@@ -245,7 +268,12 @@ function Section({
                 priceValue="GH₵5 delivery"
                 badge={shop.isActive ? undefined : "Paused"}
                 onPress={() =>
-                  navigation.navigate("DescribeOrder", { shopId: shop.id, shopName: shop.name })
+                  navigation.navigate("ShopMenu", {
+                    shopId: shop.id,
+                    shopName: shop.name,
+                    scheduledDate: waveDate.scheduledDate,
+                    isSpecialOrder: waveDate.isSpecialOrder,
+                  })
                 }
               />
             ))}

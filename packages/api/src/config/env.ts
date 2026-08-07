@@ -24,6 +24,12 @@ const envSchema = z.object({
   SMS_HOOK_SECRET: z.string().optional(),
   MNOTIFY_API_KEY: z.string().optional(),
   MNOTIFY_SENDER_ID: z.string().max(11).default("Wave"),
+
+  // Transactional email (Resend). Optional like mNotify: unset means every send
+  // is a silent no-op, which is what keeps tests and local dev offline. The
+  // from-address must be on a domain verified in the Resend dashboard.
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM: z.string().default("Wave <notifications@wave.app>"),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -3,13 +3,20 @@ import {
   cancelOrderSchema,
   createOrderSchema,
   deliverOrderSchema,
+  recordGoodsCostSchema,
 } from "@wave/shared";
 import { calculateDiscount, calculateOrderTotal, isStandardDeliveryDay } from "./discount";
+import {
+  buildManualBasket,
+  priceCatalogueBasket,
+  round2,
+  type BasketResult,
+} from "./basket";
 import { verifyDeliveryPin } from "./pin";
 import { issueDeliveryPin } from "./issuePin";
 import { clientSafeOrder, feedOrder } from "./select";
 import { endOrderWithRefund } from "../payments/refund";
-import { notifyOrderStatus } from "../notifications/dispatch";
+import { notifyGoodsCostRecorded, notifyOrderStatus } from "../notifications/dispatch";
 
 export async function orderRoutes(fastify: FastifyInstance) {
   // POST /orders — student places a "Buy For Me" order.
@@ -38,15 +45,12 @@ export async function orderRoutes(fastify: FastifyInstance) {
         }
       }
 
-      const [feeConfig, surchargeConfig, discountConfig, thresholdConfig, stats, product] = await Promise.all([
+      const [feeConfig, surchargeConfig, discountConfig, thresholdConfig, stats] = await Promise.all([
         fastify.prisma.platformConfig.findUnique({ where: { key: "delivery_fee_base" } }),
         fastify.prisma.platformConfig.findUnique({ where: { key: "special_order_surcharge_pct" } }),
         fastify.prisma.platformConfig.findUnique({ where: { key: "loyalty_discount_pct" } }),
         fastify.prisma.platformConfig.findUnique({ where: { key: "loyalty_threshold" } }),
         fastify.prisma.studentDeliveryStats.findUnique({ where: { studentId: request.user!.id } }),
-        input.productId
-          ? fastify.prisma.product.findUnique({ where: { id: input.productId } })
-          : Promise.resolve(null),
       ]);
 
       const deliveryFee = Number(feeConfig?.value ?? 5);
@@ -60,14 +64,6 @@ export async function orderRoutes(fastify: FastifyInstance) {
       }) > 0
         ? Number(discountConfig?.value ?? 20)
         : 0;
-
-      const itemPrice = product ? Number(product.price) : 0;
-      const totalAmount = calculateOrderTotal({ itemPrice, deliveryFee, discountPct, surchargePct });
-
-      // A pickup has no shop to buy from, so there is nothing to charge for the
-      // items — the delivery fee is the whole price. The Zod refinements already
-      // guarantee productId is absent, so `product` is null and itemPrice is 0.
-      const isPickup = input.orderType === "pickup";
 
       // Both checkpoints must exist on the student's own campus. Without this a
       // student could name any checkpoint UUID in the country as their origin.
@@ -91,17 +87,80 @@ export async function orderRoutes(fastify: FastifyInstance) {
           .send({ error: "That checkpoint is not active on your campus" });
       }
 
+      // --- The basket, and with it the price -------------------------------
+      //
+      // Each order type prices differently, and this is the only place that
+      // decides. Note that no branch reads a price off `input` — the client
+      // sends product ids and quantities, and the amounts come from the
+      // database or from nowhere at all.
+      let basket: BasketResult;
+      let suggestionId: string | null = null;
+
+      if (input.orderType === "buy_for_me") {
+        const shop = await fastify.prisma.shop.findFirst({
+          where: { id: input.shopId!, universityId, isActive: true },
+          select: { id: true },
+        });
+        if (!shop) {
+          return reply.code(400).send({ error: "That shop is not open on your campus" });
+        }
+        basket = await priceCatalogueBasket({
+          fastify,
+          shopId: input.shopId!,
+          items: input.items ?? [],
+        });
+      } else if (input.orderType === "shop_pickup") {
+        // The suggestion must be the student's own and still un-onboarded. Once
+        // it resolves to a real shop, ordering has to go through the catalogue
+        // instead — otherwise a student keeps buying blind from a shop whose
+        // prices Wave now knows.
+        const suggestion = await fastify.prisma.shopSuggestion.findFirst({
+          where: { id: input.suggestionId!, studentId: request.user!.id, universityId },
+          select: { id: true, status: true },
+        });
+        if (!suggestion) {
+          return reply.code(404).send({ error: "That shop suggestion doesn't exist" });
+        }
+        if (suggestion.status === "rejected") {
+          return reply.code(409).send({ error: "Wave can't deliver from that shop" });
+        }
+        if (suggestion.status === "onboarded") {
+          return reply
+            .code(409)
+            .send({ error: "That shop is on Wave now — order from its menu instead" });
+        }
+        suggestionId = suggestion.id;
+        basket = buildManualBasket(input.manualItems ?? []);
+      } else {
+        // A pickup carries no items at all; the student's own words are the
+        // description, and the delivery fee is the whole price.
+        basket = { ok: true, lines: [], itemsTotal: 0, description: input.itemDescription! };
+      }
+
+      if (!basket.ok) return reply.code(400).send({ error: basket.error });
+
+      // A `shop_pickup`'s goods are charged later, once the rider reports the
+      // till total — so the amount payable NOW is the delivery fee only. For the
+      // other two types the total is final at this point.
+      const chargeableItemsTotal = input.orderType === "shop_pickup" ? 0 : basket.itemsTotal;
+      const totalAmount = calculateOrderTotal({
+        itemPrice: chargeableItemsTotal,
+        deliveryFee,
+        discountPct,
+        surchargePct,
+      });
+
       const order = await fastify.prisma.order.create({
         data: {
           studentId: request.user!.id,
           orderType: input.orderType,
-          shopId: isPickup ? null : input.shopId,
-          originCheckpointId: isPickup ? input.originCheckpointId : null,
+          shopId: input.orderType === "buy_for_me" ? input.shopId : null,
+          originCheckpointId: input.orderType === "pickup" ? input.originCheckpointId : null,
+          suggestionId,
           checkpointId: input.checkpointId,
           universityId,
-          itemDescription: input.itemDescription,
-          productId: input.productId,
-          itemPrice,
+          itemDescription: basket.description,
+          itemPrice: chargeableItemsTotal,
           deliveryFee,
           discountApplied: discountPct,
           surchargeApplied: surchargePct,
@@ -111,6 +170,16 @@ export async function orderRoutes(fastify: FastifyInstance) {
           isSpecialOrder: input.isSpecialOrder,
           status: "payment_pending",
           notes: input.notes,
+          items: basket.lines.length
+            ? {
+                create: basket.lines.map((l) => ({
+                  productId: l.productId,
+                  name: l.name,
+                  unitPrice: l.unitPrice,
+                  quantity: l.quantity,
+                })),
+              }
+            : undefined,
         },
         select: clientSafeOrder,
       });
@@ -232,6 +301,123 @@ export async function orderRoutes(fastify: FastifyInstance) {
     },
   );
 
+  /**
+   * The rider records what they actually paid, line by line, at a shop that has
+   * no catalogue on Wave.
+   *
+   * This is the only way a `shop_pickup` ever acquires a goods price. Until it
+   * lands, the order has a delivery fee and nothing else, and `/deliver` below
+   * refuses to complete it.
+   *
+   * Three properties worth keeping:
+   *  - **Per unit, not per line.** The client sends a unit price and the server
+   *    multiplies by the quantity it already recorded. A rider doing that
+   *    arithmetic on a phone at a till is exactly where a wrong charge is born.
+   *  - **Write-once.** Re-recording would move a total the student may already
+   *    have been charged for, so a second call is refused rather than applied.
+   *  - **Every line or none.** A partial submission would produce a total that
+   *    looks complete and isn't.
+   */
+  fastify.post(
+    "/:id/goods-cost",
+    { preHandler: [fastify.authenticate, fastify.requireRole("rider")] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const parsed = recordGoodsCostSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+      }
+
+      const order = await fastify.prisma.order.findFirst({
+        where: { id, riderId: request.user!.id },
+        select: {
+          id: true,
+          orderType: true,
+          status: true,
+          deliveryFee: true,
+          discountApplied: true,
+          surchargeApplied: true,
+          goodsPaidAt: true,
+          items: { select: { id: true, quantity: true, actualUnitPrice: true } },
+        },
+      });
+      if (!order) {
+        return reply.code(404).send({ error: "Order not found or not assigned to you" });
+      }
+      if (order.orderType !== "shop_pickup") {
+        return reply
+          .code(409)
+          .send({ error: "Only a suggested-shop order has a cost to record — this one is priced" });
+      }
+      if (order.goodsPaidAt || order.items.some((i) => i.actualUnitPrice !== null)) {
+        return reply.code(409).send({ error: "The cost for this order has already been recorded" });
+      }
+
+      const byId = new Map(order.items.map((i) => [i.id, i]));
+      if (parsed.data.lines.length !== order.items.length) {
+        return reply
+          .code(400)
+          .send({ error: "Record a price for every item on the list" });
+      }
+      for (const line of parsed.data.lines) {
+        if (!byId.has(line.itemId)) {
+          return reply.code(400).send({ error: "That item is not on this order" });
+        }
+      }
+
+      const itemsTotal = round2(
+        parsed.data.lines.reduce(
+          (sum, l) => sum + l.actualUnitPrice * (byId.get(l.itemId)!.quantity ?? 1),
+          0,
+        ),
+      );
+
+      // The delivery fee was charged at order time. Recomputing the total the
+      // same way as creation keeps one definition of what an order costs, and
+      // the difference between the two is exactly what is still owed.
+      const totalAmount = calculateOrderTotal({
+        itemPrice: itemsTotal,
+        deliveryFee: Number(order.deliveryFee),
+        discountPct: Number(order.discountApplied),
+        surchargePct: Number(order.surchargeApplied),
+      });
+
+      const updated = await fastify.prisma.$transaction(async (tx) => {
+        for (const line of parsed.data.lines) {
+          await tx.orderItem.update({
+            where: { id: line.itemId },
+            data: { actualUnitPrice: line.actualUnitPrice },
+          });
+        }
+        return tx.order.update({
+          where: { id },
+          data: { itemPrice: itemsTotal, totalAmount },
+          select: clientSafeOrder,
+        });
+      });
+
+      await fastify.prisma.orderStatusHistory.create({
+        data: {
+          orderId: id,
+          status: order.status,
+          changedBy: request.user!.id,
+          note: `Rider recorded goods cost: GHS ${itemsTotal.toFixed(2)}`,
+        },
+      });
+
+      // The student now owes the goods. Telling them immediately is what makes
+      // the second charge feel like part of the order rather than a surprise.
+      await notifyGoodsCostRecorded({
+        fastify,
+        log: request.log,
+        orderId: id,
+        amountGhs: itemsTotal,
+      });
+
+      return reply.send({ order: updated, goodsTotal: itemsTotal });
+    },
+  );
+
   // Rider marks delivered — requires the correct PIN, verified against the bcrypt hash.
   fastify.patch("/:id/deliver", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {
     const { id } = request.params as { id: string };
@@ -242,6 +428,20 @@ export async function orderRoutes(fastify: FastifyInstance) {
 
     const order = await fastify.prisma.order.findUnique({ where: { id } });
     if (!order || !order.deliveryPinHash) return reply.code(404).send({ error: "Order not found" });
+
+    // A suggested-shop order is charged in two parts, and the goods half is
+    // only knowable once the rider has been to the till. Handing the items over
+    // before that charge clears would give away goods Wave paid for and has no
+    // remaining hold on — the PIN proves the right person is collecting, not
+    // that they have paid.
+    if (order.orderType === "shop_pickup" && !order.goodsPaidAt) {
+      return reply.code(409).send({
+        error:
+          order.itemPrice && Number(order.itemPrice) > 0
+            ? "The student hasn't paid for the goods yet — ask them to complete payment in the app"
+            : "Record what you paid for the items before handing this over",
+      });
+    }
 
     const valid = await verifyDeliveryPin(parsed.data.pin, order.deliveryPinHash);
     if (!valid) return reply.code(403).send({ error: "Incorrect PIN" });

@@ -21,6 +21,7 @@ import { colors } from "../../theme/tokens";
 import { useOrder } from "../../lib/orders";
 import { useUpdateOrderStatus } from "../../lib/rider";
 import { openMapsSearch } from "../../lib/maps";
+import { formatGhs } from "../../lib/pricing";
 
 type Route = RouteProp<RiderStackParamList, "ActiveDelivery">;
 
@@ -39,19 +40,47 @@ export function ActiveDeliveryScreen() {
   const updateStatus = useUpdateOrderStatus();
   const [step, setStep] = useState<"at_shop" | "en_route">("at_shop");
 
+  const isShopPickup = order?.orderType === "shop_pickup";
+  /**
+   * Where the runner is going. A `shop_pickup` has no `Shop` row at all — the
+   * place lives on the suggestion the student wrote — so reading only
+   * `order.shop` would send them to an empty string.
+   */
+  const origin = isShopPickup
+    ? { name: order?.suggestion?.name, locationText: order?.suggestion?.locationText }
+    : { name: order?.shop?.name, locationText: order?.shop?.locationText };
+
   // Shops have no coordinates, only free text — so the map opens on a search.
   // Name and location together disambiguate; empty disables the button.
   const destination = useMemo(
-    () => [order?.shop?.name, order?.shop?.locationText].filter(Boolean).join(", "),
-    [order?.shop?.name, order?.shop?.locationText],
+    () => [origin.name, origin.locationText].filter(Boolean).join(", "),
+    [origin.name, origin.locationText],
   );
+
+  // The goods cost has been recorded once every line carries a price.
+  const costRecorded = !!order?.items?.length && order.items.every((i) => i.actualUnitPrice !== null);
+  const goodsPaid = !!order?.goodsPaidAt;
 
   const steps = [
     { label: "Order accepted", detail: "It's yours" },
     {
-      label: `Collect from ${order?.shop?.name ?? "the shop"}`,
-      detail: order?.shop?.locationText ?? undefined,
+      label: `Collect from ${origin.name ?? "the shop"}`,
+      detail: origin.locationText ?? undefined,
     },
+    // Only a shop_pickup has this step: no menu on Wave means no price until
+    // someone stands at the till and reports one.
+    ...(isShopPickup
+      ? [
+          {
+            label: "Record what you paid",
+            detail: costRecorded
+              ? goodsPaid
+                ? "Student has paid"
+                : "Waiting for the student to pay"
+              : "Before you hand anything over",
+          },
+        ]
+      : []),
     {
       label: `Carry to ${order?.checkpoint?.name ?? "the checkpoint"}`,
       detail: step === "en_route" ? "On the way" : "Not yet",
@@ -60,6 +89,12 @@ export function ActiveDeliveryScreen() {
   ];
 
   async function handleAdvance() {
+    // A shop_pickup cannot leave the shop as "picked up" until the till total
+    // is on record — after this the runner has no reason to still be there.
+    if (isShopPickup && !costRecorded) {
+      navigation.navigate("RecordGoodsCost", { orderId: params.orderId });
+      return;
+    }
     if (step === "at_shop") {
       await updateStatus.mutateAsync({
         orderId: params.orderId,
@@ -93,12 +128,47 @@ export function ActiveDeliveryScreen() {
 
           <Text className="mb-2 font-sans-medium text-body text-ink">What to buy</Text>
           <View className="mb-7 rounded-card bg-surface p-4">
-            <Text className="font-sans text-body text-ink">{order?.itemDescription ?? "—"}</Text>
+            {order?.items?.length ? (
+              order.items.map((item, i) => (
+                <View
+                  key={item.id}
+                  className={`flex-row items-center justify-between py-2 ${
+                    i > 0 ? "border-t border-hairline" : ""
+                  }`}
+                >
+                  <Text className="flex-1 font-sans text-body text-ink">
+                    {item.quantity}× {item.name}
+                  </Text>
+                  {item.unitPrice ? (
+                    <Text className="font-sans text-body text-muted">
+                      {formatGhs(Number(item.unitPrice) * item.quantity)}
+                    </Text>
+                  ) : null}
+                </View>
+              ))
+            ) : (
+              <Text className="font-sans text-body text-ink">{order?.itemDescription ?? "—"}</Text>
+            )}
           </View>
+
+          {isShopPickup ? (
+            <View className="mb-7 rounded-card bg-warning-bg p-4">
+              <Text className="font-sans-medium text-body text-warning">
+                This shop isn't on Wave
+              </Text>
+              <Text className="mt-1 font-sans text-body text-warning">
+                {costRecorded
+                  ? goodsPaid
+                    ? "The student has paid for the goods. You can complete the handover."
+                    : "Waiting for the student to pay for the goods. You can't hand over until they do."
+                  : "There are no prices on file. Buy the list, then record exactly what you paid — the student is charged that amount."}
+              </Text>
+            </View>
+          ) : null}
 
           <RowGroup>
             <Row
-              title={order?.shop?.name ?? "Shop"}
+              title={origin.name ?? "Shop"}
               meta={destination || "No location on file"}
               leading={<Thumb uri={order?.shop?.logoUrl} />}
               onPress={destination ? () => openMapsSearch(destination) : undefined}
@@ -127,7 +197,13 @@ export function ActiveDeliveryScreen() {
 
       <ActionBar>
         <Button
-          label={step === "at_shop" ? "I've picked it up" : "I'm at the checkpoint"}
+          label={
+            isShopPickup && !costRecorded
+              ? "Record what you paid"
+              : step === "at_shop"
+                ? "I've picked it up"
+                : "I'm at the checkpoint"
+          }
           onPress={handleAdvance}
           loading={updateStatus.isPending}
         />

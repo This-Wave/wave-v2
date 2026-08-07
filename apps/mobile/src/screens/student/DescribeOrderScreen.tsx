@@ -1,12 +1,11 @@
-import { useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { useState } from "react";
+import { Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
   ActionBar,
   Button,
-  Field,
   Gutter,
   Row,
   RowGroup,
@@ -19,19 +18,28 @@ import { CheckIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useCheckpoints } from "../../lib/checkpoints";
 import { useAuthStore } from "../../store/authStore";
-import { earliestSpecialOrderDate, formatFullDay, upcomingRunDays } from "../../lib/pricing";
+import { formatFullDay, formatGhs } from "../../lib/pricing";
+import { DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT } from "@wave/shared";
 
 type Route = RouteProp<StudentStackParamList, "DescribeOrder">;
 
 /**
- * "Buy For Me", rebuilt as one question per block on a plain canvas.
+ * Where and when — the last question before review.
  *
- * Two things v5 got wrong that are fixed here:
- *  - "Deliver to" was a field that *cycled* to the next checkpoint on each tap,
- *    with no way to see the options or go back one. It is now a real picker.
- *  - The run day was a row of three chips including a "Rush +30%" cell whose
- *    surcharge was never explained. The surcharge is now stated in words at the
- *    point of choosing it.
+ * This screen used to be the whole order: a free-text "Your list" box, a budget
+ * cap, a day picker and a checkpoint picker. Two of those are gone and it is
+ * worth saying why, because both were load-bearing before:
+ *
+ *  - **The list** moved to `ShopMenuScreen`, where the shop's real catalogue
+ *    supplies names and prices. Wave now knows what an order is worth before a
+ *    runner leaves.
+ *  - **The budget cap** is gone entirely. It existed because nobody knew the
+ *    price up front, so the student capped their exposure. With a priced basket
+ *    the total is on the next screen, and a spend limit on a known total is a
+ *    field that can only contradict it.
+ *
+ * The day is now chosen on the calendar before any of this, so it is shown here
+ * as a fact rather than a picker.
  */
 export function DescribeOrderScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
@@ -39,39 +47,14 @@ export function DescribeOrderScreen() {
   const profile = useAuthStore((s) => s.profile);
   const { data: checkpoints } = useCheckpoints(profile?.universityId ?? undefined);
 
-  const [description, setDescription] = useState("");
-  const [budget, setBudget] = useState("");
-  const [notes, setNotes] = useState("");
-  const [dayIndex, setDayIndex] = useState(0);
   const [checkpointId, setCheckpointId] = useState<string | null>(null);
-  const [picker, setPicker] = useState<"day" | "checkpoint" | null>(null);
-
-  const runDays = useMemo(() => upcomingRunDays(), []);
-  const dayOptions = useMemo(() => [...runDays, earliestSpecialOrderDate()], [runDays]);
-  const isSpecial = dayIndex === dayOptions.length - 1;
-  const selectedDate = dayOptions[dayIndex];
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const checkpoint = checkpoints?.find((c) => c.id === checkpointId) ?? checkpoints?.[0];
+  const scheduledDate = new Date(params.scheduledDate);
 
-  function handleContinue() {
-    if (!checkpoint) return;
-    // The backend has no budget column, so the cap rides in the runner notes,
-    // which is where it is actually actionable at the till.
-    const budgetLine = budget.trim() ? `Budget cap: GH₵${budget.trim()}` : "";
-    const runnerNotes = [budgetLine, notes.trim()].filter(Boolean).join("\n");
-
-    navigation.navigate("OrderSummary", {
-      shopId: params.shopId,
-      shopName: params.shopName,
-      itemDescription: description,
-      scheduledDate: selectedDate.toISOString(),
-      isSpecialOrder: isSpecial,
-      checkpointId: checkpoint.id,
-      checkpointName: checkpoint.name,
-      budget: budget.trim() || undefined,
-      notes: runnerNotes || undefined,
-    });
-  }
+  const itemCount = params.itemsPreview.reduce((n, l) => n + l.quantity, 0);
+  const basketTotal = params.itemsPreview.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
 
   return (
     <Screen>
@@ -79,133 +62,77 @@ export function DescribeOrderScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter>
-          <Text className="mb-1 font-sans-bold text-heading text-ink">What do you need?</Text>
+          <Text className="mb-2 font-sans-bold text-heading text-ink">Where do you want it?</Text>
           <Text className="mb-8 font-sans text-body text-muted">
-            From {params.shopName}. Be specific — your runner buys exactly what you write.
+            {itemCount} item{itemCount === 1 ? "" : "s"} from {params.shopName} ·{" "}
+            {formatGhs(basketTotal)}
           </Text>
-
-          <View className="mb-6">
-            <Field
-              label="Your list"
-              value={description}
-              onChangeText={setDescription}
-              placeholder={"1x extension cable (2m)\n1x A4 notebook, ruled"}
-              multiline
-              maxLength={500}
-              hint={`${description.length}/500`}
-            />
-          </View>
-
-          <View className="mb-6">
-            <Field
-              label="Spend up to"
-              value={budget}
-              onChangeText={setBudget}
-              placeholder="150"
-              keyboardType="numeric"
-              hint="Your runner won't go over this. Leave blank for no cap."
-            />
-          </View>
 
           <Text className="mb-2 font-sans-medium text-body text-ink">Delivery</Text>
           <RowGroup>
             <Row
-              title={formatFullDay(selectedDate)}
-              meta={isSpecial ? "Rush order · 30% more on the delivery fee" : "Standard run"}
-              onPress={() => setPicker("day")}
+              title={checkpoint?.name ?? "Choose a checkpoint"}
+              meta={checkpoint?.description ?? "Where you'll collect it"}
+              onPress={() => setPickerOpen(true)}
             />
             <Row
-              title={checkpoint?.name ?? "Choose a checkpoint"}
-              meta={checkpoint?.description ?? undefined}
-              onPress={() => setPicker("checkpoint")}
+              title={formatFullDay(scheduledDate)}
+              meta={
+                params.isSpecialOrder
+                  ? `Rush order · ${DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT}% more on the delivery fee`
+                  : "Standard Wave"
+              }
+              chevron={false}
             />
           </RowGroup>
 
-          <View className="mt-6">
-            <Field
-              label="Anything else?"
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Call me if the notebook is out of stock."
-              multiline
-            />
-          </View>
+          <Text className="mt-6 font-sans text-body text-muted">
+            Need a different day? Go back to the calendar.
+          </Text>
         </Gutter>
       </ScreenBody>
 
       <ActionBar>
         <Button
           label="Review order"
-          onPress={handleContinue}
-          disabled={description.trim().length < 3 || !checkpoint}
+          disabled={!checkpoint}
+          onPress={() =>
+            navigation.navigate("OrderSummary", {
+              shopId: params.shopId,
+              shopName: params.shopName,
+              items: params.items,
+              itemsPreview: params.itemsPreview,
+              scheduledDate: params.scheduledDate,
+              isSpecialOrder: params.isSpecialOrder,
+              checkpointId: checkpoint!.id,
+              checkpointName: checkpoint!.name,
+              notes: params.notes,
+            })
+          }
         />
       </ActionBar>
 
-      <Sheet visible={picker === "day"} onClose={() => setPicker(null)} title="When?">
-        <View className="gap-1">
-          {dayOptions.map((date, i) => {
-            const special = i === dayOptions.length - 1;
-            return (
-              <Option
-                key={i}
-                title={formatFullDay(date)}
-                meta={special ? "Rush order · 30% more on the delivery fee" : "Standard run"}
-                selected={dayIndex === i}
-                onPress={() => {
-                  setDayIndex(i);
-                  setPicker(null);
-                }}
-              />
-            );
-          })}
-        </View>
-      </Sheet>
-
-      <Sheet visible={picker === "checkpoint"} onClose={() => setPicker(null)} title="Where?">
+      <Sheet visible={pickerOpen} onClose={() => setPickerOpen(false)} title="Where?">
         <View className="gap-1">
           {(checkpoints ?? []).map((c) => (
-            <Option
+            <Row
               key={c.id}
               title={c.name}
               meta={c.description ?? undefined}
-              selected={checkpoint?.id === c.id}
+              chevron={false}
+              trailing={
+                checkpoint?.id === c.id ? (
+                  <CheckIcon size={18} color={colors.ink} strokeWidth={2.2} />
+                ) : null
+              }
               onPress={() => {
                 setCheckpointId(c.id);
-                setPicker(null);
+                setPickerOpen(false);
               }}
             />
           ))}
         </View>
       </Sheet>
     </Screen>
-  );
-}
-
-function Option({
-  title,
-  meta,
-  selected,
-  onPress,
-}: {
-  title: string;
-  meta?: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      className={`flex-row items-center gap-3 rounded-card px-4 py-3.5 ${
-        selected ? "bg-lime-faint" : "bg-canvas"
-      }`}
-    >
-      <View className="flex-1">
-        <Text className="font-sans-medium text-body text-ink">{title}</Text>
-        {meta ? <Text className="font-sans text-body text-muted">{meta}</Text> : null}
-      </View>
-      {selected ? <CheckIcon size={18} color={colors.ink} strokeWidth={2.2} /> : null}
-    </Pressable>
   );
 }

@@ -25,7 +25,7 @@ export function Field({
   hint?: string;
   error?: string | null;
   multiline?: boolean;
-  keyboardType?: "default" | "numeric" | "phone-pad" | "email-address";
+  keyboardType?: "default" | "numeric" | "decimal-pad" | "phone-pad" | "email-address";
   autoFocus?: boolean;
   maxLength?: number;
 }) {

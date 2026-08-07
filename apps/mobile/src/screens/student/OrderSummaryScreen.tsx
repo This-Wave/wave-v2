@@ -13,8 +13,14 @@ import {
   ScreenBody,
   TopBar,
 } from "../../components/v6";
-import { useCreateOrder } from "../../lib/orders";
-import { estimateOrderTotal, formatFullDay, formatGhs, formatGhsCompact } from "../../lib/pricing";
+import { useCompletedDeliveryCount, useCreateOrder } from "../../lib/orders";
+import {
+  deliveryDayFor,
+  estimateOrderTotal,
+  formatFullDay,
+  formatGhs,
+  formatGhsCompact,
+} from "../../lib/pricing";
 
 type Route = RouteProp<StudentStackParamList, "OrderSummary">;
 
@@ -26,22 +32,34 @@ type Route = RouteProp<StudentStackParamList, "OrderSummary">;
  * is created, and its number is the one charged. That is said plainly on the
  * screen rather than in a footnote, because a total that changes between two
  * screens with no explanation is how you lose someone at checkout.
+ *
+ * ⚠️ This screen used to pass `itemPrice: 0` into the estimate while the server
+ * charged for the item, so every quote shown here was short by the entire cost
+ * of the shopping. Now that a basket is priced from the catalogue, the estimate
+ * takes the real basket total — and the two numbers agree.
  */
 export function OrderSummaryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
   const createOrder = useCreateOrder();
+  const completedDeliveries = useCompletedDeliveryCount();
   const [error, setError] = useState<string | null>(null);
 
   const scheduledDate = new Date(params.scheduledDate);
+
+  const basketTotal = useMemo(
+    () => params.itemsPreview.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0),
+    [params.itemsPreview],
+  );
+
   const estimate = useMemo(
     () =>
       estimateOrderTotal({
-        itemPrice: 0,
+        itemPrice: basketTotal,
         isSpecialOrder: params.isSpecialOrder,
-        completedDeliveries: 0,
+        completedDeliveries,
       }),
-    [params.isSpecialOrder],
+    [basketTotal, params.isSpecialOrder, completedDeliveries],
   );
 
   async function handleConfirm() {
@@ -51,12 +69,8 @@ export function OrderSummaryScreen() {
         orderType: "buy_for_me",
         shopId: params.shopId,
         checkpointId: params.checkpointId,
-        itemDescription: params.itemDescription,
-        deliveryDay: params.isSpecialOrder
-          ? "special"
-          : scheduledDate.getDay() === 0
-            ? "sunday"
-            : "wednesday",
+        items: params.items,
+        deliveryDay: deliveryDayFor(scheduledDate, params.isSpecialOrder),
         scheduledDate: params.scheduledDate,
         isSpecialOrder: params.isSpecialOrder,
         notes: params.notes,
@@ -65,8 +79,12 @@ export function OrderSummaryScreen() {
         orderId: order.id,
         totalAmount: Number(order.totalAmount),
       });
-    } catch {
-      setError("Couldn't create your order. Please try again.");
+    } catch (err) {
+      // The server refuses a basket whose items went out of stock between the
+      // menu and here. That is worth saying in its own words rather than as
+      // "something went wrong" — it tells the student what to change.
+      const message = (err as { response?: { data?: { error?: string } } }).response?.data?.error;
+      setError(message ?? "Couldn't create your order. Please try again.");
     }
   }
 
@@ -80,22 +98,41 @@ export function OrderSummaryScreen() {
 
           <Text className="mb-2 font-sans-medium text-body text-ink">Your list</Text>
           <View className="mb-6 rounded-card bg-surface p-4">
-            <Text className="font-sans text-body text-ink">{params.itemDescription}</Text>
+            {params.itemsPreview.map((line, i) => (
+              <View
+                key={i}
+                className={`flex-row items-center justify-between py-2.5 ${
+                  i > 0 ? "border-t border-hairline" : ""
+                }`}
+              >
+                <Text className="flex-1 font-sans text-body text-ink">
+                  {line.quantity}× {line.name}
+                </Text>
+                <Text className="font-sans text-body text-ink">
+                  {formatGhs(line.unitPrice * line.quantity)}
+                </Text>
+              </View>
+            ))}
           </View>
 
           <RowGroup>
             <Row title={params.shopName} meta="Buying from" chevron={false} />
             <Row title={params.checkpointName} meta="Delivering to" chevron={false} />
-            <Row title={formatFullDay(scheduledDate)} meta="On the run" chevron={false} />
-            {params.budget ? (
-              <Row title={`GH₵${params.budget}`} meta="Spend limit" chevron={false} />
-            ) : null}
+            <Row title={formatFullDay(scheduledDate)} meta="On this Wave" chevron={false} />
           </RowGroup>
 
-          <Text className="mb-3 mt-8 font-sans-medium text-subheading text-ink">
-            What you pay now
-          </Text>
+          {params.notes ? (
+            <View className="mt-6">
+              <Text className="mb-2 font-sans-medium text-body text-ink">Your note</Text>
+              <View className="rounded-card bg-surface p-4">
+                <Text className="font-sans text-body text-ink">{params.notes}</Text>
+              </View>
+            </View>
+          ) : null}
+
+          <Text className="mb-3 mt-8 font-sans-medium text-subheading text-ink">What you pay</Text>
           <View className="rounded-card bg-surface p-5">
+            <Line label="Items" value={formatGhs(basketTotal)} />
             <Line label="Delivery" value={formatGhs(estimate.deliveryFee)} />
             {estimate.surchargeAmount > 0 ? (
               <Line
@@ -111,7 +148,7 @@ export function OrderSummaryScreen() {
             ) : null}
             <View className="mt-1 h-px bg-hairline" />
             <View className="flex-row items-center justify-between pt-4">
-              <Text className="font-sans-medium text-ui text-ink">Total now</Text>
+              <Text className="font-sans-medium text-ui text-ink">Total</Text>
               <Text className="font-sans-bold text-heading-sm text-ink">
                 {formatGhsCompact(estimate.total)}
               </Text>
@@ -119,8 +156,8 @@ export function OrderSummaryScreen() {
           </View>
 
           <Text className="mt-4 font-sans text-body text-muted">
-            You pay the delivery fee now. The items themselves are paid for at the shop by your
-            runner and settled against your spend limit.
+            You pay for everything now. If the shop is out of something, we'll cancel and refund you
+            in full.
           </Text>
 
           {error ? <Text className="mt-4 font-sans text-body text-danger">{error}</Text> : null}
@@ -128,11 +165,7 @@ export function OrderSummaryScreen() {
       </ScreenBody>
 
       <ActionBar>
-        <Button
-          label="Place order"
-          onPress={handleConfirm}
-          loading={createOrder.isPending}
-        />
+        <Button label="Place order" onPress={handleConfirm} loading={createOrder.isPending} />
       </ActionBar>
     </Screen>
   );

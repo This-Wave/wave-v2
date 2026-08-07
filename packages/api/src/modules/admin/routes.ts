@@ -3,11 +3,14 @@ import {
   adminCreateShopSchema,
   adminUpdateShopSchema,
   refundOrderSchema,
+  rejectShopSuggestionSchema,
+  resolveShopSuggestionSchema,
   updateConfigSchema,
   updateUserRoleSchema,
   updateUserStatusSchema,
 } from "@wave/shared";
 import { endOrderWithRefund } from "../payments/refund";
+import { announceShopIsLive } from "../suggestions/announce";
 
 export async function adminRoutes(fastify: FastifyInstance) {
   fastify.addHook("preHandler", fastify.authenticate);
@@ -210,6 +213,150 @@ export async function adminRoutes(fastify: FastifyInstance) {
     }
     const shop = await fastify.prisma.shop.update({ where: { id }, data: parsed.data });
     return reply.send({ shop });
+  });
+
+  // --- Shop suggestions ---------------------------------------------------
+  //
+  // The demand signal: which shop should Wave onboard next, ranked by how many
+  // students asked for it.
+
+  /**
+   * Suggested places, most-wanted first.
+   *
+   * Grouped on `normalized_name` — never on `name` — so "Melcom", "melcom " and
+   * "MELCOM Berekuso" are one row with a count of three rather than three rows
+   * with a count of one. That collapsing is the entire value of the page.
+   *
+   * `students` counts DISTINCT students, not suggestions, so one enthusiastic
+   * person cannot outrank a genuine crowd.
+   */
+  fastify.get("/shop-suggestions", async (request, reply) => {
+    const { status = "pending" } = request.query as { status?: string };
+
+    const grouped = await fastify.prisma.shopSuggestion.groupBy({
+      by: ["normalizedName", "universityId"],
+      where: status === "all" ? {} : { status: status as never },
+      _count: { _all: true },
+      _max: { createdAt: true },
+    });
+
+    // The display name and the campus name are per-group, and groupBy cannot
+    // carry them. One follow-up query for the rows in these groups, resolved in
+    // memory — the pilot has one campus and a page of suggestions, not a feed.
+    const rows = await fastify.prisma.shopSuggestion.findMany({
+      where: status === "all" ? {} : { status: status as never },
+      select: {
+        id: true,
+        name: true,
+        normalizedName: true,
+        universityId: true,
+        locationText: true,
+        category: true,
+        status: true,
+        studentId: true,
+        createdAt: true,
+        university: { select: { id: true, name: true } },
+        resolvedShop: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const suggestions = grouped
+      .map((g) => {
+        const members = rows.filter(
+          (r) => r.normalizedName === g.normalizedName && r.universityId === g.universityId,
+        );
+        const newest = members[0];
+        return {
+          normalizedName: g.normalizedName,
+          universityId: g.universityId,
+          // The most recently typed spelling — the closest thing to how people
+          // actually write the place's name today.
+          displayName: newest?.name ?? g.normalizedName,
+          universityName: newest?.university.name ?? null,
+          count: g._count._all,
+          students: new Set(members.map((m) => m.studentId)).size,
+          lastSuggestedAt: g._max.createdAt,
+          // The most recent non-empty location anyone gave, which is what an
+          // admin needs to go and find the shop.
+          locationText: members.find((m) => m.locationText)?.locationText ?? null,
+          category: members.find((m) => m.category)?.category ?? null,
+          status: newest?.status ?? "pending",
+          resolvedShop: members.find((m) => m.resolvedShop)?.resolvedShop ?? null,
+        };
+      })
+      .sort((a, b) => b.students - a.students || b.count - a.count);
+
+    return reply.send({ suggestions });
+  });
+
+  /**
+   * Onboard a suggested place: link it to a real shop and tell everyone who
+   * asked for it.
+   *
+   * Keyed by normalized name rather than by suggestion id, because onboarding
+   * one shop resolves EVERY student who asked for it — and telling only the
+   * first person to suggest it, while the other eleven hear nothing, is the
+   * failure this endpoint exists to avoid.
+   *
+   * Notification is best-effort and deliberately after the commit: the shop is
+   * live whether or not Resend and Expo are having a good day.
+   */
+  fastify.post("/shop-suggestions/resolve", async (request, reply) => {
+    const parsed = resolveShopSuggestionSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    const { normalizedName, universityId, shopId } = parsed.data;
+
+    const shop = await fastify.prisma.shop.findUnique({
+      where: { id: shopId },
+      select: { id: true, name: true, universityId: true },
+    });
+    if (!shop) return reply.code(404).send({ error: "Shop not found" });
+    if (shop.universityId !== universityId) {
+      return reply.code(400).send({ error: "That shop is on a different campus" });
+    }
+
+    const pending = await fastify.prisma.shopSuggestion.findMany({
+      where: { normalizedName, universityId, status: "pending" },
+      select: { id: true, studentId: true },
+    });
+    if (pending.length === 0) {
+      return reply.code(404).send({ error: "No pending suggestions for that place" });
+    }
+
+    await fastify.prisma.shopSuggestion.updateMany({
+      where: { normalizedName, universityId, status: "pending" },
+      data: { status: "onboarded", resolvedShopId: shopId, notifiedAt: new Date() },
+    });
+
+    const { emailed, pushed } = await announceShopIsLive({
+      fastify,
+      log: request.log,
+      studentIds: [...new Set(pending.map((p) => p.studentId))],
+      shopId: shop.id,
+      shopName: shop.name,
+    });
+
+    return reply.send({ resolved: pending.length, emailed, pushed });
+  });
+
+  /** Wave won't be carrying this place. Stops it cluttering the ranking. */
+  fastify.post("/shop-suggestions/reject", async (request, reply) => {
+    const parsed = rejectShopSuggestionSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    const result = await fastify.prisma.shopSuggestion.updateMany({
+      where: {
+        normalizedName: parsed.data.normalizedName,
+        universityId: parsed.data.universityId,
+        status: "pending",
+      },
+      data: { status: "rejected" },
+    });
+    return reply.send({ rejected: result.count });
   });
 
   // --- Checkpoints -------------------------------------------------------

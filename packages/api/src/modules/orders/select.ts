@@ -23,6 +23,7 @@ const orderScalars = {
   originCheckpointId: true,
   checkpointId: true,
   universityId: true,
+  suggestionId: true,
   itemDescription: true,
   productId: true,
   itemPrice: true,
@@ -35,6 +36,7 @@ const orderScalars = {
   isSpecialOrder: true,
   status: true,
   paidAt: true,
+  goodsPaidAt: true,
   shopAcceptedAt: true,
   deliveredAt: true,
   notes: true,
@@ -48,6 +50,35 @@ const shopSelect = {
 } as const;
 
 const checkpointSelect = { select: { id: true, name: true, description: true } } as const;
+
+/**
+ * The basket. Safe for every audience — it describes goods, never a person.
+ *
+ * Ordered by creation so the list a student built is the list a rider reads,
+ * top to bottom; without it Postgres is free to return the rows in any order,
+ * and a shopping list that reshuffles between two screens is one a runner
+ * stops trusting.
+ */
+const itemsSelect = {
+  select: {
+    id: true,
+    productId: true,
+    name: true,
+    unitPrice: true,
+    quantity: true,
+    actualUnitPrice: true,
+  },
+  orderBy: { createdAt: "asc" },
+} as const;
+
+/**
+ * The suggested shop a `shop_pickup` buys from. Name and location only — this
+ * is a place, not a person, and `studentId` on the suggestion must not travel
+ * with it into the rider feed.
+ */
+const suggestionSelect = {
+  select: { id: true, name: true, locationText: true, category: true, status: true },
+} as const;
 
 const studentSelect = {
   select: { id: true, fullName: true, phone: true, studentId: true },
@@ -67,6 +98,8 @@ export const clientSafeOrder = {
   shop: shopSelect,
   checkpoint: checkpointSelect,
   originCheckpoint: checkpointSelect,
+  suggestion: suggestionSelect,
+  items: itemsSelect,
   student: studentSelect,
   rider: riderSelect,
 } as const;
@@ -91,4 +124,10 @@ export const feedOrder = {
   // A pickup's origin is a public campus location, not personal information —
   // and a rider cannot judge the job without knowing where they are collecting.
   originCheckpoint: checkpointSelect,
+  // Same reasoning for a shop_pickup: the suggested shop's name and location are
+  // the job. `suggestionSelect` deliberately omits the suggestion's `studentId`.
+  suggestion: suggestionSelect,
+  // A rider deciding whether to take a job needs to know they are being asked to
+  // carry twelve crates rather than one envelope. Items are goods, not people.
+  items: itemsSelect,
 } as const;

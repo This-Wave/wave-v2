@@ -59,11 +59,35 @@ export function IncomingOrderDetailScreen() {
             {order?.totalAmount ? formatGhs(Number(order.totalAmount)) : "—"}
           </Text>
 
+          {/* Itemised, so the kitchen can read quantities off the screen. Falls
+              back to the summary line for orders placed before baskets existed. */}
           <Text className="mb-2 font-sans-medium text-body text-ink">What they want</Text>
           <View className="mb-2 rounded-card bg-surface p-4">
-            <Text className="font-sans text-body text-ink">{order?.itemDescription ?? "—"}</Text>
+            {order?.items?.length ? (
+              order.items.map((item, i) => (
+                <View
+                  key={item.id}
+                  className={`flex-row items-center justify-between py-2 ${
+                    i > 0 ? "border-t border-hairline" : ""
+                  }`}
+                >
+                  <Text className="flex-1 font-sans text-body text-ink">
+                    {item.quantity}× {item.name}
+                  </Text>
+                  {item.unitPrice ? (
+                    <Text className="font-sans text-body text-muted">
+                      {formatGhs(Number(item.unitPrice) * item.quantity)}
+                    </Text>
+                  ) : null}
+                </View>
+              ))
+            ) : (
+              <Text className="font-sans text-body text-ink">{order?.itemDescription ?? "—"}</Text>
+            )}
             {order?.notes ? (
-              <Text className="mt-3 font-sans text-body text-muted">{order.notes}</Text>
+              <Text className="mt-3 border-t border-hairline pt-3 font-sans text-body text-muted">
+                {order.notes}
+              </Text>
             ) : null}
           </View>
 

@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
+  Button,
   Chip,
   Empty,
   Gutter,
@@ -16,8 +17,11 @@ import {
 } from "../../components/v6";
 import { Field } from "../../components/v6";
 import { useShops } from "../../lib/shops";
+import { describeWave } from "../../lib/wave";
+import { isStandardRunDay } from "../../lib/pricing";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
+type Route = RouteProp<StudentStackParamList, "ShopSelection">;
 
 /**
  * Browse shops. A two-up photo grid rather than v5's list of bordered rows —
@@ -26,9 +30,27 @@ type Nav = NativeStackNavigationProp<StudentStackParamList>;
  */
 export function ShopSelectionScreen() {
   const navigation = useNavigation<Nav>();
+  const { params } = useRoute<Route>();
   const { data: shops, isLoading } = useShops();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
+
+  /**
+   * Entering from Home's "Buy for me" tile skips the calendar, so no Wave has
+   * been chosen. Falling back to the next open one keeps that shortcut working
+   * — the student can still change the day from the calendar entry point.
+   */
+  const wave = useMemo(() => {
+    if (params?.scheduledDate) {
+      return { scheduledDate: params.scheduledDate, isSpecialOrder: params.isSpecialOrder };
+    }
+    const next = describeWave();
+    if (!next) return null;
+    return {
+      scheduledDate: next.date.toISOString(),
+      isSpecialOrder: !isStandardRunDay(next.date),
+    };
+  }, [params?.scheduledDate, params?.isSpecialOrder]);
 
   const categories = useMemo(
     () => Array.from(new Set((shops ?? []).map((s) => s.category).filter(Boolean))).sort(),
@@ -92,7 +114,28 @@ export function ShopSelectionScreen() {
               <SkeletonCard width={160} />
             </View>
           ) : results.length === 0 ? (
-            <Empty title="No shops match" body="Try a different word, or clear the filter." />
+            <Empty
+              title={query.trim() ? `No shop called "${query.trim()}"` : "No shops match"}
+              body={
+                query.trim()
+                  ? "Wave might not carry it yet. Tell us where it is and we'll send a runner — and the more people ask, the sooner it gets its own menu."
+                  : "Try a different word, or clear the filter."
+              }
+              action={
+                query.trim() && wave ? (
+                  <Button
+                    label={`Suggest ${query.trim()}`}
+                    onPress={() =>
+                      navigation.navigate("SuggestShop", {
+                        initialQuery: query.trim(),
+                        scheduledDate: wave.scheduledDate,
+                        isSpecialOrder: wave.isSpecialOrder,
+                      })
+                    }
+                  />
+                ) : undefined
+              }
+            />
           ) : (
             <View className="flex-row flex-wrap justify-between gap-y-6">
               {results.map((shop) => (
@@ -106,12 +149,41 @@ export function ShopSelectionScreen() {
                   priceValue="GH₵5 delivery"
                   badge={shop.isActive ? undefined : "Paused"}
                   onPress={() =>
-                    navigation.navigate("DescribeOrder", { shopId: shop.id, shopName: shop.name })
+                    wave &&
+                    navigation.navigate("ShopMenu", {
+                      shopId: shop.id,
+                      shopName: shop.name,
+                      scheduledDate: wave.scheduledDate,
+                      isSpecialOrder: wave.isSpecialOrder,
+                    })
                   }
                 />
               ))}
             </View>
           )}
+
+          {/* Always reachable, not only from the empty state — a student may
+              see six shops and still not the one they want. */}
+          {results.length > 0 && wave ? (
+            <Pressable
+              onPress={() =>
+                navigation.navigate("SuggestShop", {
+                  initialQuery: query.trim() || undefined,
+                  scheduledDate: wave.scheduledDate,
+                  isSpecialOrder: wave.isSpecialOrder,
+                })
+              }
+              accessibilityRole="button"
+              className="mt-8 rounded-card bg-surface p-4 active:bg-hairline"
+            >
+              <Text className="font-sans-medium text-body text-ink">
+                Can’t find the shop you want?
+              </Text>
+              <Text className="mt-1 font-sans text-body text-muted">
+                Suggest it and we’ll send a runner anyway.
+              </Text>
+            </Pressable>
+          ) : null}
         </Gutter>
       </ScreenBody>
     </Screen>

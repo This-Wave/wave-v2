@@ -57,3 +57,22 @@ export function useResendPin() {
     },
   });
 }
+
+/**
+ * How many deliveries this student has completed — the number the loyalty
+ * discount is keyed on.
+ *
+ * Derived by counting `delivered` orders rather than fetching a dedicated
+ * endpoint, because that is exactly what the server's
+ * `StudentDeliveryStats.totalDeliveries` counts. It is used ONLY to make the
+ * checkout estimate agree with what will actually be charged; the server
+ * recalculates from its own stats row and its number is the one billed.
+ *
+ * Without this every summary screen quoted the undiscounted price to a loyal
+ * student — over-quoting rather than under-quoting, but still a total that
+ * changed between the review screen and the receipt.
+ */
+export function useCompletedDeliveryCount(): number {
+  const { data: orders } = useMyOrders();
+  return (orders ?? []).filter((o) => o.status === "delivered").length;
+}

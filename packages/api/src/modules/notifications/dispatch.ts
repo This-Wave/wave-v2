@@ -332,3 +332,99 @@ export async function announceNewOrderToRiders(args: {
     );
   }
 }
+
+/**
+ * Tells the student what their runner actually paid, and that the goods are now
+ * chargeable.
+ *
+ * A suggested-shop order is the one place in Wave where the price is discovered
+ * rather than quoted, so this notification is doing real work: it is the first
+ * moment the student learns what the shopping cost. Silence here would look
+ * like a surprise charge later.
+ */
+export async function notifyGoodsCostRecorded(args: {
+  fastify: FastifyInstance;
+  log: FastifyBaseLogger;
+  orderId: string;
+  amountGhs: number;
+}): Promise<void> {
+  const { fastify, log, orderId, amountGhs } = args;
+  try {
+    const order = await fastify.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { studentId: true, suggestion: { select: { name: true } } },
+    });
+    if (!order) return;
+
+    await pushToProfiles({
+      fastify,
+      log,
+      profileIds: [order.studentId],
+      payload: {
+        title: "Your runner has your items",
+        body:
+          `The shopping at ${order.suggestion?.name ?? "the shop"} came to ` +
+          `GH₵${amountGhs.toFixed(2)}. Pay in the app so your runner can hand it over.`,
+        data: { type: "goods_cost_recorded", orderId },
+      },
+    });
+  } catch (err) {
+    log.error(
+      { err: err instanceof Error ? err.message : "unknown", orderId },
+      "Goods-cost notification failed",
+    );
+  }
+}
+
+/**
+ * Confirms the second charge cleared, and unblocks the rider.
+ *
+ * The rider is told too, because `/deliver` refuses until this moment — without
+ * it they would be standing at a checkpoint retrying a PIN that was never the
+ * problem.
+ */
+export async function notifyGoodsPaid(args: {
+  fastify: FastifyInstance;
+  log: FastifyBaseLogger;
+  orderId: string;
+}): Promise<void> {
+  const { fastify, log, orderId } = args;
+  try {
+    const order = await fastify.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { studentId: true, riderId: true, checkpoint: { select: { name: true } } },
+    });
+    if (!order) return;
+
+    await pushToProfiles({
+      fastify,
+      log,
+      profileIds: [order.studentId],
+      payload: {
+        title: "Payment received",
+        body: "You're all paid up. Have your delivery PIN ready for your rider.",
+        data: { type: "order_status", orderId, status: "goods_paid" },
+      },
+    });
+
+    if (order.riderId) {
+      await pushToProfiles({
+        fastify,
+        log,
+        profileIds: [order.riderId],
+        payload: {
+          title: "Paid — you can hand over",
+          body: `The student has paid for the items. Complete the handover at ${
+            order.checkpoint?.name ?? "the checkpoint"
+          }.`,
+          data: { type: "order_status", orderId, status: "goods_paid" },
+        },
+      });
+    }
+  } catch (err) {
+    log.error(
+      { err: err instanceof Error ? err.message : "unknown", orderId },
+      "Goods-paid notification failed",
+    );
+  }
+}

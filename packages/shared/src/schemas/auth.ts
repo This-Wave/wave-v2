@@ -8,6 +8,9 @@ export const registerSchema = z.object({
   role: z.enum(PROFILE_ROLES),
   universityId: z.string().uuid().optional(),
   studentId: z.string().optional(),
+  // Optional forever — auth is by phone. Only used to reach someone when a
+  // shop they suggested goes live.
+  email: z.string().email().max(160).optional(),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
@@ -30,5 +33,6 @@ export const completeProfileSchema = z.object({
   role: z.enum(PROFILE_ROLES),
   universityId: z.string().uuid().optional(),
   studentId: z.string().optional(),
+  email: z.string().email().max(160).optional(),
 });
 export type CompleteProfileInput = z.infer<typeof completeProfileSchema>;

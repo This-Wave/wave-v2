@@ -1,0 +1,12 @@
+-- Adds the third order type, and NOTHING else.
+--
+-- This is a one-statement migration on purpose. Postgres will add a value to an
+-- enum inside a transaction, but it refuses to let that value be *used* in the
+-- same transaction ("unsafe use of new value of enum type"). Prisma wraps each
+-- migration in a transaction, and the very next migration needs to name
+-- 'shop_pickup' in a CHECK constraint — so the ADD VALUE has to commit first.
+--
+-- What the type means: a runner buys from a shop that is NOT on Wave yet,
+-- because a student suggested it. There is no catalogue, so there is no price
+-- until the runner is standing at the till. See 20260807170100.
+ALTER TYPE "OrderType" ADD VALUE 'shop_pickup';

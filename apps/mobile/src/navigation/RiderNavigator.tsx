@@ -4,6 +4,7 @@ import { RiderTabNavigator, type RiderTabParamList } from "./RiderTabNavigator";
 import { OrderDetailScreen } from "../screens/rider/OrderDetailScreen";
 import { ActiveDeliveryScreen } from "../screens/rider/ActiveDeliveryScreen";
 import { PinEntryScreen } from "../screens/rider/PinEntryScreen";
+import { RecordGoodsCostScreen } from "../screens/rider/RecordGoodsCostScreen";
 import { SubmitVerificationScreen } from "../screens/rider/SubmitVerificationScreen";
 
 export type RiderStackParamList = {
@@ -11,6 +12,7 @@ export type RiderStackParamList = {
   OrderDetail: { orderId: string };
   ActiveDelivery: { orderId: string };
   PinEntry: { orderId: string };
+  RecordGoodsCost: { orderId: string };
   SubmitVerification: undefined;
 };
 
@@ -23,6 +25,7 @@ export function RiderNavigator() {
       <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
       <Stack.Screen name="ActiveDelivery" component={ActiveDeliveryScreen} />
       <Stack.Screen name="PinEntry" component={PinEntryScreen} />
+      <Stack.Screen name="RecordGoodsCost" component={RecordGoodsCostScreen} />
       <Stack.Screen name="SubmitVerification" component={SubmitVerificationScreen} />
     </Stack.Navigator>
   );

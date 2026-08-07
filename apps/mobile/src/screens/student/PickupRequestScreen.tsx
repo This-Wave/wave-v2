@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
@@ -21,7 +21,13 @@ import { useCheckpoints } from "../../lib/checkpoints";
 import { useCreateOrder } from "../../lib/orders";
 import { useAuthStore } from "../../store/authStore";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
-import { formatFullDay, formatGhs, upcomingRunDays } from "../../lib/pricing";
+import {
+  deliveryDayFor,
+  formatFullDay,
+  formatGhs,
+  isStandardRunDay,
+  upcomingRunDays,
+} from "../../lib/pricing";
 
 /**
  * Campus-to-campus package pickup: move something already on campus from one
@@ -36,8 +42,11 @@ import { formatFullDay, formatGhs, upcomingRunDays } from "../../lib/pricing";
  * The one thing a pickup does differently: there is no item cost, so the
  * delivery fee is the whole price.
  */
+type Route = RouteProp<StudentStackParamList, "PickupRequest">;
+
 export function PickupRequestScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
+  const { params } = useRoute<Route>();
   const profile = useAuthStore((s) => s.profile);
   const { data: checkpoints } = useCheckpoints(profile?.universityId ?? undefined);
 
@@ -49,7 +58,15 @@ export function PickupRequestScreen() {
   const [error, setError] = useState<string | null>(null);
   const createOrder = useCreateOrder();
 
+  /**
+   * A date chosen on the calendar wins outright and the day picker disappears —
+   * asking twice would let the two answers disagree. Entering straight from
+   * Home's Pickup tile keeps the old inline picker.
+   */
+  const chosenDate = params?.scheduledDate ? new Date(params.scheduledDate) : null;
   const days = useMemo(() => upcomingRunDays(new Date(), 4), []);
+  const scheduled = chosenDate ?? days[dayIndex];
+  const isSpecialOrder = params?.isSpecialOrder ?? (scheduled ? !isStandardRunDay(scheduled) : false);
   const from = checkpoints?.find((c) => c.id === fromId) ?? checkpoints?.[0];
   const to = checkpoints?.find((c) => c.id === toId) ?? checkpoints?.[1] ?? checkpoints?.[0];
 
@@ -59,17 +76,17 @@ export function PickupRequestScreen() {
       setError("Collection and drop-off have to be different checkpoints.");
       return;
     }
+    if (!scheduled) return;
     setError(null);
-    const scheduled = days[dayIndex];
     try {
       const order = await createOrder.mutateAsync({
         orderType: "pickup",
         originCheckpointId: from.id,
         checkpointId: to.id,
         itemDescription: description.trim(),
-        deliveryDay: scheduled.getDay() === 0 ? "sunday" : "wednesday",
+        deliveryDay: deliveryDayFor(scheduled, isSpecialOrder),
         scheduledDate: scheduled.toISOString(),
-        isSpecialOrder: false,
+        isSpecialOrder,
       });
       navigation.navigate("Payment", {
         orderId: order.id,
@@ -115,9 +132,10 @@ export function PickupRequestScreen() {
               onPress={() => setPicker("to")}
             />
             <Row
-              title={days[dayIndex] ? formatFullDay(days[dayIndex]) : "Choose a day"}
+              title={scheduled ? formatFullDay(scheduled) : "Choose a day"}
               meta={`Delivery fee ${formatGhs(DEFAULT_DELIVERY_FEE_GHS)}`}
-              onPress={() => setPicker("day")}
+              onPress={chosenDate ? undefined : () => setPicker("day")}
+              chevron={!chosenDate}
             />
           </RowGroup>
         </Gutter>
@@ -131,7 +149,7 @@ export function PickupRequestScreen() {
           label="Review pickup"
           onPress={handleContinue}
           loading={createOrder.isPending}
-          disabled={description.trim().length < 3 || !from || !to || from.id === to.id}
+          disabled={description.trim().length < 3 || !from || !to || from.id === to.id || !scheduled}
         />
       </ActionBar>
 

@@ -26,8 +26,38 @@ export const ORDER_STATUSES = [
 ] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
-export const ORDER_TYPES = ["buy_for_me", "pickup"] as const;
+export const ORDER_TYPES = ["buy_for_me", "pickup", "shop_pickup"] as const;
 export type OrderType = (typeof ORDER_TYPES)[number];
+
+export const SUGGESTION_STATUSES = ["pending", "onboarded", "rejected"] as const;
+export type SuggestionStatus = (typeof SUGGESTION_STATUSES)[number];
+
+/** A basket can't be unbounded — this is a campus runner on a motorbike. */
+export const MAX_ORDER_ITEMS = 20;
+export const MAX_ITEM_QUANTITY = 20;
+
+/**
+ * Collapses a shop name to its ranking key: lowercase, punctuation stripped,
+ * whitespace collapsed. "MELCOM Berekuso!" and "melcom  berekuso" are one place.
+ *
+ * Lives in shared because the API normalizes on write and the admin dashboard
+ * groups on the result — if the two ever disagreed, the demand ranking would
+ * silently split one shop across several rows.
+ */
+export function normalizeShopName(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .normalize("NFKD")
+      // Punctuation becomes a SPACE, not nothing. Deleting it would make
+      // "Melcom-Berekuso" normalize to "melcomberekuso", which fails to match
+      // the "Melcom Berekuso" everyone else types — and a hyphen is one of the
+      // commonest ways people write a shop and its town together.
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
 
 export const DELIVERY_DAYS = ["sunday", "wednesday", "special"] as const;
 export type DeliveryDay = (typeof DELIVERY_DAYS)[number];
