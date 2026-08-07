@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
-import * as WebBrowser from "expo-web-browser";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
+import { PaystackCheckout, type CheckoutOutcome } from "../../components/PaystackCheckout";
 import { CardIcon, CheckIcon, MobileIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useInitiatePayment, waitForPayment } from "../../lib/payments";
@@ -15,61 +15,153 @@ type Route = RouteProp<StudentStackParamList, "Payment">;
 type Method = "momo" | "card";
 
 /**
- * Checkout.
+ * Checkout, as an explicit state machine.
  *
- * The amount is the whole screen — set at display size on the canvas with no
- * card around it, because there is exactly one number the student is deciding
- * about.
+ *   choosing → checkout → confirming → (OrderConfirmed | PaymentFailed)
  *
- * Nothing here decides whether payment succeeded. The browser closing means the
- * student is back, not that they paid; only the signed Paystack webhook
- * confirms an order, so this asks the API and waits for it.
+ * **The bug this replaces.** The old flow was one straight line: open the
+ * browser, `await` it, then poll five times over ~7 seconds. That `await` only
+ * blocks on native. On Expo Web `openBrowserAsync` resolves the instant the tab
+ * opens, so the poll ran while the student was still on the Paystack page, and
+ * the app announced "We couldn't confirm that" a few seconds after checkout
+ * appeared — before they had entered anything.
+ *
+ * The fix is not a longer timer. It is knowing which state we are in:
+ *
+ *  - **checkout** — the student is at Paystack. We wait. We do not judge, and
+ *    there is no time limit, because there is nothing to be impatient about.
+ *  - **confirming** — checkout genuinely finished. Only now does the wait for
+ *    the webhook begin, and only from here can it be reported as unconfirmed.
+ *
+ * Polling runs during BOTH states. That is what lets a web student, whose tab we
+ * cannot observe, be carried straight to confirmation the moment their money
+ * lands — no button, no guessing.
+ *
+ * Nothing here decides whether payment succeeded. Checkout closing means the
+ * student is back, not that they paid; only the signed Paystack webhook confirms
+ * an order.
  */
+type Phase = "choosing" | "checkout" | "confirming";
+
 export function PaymentScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
   const profile = useAuthStore((s) => s.profile);
   const initiatePayment = useInitiatePayment();
+
   const [method, setMethod] = useState<Method>("momo");
   const [error, setError] = useState<string | null>(null);
-  const [verifying, setVerifying] = useState(false);
+  const [phase, setPhase] = useState<Phase>("choosing");
+  const [checkout, setCheckout] = useState<{ url: string; reference: string } | null>(null);
+
+  // Cancelled when the screen unmounts so a poll can't navigate a screen the
+  // student has already left.
+  const cancel = useRef({ cancelled: false });
+  useEffect(() => {
+    const signal = cancel.current;
+    return () => {
+      signal.cancelled = true;
+    };
+  }, []);
+
+  /**
+   * Watches for the money landing, for as long as the student is on this screen.
+   *
+   * Runs from the moment checkout opens rather than after it closes, because on
+   * web we cannot see the other tab: this poll is the only way that student ever
+   * reaches confirmation. It never routes to failure — only the explicit
+   * `confirming` phase below is allowed to conclude anything negative.
+   */
+  useEffect(() => {
+    if (!checkout || phase === "choosing") return;
+    let stopped = false;
+
+    (async () => {
+      const status = await waitForPayment(checkout.reference, {
+        attempts: 240, // ~6 minutes at 1.5s
+        signal: cancel.current,
+      });
+      if (stopped || cancel.current.cancelled) return;
+      if (status) {
+        navigation.replace("OrderConfirmed", { orderId: params.orderId });
+      }
+    })();
+
+    return () => {
+      stopped = true;
+    };
+  }, [checkout, phase, navigation, params.orderId]);
 
   async function handlePay() {
     setError(null);
-
-    let reference: string;
-    let paymentUrl: string;
     try {
-      ({ reference, payment_url: paymentUrl } = await initiatePayment.mutateAsync({
+      const { reference, payment_url: url } = await initiatePayment.mutateAsync({
         orderId: params.orderId,
         method,
-      }));
+      });
+      setCheckout({ url, reference });
+      setPhase("checkout");
     } catch {
       // Nothing was charged — checkout never opened. Stay put so they can retry
       // without losing the screen.
       setError("Couldn't start the payment. Check your connection and try again.");
-      return;
     }
+  }
 
-    // An in-app browser, not Linking.openURL: this resolves when the student
-    // closes it, which is what gives us a moment to check the outcome.
-    setVerifying(true);
-    try {
-      await WebBrowser.openBrowserAsync(paymentUrl, { showTitle: true, enableBarCollapsing: true });
-      const status = await waitForPayment(reference);
-      if (status) {
-        navigation.replace("OrderConfirmed", { orderId: params.orderId });
-      } else {
-        // Not necessarily a failure — they may have abandoned checkout, or the
-        // webhook may still be in flight. Either way we must not claim success.
-        navigation.replace("PaymentFailed", {
-          orderId: params.orderId,
-          totalAmount: params.totalAmount,
-        });
-      }
-    } finally {
-      setVerifying(false);
+  /**
+   * Checkout finished or was dismissed.
+   *
+   * Either way we move to `confirming` rather than straight to failure: a
+   * student who backed out of an embedded checkout may still have completed a
+   * MoMo prompt on their phone, and the webhook can arrive seconds later.
+   */
+  async function handleCheckoutOutcome(outcome: CheckoutOutcome) {
+    if (!checkout) return;
+    setPhase("confirming");
+
+    const status = await waitForPayment(checkout.reference, {
+      // Generous when we know they finished; brief when they backed out, since
+      // in that case we are only catching a payment already in flight.
+      attempts: outcome === "completed" ? 40 : 8,
+      signal: cancel.current,
+    });
+    if (cancel.current.cancelled) return;
+
+    if (status) {
+      navigation.replace("OrderConfirmed", { orderId: params.orderId });
+    } else {
+      navigation.replace("PaymentFailed", {
+        orderId: params.orderId,
+        totalAmount: params.totalAmount,
+      });
     }
+  }
+
+  if (phase === "checkout" && checkout) {
+    return (
+      <Screen>
+        <PaystackCheckout paymentUrl={checkout.url} onOutcome={handleCheckoutOutcome} />
+      </Screen>
+    );
+  }
+
+  if (phase === "confirming") {
+    return (
+      <Screen>
+        <ScreenBody bottomInset={16}>
+          <Gutter className="pt-16 items-center">
+            <ActivityIndicator color={colors.ink} />
+            <Text className="mb-2 mt-6 text-center font-sans-bold text-heading text-ink">
+              Confirming your payment
+            </Text>
+            <Text className="text-center font-sans text-body text-muted">
+              This takes a few seconds. Don't pay again — if your money left, this will finish on
+              its own.
+            </Text>
+          </Gutter>
+        </ScreenBody>
+      </Screen>
+    );
   }
 
   return (
@@ -79,7 +171,10 @@ export function PaymentScreen() {
       <ScreenBody bottomInset={16}>
         <Gutter>
           <Text className="font-sans text-body text-muted">You're paying</Text>
-          <Text className="mb-10 mt-1 font-sans-bold text-ink" style={{ fontSize: 48, lineHeight: 52 }}>
+          <Text
+            className="mb-10 mt-1 font-sans-bold text-ink"
+            style={{ fontSize: 48, lineHeight: 52 }}
+          >
             {formatGhsCompact(params.totalAmount)}
           </Text>
 
@@ -102,7 +197,7 @@ export function PaymentScreen() {
           </View>
 
           <Text className="mt-6 font-sans text-body text-muted">
-            Paystack handles the payment. Checkout opens inside the app and you come straight back.
+            Paystack handles the payment, inside the app. You'll come straight back here.
           </Text>
           {error ? <Text className="mt-4 font-sans text-body text-danger">{error}</Text> : null}
         </Gutter>
@@ -110,10 +205,10 @@ export function PaymentScreen() {
 
       <ActionBar>
         <Button
-          label={verifying ? "Confirming…" : `Pay ${formatGhs(params.totalAmount)}`}
+          label={`Pay ${formatGhs(params.totalAmount)}`}
           onPress={handlePay}
-          disabled={initiatePayment.isPending || verifying}
-          loading={initiatePayment.isPending || verifying}
+          disabled={initiatePayment.isPending}
+          loading={initiatePayment.isPending}
         />
       </ActionBar>
     </Screen>

@@ -45,22 +45,46 @@ export function isPaid(status: PaymentStatus): boolean {
 /**
  * Polls until the order shows as paid, or gives up.
  *
- * Confirmation is asynchronous: Paystack returns the student the moment they
- * authorise, but the order is only marked paid once Paystack's webhook reaches
- * our API, which can trail by a few seconds. Answering "not paid" at the instant
- * the browser closes would tell a student who just paid that they hadn't.
+ * Confirmation is asynchronous and always will be: Paystack returns the student
+ * the moment they authorise, but the order is only marked paid once Paystack's
+ * signed webhook reaches our API. Embedding checkout in the app does not remove
+ * that gap — it only tells us the student definitely finished, so we can afford
+ * to wait properly instead of guessing.
+ *
+ * ⚠️ The default here is deliberately patient. The previous default was 5
+ * attempts at 1.5s — about 7 seconds — which was fine on native, where the
+ * `await` on the browser only resolves once the student returns. On **web**
+ * `openBrowserAsync` resolves the instant the tab opens, so those 7 seconds
+ * elapsed while the student was still looking at the Paystack page, and the app
+ * announced "We couldn't confirm that" before they had typed anything. Callers
+ * now start this only after checkout has genuinely completed.
+ *
+ * `onTick` reports progress so the screen can say how long it has been waiting
+ * rather than showing an unexplained spinner.
  */
 export async function waitForPayment(
   reference: string,
-  { attempts = 5, intervalMs = 1500 }: { attempts?: number; intervalMs?: number } = {},
+  {
+    attempts = 40,
+    intervalMs = 1500,
+    onTick,
+    signal,
+  }: {
+    attempts?: number;
+    intervalMs?: number;
+    onTick?: (elapsedMs: number) => void;
+    signal?: { cancelled: boolean };
+  } = {},
 ): Promise<PaymentStatus | null> {
   for (let i = 0; i < attempts; i += 1) {
+    if (signal?.cancelled) return null;
     try {
       const status = await fetchPaymentStatus(reference);
       if (isPaid(status)) return status;
     } catch {
       // A network blip shouldn't end the wait — the next attempt may succeed.
     }
+    onTick?.(i * intervalMs);
     if (i < attempts - 1) await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
   return null;
