@@ -25,6 +25,7 @@ import {
   formatFullDay,
   formatGhs,
   formatGhsCompact,
+  toApiDate,
 } from "../../lib/pricing";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
@@ -75,7 +76,7 @@ export function SuggestOrderSummaryScreen() {
         checkpointId: checkpoint.id,
         manualItems: params.manualItems,
         deliveryDay: deliveryDayFor(scheduledDate, params.isSpecialOrder),
-        scheduledDate: params.scheduledDate,
+        scheduledDate: toApiDate(scheduledDate),
         isSpecialOrder: params.isSpecialOrder,
       });
       navigation.navigate("Payment", {

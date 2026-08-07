@@ -26,6 +26,7 @@ import {
   formatFullDay,
   formatGhs,
   isStandardRunDay,
+  toApiDate,
   upcomingRunDays,
 } from "../../lib/pricing";
 
@@ -85,7 +86,7 @@ export function PickupRequestScreen() {
         checkpointId: to.id,
         itemDescription: description.trim(),
         deliveryDay: deliveryDayFor(scheduled, isSpecialOrder),
-        scheduledDate: scheduled.toISOString(),
+        scheduledDate: toApiDate(scheduled),
         isSpecialOrder,
       });
       navigation.navigate("Payment", {

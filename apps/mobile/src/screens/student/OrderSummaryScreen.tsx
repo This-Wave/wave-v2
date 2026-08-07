@@ -20,6 +20,7 @@ import {
   formatFullDay,
   formatGhs,
   formatGhsCompact,
+  toApiDate,
 } from "../../lib/pricing";
 
 type Route = RouteProp<StudentStackParamList, "OrderSummary">;
@@ -71,7 +72,7 @@ export function OrderSummaryScreen() {
         checkpointId: params.checkpointId,
         items: params.items,
         deliveryDay: deliveryDayFor(scheduledDate, params.isSpecialOrder),
-        scheduledDate: params.scheduledDate,
+        scheduledDate: toApiDate(scheduledDate),
         isSpecialOrder: params.isSpecialOrder,
         notes: params.notes,
       });

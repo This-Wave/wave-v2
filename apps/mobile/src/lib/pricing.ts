@@ -153,3 +153,24 @@ export function deliveryDayFor(date: Date, isSpecialOrder: boolean): "sunday" | 
   if (isSpecialOrder) return "special";
   return date.getDay() === 0 ? "sunday" : "wednesday";
 }
+
+/**
+ * Formats a date as `YYYY-MM-DD` **in the device's local calendar**, which is
+ * what `POST /orders` accepts (`scheduledDate: z.string().date()`) and what the
+ * `scheduled_date DATE` column stores.
+ *
+ * Deliberately NOT `toISOString().slice(0, 10)`. The calendar builds dates with
+ * `new Date(y, m, d)` — local midnight — and `toISOString` converts to UTC, so
+ * anywhere east of Greenwich local midnight on the 14th becomes `...T22:00Z` on
+ * the **13th** and the student silently books the wrong Wave. Ghana is UTC+0 so
+ * the pilot would never have seen it; a traveller or a mis-set phone would.
+ *
+ * This exists because every order placed from the app was failing with a 400:
+ * the screens sent a full ISO datetime and the schema accepts only a date.
+ */
+export function toApiDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
