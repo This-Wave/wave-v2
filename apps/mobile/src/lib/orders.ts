@@ -37,3 +37,23 @@ export function useCreateOrder() {
     },
   });
 }
+
+/**
+ * Re-sends the delivery PIN by SMS.
+ *
+ * This is the only recovery path for a lost PIN: the plaintext is never stored
+ * — the server keeps a bcrypt hash and texts the digits once — so there is
+ * nothing for the app to re-read. The endpoint has existed since Phase 3 and
+ * had no caller anywhere in the app until the v6 pickup screen.
+ *
+ * The server throttles to one send per order per 60s and answers 429 with a
+ * human-readable wait, which the screen surfaces verbatim.
+ */
+export function useResendPin() {
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      const { data } = await api.post<{ sent: boolean }>(`/orders/${orderId}/resend-pin`);
+      return data;
+    },
+  });
+}

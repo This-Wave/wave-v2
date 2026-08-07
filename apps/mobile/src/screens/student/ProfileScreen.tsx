@@ -1,42 +1,33 @@
-import { Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { useState } from "react";
+import { Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { Avatar } from "../../components/ui/Avatar";
-import { Dialog } from "../../components/ui/Dialog";
-import { CardIcon, ChevronRightIcon, LogoutIcon, PinIcon } from "../../components/icons";
-import { colors, shadowCard } from "../../theme/tokens";
+import {
+  Confirm,
+  Gutter,
+  PageTitle,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+} from "../../components/v6";
 import { useAuthStore } from "../../store/authStore";
 import { useMyOrders } from "../../lib/orders";
 import { signOut } from "../../lib/auth";
+import { formatGhs } from "../../lib/pricing";
 import { DEFAULT_LOYALTY_DISCOUNT_PCT, DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
-import { initialsOf } from "./orderPresenters";
-import { useState, type ReactNode } from "react";
-
-interface RowProps {
-  icon: ReactNode;
-  label: string;
-  muted?: boolean;
-  onPress?: () => void;
-}
-
-function ProfileRow({ icon, label, muted, onPress }: RowProps) {
-  return (
-    <Pressable
-      className="flex-row items-center gap-3.5 rounded-card border border-border bg-surface p-4"
-      onPress={onPress}
-    >
-      <View className="h-9 w-9 items-center justify-center rounded-tile bg-canvas">{icon}</View>
-      <Text className={`flex-1 font-sans-semibold text-[15px] ${muted ? "text-muted" : "text-ink"}`}>{label}</Text>
-      {muted ? null : <ChevronRightIcon />}
-    </Pressable>
-  );
-}
 
 /**
- * v5 screen 17. Identity card, the three-up stat strip (the last tile goes solid
- * green), then the settings rows. "Saved" reports the loyalty discount actually
- * earned so far rather than a decorative figure.
+ * Profile.
+ *
+ * v5 led with an avatar card and a three-tile stat strip. The tiles are gone:
+ * two of the three numbers were decorative, and the one that mattered — money
+ * saved — was **wrong**. It summed `discountApplied` across orders and printed
+ * the result as cedis, but that column holds a *percentage*. Six loyalty
+ * discounts of 20% each rendered as "GH₵120 saved" when the true figure was
+ * GH₵6. It is now derived from the delivery fee the percentage applies to, the
+ * same way `lib/ledger.ts` does it.
  */
 export function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
@@ -44,95 +35,82 @@ export function ProfileScreen() {
   const { data: orders } = useMyOrders();
   const [confirmLogout, setConfirmLogout] = useState(false);
 
-  const completed = orders?.filter((o) => o.status === "delivered").length ?? 0;
-  const saved = (orders ?? []).reduce((sum, o) => sum + Number(o.discountApplied), 0);
+  const completed = (orders ?? []).filter((o) => o.status === "delivered").length;
+
+  // Percentage × the fee it applied to — never the raw column.
+  const saved = (orders ?? []).reduce((sum, o) => {
+    const pct = Number(o.discountApplied ?? 0);
+    const fee = Number(o.deliveryFee ?? 0);
+    return sum + (fee * pct) / 100;
+  }, 0);
+
+  const remaining = Math.max(0, DEFAULT_LOYALTY_THRESHOLD - completed);
   const unlocked = completed >= DEFAULT_LOYALTY_THRESHOLD;
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas">
-      <ScrollView
-        className="flex-1 px-5"
-        contentContainerStyle={{ paddingTop: 16, paddingBottom: 128 }}
-        showsVerticalScrollIndicator={false}
-      >
-        <View
-          className="mb-5 flex-row items-center gap-4 rounded-card border border-border bg-surface p-[18px]"
-          style={shadowCard}
-        >
-          <Avatar initials={profile ? initialsOf(profile.fullName) : undefined} size={60} />
-          <View className="flex-1">
-            <Text className="font-sans-semibold text-[19px] text-ink" numberOfLines={1}>
-              {profile?.fullName ?? "Student"}
-            </Text>
-            <Text className="mt-0.5 text-[12px] text-muted" numberOfLines={1}>
-              {profile?.studentId ?? profile?.phone ?? "—"}
-            </Text>
-          </View>
-        </View>
+    <Screen>
+      <ScreenBody bottomInset={24}>
+        <Gutter className="pb-8 pt-4">
+          <PageTitle>{profile?.fullName ?? "Student"}</PageTitle>
+          <Text className="mt-2 font-sans text-body text-muted">
+            {[profile?.studentId, profile?.phone].filter(Boolean).join(" · ") || "—"}
+          </Text>
+        </Gutter>
 
-        <View className="mb-7 flex-row gap-2.5">
-          <View className="flex-1 items-center rounded-card border border-border bg-surface p-3.5">
-            <Text className="font-sans-semibold text-[20px] text-wave-500">{orders?.length ?? 0}</Text>
-            <Text className="text-[11px] text-muted">Orders</Text>
+        <Gutter className="mb-8">
+          <View className="rounded-card bg-surface p-5">
+            <Text className="mb-1 font-sans-semibold text-meta text-muted">LOYALTY</Text>
+            {unlocked ? (
+              <Text className="font-sans text-body text-ink">
+                You're getting {DEFAULT_LOYALTY_DISCOUNT_PCT}% off every delivery fee. You've saved{" "}
+                <Text className="font-sans-semibold">{formatGhs(saved)}</Text> so far across{" "}
+                {completed} deliveries.
+              </Text>
+            ) : (
+              <Text className="font-sans text-body text-ink">
+                {remaining} more{" "}
+                {remaining === 1 ? "delivery" : "deliveries"} and you'll get{" "}
+                {DEFAULT_LOYALTY_DISCOUNT_PCT}% off every delivery fee. You're at {completed} of{" "}
+                {DEFAULT_LOYALTY_THRESHOLD}.
+              </Text>
+            )}
           </View>
-          <View className="flex-1 items-center rounded-card border border-border bg-surface p-3.5">
-            <Text className="font-sans-semibold text-[20px] text-wave-500">{completed}</Text>
-            <Text className="text-[11px] text-muted">Delivered</Text>
-          </View>
-          <View className="flex-1 items-center rounded-card bg-wave-500 p-3.5">
-            <Text className="font-sans-semibold text-[20px] text-wave-lime">₵{saved.toFixed(0)}</Text>
-            <Text className="text-[11px]" style={{ color: "rgba(255,255,255,0.7)" }}>
-              Saved
-            </Text>
-          </View>
-        </View>
+        </Gutter>
 
-        {!unlocked ? (
-          <View className="mb-4 rounded-card border border-border bg-surface p-4">
-            <Text className="font-sans-semibold text-[14px] text-ink">
-              {DEFAULT_LOYALTY_THRESHOLD - completed} more deliveries to unlock {DEFAULT_LOYALTY_DISCOUNT_PCT}% off
-            </Text>
-            <Text className="mt-1 text-[12px] text-muted">
-              {completed} of {DEFAULT_LOYALTY_THRESHOLD} completed
-            </Text>
+        <Gutter>
+          <RowGroup>
+            <Row
+              title="Delivery checkpoints"
+              meta="Where your runner meets you"
+              onPress={() => navigation.navigate("Checkpoints")}
+            />
+            <Row
+              title="Payment"
+              meta="How you pay for deliveries"
+              onPress={() => navigation.navigate("PaymentMethods")}
+            />
+          </RowGroup>
+
+          <View className="mt-8">
+            <Row title="Log out" onPress={() => setConfirmLogout(true)} chevron={false} />
           </View>
-        ) : null}
+        </Gutter>
+      </ScreenBody>
 
-        <View className="gap-2.5">
-          <ProfileRow
-            icon={<CardIcon size={18} color={colors.ink} strokeWidth={1.6} />}
-            label="Payment methods"
-            onPress={() => navigation.navigate("PaymentMethods")}
-          />
-          <ProfileRow
-            icon={<PinIcon size={18} color={colors.ink} strokeWidth={1.6} />}
-            label="Delivery checkpoints"
-            onPress={() => navigation.navigate("Checkpoints")}
-          />
-          {/*
-            "Notifications" and "Help & support" rows were removed rather than
-            wired. Notifications had no settings to change — nothing in the schema
-            stores a per-student preference. Help & support had no destination:
-            Wave has no support number, email or hours, and inventing one would
-            send a stranded student somewhere that does not answer. Both should
-            come back when there is something real behind them.
-          */}
-          <ProfileRow icon={<LogoutIcon size={18} />} label="Log out" muted onPress={() => setConfirmLogout(true)} />
-        </View>
-      </ScrollView>
-
-      <Dialog
+      <Confirm
         visible={confirmLogout}
-        title="Log out of Wave?"
-        description="You'll need your phone number and a fresh one-time code to sign back in."
-        confirmLabel="Yes, log out"
-        cancelLabel="Stay signed in"
+        title="Log out?"
+        body="You'll need your phone number and a code to get back in."
+        confirmLabel="Log out"
         onConfirm={() => {
           setConfirmLogout(false);
-          signOut();
+          // `lib/auth.ts` is the ONLY place that may call supabase.auth.signOut()
+          // — it detaches the push token first, so a logged-out device stops
+          // receiving notifications.
+          void signOut();
         }}
         onCancel={() => setConfirmLogout(false)}
       />
-    </SafeAreaView>
+    </Screen>
   );
 }

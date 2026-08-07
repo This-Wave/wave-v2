@@ -1,28 +1,38 @@
 import { useMemo, useState } from "react";
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { ScreenHeader } from "../../components/ui/ScreenHeader";
-import { TextField } from "../../components/ui/TextField";
-import { DaySelectorCard } from "../../components/ui/DaySelectorCard";
-import { SelectRow } from "../../components/ui/SelectRow";
-import { Button } from "../../components/ui/Button";
-import { BoxIcon } from "../../components/icons";
+import {
+  ActionBar,
+  Button,
+  Field,
+  Gutter,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  Sheet,
+  TopBar,
+} from "../../components/v6";
+import { CheckIcon } from "../../components/icons";
+import { colors } from "../../theme/tokens";
 import { useCheckpoints } from "../../lib/checkpoints";
 import { useAuthStore } from "../../store/authStore";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
-import { formatDayCell, formatGhs, upcomingRunDays } from "../../lib/pricing";
-
-const TIME_SLOTS = [
-  { range: "8:00 – 10:00", label: "Early morning" },
-  { range: "12:00 – 14:00", label: "Midday" },
-  { range: "16:00 – 18:00", label: "Afternoon" },
-];
+import { formatFullDay, formatGhs, upcomingRunDays } from "../../lib/pricing";
 
 /**
- * v5 screen 07 "Schedule pickup": the item summary row, a four-up day rail, and
- * the fill-on-select time-slot list, with the confirm action naming the choice.
+ * Campus-to-campus package pickup: move something already on campus from one
+ * checkpoint to another.
+ *
+ * ⚠️ This flow has no backend. `POST /orders` requires a `shopId`, and a pickup
+ * has no shop — so the confirm button cannot create anything and simply returns.
+ * v5 hid that behind a convincing four-step form with time slots. The screen now
+ * says so out loud rather than taking details it will throw away.
+ *
+ * Both checkpoint fields are real pickers here; v5 cycled to the next checkpoint
+ * on each tap, with no way to see the options or go back.
  */
 export function PickupRequestScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
@@ -30,95 +40,135 @@ export function PickupRequestScreen() {
   const { data: checkpoints } = useCheckpoints(profile?.universityId ?? undefined);
 
   const [description, setDescription] = useState("");
-  const [fromIndex, setFromIndex] = useState(0);
-  const [toIndex, setToIndex] = useState(1);
+  const [fromId, setFromId] = useState<string | null>(null);
+  const [toId, setToId] = useState<string | null>(null);
   const [dayIndex, setDayIndex] = useState(0);
-  const [slotIndex, setSlotIndex] = useState(1);
+  const [picker, setPicker] = useState<"from" | "to" | "day" | null>(null);
 
   const days = useMemo(() => upcomingRunDays(new Date(), 4), []);
-  const fromCheckpoint = checkpoints?.[fromIndex % (checkpoints.length || 1)];
-  const toCheckpoint = checkpoints?.[toIndex % (checkpoints.length || 1)];
-  const selectedDay = days[dayIndex] ? formatDayCell(days[dayIndex]) : null;
+  const from = checkpoints?.find((c) => c.id === fromId) ?? checkpoints?.[0];
+  const to = checkpoints?.find((c) => c.id === toId) ?? checkpoints?.[1] ?? checkpoints?.[0];
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas">
-      <ScreenHeader title="Schedule pickup" onBack={() => navigation.goBack()} />
+    <Screen>
+      <TopBar onBack={() => navigation.goBack()} />
 
-      <ScrollView className="flex-1 px-5 pt-5" contentContainerStyle={{ paddingBottom: 24 }}>
-        <View className="mb-6 flex-row items-center gap-3 rounded-card border border-border bg-surface p-3.5">
-          <BoxIcon size={20} />
-          <View className="flex-1">
-            <Text className="font-sans-semibold text-[14px] text-ink">
-              {description.trim() || "Your package"}
-            </Text>
-            <Text className="text-[12px] text-muted">
-              {fromCheckpoint?.name ?? "Pickup point"} → {toCheckpoint?.name ?? "Drop-off"}
+      <ScreenBody bottomInset={16}>
+        <Gutter>
+          <Text className="mb-2 font-sans-bold text-heading text-ink">Move a package</Text>
+          <Text className="mb-8 font-sans text-body text-muted">
+            Get something carried from one checkpoint to another on the next run.
+          </Text>
+
+          <View className="mb-6 rounded-card bg-surface p-5">
+            <Text className="mb-1 font-sans-semibold text-meta text-muted">NOT LIVE YET</Text>
+            <Text className="font-sans text-body text-ink">
+              Package pickup isn't running for the pilot — every Wave order currently goes through a
+              shop. You can see how it will work, but nothing is submitted.
             </Text>
           </View>
-          <Text className="font-sans-semibold text-[12px] text-wave-500">{formatGhs(DEFAULT_DELIVERY_FEE_GHS)}</Text>
-        </View>
 
-        <View className="mb-6 gap-5">
-          <TextField
-            label="What are we picking up?"
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Blue bag left with the security guard at Main Gate."
-            multiline
-            compactMultiline
-          />
-          <TextField
-            label="Pick up from"
-            value={fromCheckpoint?.name ?? "Loading..."}
-            selectable
-            onPress={() => setFromIndex((i) => i + 1)}
-          />
-          <TextField
-            label="Deliver to"
-            value={toCheckpoint?.name ?? "Loading..."}
-            selectable
-            onPress={() => setToIndex((i) => i + 1)}
-          />
-        </View>
+          <View className="mb-6">
+            <Field
+              label="What are we moving?"
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Blue bag left with the security guard at the main gate."
+              multiline
+            />
+          </View>
 
-        <Text className="mb-3 font-sans-semibold text-[18px] text-ink">Choose a day</Text>
-        <View className="mb-7 flex-row gap-2">
-          {days.map((date, index) => {
-            const { weekday, day } = formatDayCell(date);
-            return (
-              <DaySelectorCard
-                key={index}
-                dayLabel={weekday}
-                dateLabel={day}
-                selected={dayIndex === index}
-                onPress={() => setDayIndex(index)}
-              />
-            );
-          })}
-        </View>
+          <Text className="mb-2 font-sans-medium text-body text-ink">Route</Text>
+          <RowGroup>
+            <Row
+              title={from?.name ?? "Choose a pickup point"}
+              meta="Collect from"
+              onPress={() => setPicker("from")}
+            />
+            <Row
+              title={to?.name ?? "Choose a drop-off"}
+              meta="Deliver to"
+              onPress={() => setPicker("to")}
+            />
+            <Row
+              title={days[dayIndex] ? formatFullDay(days[dayIndex]) : "Choose a day"}
+              meta={`Delivery fee ${formatGhs(DEFAULT_DELIVERY_FEE_GHS)}`}
+              onPress={() => setPicker("day")}
+            />
+          </RowGroup>
+        </Gutter>
+      </ScreenBody>
 
-        <Text className="mb-3 font-sans-semibold text-[18px] text-ink">Time slots</Text>
-        <View className="gap-2.5">
-          {TIME_SLOTS.map((slot, index) => (
-            <SelectRow
-              key={slot.range}
-              fill
-              title={slot.range}
-              subtitle={slot.label}
-              selected={slotIndex === index}
-              onPress={() => setSlotIndex(index)}
+      <ActionBar>
+        <Button label="Package pickup isn't available yet" disabled />
+      </ActionBar>
+
+      <Sheet
+        visible={picker === "from" || picker === "to"}
+        onClose={() => setPicker(null)}
+        title={picker === "from" ? "Collect from" : "Deliver to"}
+      >
+        <View className="gap-1">
+          {(checkpoints ?? []).map((c) => (
+            <Option
+              key={c.id}
+              title={c.name}
+              meta={c.description ?? undefined}
+              selected={(picker === "from" ? from?.id : to?.id) === c.id}
+              onPress={() => {
+                if (picker === "from") setFromId(c.id);
+                else setToId(c.id);
+                setPicker(null);
+              }}
             />
           ))}
         </View>
-      </ScrollView>
+      </Sheet>
 
-      <View className="border-t border-border bg-canvas px-5 pb-11 pt-4">
-        <Button
-          label={selectedDay ? `Confirm pickup · ${selectedDay.weekday} ${selectedDay.day}` : "Confirm pickup"}
-          onPress={() => navigation.goBack()}
-          disabled={description.trim().length < 3}
-        />
+      <Sheet visible={picker === "day"} onClose={() => setPicker(null)} title="Which run?">
+        <View className="gap-1">
+          {days.map((d, i) => (
+            <Option
+              key={i}
+              title={formatFullDay(d)}
+              selected={dayIndex === i}
+              onPress={() => {
+                setDayIndex(i);
+                setPicker(null);
+              }}
+            />
+          ))}
+        </View>
+      </Sheet>
+    </Screen>
+  );
+}
+
+function Option({
+  title,
+  meta,
+  selected,
+  onPress,
+}: {
+  title: string;
+  meta?: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      className={`flex-row items-center gap-3 rounded-card px-4 py-3.5 ${
+        selected ? "bg-lime-faint" : "bg-canvas"
+      }`}
+    >
+      <View className="flex-1">
+        <Text className="font-sans-medium text-body text-ink">{title}</Text>
+        {meta ? <Text className="font-sans text-body text-muted">{meta}</Text> : null}
       </View>
-    </SafeAreaView>
+      {selected ? <CheckIcon size={18} color={colors.ink} strokeWidth={2.2} /> : null}
+    </Pressable>
   );
 }

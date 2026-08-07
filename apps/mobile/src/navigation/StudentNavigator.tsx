@@ -10,7 +10,6 @@ import { CheckpointsScreen } from "../screens/student/CheckpointsScreen";
 import { OrderConfirmedScreen } from "../screens/student/OrderConfirmedScreen";
 import { PickupRequestScreen } from "../screens/student/PickupRequestScreen";
 import { OrderTrackingScreen } from "../screens/student/OrderTrackingScreen";
-import { OrderTimelineScreen } from "../screens/student/OrderTimelineScreen";
 import { OrderDetailScreen } from "../screens/student/OrderDetailScreen";
 import { PickupPinScreen } from "../screens/student/PickupPinScreen";
 import { CutoffPassedScreen } from "../screens/student/CutoffPassedScreen";
@@ -37,7 +36,6 @@ export type StudentStackParamList = {
   OrderConfirmed: { orderId: string };
   PickupRequest: undefined;
   OrderTracking: { orderId: string };
-  OrderTimeline: { orderId: string };
   OrderDetail: { orderId: string };
   PickupPin: { orderId: string };
   CutoffPassed: undefined;
@@ -59,7 +57,6 @@ export function StudentNavigator() {
       <Stack.Screen name="OrderConfirmed" component={OrderConfirmedScreen} />
       <Stack.Screen name="PickupRequest" component={PickupRequestScreen} />
       <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
-      <Stack.Screen name="OrderTimeline" component={OrderTimelineScreen} />
       <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
       <Stack.Screen name="PickupPin" component={PickupPinScreen} />
       <Stack.Screen name="CutoffPassed" component={CutoffPassedScreen} />

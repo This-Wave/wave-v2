@@ -1,21 +1,31 @@
 import { useMemo, useState } from "react";
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { ScreenHeader } from "../../components/ui/ScreenHeader";
-import { Card } from "../../components/ui/Card";
-import { FeeBreakdownRow } from "../../components/ui/FeeBreakdownRow";
-import { Button } from "../../components/ui/Button";
-import { PinIcon } from "../../components/icons";
+import {
+  ActionBar,
+  Button,
+  Gutter,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  TopBar,
+} from "../../components/v6";
 import { useCreateOrder } from "../../lib/orders";
 import { estimateOrderTotal, formatFullDay, formatGhs, formatGhsCompact } from "../../lib/pricing";
 
 type Route = RouteProp<StudentStackParamList, "OrderSummary">;
 
 /**
- * v5 screen 06 "Review order": an elevated summary card, the delivery row, then
- * the fee ledger with the 26px green total.
+ * Review before paying.
+ *
+ * The fee lines here are an *estimate* — `estimateOrderTotal` mirrors the
+ * server's rules but the server recalculates from its own config when the order
+ * is created, and its number is the one charged. That is said plainly on the
+ * screen rather than in a footnote, because a total that changes between two
+ * screens with no explanation is how you lose someone at checkout.
  */
 export function OrderSummaryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
@@ -25,7 +35,12 @@ export function OrderSummaryScreen() {
 
   const scheduledDate = new Date(params.scheduledDate);
   const estimate = useMemo(
-    () => estimateOrderTotal({ itemPrice: 0, isSpecialOrder: params.isSpecialOrder, completedDeliveries: 0 }),
+    () =>
+      estimateOrderTotal({
+        itemPrice: 0,
+        isSpecialOrder: params.isSpecialOrder,
+        completedDeliveries: 0,
+      }),
     [params.isSpecialOrder],
   );
 
@@ -36,59 +51,97 @@ export function OrderSummaryScreen() {
         shopId: params.shopId,
         checkpointId: params.checkpointId,
         itemDescription: params.itemDescription,
-        deliveryDay: params.isSpecialOrder ? "special" : scheduledDate.getDay() === 0 ? "sunday" : "wednesday",
+        deliveryDay: params.isSpecialOrder
+          ? "special"
+          : scheduledDate.getDay() === 0
+            ? "sunday"
+            : "wednesday",
         scheduledDate: params.scheduledDate,
         isSpecialOrder: params.isSpecialOrder,
         notes: params.notes,
       });
-      navigation.navigate("Payment", { orderId: order.id, totalAmount: Number(order.totalAmount) });
+      navigation.navigate("Payment", {
+        orderId: order.id,
+        totalAmount: Number(order.totalAmount),
+      });
     } catch {
       setError("Couldn't create your order. Please try again.");
     }
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas">
-      <ScreenHeader title="Review order" onBack={() => navigation.goBack()} />
+    <Screen>
+      <TopBar onBack={() => navigation.goBack()} />
 
-      <ScrollView className="flex-1 px-5 pt-5" contentContainerStyle={{ paddingBottom: 24 }}>
-        <Card elevated className="mb-5 p-[18px]">
-          <Text className="mb-1.5 font-sans-semibold text-[12px] uppercase tracking-[0.6px] text-muted">
-            Buying from
-          </Text>
-          <Text className="mb-3.5 font-sans-semibold text-[18px] text-ink">{params.shopName}</Text>
-          <Text className="text-[14px] leading-[22px] text-ink">{params.itemDescription}</Text>
-        </Card>
+      <ScreenBody bottomInset={16}>
+        <Gutter>
+          <Text className="mb-8 font-sans-bold text-heading text-ink">Check this over</Text>
 
-        <View className="mb-6 flex-row items-center gap-3 rounded-card border border-border bg-surface p-3.5">
-          <PinIcon size={20} />
-          <View className="flex-1">
-            <Text className="font-sans-semibold text-[14px] text-ink">Deliver to {params.checkpointName}</Text>
-            <Text className="text-[12px] text-muted">Included in {formatFullDay(scheduledDate)}&apos;s run</Text>
+          <Text className="mb-2 font-sans-medium text-body text-ink">Your list</Text>
+          <View className="mb-6 rounded-card bg-surface p-4">
+            <Text className="font-sans text-body text-ink">{params.itemDescription}</Text>
           </View>
-        </View>
 
-        <Text className="mb-3 font-sans-semibold text-[18px] text-ink">Order summary</Text>
-        {params.budget ? <FeeBreakdownRow label="Budget cap" value={`GH₵${params.budget}`} /> : null}
-        <FeeBreakdownRow label="Item cost" value="Charged at pickup" />
-        <FeeBreakdownRow label="Delivery" value={formatGhs(estimate.deliveryFee)} />
-        {estimate.surchargeAmount > 0 ? (
-          <FeeBreakdownRow label="Special order surcharge" value={`+${formatGhs(estimate.surchargeAmount)}`} />
-        ) : null}
-        {estimate.discountAmount > 0 ? (
-          <FeeBreakdownRow label="Loyalty discount" value={`-${formatGhs(estimate.discountAmount)}`} isDiscount />
-        ) : null}
-        <FeeBreakdownRow label="Total" value={formatGhsCompact(estimate.total)} isTotal />
+          <RowGroup>
+            <Row title={params.shopName} meta="Buying from" chevron={false} />
+            <Row title={params.checkpointName} meta="Delivering to" chevron={false} />
+            <Row title={formatFullDay(scheduledDate)} meta="On the run" chevron={false} />
+            {params.budget ? (
+              <Row title={`GH₵${params.budget}`} meta="Spend limit" chevron={false} />
+            ) : null}
+          </RowGroup>
 
-        <Text className="mt-4 text-center text-[12px] text-muted">
-          The server recalculates the final total when your order is created.
-        </Text>
-        {error ? <Text className="mt-3 text-center text-[12px] text-danger-text">{error}</Text> : null}
-      </ScrollView>
+          <Text className="mb-3 mt-8 font-sans-medium text-subheading text-ink">
+            What you pay now
+          </Text>
+          <View className="rounded-card bg-surface p-5">
+            <Line label="Delivery" value={formatGhs(estimate.deliveryFee)} />
+            {estimate.surchargeAmount > 0 ? (
+              <Line
+                label={`Rush order (+${estimate.surchargePct}%)`}
+                value={`+${formatGhs(estimate.surchargeAmount)}`}
+              />
+            ) : null}
+            {estimate.discountAmount > 0 ? (
+              <Line
+                label={`Loyalty discount (−${estimate.discountPct}%)`}
+                value={`−${formatGhs(estimate.discountAmount)}`}
+              />
+            ) : null}
+            <View className="mt-1 h-px bg-hairline" />
+            <View className="flex-row items-center justify-between pt-4">
+              <Text className="font-sans-medium text-ui text-ink">Total now</Text>
+              <Text className="font-sans-bold text-heading-sm text-ink">
+                {formatGhsCompact(estimate.total)}
+              </Text>
+            </View>
+          </View>
 
-      <View className="border-t border-border bg-canvas px-5 pb-11 pt-4">
-        <Button label="Confirm & place order" onPress={handleConfirm} loading={createOrder.isPending} />
-      </View>
-    </SafeAreaView>
+          <Text className="mt-4 font-sans text-body text-muted">
+            You pay the delivery fee now. The items themselves are paid for at the shop by your
+            runner and settled against your spend limit.
+          </Text>
+
+          {error ? <Text className="mt-4 font-sans text-body text-danger">{error}</Text> : null}
+        </Gutter>
+      </ScreenBody>
+
+      <ActionBar>
+        <Button
+          label="Place order"
+          onPress={handleConfirm}
+          loading={createOrder.isPending}
+        />
+      </ActionBar>
+    </Screen>
+  );
+}
+
+function Line({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="flex-row items-center justify-between py-2.5">
+      <Text className="font-sans text-body text-muted">{label}</Text>
+      <Text className="font-sans text-body text-ink">{value}</Text>
+    </View>
   );
 }

@@ -1,98 +1,151 @@
 import { useMemo, useState } from "react";
-import { Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { FilterChip } from "../../components/ui/FilterChip";
-import { Badge } from "../../components/ui/Badge";
-import { EmptyState } from "../../components/ui/EmptyState";
-import { Button } from "../../components/ui/Button";
-import { ImagePlaceholder } from "../../components/ui/ImagePlaceholder";
-import { BoxIcon } from "../../components/icons";
-import { colors, shadowCard } from "../../theme/tokens";
+import {
+  Chip,
+  Empty,
+  Gutter,
+  PageTitle,
+  ProgressRail,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  StatusPill,
+  Thumb,
+} from "../../components/v6";
 import { useMyOrders } from "../../lib/orders";
-import { formatGhs } from "../../lib/pricing";
-import { statusBadge } from "./orderPresenters";
+import { formatGhsCompact } from "../../lib/pricing";
+import { orderProgress, statusPill } from "./orderPresenters";
 import type { Order } from "../../types";
 
-const FILTERS = ["All", "Buy For Me", "Pickup"] as const;
-type Filter = (typeof FILTERS)[number];
+type Nav = NativeStackNavigationProp<StudentStackParamList>;
 
-function formatWhen(order: Order): string {
-  const date = new Date(order.scheduledDate);
-  return date.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
-}
+const LIVE = ["confirmed", "rider_assigned", "en_route", "at_checkpoint"];
 
 /**
- * v5 screen 12 "Order history": a 24px page title, the three-way filter rail,
- * then elevated 24px order rows. Falls back to screen 18's empty state.
+ * Orders, rebuilt.
+ *
+ * v5 showed one flat list filtered by order *type* — "All / Buy For Me /
+ * Pickup" — which is a distinction a student rarely cares about after the fact.
+ * The useful split is by whether the order is still happening, so live orders
+ * are pulled out of the list entirely and given a progress rail.
  */
 export function OrderHistoryScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
-  const { data: orders } = useMyOrders();
-  const [filter, setFilter] = useState<Filter>("All");
+  const navigation = useNavigation<Nav>();
+  const { data: orders, isLoading } = useMyOrders();
+  const [filter, setFilter] = useState<"all" | "delivered" | "cancelled">("all");
 
-  const filtered = useMemo(() => {
-    return (orders ?? []).filter((order) => {
-      // Wave models pickups as orders without a shop; everything else is Buy For Me.
-      if (filter === "Pickup") return !order.shop;
-      if (filter === "Buy For Me") return !!order.shop;
-      return true;
-    });
+  const live = useMemo(() => (orders ?? []).filter((o) => LIVE.includes(o.status)), [orders]);
+  const past = useMemo(() => {
+    const rest = (orders ?? []).filter((o) => !LIVE.includes(o.status));
+    if (filter === "delivered") return rest.filter((o) => o.status === "delivered");
+    if (filter === "cancelled")
+      return rest.filter((o) => o.status === "cancelled" || o.status === "refunded");
+    return rest;
   }, [orders, filter]);
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas">
-      <View className="px-5 pb-4">
-        <Text className="mb-3.5 font-sans-semibold text-[24px] tracking-tight text-ink">Order history</Text>
-        <View className="flex-row gap-2">
-          {FILTERS.map((f) => (
-            <FilterChip key={f} label={f} active={filter === f} onPress={() => setFilter(f)} />
-          ))}
-        </View>
-      </View>
+    <Screen>
+      <ScreenBody bottomInset={24}>
+        <Gutter className="pb-6 pt-4">
+          <PageTitle>Orders</PageTitle>
+        </Gutter>
 
-      {filtered.length === 0 ? (
-        <EmptyState
-          art={<BoxIcon size={34} color={colors.muted} strokeWidth={1.6} />}
-          title="No orders yet"
-          description="Once you place a Buy For Me or Pickup request, it'll show up here."
-        >
-          <Button label="Start an order" onPress={() => navigation.navigate("ShopSelection")} />
-        </EmptyState>
-      ) : (
+        {live.length > 0 ? (
+          <View className="mb-section">
+            <Gutter className="mb-3">
+              <Text className="font-sans-medium text-subheading text-ink">Happening now</Text>
+            </Gutter>
+            <Gutter className="gap-2">
+              {live.map((o) => (
+                <LiveRow key={o.id} order={o} navigation={navigation} />
+              ))}
+            </Gutter>
+          </View>
+        ) : null}
+
         <ScrollView
-          className="flex-1 px-5"
-          contentContainerStyle={{ paddingTop: 8, paddingBottom: 128 }}
-          showsVerticalScrollIndicator={false}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
+          className="mb-4 grow-0"
         >
-          {filtered.map((order) => (
-            <Pressable
-              key={order.id}
-              className="mb-3 flex-row items-center gap-3 rounded-card border border-border bg-surface p-3.5"
-              style={shadowCard}
-              onPress={() => navigation.navigate("OrderDetail", { orderId: order.id })}
-            >
-              {order.shop ? (
-                <ImagePlaceholder uri={order.shop.logoUrl} width={44} height={44} radius={14} />
-              ) : (
-                <View className="h-11 w-11 items-center justify-center rounded-tile bg-canvas">
-                  <BoxIcon size={18} color={colors.ink} strokeWidth={1.6} />
-                </View>
-              )}
-              <View className="flex-1">
-                <Text className="font-sans-semibold text-[14px] text-ink" numberOfLines={1}>
-                  {order.shop ? `${order.shop.name} · Buy For Me` : "Package pickup"}
-                </Text>
-                <Text className="text-[12px] text-muted">
-                  {formatWhen(order)} · {formatGhs(Number(order.totalAmount))}
-                </Text>
-              </View>
-              <Badge {...statusBadge(order.status)} />
-            </Pressable>
-          ))}
+          <Chip label="All" selected={filter === "all"} onPress={() => setFilter("all")} />
+          <Chip
+            label="Delivered"
+            selected={filter === "delivered"}
+            onPress={() => setFilter("delivered")}
+          />
+          <Chip
+            label="Cancelled"
+            selected={filter === "cancelled"}
+            onPress={() => setFilter("cancelled")}
+          />
         </ScrollView>
-      )}
-    </SafeAreaView>
+
+        <Gutter>
+          {isLoading ? null : past.length === 0 ? (
+            <Empty
+              title="Nothing here yet"
+              body={
+                filter === "all"
+                  ? "Your finished orders will collect here."
+                  : "No orders match this filter."
+              }
+            />
+          ) : (
+            <RowGroup>
+              {past.map((o) => (
+                <Row
+                  key={o.id}
+                  title={o.shop?.name ?? "Package pickup"}
+                  meta={`${dayOf(o)} · ${formatGhsCompact(Number(o.totalAmount ?? 0))}`}
+                  leading={<Thumb uri={o.shop?.logoUrl} />}
+                  trailing={<StatusPill {...statusPill(o.status)} />}
+                  onPress={() => navigation.navigate("OrderDetail", { orderId: o.id })}
+                />
+              ))}
+            </RowGroup>
+          )}
+        </Gutter>
+      </ScreenBody>
+    </Screen>
   );
+}
+
+function LiveRow({ order, navigation }: { order: Order; navigation: Nav }) {
+  const pill = statusPill(order.status);
+  return (
+    <View className="rounded-card bg-surface p-4">
+      <View className="mb-3 flex-row items-center gap-3">
+        <Thumb uri={order.shop?.logoUrl} size={44} />
+        <View className="flex-1">
+          <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
+            {order.shop?.name ?? "Your order"}
+          </Text>
+          <Text className="font-sans text-body text-muted" numberOfLines={1}>
+            {order.itemDescription}
+          </Text>
+        </View>
+        <StatusPill label={pill.label} tone={pill.tone} />
+      </View>
+      <ProgressRail ratio={orderProgress(order.status)} />
+      <Text
+        className="pt-3 font-sans-medium text-body text-ink"
+        accessibilityRole="button"
+        onPress={() => navigation.navigate("OrderTracking", { orderId: order.id })}
+      >
+        Track this order
+      </Text>
+    </View>
+  );
+}
+
+function dayOf(order: Order): string {
+  const iso = order.deliveredAt ?? order.scheduledDate;
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString([], { day: "numeric", month: "short" });
 }

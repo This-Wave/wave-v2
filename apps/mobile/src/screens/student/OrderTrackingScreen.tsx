@@ -1,106 +1,140 @@
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Linking, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { ScreenHeader } from "../../components/ui/ScreenHeader";
-import { Badge } from "../../components/ui/Badge";
-import { Button } from "../../components/ui/Button";
-import { IconButton } from "../../components/ui/IconButton";
-import { Avatar } from "../../components/ui/Avatar";
-import { ImagePlaceholder } from "../../components/ui/ImagePlaceholder";
-import { MessageIcon, PhoneIcon } from "../../components/icons";
+import {
+  ActionBar,
+  Button,
+  Gutter,
+  IconCircle,
+  Ledger,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  StatusPill,
+  Steps,
+  Thumb,
+  TopBar,
+} from "../../components/v6";
+import { PhoneIcon } from "../../components/icons";
+import { colors } from "../../theme/tokens";
 import { useOrder } from "../../lib/orders";
-import { initialsOf, shortOrderRef, statusBadge } from "./orderPresenters";
+import { buildOrderLedger } from "../../lib/ledger";
+import { currentStepIndex, orderSteps, shortOrderRef, statusPill } from "./orderPresenters";
 
 type Route = RouteProp<StudentStackParamList, "OrderTracking">;
 
 /**
- * v5 screen 09. Map slot, a status pill / ETA row, the runner card with its
- * message + call pair, the pickup→drop-off rail, and the order contents.
+ * Order tracking, rebuilt.
+ *
+ * v5 opened on a 220px empty green rectangle — a map slot with no map behind it,
+ * on the screen a student checks most often. Wave stores no coordinates for
+ * shops or checkpoints, so a map was never possible; the space now goes to the
+ * thing that actually answers "where is my food": the step list.
+ *
+ * The v5 header also carried a message button and a call button with no
+ * `onPress` on either, rendered even while no runner was assigned. The message
+ * button is gone (Wave has no messaging), and calling is now real, gated on
+ * there being someone to call.
  */
 export function OrderTrackingScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
   const { data: order } = useOrder(params.orderId, { poll: true });
 
+  const pill = order ? statusPill(order.status) : null;
   const rider = order?.rider;
+  const ledger = order ? buildOrderLedger(order) : null;
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas">
-      <ScreenHeader title={`Order ${shortOrderRef(params.orderId)}`} onBack={() => navigation.goBack()} />
+    <Screen>
+      <TopBar title={order ? shortOrderRef(order.id) : ""} onBack={() => navigation.goBack()} />
 
-      <ScrollView className="flex-1 px-5 pt-[18px]" contentContainerStyle={{ paddingBottom: 24 }}>
-        <ImagePlaceholder height={220} radius={24} style={{ marginBottom: 16 }} />
+      <ScreenBody bottomInset={16}>
+        <Gutter>
+          <View className="mb-6">
+            {pill ? <StatusPill label={pill.label} tone={pill.tone} /> : null}
+            <Text className="mt-3 font-sans-bold text-heading text-ink">
+              {headline(order?.status)}
+            </Text>
+            <Text className="mt-1 font-sans text-body text-muted">
+              {order?.checkpoint?.name
+                ? `Handing over at ${order.checkpoint.name}`
+                : "Delivery in progress"}
+            </Text>
+          </View>
 
-        <View className="mb-4 flex-row items-center justify-between">
-          {order ? <Badge {...statusBadge(order.status)} /> : <View />}
-          <Text className="text-[13px] text-muted">
-            {order?.status === "en_route" ? "Arriving soon" : "Scheduled run"}
-          </Text>
-        </View>
+          <View className="mb-6 rounded-card bg-surface p-5">
+            {order ? <Steps steps={orderSteps(order)} currentIndex={currentStepIndex(order.status)} /> : null}
+          </View>
 
-        <View className="mb-3.5 flex-row items-center justify-between rounded-card border border-border bg-surface p-4">
-          <View className="flex-1 flex-row items-center gap-3">
-            {rider ? (
-              <Avatar initials={initialsOf(rider.fullName)} size={44} />
-            ) : (
-              <View className="h-11 w-11 rounded-control bg-canvas" />
-            )}
-            <View className="flex-1">
-              <Text className="font-sans-semibold text-[14px] text-ink" numberOfLines={1}>
-                {rider?.fullName ?? "Awaiting a runner"}
-              </Text>
-              <Text className="text-[12px] text-muted">
-                {rider ? "Wave Runner" : "We'll assign one before the run"}
-              </Text>
+          {/* Only rendered once there is a runner — and the call button dials a
+              real number rather than sitting inert. */}
+          {rider ? (
+            <View className="mb-6 flex-row items-center gap-3 rounded-card bg-surface p-4">
+              <Thumb size={44} />
+              <View className="flex-1">
+                <Text className="font-sans-medium text-body text-ink">{rider.fullName}</Text>
+                <Text className="font-sans text-body text-muted">Your runner</Text>
+              </View>
+              {rider.phone ? (
+                <IconCircle
+                  tone="lime"
+                  accessibilityLabel={`Call ${rider.fullName}`}
+                  onPress={() => Linking.openURL(`tel:${rider.phone}`)}
+                >
+                  <PhoneIcon size={18} color={colors.ink} strokeWidth={1.8} />
+                </IconCircle>
+              ) : null}
             </View>
-          </View>
-          <View className="flex-row gap-2">
-            <IconButton>
-              <MessageIcon />
-            </IconButton>
-            <IconButton filled>
-              <PhoneIcon />
-            </IconButton>
-          </View>
-        </View>
+          ) : null}
 
-        <View className="mb-3.5 flex-row items-center justify-between rounded-card border border-border bg-surface p-[18px]">
-          <View>
-            <Text className="mb-1 text-[13px] text-muted">{order?.shop?.name ?? "Shop"}</Text>
-            <Text className="text-[12px] text-muted">
-              {order && ["en_route", "at_checkpoint", "delivered"].includes(order.status) ? "Picked up" : "Pending"}
-            </Text>
-          </View>
-          <View className="mx-3 h-px flex-1 bg-wave-500" />
-          <View className="items-end">
-            <Text className="mb-1 font-sans-semibold text-[13px] text-ink">
-              {order?.checkpoint?.name ?? "Checkpoint"}
-            </Text>
-            <Text className="text-[12px] text-muted">
-              {order?.deliveredAt
-                ? new Date(order.deliveredAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-                : "On the run"}
-            </Text>
-          </View>
-        </View>
+          <Text className="mb-3 font-sans-medium text-subheading text-ink">Your order</Text>
+          <RowGroup>
+            <Row
+              title={order?.itemDescription ?? "—"}
+              meta={order?.shop?.name}
+              leading={<Thumb uri={order?.shop?.logoUrl} />}
+              chevron={false}
+            />
+          </RowGroup>
 
-        <View className="rounded-card border border-border bg-surface p-4">
-          <Text className="mb-2.5 font-sans-semibold text-[12px] uppercase tracking-[0.6px] text-muted">
-            What&apos;s in this order
-          </Text>
-          <Text className="text-[14px] leading-[22px] text-ink">{order?.itemDescription ?? "—"}</Text>
-        </View>
-      </ScrollView>
+          {ledger ? (
+            <View className="mt-6 rounded-card bg-surface p-5">
+              <Ledger ledger={ledger} />
+            </View>
+          ) : null}
+        </Gutter>
+      </ScreenBody>
 
-      <View className="border-t border-border bg-canvas px-5 pb-11 pt-4">
+      <ActionBar>
         <Button
-          label="View full timeline"
-          variant="secondary"
-          size="compact"
-          onPress={() => navigation.navigate("OrderTimeline", { orderId: params.orderId })}
+          label="Show pickup code"
+          onPress={() => navigation.navigate("PickupPin", { orderId: params.orderId })}
         />
-      </View>
-    </SafeAreaView>
+      </ActionBar>
+    </Screen>
   );
+}
+
+function headline(status?: string): string {
+  switch (status) {
+    case "confirmed":
+      return "We've got your order";
+    case "rider_assigned":
+      return "A runner is on it";
+    case "en_route":
+      return "On the way to you";
+    case "at_checkpoint":
+      return "Your runner has arrived";
+    case "delivered":
+      return "Delivered";
+    case "cancelled":
+      return "Order cancelled";
+    case "refunded":
+      return "Refunded";
+    default:
+      return "Tracking your order";
+  }
 }
