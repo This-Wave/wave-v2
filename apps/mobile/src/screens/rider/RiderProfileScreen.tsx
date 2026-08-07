@@ -1,72 +1,99 @@
-import { Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { useState } from "react";
+import { Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { ChevronRight, LogOut, ShieldCheck } from "lucide-react-native";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
-import { Avatar } from "../../components/ui/Avatar";
-import { Card } from "../../components/ui/Card";
-import { Badge } from "../../components/ui/Badge";
-import { ListRow } from "../../components/ui/ListRow";
+import {
+  Confirm,
+  Gutter,
+  PageTitle,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  StatusPill,
+} from "../../components/v6";
 import { useAuthStore } from "../../store/authStore";
 import { useVerificationStatus } from "../../lib/rider";
 import { signOut } from "../../lib/auth";
 
-function initials(name: string): string {
-  return name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
-}
-
-function verificationBadge(status?: string): { label: string; variant: "success" | "error" | "warning" | "neutral" } {
-  if (status === "approved") return { label: "Verified", variant: "success" };
-  if (status === "rejected") return { label: "Rejected", variant: "error" };
-  if (status === "pending") return { label: "Pending Review", variant: "warning" };
-  return { label: "Not Submitted", variant: "neutral" };
+function verificationPill(status?: string): {
+  label: string;
+  tone: "neutral" | "active" | "done" | "danger";
+} {
+  if (status === "approved") return { label: "Verified", tone: "done" };
+  if (status === "rejected") return { label: "Rejected", tone: "danger" };
+  if (status === "pending") return { label: "In review", tone: "active" };
+  return { label: "Not submitted", tone: "neutral" };
 }
 
 export function RiderProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RiderStackParamList>>();
   const profile = useAuthStore((s) => s.profile);
   const { data: verification } = useVerificationStatus();
+  const [confirmLogout, setConfirmLogout] = useState(false);
+
   const canSubmit = !verification || verification.status === "rejected";
+  const pill = verificationPill(verification?.status);
 
   return (
-    <SafeAreaView className="flex-1 bg-surface-muted">
-      <ScrollView className="flex-1 px-6 pt-3" contentContainerStyle={{ paddingBottom: 128 }}>
-        <Card className="mb-3 flex-row items-center gap-3.5 bg-surface">
-          <Avatar initials={profile ? initials(profile.fullName) : undefined} size={64} />
-          <View>
-            <Text className="font-sans-extrabold text-[18px] text-ink">{profile?.fullName}</Text>
-            <Text className="mt-0.5 text-[12px] text-muted">{profile?.phone}</Text>
-          </View>
-        </Card>
+    <Screen>
+      <ScreenBody bottomInset={24}>
+        <Gutter className="pb-8 pt-4">
+          <PageTitle>{profile?.fullName ?? "Rider"}</PageTitle>
+          <Text className="mt-2 font-sans text-body text-muted">{profile?.phone ?? "—"}</Text>
+        </Gutter>
 
-        <Pressable
-          disabled={!canSubmit}
-          onPress={() => navigation.navigate("SubmitVerification")}
-          className="mb-3"
-        >
-          <Card className="bg-surface">
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center gap-2">
-                <ShieldCheck size={16} color="#6B7D63" />
-                <Text className="font-sans-bold text-[13px] text-ink">Verification</Text>
-              </View>
-              <View className="flex-row items-center gap-2">
-                <Badge {...verificationBadge(verification?.status)} />
-                {canSubmit ? <ChevronRight size={16} color="#6B7D63" /> : null}
-              </View>
+        <Gutter className="mb-8">
+          <View className="rounded-card bg-surface p-5">
+            <View className="mb-2 flex-row items-center justify-between">
+              <Text className="font-sans-semibold text-meta text-muted">VERIFICATION</Text>
+              <StatusPill label={pill.label} tone={pill.tone} />
             </View>
-            {canSubmit ? (
-              <Text className="mt-2 text-[11px] text-muted">
-                {verification?.status === "rejected" ? "Tap to resubmit your ID and selfie." : "Tap to submit your ID and selfie for review."}
-              </Text>
-            ) : null}
-          </Card>
-        </Pressable>
+            <Text className="font-sans text-body text-ink">
+              {verification?.status === "approved"
+                ? "You're cleared to take orders. Nothing else to do."
+                : verification?.status === "pending"
+                  ? "Wave is checking your ID. You'll be able to take orders once it's approved."
+                  : verification?.status === "rejected"
+                    ? "Your submission was turned down. Send a clearer ID photo and selfie."
+                    : "Send an ID photo and a selfie before you can take orders."}
+            </Text>
+          </View>
+        </Gutter>
 
-        <View className="overflow-hidden rounded-well border border-border bg-surface">
-          <ListRow leading={<LogOut size={18} color="#B3453A" />} title="Log Out" danger onPress={() => signOut()} />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        <Gutter>
+          <RowGroup>
+            {canSubmit ? (
+              <Row
+                title={
+                  verification?.status === "rejected" ? "Resubmit your ID" : "Submit your ID"
+                }
+                meta="Photo of your ID plus a selfie"
+                onPress={() => navigation.navigate("SubmitVerification")}
+              />
+            ) : null}
+          </RowGroup>
+
+          <View className="mt-8">
+            <Row title="Log out" onPress={() => setConfirmLogout(true)} chevron={false} />
+          </View>
+        </Gutter>
+      </ScreenBody>
+
+      <Confirm
+        visible={confirmLogout}
+        title="Log out?"
+        body="You'll need your phone number and a code to get back in."
+        confirmLabel="Log out"
+        onConfirm={() => {
+          setConfirmLogout(false);
+          // `lib/auth.ts` is the ONLY place that may call supabase.auth.signOut()
+          // — it detaches the push token first.
+          void signOut();
+        }}
+        onCancel={() => setConfirmLogout(false)}
+      />
+    </Screen>
   );
 }

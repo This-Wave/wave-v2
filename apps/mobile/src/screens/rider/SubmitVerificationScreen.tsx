@@ -1,16 +1,27 @@
 import { useState } from "react";
-import { Image, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Image, Pressable, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { ArrowLeft, Camera, IdCard, ShieldCheck } from "lucide-react-native";
 import type { RIDER_ID_TYPES } from "@wave/shared";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
-import { IconButton } from "../../components/ui/IconButton";
-import { TextField } from "../../components/ui/TextField";
-import { Button } from "../../components/ui/Button";
-import { FilterChip } from "../../components/ui/FilterChip";
-import { useSubmitVerification, useUploadVerificationImage, useVerificationStatus } from "../../lib/rider";
+import {
+  ActionBar,
+  Button,
+  Chip,
+  Field,
+  Gutter,
+  Screen,
+  ScreenBody,
+  TopBar,
+} from "../../components/v6";
+import { CameraIcon, CheckIcon } from "../../components/icons";
+import { colors } from "../../theme/tokens";
+import {
+  useSubmitVerification,
+  useUploadVerificationImage,
+  useVerificationStatus,
+} from "../../lib/rider";
 
 type IdType = (typeof RIDER_ID_TYPES)[number];
 
@@ -70,10 +81,23 @@ export function SubmitVerificationScreen() {
     setError(null);
     try {
       const [idImagePath, selfiePath] = await Promise.all([
-        uploadImage.mutateAsync({ kind: "id", base64: idPhoto.base64, contentType: contentTypeFor(idPhoto.uri) }),
-        uploadImage.mutateAsync({ kind: "selfie", base64: selfie.base64, contentType: contentTypeFor(selfie.uri) }),
+        uploadImage.mutateAsync({
+          kind: "id",
+          base64: idPhoto.base64,
+          contentType: contentTypeFor(idPhoto.uri),
+        }),
+        uploadImage.mutateAsync({
+          kind: "selfie",
+          base64: selfie.base64,
+          contentType: contentTypeFor(selfie.uri),
+        }),
       ]);
-      await submitVerification.mutateAsync({ idType, idNumber: idNumber.trim(), idImagePath, selfiePath });
+      await submitVerification.mutateAsync({
+        idType,
+        idNumber: idNumber.trim(),
+        idImagePath,
+        selfiePath,
+      });
       setSubmitted(true);
     } catch {
       setError("Something went wrong submitting your verification. Please try again.");
@@ -85,88 +109,117 @@ export function SubmitVerificationScreen() {
 
   if (submitted) {
     return (
-      <SafeAreaView className="flex-1 bg-canvas">
-        <View className="flex-1 items-center justify-center px-8">
-          <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-success-bg">
-            <ShieldCheck size={30} color="#009933" strokeWidth={1.6} />
-          </View>
-          <Text className="mb-2 text-center font-sans-extrabold text-[20px] text-ink">Submitted for review</Text>
-          <Text className="mb-8 text-center text-[13px] leading-5 text-muted">
-            We'll notify you once an admin reviews your ID and selfie.
-          </Text>
-          <Button label="Back to Profile" onPress={() => navigation.goBack()} />
-        </View>
-      </SafeAreaView>
+      <Screen>
+        <ScreenBody bottomInset={16}>
+          <Gutter className="pt-12">
+            <View className="mb-6 h-14 w-14 items-center justify-center rounded-pill bg-lime">
+              <CheckIcon size={28} color={colors.ink} strokeWidth={2.4} />
+            </View>
+            <Text className="mb-2 font-sans-bold text-heading text-ink">Sent for review</Text>
+            <Text className="font-sans text-body text-muted">
+              Wave will check your ID and selfie. You'll get a notification once it's approved, and
+              you can start taking orders straight away.
+            </Text>
+          </Gutter>
+        </ScreenBody>
+        <ActionBar>
+          <Button label="Back to profile" onPress={() => navigation.goBack()} />
+        </ActionBar>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas">
-      <View className="flex-row items-center gap-3 px-6 pb-3.5 pt-1.5">
-        <IconButton icon={ArrowLeft} onPress={() => navigation.goBack()} compact />
-        <Text className="flex-1 font-sans-extrabold text-[16px] tracking-tight text-ink">Rider Verification</Text>
-      </View>
+    <Screen>
+      <TopBar onBack={() => navigation.goBack()} />
 
-      <ScrollView className="flex-1 px-6" contentContainerStyle={{ gap: 16, paddingBottom: 24 }}>
-        {existing?.status === "rejected" ? (
-          <View className="rounded-well border border-danger-border bg-danger-bg p-3">
-            <Text className="text-[12px] text-danger-text">
-              Your previous submission was rejected{existing.rejectionReason ? `: ${existing.rejectionReason}` : "."} Please resubmit below.
-            </Text>
-          </View>
-        ) : null}
+      <ScreenBody bottomInset={16}>
+        <Gutter className="pt-2">
+          <Text className="mb-2 font-sans-bold text-heading text-ink">Verify yourself</Text>
+          <Text className="mb-8 font-sans text-body text-muted">
+            Wave checks every rider before they carry a student's order. This takes a minute.
+          </Text>
 
-        <View>
-          <Text className="mb-1.5 font-sans-semibold text-xs text-text-secondary">ID Type</Text>
-          <View className="flex-row gap-2">
+          {existing?.status === "rejected" ? (
+            <View className="mb-7 rounded-card bg-danger-bg p-4">
+              <Text className="font-sans text-body text-danger">
+                Your last submission was turned down
+                {existing.rejectionReason ? `: ${existing.rejectionReason}` : "."} Send clearer
+                photos below.
+              </Text>
+            </View>
+          ) : null}
+
+          <Text className="mb-2 font-sans-medium text-body text-ink">Which ID?</Text>
+          <View className="mb-7 flex-row flex-wrap gap-2">
             {(Object.keys(ID_TYPE_LABELS) as IdType[]).map((type) => (
-              <FilterChip key={type} label={ID_TYPE_LABELS[type]} active={idType === type} onPress={() => setIdType(type)} />
+              <Chip
+                key={type}
+                label={ID_TYPE_LABELS[type]}
+                selected={idType === type}
+                onPress={() => setIdType(type)}
+              />
             ))}
           </View>
-        </View>
 
-        <TextField label="ID Number" value={idNumber} onChangeText={setIdNumber} placeholder="e.g. GHA-123456789-0" mono />
+          <View className="mb-7">
+            <Field
+              label="ID number"
+              value={idNumber}
+              onChangeText={setIdNumber}
+              placeholder="GHA-123456789-0"
+            />
+          </View>
 
-        <View>
-          <Text className="mb-1.5 font-sans-semibold text-xs text-text-secondary">ID Photo</Text>
-          <Pressable
+          <Text className="mb-2 font-sans-medium text-body text-ink">Photo of your ID</Text>
+          <PhotoSlot
+            uri={idPhoto?.uri}
+            hint="Tap to choose a photo of your ID"
             onPress={pickIdPhoto}
-            className="h-[140px] items-center justify-center overflow-hidden rounded-well border-[1.5px] border-border bg-surface-muted"
-          >
-            {idPhoto ? (
-              <Image source={{ uri: idPhoto.uri }} className="h-full w-full" resizeMode="cover" />
-            ) : (
-              <>
-                <IdCard size={22} color="#6B7D63" />
-                <Text className="mt-1.5 text-[12px] text-muted">Tap to upload a photo of your ID</Text>
-              </>
-            )}
-          </Pressable>
-        </View>
+          />
 
-        <View>
-          <Text className="mb-1.5 font-sans-semibold text-xs text-text-secondary">Selfie</Text>
-          <Pressable
-            onPress={takeSelfie}
-            className="h-[140px] items-center justify-center overflow-hidden rounded-well border-[1.5px] border-border bg-surface-muted"
-          >
-            {selfie ? (
-              <Image source={{ uri: selfie.uri }} className="h-full w-full" resizeMode="cover" />
-            ) : (
-              <>
-                <Camera size={22} color="#6B7D63" />
-                <Text className="mt-1.5 text-[12px] text-muted">Tap to take a selfie</Text>
-              </>
-            )}
-          </Pressable>
-        </View>
+          <Text className="mb-2 mt-7 font-sans-medium text-body text-ink">A selfie</Text>
+          <PhotoSlot uri={selfie?.uri} hint="Tap to take a selfie" onPress={takeSelfie} />
 
-        {error ? <Text className="text-center text-[12px] text-danger-text">{error}</Text> : null}
-      </ScrollView>
+          {error ? <Text className="mt-4 font-sans text-body text-danger">{error}</Text> : null}
+        </Gutter>
+      </ScreenBody>
 
-      <View className="px-6 pb-6 pt-3">
-        <Button label="Submit for Review" onPress={handleSubmit} disabled={!canSubmit} loading={isSubmitting} />
-      </View>
-    </SafeAreaView>
+      <ActionBar>
+        <Button
+          label="Send for review"
+          onPress={handleSubmit}
+          disabled={!canSubmit}
+          loading={isSubmitting}
+        />
+      </ActionBar>
+    </Screen>
+  );
+}
+
+function PhotoSlot({
+  uri,
+  hint,
+  onPress,
+}: {
+  uri?: string;
+  hint: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      className="h-40 items-center justify-center overflow-hidden rounded-card bg-surface-muted"
+    >
+      {uri ? (
+        <Image source={{ uri }} className="h-full w-full" resizeMode="cover" />
+      ) : (
+        <>
+          <CameraIcon size={22} color={colors.muted} strokeWidth={1.7} />
+          <Text className="mt-2 font-sans text-body text-muted">{hint}</Text>
+        </>
+      )}
+    </Pressable>
   );
 }

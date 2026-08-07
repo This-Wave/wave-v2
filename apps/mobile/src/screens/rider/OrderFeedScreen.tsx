@@ -1,24 +1,38 @@
 import { useState } from "react";
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { MapPin, Store } from "lucide-react-native";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
-import { Card } from "../../components/ui/Card";
-import { Button } from "../../components/ui/Button";
+import {
+  Empty,
+  Gutter,
+  PageTitle,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  Skeleton,
+  Thumb,
+} from "../../components/v6";
 import { ToggleSwitch } from "../../components/ui/ToggleSwitch";
-import { Skeleton } from "../../components/ui/Skeleton";
-import { EmptyState } from "../../components/ui/EmptyState";
 import { useAuthStore } from "../../store/authStore";
 import { useAvailableOrders, useSetAvailability } from "../../lib/rider";
+import { useWave } from "../../lib/wave";
 import { formatGhs } from "../../lib/pricing";
 
+/**
+ * The rider's feed of unclaimed orders, on v6.
+ *
+ * The fee leads each row — it is the one number a rider decides on — set as the
+ * trailing value rather than buried in a coloured corner as it was in v5.
+ */
 export function OrderFeedScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RiderStackParamList>>();
   const profile = useAuthStore((s) => s.profile);
   const [online, setOnline] = useState(profile?.isActive ?? true);
   const { data: orders, isLoading } = useAvailableOrders();
   const setAvailability = useSetAvailability();
+  const wave = useWave();
 
   function handleToggle(value: boolean) {
     setOnline(value);
@@ -26,58 +40,58 @@ export function OrderFeedScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-surface-muted">
-      <View className="flex-row items-center justify-between px-6 pb-3 pt-1">
-        <View>
-          <Text className="text-[12px] font-sans-medium text-muted">Order Feed</Text>
-          <Text className="font-sans-extrabold text-[20px] tracking-tight text-ink">
-            Hi, {profile?.fullName?.split(" ")[0] ?? "Rider"}
-          </Text>
-        </View>
-        <View className="flex-row items-center gap-2">
-          <Text className={`font-sans-semibold text-[12px] ${online ? "text-wave-500" : "text-muted"}`}>
-            {online ? "Online" : "Offline"}
-          </Text>
-          <ToggleSwitch value={online} onValueChange={handleToggle} />
-        </View>
-      </View>
+    <Screen>
+      <ScreenBody bottomInset={24}>
+        <Gutter className="pb-6 pt-4">
+          <View className="flex-row items-start justify-between">
+            <View className="flex-1 pr-4">
+              <PageTitle>Available</PageTitle>
+              <Text className="mt-2 font-sans text-body text-muted">
+                {wave ? `${wave.name} · closes in ${wave.countdown}` : "Next Wave"}
+              </Text>
+            </View>
+            <View className="items-end gap-1.5">
+              <ToggleSwitch value={online} onValueChange={handleToggle} />
+              <Text className="font-sans text-meta text-muted">{online ? "Online" : "Offline"}</Text>
+            </View>
+          </View>
+        </Gutter>
 
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ gap: 10, paddingBottom: 128 }}>
-        <Text className="px-1 text-[12px] text-muted">
-          {isLoading ? "Loading orders…" : `${orders?.length ?? 0} orders available near you`}
-        </Text>
-
-        {isLoading ? (
-          <>
-            <Skeleton height={110} radius={14} />
-            <Skeleton height={110} radius={14} />
-          </>
-        ) : !orders || orders.length === 0 ? (
-          <EmptyState
-            icon={Store}
-            title="No orders right now"
-            description={online ? "New orders will show up here as students place them." : "Go online to start receiving orders."}
-          />
-        ) : (
-          orders.map((order) => (
-            <Card key={order.id}>
-              <View className="mb-2.5 flex-row items-start justify-between">
-                <View className="flex-1">
-                  <Text className="font-sans-bold text-[14px] text-ink">{order.shop?.name ?? "Shop"}</Text>
-                  <View className="mt-1 flex-row items-center gap-1">
-                    <MapPin size={12} color="#6B7D63" />
-                    <Text className="text-[11px] text-muted" numberOfLines={1}>
-                      {order.shop?.locationText ?? "Off-campus"} · {order.checkpoint?.name ?? "Checkpoint"}
+        <Gutter>
+          {isLoading ? (
+            <View className="gap-2">
+              <Skeleton height={72} radius={12} />
+              <Skeleton height={72} radius={12} />
+            </View>
+          ) : !orders || orders.length === 0 ? (
+            <Empty
+              title="Nothing waiting"
+              body={
+                online
+                  ? "New orders land here as students place them for this Wave."
+                  : "You're offline. Turn on availability to receive orders."
+              }
+            />
+          ) : (
+            <RowGroup>
+              {orders.map((order) => (
+                <Row
+                  key={order.id}
+                  title={order.shop?.name ?? "Shop"}
+                  meta={`${order.shop?.locationText ?? "Off-campus"} → ${order.checkpoint?.name ?? "checkpoint"}`}
+                  leading={<Thumb uri={order.shop?.logoUrl} />}
+                  trailing={
+                    <Text className="font-sans-semibold text-body text-ink">
+                      {formatGhs(Number(order.deliveryFee))}
                     </Text>
-                  </View>
-                </View>
-                <Text className="font-sans-extrabold text-[15px] text-wave-500">{formatGhs(Number(order.deliveryFee))}</Text>
-              </View>
-              <Button label="Accept" onPress={() => navigation.navigate("OrderDetail", { orderId: order.id })} />
-            </Card>
-          ))
-        )}
-      </ScrollView>
-    </SafeAreaView>
+                  }
+                  onPress={() => navigation.navigate("OrderDetail", { orderId: order.id })}
+                />
+              ))}
+            </RowGroup>
+          )}
+        </Gutter>
+      </ScreenBody>
+    </Screen>
   );
 }

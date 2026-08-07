@@ -1,135 +1,103 @@
 import { useState } from "react";
-import { SafeAreaView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
-import { Button } from "../../components/ui/Button";
-import { ImagePlaceholder } from "../../components/ui/ImagePlaceholder";
+import { ActionBar, Button, Gutter, Screen, ScreenBody } from "../../components/v6";
 import { supabase } from "../../lib/supabase";
+import { useWave } from "../../lib/wave";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Welcome">;
 
-// Dev-only shortcut so screens past the login gate can be browsed without a
-// real SMS OTP round trip. Signs in as a real, seeded Supabase user (see
-// packages/db/prisma/seed.ts — "Ama Owusu", a frequent-user persona with 7
-// past delivered orders) via phone+password, so AuthProvider picks up a real
-// session and every backend call behaves exactly as it would for a real user.
-async function skipLoginForDev() {
-  const { error } = await supabase.auth.signInWithPassword({
-    phone: "+233241234567",
-    password: "WaveDev123!",
-  });
-  if (error) {
-    throw error;
-  }
-}
-
-// Same idea, seeded as a "rider" role persona (Kofi Boateng — approved
-// verification, 2 unclaimed orders sitting in the feed) so the rider flow
-// can be browsed the same way. See packages/db/prisma/seed.ts.
-async function skipLoginForDevAsRider() {
-  const { error } = await supabase.auth.signInWithPassword({
-    phone: "+233551234567",
-    password: "WaveRider123!",
-  });
-  if (error) {
-    throw error;
-  }
-}
-
-// Same idea, seeded as a "shop_owner" role persona (Mama Put Kitchen) so the
-// shop dashboard/menu flow can be browsed the same way.
-async function skipLoginForDevAsShopOwner() {
-  const { error } = await supabase.auth.signInWithPassword({
-    phone: "+233201234567",
-    password: "WaveShop123!",
-  });
-  if (error) {
-    throw error;
-  }
-}
-
-// v5 screen 02 — three panels behind one pager, driven by the dot rail up top.
-const SLIDES = [
-  {
-    title: "Never miss\na run again",
-    body: "We batch every off-campus order into one scheduled run — book pickup or ask us to buy for you before the cutoff.",
-  },
-  {
-    title: "Tell us what\nyou need",
-    body: "Describe the items and set a budget cap. Your runner buys them, keeps the receipt, and brings the change back.",
-  },
-  {
-    title: "Collect at\nyour checkpoint",
-    body: "Track the run live, then show your six-digit pickup code to the runner when they reach your hall.",
-  },
+// Dev-only shortcuts so screens past the login gate can be browsed without a
+// real SMS OTP round trip. Each signs in as a real seeded Supabase user (see
+// packages/db/prisma/seed.ts), so AuthProvider picks up a real session and
+// every backend call behaves exactly as it would for that role.
+const DEV_LOGINS = [
+  { label: "student", phone: "+233241234567", password: "WaveDev123!" },
+  { label: "rider", phone: "+233551234567", password: "WaveRider123!" },
+  { label: "shop owner", phone: "+233201234567", password: "WaveShop123!" },
 ];
 
+/**
+ * The first screen.
+ *
+ * v5 ran a three-slide carousel with a placeholder image on each — three taps
+ * before anyone could sign in, and the images were never sourced. It is one
+ * screen now: what Wave is, when the next Wave leaves, and a way in.
+ *
+ * Naming the next Wave here is deliberate. The single hardest thing to explain
+ * about Wave is that it is scheduled rather than on-demand, and a student who
+ * learns that at checkout has already formed the wrong expectation.
+ */
 export function WelcomeScreen({ navigation }: Props) {
   const [devError, setDevError] = useState<string | null>(null);
-  const [index, setIndex] = useState(0);
-  const slide = SLIDES[index];
-  const isLast = index === SLIDES.length - 1;
-
-  function handleContinue() {
-    if (isLast) {
-      navigation.navigate("PhoneEntry");
-      return;
-    }
-    setIndex((i) => i + 1);
-  }
+  const wave = useWave();
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas">
-      <View className="h-16" />
+    <Screen>
+      <ScreenBody bottomInset={16}>
+        <Gutter className="pt-16">
+          <View className="mb-10 flex-row items-center gap-2.5">
+            <View className="h-9 w-9 items-center justify-center rounded-pill bg-lime">
+              <Text className="font-sans-bold text-ui text-ink">W</Text>
+            </View>
+            <Text className="font-sans-bold text-ink" style={{ fontSize: 30, lineHeight: 34 }}>
+              wave
+            </Text>
+          </View>
 
-      <View className="mb-7 flex-row justify-center gap-2 px-7">
-        {SLIDES.map((_, i) => (
-          <View key={i} className={`h-2 rounded-full ${i === index ? "w-6 bg-wave-500" : "w-2 bg-border"}`} />
-        ))}
-      </View>
-
-      <View className="flex-1 items-center justify-center px-7">
-        <ImagePlaceholder height={290} radius={24} style={{ marginBottom: 32 }} />
-        <Text className="mb-3.5 text-center font-sans-semibold text-[30px] leading-[34px] tracking-tighter text-ink">
-          {slide.title}
-        </Text>
-        <Text className="max-w-[300px] text-center text-[16px] leading-6 text-muted">{slide.body}</Text>
-      </View>
-
-      <View className="gap-3 px-7 pb-11">
-        <Button label={isLast ? "Continue" : "Next"} onPress={handleContinue} />
-        {!isLast ? (
           <Text
-            className="text-center font-sans-medium text-[13px] text-muted"
-            onPress={() => navigation.navigate("PhoneEntry")}
+            className="mb-4 font-sans-bold text-ink"
+            style={{ fontSize: 36, lineHeight: 40, letterSpacing: -0.8 }}
           >
-            Skip
+            Off-campus shops,{"\n"}delivered to your hall.
           </Text>
-        ) : null}
-        {__DEV__ ? (
-          <>
-            <Text
-              className="mt-1 text-center text-[12px] font-sans-medium text-muted"
-              onPress={() => skipLoginForDev().catch((err) => setDevError(err.message))}
-            >
-              Skip login (dev) — student
-            </Text>
-            <Text
-              className="text-center text-[12px] font-sans-medium text-muted"
-              onPress={() => skipLoginForDevAsRider().catch((err) => setDevError(err.message))}
-            >
-              Skip login (dev) — rider
-            </Text>
-            <Text
-              className="text-center text-[12px] font-sans-medium text-muted"
-              onPress={() => skipLoginForDevAsShopOwner().catch((err) => setDevError(err.message))}
-            >
-              Skip login (dev) — shop owner
-            </Text>
-            {devError ? <Text className="text-center text-[11px] text-danger-text">{devError}</Text> : null}
-          </>
-        ) : null}
-      </View>
-    </SafeAreaView>
+          <Text className="mb-10 font-sans text-ui text-muted">
+            Tell us what you need. A runner buys it and brings it to your checkpoint on the next
+            Wave.
+          </Text>
+
+          {wave ? (
+            <View className="rounded-card bg-surface p-5">
+              <Text className="mb-1 font-sans-semibold text-meta text-muted">NEXT WAVE</Text>
+              <Text className="font-sans-medium text-subheading text-ink">{wave.dateLabel}</Text>
+              <Text className="mt-1 font-sans text-body text-muted">
+                Ordering closes in {wave.countdown}. Wave runs Sundays and Wednesdays.
+              </Text>
+            </View>
+          ) : null}
+        </Gutter>
+      </ScreenBody>
+
+      <ActionBar>
+        <View className="gap-3">
+          <Button label="Get started" onPress={() => navigation.navigate("PhoneEntry")} />
+
+          {__DEV__ ? (
+            <View className="flex-row justify-center gap-4 pt-1">
+              {DEV_LOGINS.map((login) => (
+                <Text
+                  key={login.label}
+                  accessibilityRole="button"
+                  className="font-sans text-meta text-muted"
+                  onPress={() =>
+                    supabase.auth
+                      .signInWithPassword({ phone: login.phone, password: login.password })
+                      .then(({ error }) => {
+                        if (error) setDevError(error.message);
+                      })
+                  }
+                >
+                  dev: {login.label}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+          {devError ? (
+            <Text className="text-center font-sans text-meta text-danger">{devError}</Text>
+          ) : null}
+        </View>
+      </ActionBar>
+    </Screen>
   );
 }

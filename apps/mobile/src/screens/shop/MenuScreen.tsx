@@ -1,22 +1,41 @@
 import { useMemo, useState } from "react";
-import { Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
-import { Plus, UtensilsCrossed } from "lucide-react-native";
+import { Pressable, Text, View } from "react-native";
 import type { ProductStatus } from "@wave/shared";
-import { Badge } from "../../components/ui/Badge";
-import { SearchBar } from "../../components/ui/SearchBar";
-import { EmptyState } from "../../components/ui/EmptyState";
-import { Skeleton } from "../../components/ui/Skeleton";
-import { useCreateProduct, useSelectedShop, useShopProducts, useUpdateProductStatus } from "../../lib/shopOwner";
+import {
+  Empty,
+  Field,
+  Gutter,
+  PageTitle,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  Skeleton,
+  StatusPill,
+} from "../../components/v6";
+import { PlusIcon } from "../../components/icons";
+import { colors } from "../../theme/tokens";
+import {
+  useCreateProduct,
+  useSelectedShop,
+  useShopProducts,
+  useUpdateProductStatus,
+} from "../../lib/shopOwner";
 import { ShopSwitcher } from "../../components/shop/ShopSwitcher";
 import { AddProductSheet } from "../../components/shop/AddProductSheet";
 import { formatGhs } from "../../lib/pricing";
 
-const STATUS_BADGE: Record<ProductStatus, { label: string; variant: "success" | "neutral" | "warning" }> = {
-  active: { label: "Active", variant: "success" },
-  out_of_stock: { label: "Out of Stock", variant: "neutral" },
-  not_serving: { label: "Not Serving", variant: "warning" },
+const STATUS_PILL: Record<
+  ProductStatus,
+  { label: string; tone: "neutral" | "active" | "done" | "danger" }
+> = {
+  active: { label: "On", tone: "done" },
+  out_of_stock: { label: "Out of stock", tone: "neutral" },
+  not_serving: { label: "Off", tone: "neutral" },
 };
 
+// Tapping a row cycles its state. Three states, one tap target — a picker for
+// three mutually exclusive values would cost a sheet per item.
 const STATUS_CYCLE: Record<ProductStatus, ProductStatus> = {
   active: "out_of_stock",
   out_of_stock: "not_serving",
@@ -39,72 +58,83 @@ export function MenuScreen() {
   }, [products, query]);
 
   return (
-    <SafeAreaView className="flex-1 bg-surface-muted">
-      <View className="flex-row items-center justify-between px-6 pb-3 pt-2">
-        <Text className="font-sans-extrabold text-[20px] tracking-tight text-ink">Menu</Text>
-        <Pressable
-          className="flex-row items-center gap-1.5 rounded-well bg-wave-500 px-3.5 py-2"
-          disabled={!shop}
-          style={!shop ? { opacity: 0.5 } : undefined}
-          onPress={() => setAdding(true)}
-        >
-          <Plus size={15} color="#fff" strokeWidth={2.5} />
-          <Text className="font-sans-semibold text-[12px] text-white">Add Item</Text>
-        </Pressable>
-      </View>
-
-      <View className="px-6">
-        <ShopSwitcher shops={shops} selectedId={shop?.id} onSelect={selectShop} />
-      </View>
-
-      <View className="px-6 pb-3">
-        <SearchBar value={query} onChangeText={setQuery} placeholder="Search menu..." />
-      </View>
-
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: 128 }}>
-        {isLoading ? (
-          <View className="gap-2.5">
-            <Skeleton height={62} radius={14} />
-            <Skeleton height={62} radius={14} />
+    <Screen>
+      <ScreenBody bottomInset={24}>
+        <Gutter className="pb-5 pt-4">
+          <View className="flex-row items-center justify-between">
+            <PageTitle>Menu</PageTitle>
+            <Pressable
+              disabled={!shop}
+              onPress={() => setAdding(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Add an item"
+              className={`h-11 flex-row items-center gap-1.5 rounded-pill px-4 ${
+                shop ? "bg-lime active:bg-lime-600" : "bg-surface-muted"
+              }`}
+            >
+              <PlusIcon size={16} color={colors.ink} strokeWidth={2.2} />
+              <Text className="font-sans-medium text-body text-ink">Add</Text>
+            </Pressable>
           </View>
-        ) : filtered.length === 0 ? (
-          <EmptyState icon={UtensilsCrossed} title="No items yet" description="Tap “Add Item” to start building your menu." />
-        ) : (
-          <View className="overflow-hidden rounded-well border border-border bg-surface">
-            {filtered.map((product, i) => {
-              const dimmed = product.status === "out_of_stock" ? 0.6 : product.status === "not_serving" ? 0.5 : 1;
-              return (
-                <Pressable
-                  key={product.id}
-                  onPress={() =>
-                    updateStatus.mutate({ productId: product.id, status: STATUS_CYCLE[product.status] })
-                  }
-                  style={{ opacity: dimmed }}
-                  className={`flex-row items-center justify-between px-3.5 py-3.5 ${
-                    i < filtered.length - 1 ? "border-b border-surface-muted" : ""
-                  }`}
-                >
-                  <View className="flex-1 pr-3">
-                    <Text className="font-sans-semibold text-[13px] text-ink" numberOfLines={1}>
-                      {product.name}
-                    </Text>
-                    <Text className="mt-0.5 text-[12px] text-muted">{formatGhs(Number(product.price))}</Text>
-                  </View>
-                  <Badge {...STATUS_BADGE[product.status]} />
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
-      </ScrollView>
+        </Gutter>
+
+        {shops && shops.length > 1 ? (
+          <Gutter className="mb-5">
+            <ShopSwitcher shops={shops} selectedId={shop?.id} onSelect={selectShop} />
+          </Gutter>
+        ) : null}
+
+        <Gutter className="mb-5">
+          <Field label="" value={query} onChangeText={setQuery} placeholder="Search your menu" />
+        </Gutter>
+
+        <Gutter>
+          {isLoading ? (
+            <View className="gap-2">
+              <Skeleton height={64} radius={12} />
+              <Skeleton height={64} radius={12} />
+            </View>
+          ) : filtered.length === 0 ? (
+            <Empty
+              title={query ? "Nothing matches" : "No items yet"}
+              body={query ? "Try a different word." : "Add your first item to start selling."}
+            />
+          ) : (
+            <>
+              <RowGroup>
+                {filtered.map((product) => (
+                  <Row
+                    key={product.id}
+                    title={product.name}
+                    meta={formatGhs(Number(product.price))}
+                    chevron={false}
+                    trailing={<StatusPill {...STATUS_PILL[product.status]} />}
+                    onPress={() =>
+                      updateStatus.mutate({
+                        productId: product.id,
+                        status: STATUS_CYCLE[product.status],
+                      })
+                    }
+                  />
+                ))}
+              </RowGroup>
+              <Text className="mt-3 font-sans text-meta text-muted">
+                Tap an item to switch it between on, out of stock, and off.
+              </Text>
+            </>
+          )}
+        </Gutter>
+      </ScreenBody>
 
       <AddProductSheet
         visible={adding}
         onClose={() => setAdding(false)}
         submitting={createProduct.isPending}
-        error={createProduct.isError ? "Could not save the item. Check the details and try again." : null}
+        error={
+          createProduct.isError ? "Could not save the item. Check the details and try again." : null
+        }
         onSubmit={(input) => createProduct.mutateAsync(input)}
       />
-    </SafeAreaView>
+    </Screen>
   );
 }

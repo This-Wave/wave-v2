@@ -15,4 +15,5 @@ export { Ledger } from "./Ledger";
 export { Steps, ProgressRail, type Step } from "./Progress";
 export { TabBar } from "./TabBar";
 export { Sheet, Confirm } from "./Sheet";
+export { WaveBanner, WaveClosedBanner } from "./WaveBanner";
 export { Skeleton, SkeletonCard } from "./Skeleton";

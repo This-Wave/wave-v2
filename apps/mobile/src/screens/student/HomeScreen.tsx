@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
@@ -18,12 +18,14 @@ import {
   SkeletonCard,
   StatusPill,
   Thumb,
+  WaveBanner,
+  WaveClosedBanner,
 } from "../../components/v6";
-import { BellIcon } from "../../components/icons";
+import { BellIcon, BoxIcon, CartIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useShops } from "../../lib/shops";
 import { useMyOrders } from "../../lib/orders";
-import { formatFullDay, upcomingRunDays } from "../../lib/pricing";
+import { useWave } from "../../lib/wave";
 import { orderProgress, statusPill } from "./orderPresenters";
 import type { Order, Shop } from "../../types";
 
@@ -34,30 +36,27 @@ const CARD_W = 168;
 /**
  * v6 Home.
  *
- * The reference's central move is that the homepage has no hero image and no
- * headline — the search bar *is* the hero, and everything under it is
- * photography in horizontal rails. This screen is built on that shape.
+ * Built on the reference's central move — no hero image, no headline, the
+ * search is the hero — with two Wave-specific additions above it:
  *
- * What was removed and why:
- *  - The greeting ("Good morning, Ama") told the student nothing they did not
- *    know and cost the most valuable strip on the screen.
- *  - The 47-hour countdown block. Wave delivers on Sundays and Wednesdays; that
- *    is a schedule, not a countdown. It now appears as one field inside the
- *    search capsule.
- *  - The four circular quick-action tiles, which duplicated the tab bar and the
- *    rails below them.
+ *  1. The Wave countdown. Deliveries go out on a schedule, and the deadline to
+ *     join one is genuinely the most actionable fact on the screen.
+ *  2. Both services. v5's hero offered "Buy For Me" and "Pickup"; the first v6
+ *     pass dropped Pickup entirely, which silently removed half the product.
+ *
+ * What stays gone from v5: the greeting, the 40px countdown block that treated
+ * a twice-weekly schedule as an emergency, and the four circular quick-action
+ * tiles that duplicated the tab bar.
  */
 export function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const { data: shops, isLoading: shopsLoading } = useShops();
   const { data: orders } = useMyOrders();
+  const wave = useWave();
   const [category, setCategory] = useState<string | null>(null);
 
-  const nextRun = upcomingRunDays(new Date(), 1)[0];
-  const runLabel = nextRun ? formatFullDay(nextRun).replace(",", "") : "Next run";
-
-  // The filter rail is derived from the data, not from an enum — `shop.category`
-  // is free text and the seed's distinct values *are* the rail. See PLAN.md.
+  // The filter rail is derived from the data, not an enum — `shop.category` is
+  // free text and the seed's distinct values *are* the rail. See PLAN.md.
   const categories = useMemo(
     () => Array.from(new Set((shops ?? []).map((s) => s.category).filter(Boolean))).sort(),
     [shops],
@@ -90,12 +89,37 @@ export function HomeScreen() {
       />
 
       <ScreenBody bottomInset={32}>
-        <Gutter className="pb-5 pt-1">
+        <Gutter className="pb-4 pt-1">
+          {wave && !wave.closed ? (
+            <WaveBanner wave={wave} onPress={() => navigation.navigate("ShopSelection")} />
+          ) : (
+            <WaveClosedBanner onPress={() => navigation.navigate("CutoffPassed")} />
+          )}
+        </Gutter>
+
+        <Gutter className="pb-4">
           <SearchCapsule
-            runLabel={runLabel}
+            waveLabel={wave?.dateLabel ?? "Next Wave"}
             onPressQuery={() => navigation.navigate("ShopSelection")}
-            onPressRun={() => navigation.navigate("ShopSelection")}
+            onPressWave={() => navigation.navigate("ShopSelection")}
             onSubmit={() => navigation.navigate("ShopSelection")}
+          />
+        </Gutter>
+
+        {/* Both services, equally weighted. Wave does two things and the home
+            screen has to say so. */}
+        <Gutter className="mb-6 flex-row gap-3">
+          <ServiceTile
+            icon={<CartIcon size={20} color={colors.ink} strokeWidth={1.7} />}
+            title="Buy for me"
+            meta="We shop and bring it"
+            onPress={() => navigation.navigate("ShopSelection")}
+          />
+          <ServiceTile
+            icon={<BoxIcon size={20} color={colors.ink} strokeWidth={1.7} />}
+            title="Pickup"
+            meta="Move a package"
+            onPress={() => navigation.navigate("PickupRequest")}
           />
         </Gutter>
 
@@ -118,14 +142,19 @@ export function HomeScreen() {
           </ScrollView>
         ) : null}
 
-        {live ? <LiveOrderCard order={live} onPress={() => open(navigation, live)} /> : null}
+        {live ? (
+          <LiveOrderCard
+            order={live}
+            onPress={() => navigation.navigate("OrderTracking", { orderId: live.id })}
+          />
+        ) : null}
 
         <Section
-          title={`Open for ${nextRun ? shortDay(nextRun) : "the next run"}`}
+          title={wave ? `On ${wave.name}` : "Open now"}
           loading={shopsLoading}
           shops={visible}
           navigation={navigation}
-          emptyNote={category ? `No ${titleCase(category)} shops on this run.` : undefined}
+          emptyNote={category ? `No ${titleCase(category)} shops on this Wave.` : undefined}
         />
 
         {orderedBefore.length > 0 ? (
@@ -138,6 +167,32 @@ export function HomeScreen() {
         ) : null}
       </ScreenBody>
     </Screen>
+  );
+}
+
+function ServiceTile({
+  icon,
+  title,
+  meta,
+  onPress,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  meta: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      className="flex-1 rounded-card bg-surface p-4 active:bg-hairline"
+    >
+      <View className="mb-3">{icon}</View>
+      <Text className="font-sans-medium text-body text-ink">{title}</Text>
+      <Text className="font-sans text-body text-muted" numberOfLines={1}>
+        {meta}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -197,7 +252,7 @@ function Section({
 }
 
 /**
- * The live order strip. Replaces v5's "Active orders" list: a student has at
+ * The live order strip. Replaces v5's "Active orders" list — a student has at
  * most one order in flight in practice, and a one-item list is a card wearing a
  * heading.
  */
@@ -229,14 +284,6 @@ function LiveOrderCard({ order, onPress }: { order: Order; onPress: () => void }
       </View>
     </Gutter>
   );
-}
-
-function open(navigation: Nav, order: Order) {
-  navigation.navigate("OrderTracking", { orderId: order.id });
-}
-
-function shortDay(d: Date): string {
-  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()];
 }
 
 function titleCase(s: string): string {

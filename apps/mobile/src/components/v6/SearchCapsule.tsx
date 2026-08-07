@@ -7,7 +7,7 @@ import { colors, shadowFloating } from "../../theme/tokens";
  *
  * The reference's central claim is that Airbnb has no hero image and no
  * headline — the search bar IS the hero. Wave's equivalent has two variables a
- * student actually sets: what they need, and which run it goes on. So the
+ * student actually sets: what they need, and which Wave it goes on. So the
  * capsule is segmented into exactly those two fields.
  *
  * Putting the delivery window *inside* the search is the whole idea: v5 gave it
@@ -18,17 +18,17 @@ import { colors, shadowFloating } from "../../theme/tokens";
  */
 export function SearchCapsule({
   query,
-  runLabel,
+  waveLabel,
   onPressQuery,
-  onPressRun,
+  onPressWave,
   onSubmit,
 }: {
   /** Current search text, or undefined for the placeholder state. */
   query?: string;
-  /** e.g. "Sunday 9 Aug" — the run this order would join. */
-  runLabel: string;
+  /** e.g. "Sunday 9 Aug" — the Wave this order would join. */
+  waveLabel: string;
   onPressQuery?: () => void;
-  onPressRun?: () => void;
+  onPressWave?: () => void;
   onSubmit?: () => void;
 }) {
   return (
@@ -48,9 +48,9 @@ export function SearchCapsule({
 
       <View className="mx-3 h-7 w-px bg-hairline" />
 
-      <Pressable onPress={onPressRun} className="justify-center" accessibilityRole="button">
-        <Text className="font-sans-semibold text-meta text-ink">Run</Text>
-        <Text className="font-sans text-body text-muted">{runLabel}</Text>
+      <Pressable onPress={onPressWave} className="justify-center" accessibilityRole="button">
+        <Text className="font-sans-semibold text-meta text-ink">Wave</Text>
+        <Text className="font-sans text-body text-muted">{waveLabel}</Text>
       </Pressable>
 
       <Pressable

@@ -1,13 +1,35 @@
 import { Pressable, Text, View } from "react-native";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { HomeIcon, BoxIcon, PinIcon, UserIcon, type IconProps } from "../icons";
+import {
+  BoltIcon,
+  BoxIcon,
+  CartIcon,
+  DashboardIcon,
+  HomeIcon,
+  PinIcon,
+  SettingsIcon,
+  UserIcon,
+  WalletIcon,
+  type IconProps,
+} from "../icons";
 import { colors } from "../../theme/tokens";
 
+// One bar serves all three roles; the route name picks the glyph.
 const ICONS: Record<string, (p: IconProps) => JSX.Element> = {
+  // student
   Home: HomeIcon,
   Orders: BoxIcon,
   Checkpoints: PinIcon,
   Profile: UserIcon,
+  // rider
+  Feed: BoltIcon,
+  MyOrders: BoxIcon,
+  Earnings: WalletIcon,
+  // shop owner
+  Dashboard: DashboardIcon,
+  ShopOrders: CartIcon,
+  Menu: BoxIcon,
+  Settings: SettingsIcon,
 };
 
 /**
