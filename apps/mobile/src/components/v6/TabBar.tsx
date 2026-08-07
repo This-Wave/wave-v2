@@ -28,7 +28,7 @@ const ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   // shop owner
   Dashboard: DashboardIcon,
   ShopOrders: CartIcon,
-  Menu: BoxIcon,
+  Menu: BoxIcon, // shop route "ShopOrders" carries the cart, so Menu keeps the box
   Settings: SettingsIcon,
 };
 

@@ -1,5 +1,5 @@
 import { Image, Pressable, Text, View } from "react-native";
-import type { ReactNode } from "react";
+import { Children, type ReactNode } from "react";
 import { ChevronRightIcon } from "../icons";
 import { colors } from "../../theme/tokens";
 
@@ -49,9 +49,16 @@ export function Row({
   );
 }
 
-/** Vertical stack of rows with the canvas showing between them. */
+/**
+ * Vertical stack of rows with the canvas showing between them.
+ *
+ * Collapses to nothing when every child is null — callers conditionally render
+ * rows, and an all-empty group otherwise left a gap the size of its own margin.
+ */
 export function RowGroup({ children }: { children: ReactNode }) {
-  return <View className="gap-1">{children}</View>;
+  const real = Children.toArray(children).filter(Boolean);
+  if (real.length === 0) return null;
+  return <View className="gap-1">{real}</View>;
 }
 
 /** Square thumbnail for a row's leading slot. */

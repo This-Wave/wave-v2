@@ -80,8 +80,8 @@ export function IncomingOrderDetailScreen() {
                 chevron={false}
               />
               <Row
-                title={order?.deliveryDay ? capitalise(order.deliveryDay) : "—"}
-                meta="Wave"
+                title={order?.deliveryDay ? `${capitalise(order.deliveryDay)}'s Wave` : "—"}
+                meta="Goes out on"
                 chevron={false}
               />
             </RowGroup>

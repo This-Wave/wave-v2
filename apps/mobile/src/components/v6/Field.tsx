@@ -31,7 +31,9 @@ export function Field({
 }) {
   return (
     <View>
-      <Text className="mb-2 font-sans-medium text-body text-ink">{label}</Text>
+      {label ? (
+        <Text className="mb-2 font-sans-medium text-body text-ink">{label}</Text>
+      ) : null}
       <TextInput
         value={value}
         onChangeText={onChangeText}

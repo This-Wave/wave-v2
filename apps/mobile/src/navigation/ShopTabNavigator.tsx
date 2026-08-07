@@ -7,7 +7,7 @@ import { TabBar } from "../components/v6";
 
 export type ShopTabParamList = {
   Dashboard: undefined;
-  Orders: undefined;
+  ShopOrders: undefined;
   Menu: undefined;
   Settings: undefined;
 };
@@ -18,10 +18,10 @@ const Tab = createBottomTabNavigator<ShopTabParamList>();
 export function ShopTabNavigator() {
   return (
     <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} />}>
-      <Tab.Screen name="Dashboard" component={ShopDashboardScreen} />
-      <Tab.Screen name="Orders" component={ShopOrdersScreen} />
-      <Tab.Screen name="Menu" component={MenuScreen} />
-      <Tab.Screen name="Settings" component={ShopSettingsScreen} />
+      <Tab.Screen name="Dashboard" component={ShopDashboardScreen} options={{ tabBarLabel: "Today" }} />
+      <Tab.Screen name="ShopOrders" component={ShopOrdersScreen} options={{ tabBarLabel: "Orders" }} />
+      <Tab.Screen name="Menu" component={MenuScreen} options={{ tabBarLabel: "Menu" }} />
+      <Tab.Screen name="Settings" component={ShopSettingsScreen} options={{ tabBarLabel: "Settings" }} />
     </Tab.Navigator>
   );
 }
