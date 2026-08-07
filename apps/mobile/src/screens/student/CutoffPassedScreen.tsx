@@ -4,8 +4,11 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
-import { DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT } from "@wave/shared";
-import { formatFullDay, upcomingRunDays } from "../../lib/pricing";
+import {
+  DEFAULT_DELIVERY_FEE_GHS,
+  DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
+} from "@wave/shared";
+import { formatFullDay, formatGhs, formatGhsCompact, upcomingRunDays } from "../../lib/pricing";
 
 /**
  * Shown once the noon cutoff on a run day has passed.
@@ -36,9 +39,10 @@ export function CutoffPassedScreen() {
             <Text className="mb-1 font-sans-semibold text-meta text-muted">NEED IT SOONER?</Text>
             <Text className="font-sans text-body text-ink">
               A rush order can go out ahead of the schedule for {DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT}
-              % more on the delivery fee — on a GH₵5 fee that's GH₵
-              {((5 * DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT) / 100).toFixed(2)} extra. It needs 24
-              hours' notice.
+              % more on the delivery fee — on a {formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)} fee
+              that's{" "}
+              {formatGhs((DEFAULT_DELIVERY_FEE_GHS * DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT) / 100)}{" "}
+              extra. It needs 24 hours' notice.
             </Text>
           </View>
         </Gutter>

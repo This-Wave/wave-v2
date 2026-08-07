@@ -26,7 +26,8 @@ import { colors } from "../../theme/tokens";
 import { useShops } from "../../lib/shops";
 import { useMyOrders } from "../../lib/orders";
 import { useWave } from "../../lib/wave";
-import { isStandardRunDay } from "../../lib/pricing";
+import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
+import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
 import { orderProgress, statusPill } from "./orderPresenters";
 import type { Order, Shop } from "../../types";
 
@@ -265,7 +266,7 @@ function Section({
                 title={shop.name}
                 meta={shop.locationText ?? titleCase(shop.category)}
                 priceLabel="from"
-                priceValue="GH₵5 delivery"
+                priceValue={`${formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)} delivery`}
                 badge={shop.isActive ? undefined : "Paused"}
                 onPress={() =>
                   navigation.navigate("ShopMenu", {

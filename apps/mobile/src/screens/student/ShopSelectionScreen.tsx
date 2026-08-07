@@ -18,7 +18,8 @@ import {
 import { Field } from "../../components/v6";
 import { useShops } from "../../lib/shops";
 import { describeWave } from "../../lib/wave";
-import { isStandardRunDay } from "../../lib/pricing";
+import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
+import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
 type Route = RouteProp<StudentStackParamList, "ShopSelection">;
@@ -146,7 +147,7 @@ export function ShopSelectionScreen() {
                   title={shop.name}
                   meta={shop.locationText ?? shop.category}
                   priceLabel="from"
-                  priceValue="GH₵5 delivery"
+                  priceValue={`${formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)} delivery`}
                   badge={shop.isActive ? undefined : "Paused"}
                   onPress={() =>
                     wave &&

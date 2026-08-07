@@ -138,7 +138,7 @@ export function SuggestOrderSummaryScreen() {
             ) : null}
             {estimate.discountAmount > 0 ? (
               <Line
-                label={`Loyalty discount (−${estimate.discountPct}%)`}
+                label={`Loyalty discount (−${estimate.discountPct}% of delivery)`}
                 value={`−${formatGhs(estimate.discountAmount)}`}
               />
             ) : null}

@@ -16,7 +16,7 @@ async function main() {
 
   await prisma.platformConfig.createMany({
     data: [
-      { key: "delivery_fee_base", value: "5.00", description: "Base delivery fee in GHS" },
+      { key: "delivery_fee_base", value: "20.00", description: "Base delivery fee in GHS" },
       { key: "special_order_surcharge_pct", value: "30", description: "Special order surcharge %" },
       { key: "loyalty_discount_pct", value: "20", description: "Discount % after 6 deliveries" },
       { key: "loyalty_threshold", value: "6", description: "Deliveries needed for discount" },

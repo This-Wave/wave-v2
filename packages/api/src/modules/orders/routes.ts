@@ -4,6 +4,10 @@ import {
   createOrderSchema,
   deliverOrderSchema,
   recordGoodsCostSchema,
+  DEFAULT_DELIVERY_FEE_GHS,
+  DEFAULT_LOYALTY_DISCOUNT_PCT,
+  DEFAULT_LOYALTY_THRESHOLD,
+  DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
 } from "@wave/shared";
 import { calculateDiscount, calculateOrderTotal, isStandardDeliveryDay } from "./discount";
 import {
@@ -53,17 +57,28 @@ export async function orderRoutes(fastify: FastifyInstance) {
         fastify.prisma.studentDeliveryStats.findUnique({ where: { studentId: request.user!.id } }),
       ]);
 
-      const deliveryFee = Number(feeConfig?.value ?? 5);
-      const surchargePct = input.isSpecialOrder ? Number(surchargeConfig?.value ?? 30) : 0;
-      const threshold = Number(thresholdConfig?.value ?? 6);
-      const discountPct = calculateDiscount({
-        totalDeliveries: stats?.totalDeliveries ?? 0,
-        baseAmount: 1,
-        threshold,
-        discountPct: Number(discountConfig?.value ?? 20),
-      }) > 0
-        ? Number(discountConfig?.value ?? 20)
+      // `platform_config` is the runtime source of truth; the shared constants
+      // are the fallback for a row that has not been seeded. They were literals
+      // here, which meant the base fee lived as an unlabelled `5` in the middle
+      // of the money path and could silently disagree with every other copy.
+      const deliveryFee = Number(feeConfig?.value ?? DEFAULT_DELIVERY_FEE_GHS);
+      const surchargePct = input.isSpecialOrder
+        ? Number(surchargeConfig?.value ?? DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT)
         : 0;
+      const threshold = Number(thresholdConfig?.value ?? DEFAULT_LOYALTY_THRESHOLD);
+      const configuredDiscountPct = Number(discountConfig?.value ?? DEFAULT_LOYALTY_DISCOUNT_PCT);
+      // The loyalty discount applies to the DELIVERY FEE ONLY, never to the
+      // items — see calculateOrderTotal, and Wave_Technical_Document.md §"20%
+      // discount applies to delivery fee, not the item purchase price".
+      const discountPct =
+        calculateDiscount({
+          totalDeliveries: stats?.totalDeliveries ?? 0,
+          baseAmount: 1,
+          threshold,
+          discountPct: configuredDiscountPct,
+        }) > 0
+          ? configuredDiscountPct
+          : 0;
 
       // Both checkpoints must exist on the student's own campus. Without this a
       // student could name any checkpoint UUID in the country as their origin.

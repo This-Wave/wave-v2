@@ -1,5 +1,5 @@
 // Defaults only — the source of truth at runtime is the `platform_config` table.
-export const DEFAULT_DELIVERY_FEE_GHS = 5.0;
+export const DEFAULT_DELIVERY_FEE_GHS = 20.0;
 export const DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT = 30;
 export const DEFAULT_LOYALTY_DISCOUNT_PCT = 20;
 export const DEFAULT_LOYALTY_THRESHOLD = 6;
