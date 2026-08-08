@@ -49,25 +49,79 @@ export interface SendSmsParams {
   senderId: string;
   phone: string;
   message: string;
-  // mNotify prioritises "otp" traffic over bulk "quick" traffic and exempts it
-  // from do-not-disturb lists. Transactional codes want "otp".
-  smsType?: "otp" | "quick";
+  /**
+   * `"otp"` asks mNotify to prioritise the message over bulk traffic and exempt
+   * it from do-not-disturb lists. Anything else means a standard send.
+   *
+   * ⚠️ There is no `"quick"` value. `sms_type` is a flag that may ONLY hold
+   * `"otp"` — sending `sms_type: "quick"` is rejected with
+   * `422 {"sms_type":["The sms_type must be \"otp\"."]}`. The field must be
+   * **omitted** for a standard send. This defaulted to `"quick"`, so every
+   * non-OTP send this app made was rejected before it left the building.
+   */
+  smsType?: "otp" | "standard";
 }
 
+/**
+ * The two send types bill different balances, which is the whole reason the
+ * fallback below exists:
+ *
+ *  - **standard** draws one unit from the SMS credit balance (`balance`).
+ *  - **otp** deducts GHS 0.035 per campaign from the **main cash wallet**
+ *    (`wallet`) — a different pot, which can be empty while credits are plentiful.
+ */
+const INSUFFICIENT_WALLET = /insufficient wallet balance/i;
+
 export async function sendSms(params: SendSmsParams): Promise<void> {
+  const body = {
+    recipient: [toLocalGhanaFormat(params.phone)],
+    sender: params.senderId,
+    message: params.message,
+    is_schedule: false,
+    // Present only when it is "otp". See the warning on `smsType`.
+    ...(params.smsType === "otp" ? { sms_type: "otp" } : {}),
+  };
+
   try {
-    await axios.post(`${MNOTIFY_QUICK_SMS_URL}?key=${params.apiKey}`, {
-      recipient: [toLocalGhanaFormat(params.phone)],
-      sender: params.senderId,
-      message: params.message,
-      is_schedule: false,
-      sms_type: params.smsType ?? "quick",
-    });
+    await axios.post(`${MNOTIFY_QUICK_SMS_URL}?key=${params.apiKey}`, body);
   } catch (err) {
-    if (axios.isAxiosError(err)) {
-      throw new SmsSendError(err.response?.status, providerReason(err.response?.data));
+    if (!axios.isAxiosError(err)) throw new SmsSendError();
+
+    const status = err.response?.status;
+    const reason = providerReason(err.response?.data);
+
+    /**
+     * The cash wallet is empty but SMS credits remain. Retry as a standard send
+     * rather than failing.
+     *
+     * A delivery PIN that arrives on ordinary priority is worth far more than
+     * one that does not arrive at all — without it a rider physically cannot
+     * close a handover. The trade is real and worth stating: the retry loses
+     * do-not-disturb exemption and priority queueing, so a student on a DND list
+     * may still not receive it. That is why it logs rather than passing silently.
+     */
+    if (params.smsType === "otp" && status === 402 && reason && INSUFFICIENT_WALLET.test(reason)) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "[sms] mNotify cash wallet is empty — retrying as a standard credit send. " +
+          "OTP priority and do-not-disturb exemption are lost until the wallet is topped up.",
+      );
+      try {
+        const { sms_type: _omit, ...standard } = body as typeof body & { sms_type?: string };
+        await axios.post(`${MNOTIFY_QUICK_SMS_URL}?key=${params.apiKey}`, standard);
+        return;
+      } catch (retryErr) {
+        if (axios.isAxiosError(retryErr)) {
+          throw new SmsSendError(
+            retryErr.response?.status,
+            providerReason(retryErr.response?.data),
+          );
+        }
+        throw new SmsSendError();
+      }
     }
-    throw new SmsSendError();
+
+    throw new SmsSendError(status, reason);
   }
 }
 
