@@ -50,8 +50,17 @@ export interface SendSmsParams {
   phone: string;
   message: string;
   /**
-   * `"otp"` asks mNotify to prioritise the message over bulk traffic and exempt
-   * it from do-not-disturb lists. Anything else means a standard send.
+   * `"otp"` marks the message as a one-time code. Anything else is a standard send.
+   *
+   * ⚠️ What that flag actually buys is **not documented**. The BMS/mNotify spec
+   * (developer.bms.africa, `/openapi14.yaml`) says exactly one thing about it —
+   * that it costs GHS 0.035 per campaign from the main wallet — and contains no
+   * mention of priority, routing or do-not-disturb anywhere. An earlier comment
+   * here asserted "prioritised over bulk traffic and exempt from do-not-disturb
+   * lists"; that was inference, not fact, and it propagated into the planning
+   * docs. Treat the delivery benefit as plausible-but-unconfirmed: a provider
+   * charging a premium for a flag is presumably selling something, but ask
+   * mNotify before relying on it for anything that matters.
    *
    * ⚠️ There is no `"quick"` value. `sms_type` is a flag that may ONLY hold
    * `"otp"` — sending `sms_type: "quick"` is rejected with
@@ -104,7 +113,8 @@ export async function sendSms(params: SendSmsParams): Promise<void> {
       // eslint-disable-next-line no-console
       console.warn(
         "[sms] mNotify cash wallet is empty — retrying as a standard credit send. " +
-          "OTP priority and do-not-disturb exemption are lost until the wallet is topped up.",
+          "The message will go out, but whatever the otp flag buys is forfeited " +
+          "until the wallet is topped up.",
       );
       try {
         const { sms_type: _omit, ...standard } = body as typeof body & { sms_type?: string };
