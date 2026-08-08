@@ -10,9 +10,16 @@
 #
 # ⚠️ FREE PLAN COLD STARTS — read before taking real money.
 # A free web service spins down after ~15 minutes with no traffic and takes
-# roughly 30-60s to wake. That is survivable for the admin dashboard and risky
-# for the API, because the Paystack webhook is the ONLY thing that marks an order
-# paid. See `PLAN.md` Phase 9 for the full analysis and the keep-warm options.
+# roughly 30-60s to wake. Survivable for the admin dashboard; still a risk for
+# the API, though less than it was.
+#
+# UPDATE 2026-08-08: the webhook is no longer the ONLY thing that marks an order
+# paid. `GET /v1/payments/verify/:ref` now asks Paystack directly and runs the
+# same confirmation, so a webhook that arrives during a cold start and gets
+# dropped is recovered the next time the student's app polls. That makes a cold
+# start survivable rather than order-losing — but only while the student has the
+# app open. Someone who pays and immediately closes it still depends on the
+# webhook landing. Keep-warm options in `PLAN.md` Phase 9 still apply.
 
 services:
   # ---------------------------------------------------------------------------
@@ -61,8 +68,11 @@ services:
         sync: false
       - key: MNOTIFY_API_KEY # without this, no OTP and no delivery PIN are ever sent
         sync: false
+      # `Wave` is DECLINED by mNotify. `TACCBooking` is the approved sender and is
+      # confirmed working as of 2026-08-08 — messages send successfully under it.
+      # Students will see texts from "TACCBooking" until `Wave` is approved.
       - key: MNOTIFY_SENDER_ID
-        value: Wave
+        value: TACCBooking
       - key: SMS_HOOK_SECRET
         sync: false
 
