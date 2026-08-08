@@ -132,9 +132,15 @@ describe("SmsSendError", () => {
       axiosError(402, { error: "insufficient wallet balance. please top up" }),
     );
 
-    const err = await sendSms({ ...base, message: "PIN 654321" }).catch((e) => e as SmsSendError);
+    // `sendSms` resolves to void, so the catch union would include it — assert
+    // the rejection explicitly rather than widening the type away.
+    const err = (await sendSms({ ...base, message: "PIN 654321" }).then(
+      () => null,
+      (e: unknown) => e,
+    )) as SmsSendError | null;
 
-    expect(err.providerMessage).toMatch(/insufficient wallet/);
+    expect(err).toBeInstanceOf(SmsSendError);
+    expect(err!.providerMessage).toMatch(/insufficient wallet/);
     expect(JSON.stringify(err)).not.toContain("654321");
   });
 });
