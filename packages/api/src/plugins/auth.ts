@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { createClient } from "@supabase/supabase-js";
 import fp from "fastify-plugin";
 import type { Env } from "../config/env";
+import { createServerSupabaseClient } from "../lib/supabaseServer";
 
 // Roles mirror `profiles.role` in packages/db/prisma/schema.prisma.
 export type Role = "student" | "rider" | "shop_owner" | "admin";
@@ -14,7 +14,7 @@ declare module "fastify" {
 
 export default fp(async function authPlugin(fastify: FastifyInstance) {
   const env = fastify.config as Env;
-  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  const supabase = createServerSupabaseClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
   fastify.decorate(
     "authenticate",

@@ -27,11 +27,13 @@
     "fastify-plugin": "^4.5.1",
     "fastify-raw-body": "^4.3.0",
     "standardwebhooks": "^1.0.0",
+    "ws": "^8.18.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
     "@types/node": "^20.14.15",
+    "@types/ws": "^8.5.13",
     "@typescript-eslint/eslint-plugin": "^8.63.0",
     "@typescript-eslint/parser": "^8.63.0",
     "eslint": "^8.57.0",

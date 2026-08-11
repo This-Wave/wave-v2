@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { createClient } from "@supabase/supabase-js";
 import { completeProfileSchema } from "@wave/shared";
+import { createServerSupabaseClient } from "../../lib/supabaseServer";
 
 export async function profileRoutes(fastify: FastifyInstance) {
   // No `authenticate` preHandler here on purpose: `authenticate` requires an
@@ -12,7 +12,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
       return reply.code(401).send({ error: "Missing bearer token" });
     }
 
-    const supabase = createClient(fastify.config.SUPABASE_URL, fastify.config.SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = createServerSupabaseClient(fastify.config.SUPABASE_URL, fastify.config.SUPABASE_SERVICE_ROLE_KEY);
     const token = authHeader.slice("Bearer ".length);
     const { data, error } = await supabase.auth.getUser(token);
     if (error || !data.user) {

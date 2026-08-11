@@ -1,11 +1,11 @@
 import type { FastifyInstance } from "fastify";
-import { createClient } from "@supabase/supabase-js";
 import { Webhook, WebhookVerificationError } from "standardwebhooks";
 import { loginSchema, registerSchema } from "@wave/shared";
+import { createServerSupabaseClient } from "../../lib/supabaseServer";
 import { SmsSendError, sendOtpSms } from "../../lib/sms";
 
 export async function authRoutes(fastify: FastifyInstance) {
-  const supabase = createClient(
+  const supabase = createServerSupabaseClient(
     fastify.config.SUPABASE_URL,
     fastify.config.SUPABASE_SERVICE_ROLE_KEY,
   );

@@ -1,11 +1,11 @@
 import type { FastifyInstance } from "fastify";
-import { createClient } from "@supabase/supabase-js";
 import {
   setAvailabilitySchema,
   submitVerificationSchema,
   reviewVerificationSchema,
   uploadVerificationImageSchema,
 } from "@wave/shared";
+import { createServerSupabaseClient } from "../../lib/supabaseServer";
 import { VERIFICATION_BUCKET, ownsVerificationPath, signVerificationImages } from "./images";
 
 export async function riderRoutes(fastify: FastifyInstance) {
@@ -49,7 +49,7 @@ export async function riderRoutes(fastify: FastifyInstance) {
       const path = `${request.user!.id}/${kind}-${Date.now()}.${ext}`;
       const buffer = Buffer.from(imageBase64, "base64");
 
-      const supabase = createClient(fastify.config.SUPABASE_URL, fastify.config.SUPABASE_SERVICE_ROLE_KEY);
+      const supabase = createServerSupabaseClient(fastify.config.SUPABASE_URL, fastify.config.SUPABASE_SERVICE_ROLE_KEY);
       const { error: uploadError } = await supabase.storage
         .from(VERIFICATION_BUCKET)
         .upload(path, buffer, { contentType, upsert: true });

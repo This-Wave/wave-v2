@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerSupabaseClient } from "../../lib/supabaseServer";
 import type { Env } from "../../config/env";
 
 export const VERIFICATION_BUCKET = "verifications";
@@ -46,7 +46,7 @@ export async function signVerificationImages<T extends VerificationRow>(
 
   const signed = new Map<string, string>();
   if (paths.length > 0) {
-    const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = createServerSupabaseClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY);
     // One round trip for the whole page of verifications, not two per row.
     const { data, error } = await supabase.storage
       .from(VERIFICATION_BUCKET)
