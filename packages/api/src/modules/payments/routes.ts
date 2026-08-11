@@ -40,6 +40,11 @@ export async function paymentRoutes(fastify: FastifyInstance) {
       return reply.code(409).send({ error: "This order cannot be paid in its current state" });
     }
 
+    const amountGhs = Number(order.totalAmount);
+    if (!Number.isFinite(amountGhs) || amountGhs <= 0) {
+      return reply.code(409).send({ error: "This order has nothing to pay yet" });
+    }
+
     const profile = await fastify.prisma.profile.findUnique({ where: { id: order.studentId } });
     const reference = `WAVE-${order.id}-${Date.now()}`;
     const callbackUrl = paystackCallbackUrl(fastify.config.APP_URL, body.returnOrigin);
@@ -48,7 +53,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     try {
       ({ authorization_url } = await initiatePaystackPayment(fastify.config.PAYSTACK_SECRET_KEY, {
         email: paystackCustomerEmail(profile!.phone),
-        amountGhs: Number(order.totalAmount),
+        amountGhs,
         reference,
         callbackUrl,
         metadata: { order_id: order.id, student_id: order.studentId },

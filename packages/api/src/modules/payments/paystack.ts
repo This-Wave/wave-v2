@@ -27,8 +27,16 @@ export function paystackCustomerEmail(phone: string): string {
 
 export function paystackErrorMessage(err: unknown): string | undefined {
   if (!axios.isAxiosError(err)) return undefined;
-  const data = err.response?.data as { message?: string } | undefined;
-  return data?.message;
+  const status = err.response?.status;
+  const message = (err.response?.data as { message?: string } | undefined)?.message;
+
+  if (status === 401 || message === "Invalid key") {
+    return "Payment could not start — the server Paystack key is invalid. Set PAYSTACK_SECRET_KEY on Render to your sk_test_… secret (not the pk_test_ public key).";
+  }
+  if (message === "Invalid Amount Sent") {
+    return "This order total is invalid for payment. Go back and try placing the order again.";
+  }
+  return message;
 }
 
 export async function initiatePaystackPayment(secretKey: string, params: InitiatePaymentParams) {

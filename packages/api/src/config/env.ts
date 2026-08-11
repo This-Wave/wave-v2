@@ -13,7 +13,10 @@ const envSchema = z.object({
 
   // Paystack signs webhooks with an HMAC-SHA512 of this same secret key —
   // there is no separate webhook signing secret to configure.
-  PAYSTACK_SECRET_KEY: z.string().min(1),
+  PAYSTACK_SECRET_KEY: z
+    .string()
+    .min(1)
+    .refine((v) => v.startsWith("sk_"), "PAYSTACK_SECRET_KEY must be a Paystack secret key (sk_test_… or sk_live_…), not the public pk_… key"),
 
   JWT_SECRET: z.string().min(1),
 

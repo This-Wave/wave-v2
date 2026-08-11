@@ -1,5 +1,5 @@
 import { Image, Pressable, Text, View } from "react-native";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useLayout } from "../../hooks/useLayout";
 
 /**
@@ -44,14 +44,22 @@ export function PhotoCard({
   aspect?: number;
   onPress?: () => void;
 }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = Boolean(imageUrl) && !imageFailed;
+
   return (
     <Pressable onPress={onPress} style={width ? { width } : undefined} accessibilityRole="button">
       <View
         style={{ aspectRatio: aspect }}
         className="w-full overflow-hidden rounded-card bg-surface-muted"
       >
-        {imageUrl ? (
-          <Image source={{ uri: imageUrl }} className="h-full w-full" resizeMode="cover" />
+        {showImage ? (
+          <Image
+            source={{ uri: imageUrl! }}
+            className="h-full w-full"
+            resizeMode="cover"
+            onError={() => setImageFailed(true)}
+          />
         ) : null}
       </View>
 
