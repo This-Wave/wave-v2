@@ -3,6 +3,8 @@ import axios from "axios";
 import {
   fetchPaystackTransaction,
   initiatePaystackPayment,
+  paystackCustomerEmail,
+  paystackErrorMessage,
   verifyPaystackSignature,
 } from "./paystack";
 import { paystackMatchesGhs } from "./amounts";
@@ -45,7 +47,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     let authorization_url: string;
     try {
       ({ authorization_url } = await initiatePaystackPayment(fastify.config.PAYSTACK_SECRET_KEY, {
-        email: `${profile!.phone}@wave.app`, // students register by phone, not email
+        email: paystackCustomerEmail(profile!.phone),
         amountGhs: Number(order.totalAmount),
         reference,
         callbackUrl,
@@ -53,7 +55,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
         channels: channels ? [...channels] : undefined,
       }));
     } catch (err) {
-      const message = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
+      const message = paystackErrorMessage(err);
       request.log.error(err, "Paystack initiate failed");
       return reply.code(502).send({ error: message ?? "Payment provider error, please try again" });
     }
@@ -112,7 +114,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     let authorization_url: string;
     try {
       ({ authorization_url } = await initiatePaystackPayment(fastify.config.PAYSTACK_SECRET_KEY, {
-        email: profile?.email ?? `${profile!.phone}@wave.app`,
+        email: profile?.email ?? paystackCustomerEmail(profile!.phone),
         amountGhs: goodsAmount,
         reference,
         callbackUrl,
@@ -120,7 +122,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
         channels: channels ? [...channels] : undefined,
       }));
     } catch (err) {
-      const message = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
+      const message = paystackErrorMessage(err);
       request.log.error(err, "Paystack goods initiate failed");
       return reply.code(502).send({ error: message ?? "Payment provider error, please try again" });
     }

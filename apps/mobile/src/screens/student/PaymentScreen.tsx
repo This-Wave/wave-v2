@@ -7,7 +7,7 @@ import { ActionBar, Button, CheckoutProgress, Gutter, Screen, ScreenBody, TopBar
 import { PaystackCheckout, type CheckoutOutcome } from "../../components/PaystackCheckout";
 import { CardIcon, CheckIcon, MobileIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
-import { useInitiatePayment, waitForPayment } from "../../lib/payments";
+import { useInitiatePayment, waitForPayment, paymentInitiateErrorMessage } from "../../lib/payments";
 import { webAppOrigin } from "../../lib/paymentReturn";
 import { useAuthStore } from "../../store/authStore";
 import { useOrder } from "../../lib/orders";
@@ -110,10 +110,8 @@ export function PaymentScreen() {
       });
       setCheckout({ url, reference });
       setPhase("checkout");
-    } catch {
-      // Nothing was charged — checkout never opened. Stay put so they can retry
-      // without losing the screen.
-      setError("Couldn't start the payment. Check your connection and try again.");
+    } catch (err) {
+      setError(paymentInitiateErrorMessage(err));
     }
   }
 

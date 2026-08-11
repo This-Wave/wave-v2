@@ -19,6 +19,18 @@ export interface InitiatePaymentParams {
   channels?: PaystackChannel[];
 }
 
+/** Paystack rejects `+` in emails — strip E.164 to digits-only local part. */
+export function paystackCustomerEmail(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  return `${digits || "customer"}@wave.app`;
+}
+
+export function paystackErrorMessage(err: unknown): string | undefined {
+  if (!axios.isAxiosError(err)) return undefined;
+  const data = err.response?.data as { message?: string } | undefined;
+  return data?.message;
+}
+
 export async function initiatePaystackPayment(secretKey: string, params: InitiatePaymentParams) {
   const response = await axios.post(
     `${PAYSTACK_BASE_URL}/transaction/initialize`,

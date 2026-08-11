@@ -69,6 +69,15 @@ describe("POST /payments/initiate — channel selection", () => {
     expect(initiatePaystackPayment.mock.calls[0]?.[1]?.channels).toBeUndefined();
   });
 
+  test("strips + from E.164 phone before sending Paystack the customer email", async () => {
+    const app = await buildTestApp(paymentRoutes, { prisma: makePrisma(ownOrder), user: STUDENT });
+    await app.inject({ method: "POST", url: "/initiate", payload: { orderId: "order-1" } });
+
+    expect(initiatePaystackPayment.mock.calls[0]?.[1]).toMatchObject({
+      email: "233241234567@wave.app",
+    });
+  });
+
   test("the callback URL points at a route that exists", async () => {
     // It used to be APP_URL/payment/callback, which was never implemented — so
     // every student who paid was redirected to a 404.

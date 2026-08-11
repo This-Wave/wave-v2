@@ -1,4 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
 import { api } from "./api";
 
 export type PaymentMethod = "momo" | "card";
@@ -6,6 +7,14 @@ export type PaymentMethod = "momo" | "card";
 interface InitiatePaymentResponse {
   payment_url: string;
   reference: string;
+}
+
+export function paymentInitiateErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const message = (err.response?.data as { error?: string } | undefined)?.error;
+    if (message) return message;
+  }
+  return "Couldn't start the payment. Check your connection and try again.";
 }
 
 export function useInitiatePayment() {
