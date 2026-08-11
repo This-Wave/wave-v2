@@ -2,20 +2,21 @@
   "name": "@wave/admin",
   "version": "0.1.0",
   "private": true,
-  "description": "Wave admin dashboard — Next.js 14",
+  "description": "Wave admin dashboard \u2014 Next.js 14",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p ${PORT:-3000}",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
     "@wave/shared": "*",
+    "lucide-react": "^0.460.0",
     "next": "^14.2.5",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "recharts": "^2.12.7"
   },
   "devDependencies": {

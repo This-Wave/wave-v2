@@ -1,0 +1,106 @@
+# Render Blueprint for Wave.
+#
+# Apply with: Render Dashboard → Blueprints → New Blueprint Instance → pick this repo.
+# Everything here is declarative EXCEPT the values marked `sync: false`, which are
+# secrets Render will prompt you for on first apply and never store in git.
+#
+# Region is `frankfurt` on purpose: Neon lives in eu-central-1 (Frankfurt) and
+# Supabase in eu-west-2 (London). The API talks to Neon on nearly every request,
+# so it belongs next to Neon. Ghana → Frankfurt is ~100-150ms.
+#
+# ⚠️ FREE PLAN COLD STARTS — read before taking real money.
+# A free web service spins down after ~15 minutes with no traffic and takes
+# roughly 30-60s to wake. Survivable for the admin dashboard; still a risk for
+# the API, though less than it was.
+#
+# UPDATE 2026-08-08: the webhook is no longer the ONLY thing that marks an order
+# paid. `GET /v1/payments/verify/:ref` now asks Paystack directly and runs the
+# same confirmation, so a webhook that arrives during a cold start and gets
+# dropped is recovered the next time the student's app polls. That makes a cold
+# start survivable rather than order-losing — but only while the student has the
+# app open. Someone who pays and immediately closes it still depends on the
+# webhook landing. Keep-warm options in `PLAN.md` Phase 9 still apply.
+
+services:
+  # ---------------------------------------------------------------------------
+  # API — Fastify. This is the service that receives the Paystack webhook.
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: wave-api
+    runtime: node
+    region: frankfurt
+    plan: free
+    branch: main
+    # Build from the repo root: this is an npm-workspaces monorepo, and the API
+    # imports @wave/shared and @wave/db, which must be compiled to JS first.
+    # `npm run build --workspace packages/api` chains all three in order.
+    buildCommand: npm ci && npm run build --workspace packages/api
+    startCommand: npm start --workspace packages/api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render injects PORT; the app already reads it (z.coerce.number()).
+      #
+      # APP_URL must be this service's own public URL, WITH the scheme:
+      #   https://wave-api.onrender.com
+      # Paystack redirects a real payer's browser to
+      # ${APP_URL}/v1/payments/callback — if it is wrong or left as localhost,
+      # every student who pays lands on an error page.
+      #
+      # Deliberately NOT `fromService: property: host`: that yields a bare
+      # hostname with no scheme, and the env schema validates APP_URL with
+      # `z.string().url()`, so the API would fail to boot. Set it by hand after
+      # the first deploy assigns the URL.
+      - key: APP_URL
+        sync: false
+      - key: DATABASE_URL # Neon pooled connection string
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY # rotate before first deploy — see PLAN.md Phase 2
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: MNOTIFY_API_KEY # without this, no OTP and no delivery PIN are ever sent
+        sync: false
+      # `Wave` is DECLINED by mNotify. `TACCBooking` is the approved sender and is
+      # confirmed working as of 2026-08-08 — messages send successfully under it.
+      # Students will see texts from "TACCBooking" until `Wave` is approved.
+      - key: MNOTIFY_SENDER_ID
+        value: TACCBooking
+      - key: SMS_HOOK_SECRET
+        sync: false
+
+  # ---------------------------------------------------------------------------
+  # Admin — Next.js 14. Safe to leave on free: a cold start only ever makes an
+  # admin wait, it cannot lose an order.
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: wave-admin
+    runtime: node
+    region: frankfurt
+    plan: free
+    branch: main
+    buildCommand: npm ci && npm run build --workspace apps/admin
+    startCommand: npm start --workspace apps/admin
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # NEXT_PUBLIC_* are inlined at BUILD time, not read at runtime. If these are
+      # missing or wrong when the build runs, the deployed dashboard points at the
+      # wrong API and only a rebuild fixes it — restarting will not.
+      #
+      # Full URL with scheme, e.g. https://wave-api.onrender.com — the admin API
+      # client concatenates paths onto it, so a bare hostname produces
+      # unresolvable request URLs. Same reason APP_URL is set by hand above.
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false

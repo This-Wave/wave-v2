@@ -45,3 +45,44 @@ describe("Order Total Calculation", () => {
     expect(total).toBe(24);
   });
 });
+
+/**
+ * The loyalty discount and the rush surcharge apply to the **delivery fee
+ * only** — never to the items. Wave sets its own delivery fee; item prices
+ * belong to the shop, and discounting those would mean subsidising a third
+ * party's prices out of Wave's margin.
+ *
+ * These pin the rule against the arithmetic rather than the comment, and they
+ * matter more now that the base fee is GH₵20: at GH₵5 a mistake here was worth
+ * a cedi, so it could hide.
+ */
+describe("discounts and surcharges never touch the item price", () => {
+  test("discounts the delivery fee and leaves the items alone", () => {
+    // Items 100, fee 20, 20% loyalty => 100 + (20 * 0.8) = 116.
+    // If the discount hit the whole order it would be 96.
+    expect(
+      calculateOrderTotal({ itemPrice: 100, deliveryFee: 20, discountPct: 20, surchargePct: 0 }),
+    ).toBe(116);
+  });
+
+  test("surcharges the delivery fee and leaves the items alone", () => {
+    // Items 100, fee 20, 30% rush => 100 + (20 * 1.3) = 126.
+    // If the surcharge hit the whole order it would be 156.
+    expect(
+      calculateOrderTotal({ itemPrice: 100, deliveryFee: 20, discountPct: 0, surchargePct: 30 }),
+    ).toBe(126);
+  });
+
+  test("applies both to the fee, and only to the fee", () => {
+    // 20 * 1.3 * 0.8 = 20.80, so 100 + 20.80 = 120.80.
+    expect(
+      calculateOrderTotal({ itemPrice: 100, deliveryFee: 20, discountPct: 20, surchargePct: 30 }),
+    ).toBe(120.8);
+  });
+
+  test("charges the bare fee when there is nothing to buy (a pickup)", () => {
+    expect(
+      calculateOrderTotal({ itemPrice: 0, deliveryFee: 20, discountPct: 20, surchargePct: 0 }),
+    ).toBe(16);
+  });
+});

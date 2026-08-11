@@ -22,9 +22,14 @@
     "db:generate": "npm run generate --workspace=@wave/db",
     "db:migrate": "npm run migrate:dev --workspace=@wave/db",
     "db:studio": "npm run studio --workspace=@wave/db",
-    "db:seed": "npm run seed --workspace=@wave/db"
+    "db:seed": "npm run seed --workspace=@wave/db",
+    "db:seed:auth": "npm run seed:auth --workspace=@wave/db"
   },
   "devDependencies": {
     "typescript": "^5.5.4"
+  },
+  "overrides": {
+    "tailwindcss": "3.3.2",
+    "postcss": "8.4.31"
   }
 }

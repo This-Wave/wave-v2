@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import sensible from "@fastify/sensible";
+import rawBody from "fastify-raw-body";
 import { loadEnv, type Env } from "./config/env";
 import prismaPlugin from "./plugins/prisma";
 import authPlugin from "./plugins/auth";
@@ -14,6 +15,8 @@ import { orderRoutes } from "./modules/orders/routes";
 import { paymentRoutes } from "./modules/payments/routes";
 import { riderRoutes } from "./modules/riders/routes";
 import { adminRoutes } from "./modules/admin/routes";
+import { notificationRoutes } from "./modules/notifications/routes";
+import { suggestionRoutes } from "./modules/suggestions/routes";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -22,13 +25,20 @@ declare module "fastify" {
 }
 
 export function buildApp(): FastifyInstance {
-  const app = Fastify({ logger: true });
+  // Default 1MB body limit is too small for base64-encoded verification
+  // photo uploads (see modules/riders/routes.ts POST /verification/upload).
+  const app = Fastify({ logger: true, bodyLimit: 8 * 1024 * 1024 });
   const env = loadEnv();
   app.decorate("config", env);
 
   app.register(helmet);
   app.register(cors, { origin: true });
   app.register(sensible);
+  // Opt-in per-route via { config: { rawBody: true } } — the Paystack
+  // webhook needs the exact raw request bytes to verify its HMAC signature;
+  // JSON.parse -> JSON.stringify round-tripping the body is not guaranteed
+  // to reproduce the original bytes Paystack actually signed.
+  app.register(rawBody, { field: "rawBody", global: false, runFirst: true });
 
   app.register(prismaPlugin);
   app.register(authPlugin);
@@ -44,6 +54,8 @@ export function buildApp(): FastifyInstance {
   app.register(paymentRoutes, { prefix: "/v1/payments" });
   app.register(riderRoutes, { prefix: "/v1/riders" });
   app.register(adminRoutes, { prefix: "/v1/admin" });
+  app.register(notificationRoutes, { prefix: "/v1/notifications" });
+  app.register(suggestionRoutes, { prefix: "/v1/shop-suggestions" });
 
   return app;
 }

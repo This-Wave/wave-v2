@@ -3,25 +3,31 @@
   "version": "0.1.0",
   "private": true,
   "description": "Prisma schema + client targeting Neon.tech PostgreSQL 16",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
   "scripts": {
+    "build": "prisma generate && tsc -p tsconfig.build.json",
     "generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
+    "seed:auth": "tsx scripts/seed-auth.ts",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@prisma/client": "^5.19.1"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.45.4",
     "prisma": "^5.19.1",
     "tsx": "^4.19.0",
     "typescript": "^5.5.4"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }

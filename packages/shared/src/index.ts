@@ -5,4 +5,6 @@ export * from "./schemas/shop";
 export * from "./schemas/checkpoint";
 export * from "./schemas/rider";
 export * from "./schemas/admin";
+export * from "./schemas/notification";
+export * from "./schemas/suggestion";
 export * from "./types";

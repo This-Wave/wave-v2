@@ -1,13 +1,65 @@
 import "./global.css";
+import { useCallback, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer } from "@react-navigation/native";
+import { QueryClientProvider } from "@tanstack/react-query";
+import * as SplashScreen from "expo-splash-screen";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useFonts } from "expo-font";
+import {
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
+} from "@expo-google-fonts/dm-sans";
 import { RootNavigator } from "./src/navigation/RootNavigator";
+import { navigationRef } from "./src/lib/navigationRef";
+import { PaymentReturnListener } from "./src/components/PaymentReturnListener";
+import { AuthProvider } from "./src/providers/AuthProvider";
+import { NotificationProvider } from "./src/providers/NotificationProvider";
+import { queryClient } from "./src/lib/queryClient";
+import { ToastHost } from "./src/components/v6";
+
+SplashScreen.preventAutoHideAsync();
 
 export default function App() {
+  // Wave v6 runs on DM Sans alone — the reference's named substitute for
+  // Airbnb Cereal. No mono face; order refs and PINs set in DM Sans medium.
+  const [fontsLoaded] = useFonts({
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_600SemiBold,
+    DMSans_700Bold,
+  });
+
+  const onLayoutRootView = useCallback(async () => {
+    if (fontsLoaded) {
+      await SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  useEffect(() => {
+    onLayoutRootView();
+  }, [onLayoutRootView]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
-    <NavigationContainer>
-      <RootNavigator />
-      <StatusBar style="dark" />
-    </NavigationContainer>
+    <QueryClientProvider client={queryClient}>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <NotificationProvider>
+            <NavigationContainer ref={navigationRef}>
+              <RootNavigator />
+              <PaymentReturnListener />
+              <ToastHost />
+              <StatusBar style="dark" />
+            </NavigationContainer>
+          </NotificationProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </QueryClientProvider>
   );
 }

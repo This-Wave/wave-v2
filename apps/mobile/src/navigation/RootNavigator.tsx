@@ -1,18 +1,31 @@
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { WelcomeScreen } from "../screens/WelcomeScreen";
-
-// Role-specific navigators (StudentNavigator, RiderNavigator, ShopNavigator)
-// get added here once auth + profile screens land — see handoff.md.
-export type RootStackParamList = {
-  Welcome: undefined;
-};
-
-const Stack = createNativeStackNavigator<RootStackParamList>();
+import { AuthNavigator } from "./AuthNavigator";
+import { StudentNavigator } from "./StudentNavigator";
+import { RiderNavigator } from "./RiderNavigator";
+import { ShopNavigator } from "./ShopNavigator";
+import { SplashScreen } from "../screens/auth/SplashScreen";
+import { useAuthStore } from "../store/authStore";
 
 export function RootNavigator() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Welcome" component={WelcomeScreen} />
-    </Stack.Navigator>
-  );
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const profile = useAuthStore((s) => s.profile);
+  const isHydrating = useAuthStore((s) => s.isHydrating);
+
+  if (isHydrating) {
+    return <SplashScreen />;
+  }
+
+  if (!accessToken || !profile) {
+    return <AuthNavigator />;
+  }
+
+  if (profile.role === "rider") {
+    return <RiderNavigator />;
+  }
+
+  if (profile.role === "shop_owner") {
+    return <ShopNavigator />;
+  }
+
+  // Admin navigator is a follow-up session — see design-import-spec.md.
+  return <StudentNavigator />;
 }

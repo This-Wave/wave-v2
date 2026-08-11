@@ -11,10 +11,25 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   SUPABASE_ANON_KEY: z.string().min(1),
 
+  // Paystack signs webhooks with an HMAC-SHA512 of this same secret key —
+  // there is no separate webhook signing secret to configure.
   PAYSTACK_SECRET_KEY: z.string().min(1),
-  PAYSTACK_WEBHOOK_SECRET: z.string().optional(),
 
   JWT_SECRET: z.string().min(1),
+
+  // Real phone OTP delivery: Supabase Auth generates/verifies the code, but
+  // delegates the actual SMS send to this Fastify webhook via a "Send SMS
+  // Hook" configured in the Supabase dashboard — which then calls mNotify.
+  // Optional so the app still boots before this is configured.
+  SMS_HOOK_SECRET: z.string().optional(),
+  MNOTIFY_API_KEY: z.string().optional(),
+  MNOTIFY_SENDER_ID: z.string().max(11).default("Wave"),
+
+  // Transactional email (Resend). Optional like mNotify: unset means every send
+  // is a silent no-op, which is what keeps tests and local dev offline. The
+  // from-address must be on a domain verified in the Resend dashboard.
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM: z.string().default("Wave <notifications@wave.app>"),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -13,6 +13,7 @@ node_modules/
 dist/
 build/
 .next/
+next-env.d.ts
 out/
 .expo/
 .expo-shared/
@@ -58,3 +59,6 @@ Thumbs.db
 *.md
 !README.md
 devlogs/
+
+# Compiled workspace output (packages/*/dist) — built at deploy time
+packages/*/dist/

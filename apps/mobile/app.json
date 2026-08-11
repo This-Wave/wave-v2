@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "app.wave.mobile"
@@ -23,7 +25,17 @@
       },
       "package": "app.wave.mobile"
     },
-    "plugins": ["expo-notifications"],
+    "plugins": [
+      "expo-notifications",
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Wave uses your photo library to submit your ID and a selfie for rider verification.",
+          "cameraPermission": "Wave uses your camera to take a selfie for rider verification."
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": ""

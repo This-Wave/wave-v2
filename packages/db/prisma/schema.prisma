@@ -31,6 +31,25 @@ enum DeliveryDay {
   special
 }
 
+enum OrderType {
+  // A runner buys the items from a shop and delivers them.
+  buy_for_me
+  // A runner collects a package the student already has at one checkpoint and
+  // carries it to another. No shop, no item cost — the delivery fee is all of it.
+  pickup
+  // A runner buys from a shop that is NOT on Wave yet, because a student
+  // suggested it. No catalogue means no price until the runner is at the till,
+  // so the goods are charged as a second transaction after the rider records
+  // what they actually paid. Shown to students as a kind of pickup.
+  shop_pickup
+}
+
+enum SuggestionStatus {
+  pending
+  onboarded
+  rejected
+}
+
 enum OrderStatus {
   pending
   payment_pending
@@ -74,6 +93,7 @@ model University {
   checkpoints Checkpoint[]
   shops       Shop[]
   orders      Order[]
+  shopSuggestions ShopSuggestion[]
 
   @@map("universities")
 }
@@ -83,6 +103,10 @@ model Profile {
   universityId  String?     @map("university_id")
   fullName      String      @map("full_name")
   phone         String      @unique
+  // Optional forever: auth is phone-based, so a student who never gives an
+  // email must still be able to order. Used for the "the shop you suggested is
+  // now on Wave" notification, which also goes out by push and SMS.
+  email         String?
   studentId     String?     @map("student_id")
   role          ProfileRole
   avatarUrl     String?     @map("avatar_url")
@@ -102,6 +126,7 @@ model Profile {
   reviewedVerifications       RiderVerification[]    @relation("ReviewedVerifications")
   studentDeliveryStats        StudentDeliveryStats?
   riderEarnings                RiderEarning[]
+  shopSuggestions              ShopSuggestion[]
 
   @@map("profiles")
 }
@@ -118,7 +143,9 @@ model Checkpoint {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   university University @relation(fields: [universityId], references: [id])
-  orders     Order[]
+  // Two relations because a pickup order references a checkpoint twice.
+  orders        Order[] @relation("OrderDropoff")
+  pickupOrders  Order[] @relation("OrderPickup")
 
   @@map("checkpoints")
 }
@@ -144,6 +171,7 @@ model Shop {
   university University @relation(fields: [universityId], references: [id])
   products   Product[]
   orders     Order[]
+  resolvedSuggestions ShopSuggestion[] @relation("ResolvedSuggestions")
 
   @@map("shops")
 }
@@ -162,17 +190,91 @@ model Product {
 
   shop   Shop    @relation(fields: [shopId], references: [id])
   orders Order[]
+  orderItems OrderItem[]
 
   @@map("products")
+}
+
+// One line of a student's basket.
+//
+// `name` and `unitPrice` are SNAPSHOTS, not lookups. A shop editing its price
+// or deleting a product must never rewrite what someone already ordered and
+// paid for, so the row carries its own copy and `productId` is nullable — both
+// because a manual list has no product, and because the product may be gone by
+// the time the order is read back.
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String   @map("order_id")
+  productId String?  @map("product_id")
+  name      String
+  /// The catalogue price at the moment of ordering. Null on a manual list,
+  /// where nobody knows the price until the runner reaches the till.
+  unitPrice Decimal? @db.Decimal(10, 2) @map("unit_price")
+  quantity  Int      @default(1)
+  /// What the rider actually paid. Only ever set on a `shop_pickup`, and only
+  /// once they are standing in the shop.
+  actualUnitPrice Decimal? @db.Decimal(10, 2) @map("actual_unit_price")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+// A student asking for a shop Wave doesn't carry yet.
+//
+// Two jobs at once: it is the origin of a real `shop_pickup` order, and it is
+// the demand signal admin ranks to decide which shop to onboard next.
+//
+// `normalizedName` is what makes the ranking work — "Melcom", "melcom " and
+// "MELCOM Berekuso" must count as one place. The API normalizes on write and
+// admin groups on this column, never on `name`.
+model ShopSuggestion {
+  id             String           @id @default(uuid())
+  studentId      String           @map("student_id")
+  universityId   String           @map("university_id")
+  name           String
+  normalizedName String           @map("normalized_name")
+  locationText   String?          @map("location_text")
+  category       String?
+  status         SuggestionStatus @default(pending)
+  /// Set when admin onboards the place and links it to the real shop row.
+  resolvedShopId String?          @map("resolved_shop_id")
+  /// When the suggester was told the shop is live. Guards against telling them twice.
+  notifiedAt     DateTime?        @map("notified_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  student      Profile    @relation(fields: [studentId], references: [id])
+  university   University @relation(fields: [universityId], references: [id])
+  resolvedShop Shop?      @relation("ResolvedSuggestions", fields: [resolvedShopId], references: [id])
+  orders       Order[]
+
+  @@index([universityId, normalizedName])
+  @@index([status])
+  @@map("shop_suggestions")
 }
 
 model Order {
   id            String   @id @default(uuid())
   studentId     String   @map("student_id")
   riderId       String?  @map("rider_id")
-  shopId        String   @map("shop_id")
+  // Null for a package pickup: there is no shop involved, the student already
+  // has the thing and just needs it carried.
+  shopId        String?  @map("shop_id")
+  // Where a package is collected FROM. Null for a Buy For Me order, whose
+  // origin is the shop.
+  originCheckpointId String? @map("origin_checkpoint_id")
+  // The suggested, not-yet-onboarded shop this run buys from. Set only on a
+  // `shop_pickup`, where it stands in for `shopId`.
+  suggestionId  String?  @map("suggestion_id")
+  // Where the order is handed to the student. Always set, for both kinds.
   checkpointId  String   @map("checkpoint_id")
   universityId  String   @map("university_id")
+
+  orderType     OrderType @default(buy_for_me) @map("order_type")
 
   itemDescription String   @map("item_description")
   productId       String?  @map("product_id")
@@ -188,10 +290,24 @@ model Order {
 
   status OrderStatus @default(pending)
 
+  // When the shop confirmed they will fulfil this order. Advisory: it does not
+  // gate anything, it records an acknowledgement the dashboard and riders can see.
+  shopAcceptedAt DateTime? @map("shop_accepted_at")
+
   paystackRef String?   @unique @map("paystack_ref")
   paidAt      DateTime? @map("paid_at")
 
-  deliveryPinHash String?   @map("delivery_pin_hash")
+  // A `shop_pickup` is paid in two parts: the delivery fee at order time
+  // (`paystackRef`), and the goods once the rider reports the till total.
+  // Two refs because they are two Paystack transactions, and each needs its
+  // own idempotency key for the webhook to be safe to replay.
+  goodsPaystackRef String?   @unique @map("goods_paystack_ref")
+  goodsPaidAt      DateTime? @map("goods_paid_at")
+
+  // bcrypt for rider verify. Ciphertext (AES-GCM) so the owning student can
+  // read the code in the app — never selected on general order queries.
+  deliveryPinHash       String? @map("delivery_pin_hash")
+  deliveryPinCiphertext String? @map("delivery_pin_ciphertext")
   deliveredAt     DateTime? @map("delivered_at")
 
   notes               String?
@@ -202,11 +318,14 @@ model Order {
 
   student    Profile    @relation("StudentOrders", fields: [studentId], references: [id])
   rider      Profile?   @relation("RiderOrders", fields: [riderId], references: [id])
-  shop       Shop       @relation(fields: [shopId], references: [id])
-  checkpoint Checkpoint @relation(fields: [checkpointId], references: [id])
+  shop       Shop?      @relation(fields: [shopId], references: [id])
+  checkpoint Checkpoint @relation("OrderDropoff", fields: [checkpointId], references: [id])
+  originCheckpoint Checkpoint? @relation("OrderPickup", fields: [originCheckpointId], references: [id])
   university University @relation(fields: [universityId], references: [id])
   product    Product?   @relation(fields: [productId], references: [id])
+  suggestion ShopSuggestion? @relation(fields: [suggestionId], references: [id])
 
+  items         OrderItem[]
   statusHistory OrderStatusHistory[]
   earning       RiderEarning?
 
@@ -232,8 +351,11 @@ model RiderVerification {
   riderId          String              @map("rider_id")
   idType           RiderIdType         @map("id_type")
   idNumber         String              @map("id_number")
-  idImageUrl       String              @map("id_image_url")
-  selfieUrl        String              @map("selfie_url")
+  // Storage paths inside the private "verifications" bucket, never URLs. A
+  // signed URL expires, so persisting one meant admin review broke a week
+  // after submission; the API signs these fresh on every read instead.
+  idImagePath      String              @map("id_image_path")
+  selfiePath       String              @map("selfie_path")
   status           VerificationStatus  @default(pending)
   reviewedBy       String?             @map("reviewed_by")
   rejectionReason  String?             @map("rejection_reason")

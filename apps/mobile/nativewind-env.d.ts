@@ -13,4 +13,19 @@ declare module "react-native" {
   interface ScrollViewProps {
     className?: string;
   }
+  interface PressableProps {
+    className?: string;
+  }
+  interface TextInputProps {
+    className?: string;
+  }
+  interface TouchableOpacityProps {
+    className?: string;
+  }
+  interface FlatListProps<ItemT> {
+    className?: string;
+  }
+  interface SafeAreaViewProps {
+    className?: string;
+  }
 }
