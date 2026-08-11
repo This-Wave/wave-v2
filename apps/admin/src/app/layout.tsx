@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   description: "Wave — campus delivery platform admin dashboard",
 };
 
+// Admin is auth-gated; skip static prerender so builds don't need a live session.
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
