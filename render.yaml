@@ -34,7 +34,7 @@ services:
     # Build from the repo root: this is an npm-workspaces monorepo, and the API
     # imports @wave/shared and @wave/db, which must be compiled to JS first.
     # `npm run build --workspace packages/api` chains all three in order.
-    buildCommand: npm ci && npm run build --workspace packages/api
+    buildCommand: npm ci --include=dev && npm run build --workspace packages/api
     startCommand: npm start --workspace packages/api
     healthCheckPath: /health
     envVars:
@@ -86,7 +86,7 @@ services:
     region: frankfurt
     plan: free
     branch: main
-    buildCommand: npm ci && npm run build --workspace apps/admin
+    buildCommand: npm ci --include=dev && npm run build --workspace apps/admin
     startCommand: npm start --workspace apps/admin
     envVars:
       - key: NODE_ENV

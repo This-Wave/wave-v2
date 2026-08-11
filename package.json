@@ -26,9 +26,10 @@
     "db:seed:auth": "npm run seed:auth --workspace=@wave/db"
   },
   "devDependencies": {
-    "typescript": "~5.8.3"
+    "typescript": "5.8.3"
   },
   "overrides": {
+    "typescript": "5.8.3",
     "tailwindcss": "3.3.2",
     "postcss": "8.4.31"
   },
