@@ -1,4 +1,5 @@
 export * from "./constants/platform";
+export * from "./phone/ghana";
 export * from "./schemas/auth";
 export * from "./schemas/order";
 export * from "./schemas/shop";

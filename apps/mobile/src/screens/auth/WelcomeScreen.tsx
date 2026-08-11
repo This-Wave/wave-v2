@@ -71,7 +71,7 @@ export function WelcomeScreen({ navigation }: Props) {
 
       <ActionBar>
         <View className="gap-3">
-          <Button label="Get started" onPress={() => navigation.navigate("PhoneEntry")} />
+          <Button label="Get started" onPress={() => navigation.replace("PhoneEntry")} />
 
           {__DEV__ ? (
             <View className="flex-row justify-center gap-4 pt-1">

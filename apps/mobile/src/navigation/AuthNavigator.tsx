@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { WebShell } from "../components/v6";
+import { stackScreenOptions } from "../lib/navigationMotion";
 import { WelcomeScreen } from "../screens/auth/WelcomeScreen";
 import { PhoneEntryScreen } from "../screens/auth/PhoneEntryScreen";
 import { OtpVerifyScreen } from "../screens/auth/OtpVerifyScreen";
@@ -17,7 +18,7 @@ const Stack = createNativeStackNavigator<AuthStackParamList>();
 export function AuthNavigator() {
   return (
     <WebShell>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={() => stackScreenOptions("auth")}>
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="PhoneEntry" component={PhoneEntryScreen} />
         <Stack.Screen name="OtpVerify" component={OtpVerifyScreen} />

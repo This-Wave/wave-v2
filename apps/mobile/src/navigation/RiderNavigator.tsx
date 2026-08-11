@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import type { NavigatorScreenParams } from "@react-navigation/native";
 import { AppWebShell } from "../components/v6";
+import { stackScreenOptions, tabsStackScreenOptions } from "../lib/navigationMotion";
 import { RiderTabNavigator, type RiderTabParamList } from "./RiderTabNavigator";
 import { OrderDetailScreen } from "../screens/rider/OrderDetailScreen";
 import { ActiveDeliveryScreen } from "../screens/rider/ActiveDeliveryScreen";
@@ -22,8 +23,8 @@ const Stack = createNativeStackNavigator<RiderStackParamList>();
 export function RiderNavigator() {
   return (
     <AppWebShell role="rider">
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Tabs" component={RiderTabNavigator} />
+      <Stack.Navigator screenOptions={() => stackScreenOptions("app")}>
+        <Stack.Screen name="Tabs" component={RiderTabNavigator} options={tabsStackScreenOptions} />
         <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
         <Stack.Screen name="ActiveDelivery" component={ActiveDeliveryScreen} />
         <Stack.Screen name="PinEntry" component={PinEntryScreen} />

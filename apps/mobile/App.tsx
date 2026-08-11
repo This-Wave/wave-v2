@@ -1,5 +1,6 @@
 import "./global.css";
 import { useCallback, useEffect } from "react";
+import { Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer } from "@react-navigation/native";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -18,6 +19,7 @@ import { PaymentReturnListener } from "./src/components/PaymentReturnListener";
 import { AuthProvider } from "./src/providers/AuthProvider";
 import { NotificationProvider } from "./src/providers/NotificationProvider";
 import { queryClient } from "./src/lib/queryClient";
+import { clearSkipTransition, markHistoryNavigation } from "./src/lib/navigationMotion";
 import { ToastHost } from "./src/components/v6";
 
 SplashScreen.preventAutoHideAsync();
@@ -42,6 +44,12 @@ export default function App() {
     onLayoutRootView();
   }, [onLayoutRootView]);
 
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+    window.addEventListener("popstate", markHistoryNavigation);
+    return () => window.removeEventListener("popstate", markHistoryNavigation);
+  }, []);
+
   if (!fontsLoaded) {
     return null;
   }
@@ -51,7 +59,12 @@ export default function App() {
       <SafeAreaProvider>
         <AuthProvider>
           <NotificationProvider>
-            <NavigationContainer ref={navigationRef}>
+            <NavigationContainer
+              ref={navigationRef}
+              onStateChange={() => {
+                requestAnimationFrame(() => clearSkipTransition());
+              }}
+            >
               <RootNavigator />
               <PaymentReturnListener />
               <ToastHost />

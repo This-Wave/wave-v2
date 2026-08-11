@@ -3,6 +3,7 @@ import { Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
 import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
+import { GHANA_LOCAL_PHONE_LENGTH, toGhanaE164 } from "@wave/shared";
 import { PhoneField } from "../../components/ui/PhoneField";
 import { supabase } from "../../lib/supabase";
 
@@ -18,7 +19,7 @@ export function PhoneEntryScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fullPhone = `+233${localNumber.replace(/[^0-9]/g, "")}`;
+  const fullPhone = toGhanaE164(localNumber);
 
   async function handleSendOtp() {
     setLoading(true);
@@ -29,7 +30,7 @@ export function PhoneEntryScreen({ navigation }: Props) {
       setError(otpError.message);
       return;
     }
-    navigation.navigate("OtpVerify", { phone: fullPhone });
+    navigation.replace("OtpVerify", { phone: fullPhone });
   }
 
   return (
@@ -54,7 +55,7 @@ export function PhoneEntryScreen({ navigation }: Props) {
             label="Send my code"
             onPress={handleSendOtp}
             loading={loading}
-            disabled={localNumber.length < 9}
+            disabled={localNumber.length < GHANA_LOCAL_PHONE_LENGTH}
           />
           <Text className="text-center font-sans text-meta text-muted">
             By continuing you agree to Wave's Terms and Privacy Policy.
