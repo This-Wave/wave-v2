@@ -7,6 +7,8 @@ import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../com
 import { CodeInput } from "../../components/ui/CodeInput";
 import { useOrder } from "../../lib/orders";
 import { useDeliverOrder } from "../../lib/rider";
+import { resetRiderTabs } from "../../lib/navigationFlows";
+import { showToast } from "../../store/toastStore";
 
 type Route = RouteProp<RiderStackParamList, "PinEntry">;
 
@@ -30,7 +32,8 @@ export function PinEntryScreen() {
     setError(null);
     try {
       await deliverOrder.mutateAsync({ orderId: params.orderId, pin });
-      navigation.navigate("Tabs", { screen: "MyOrders" });
+      showToast("Delivery complete.", "success");
+      resetRiderTabs(navigation, "MyOrders");
     } catch {
       setError("That code doesn't match. Ask the student to read it again.");
       setPin("");
@@ -38,7 +41,7 @@ export function PinEntryScreen() {
   }
 
   return (
-    <Screen>
+    <Screen narrow>
       <TopBar onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>

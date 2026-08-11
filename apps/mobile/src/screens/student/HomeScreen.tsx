@@ -5,9 +5,9 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
   BrandBar,
+  CardGrid,
   CardRail,
   Chip,
-  IconCircle,
   PhotoCard,
   ProgressRail,
   Screen,
@@ -21,37 +21,33 @@ import {
   WaveBanner,
   WaveClosedBanner,
 } from "../../components/v6";
-import { BellIcon, BoxIcon, CartIcon } from "../../components/icons";
-import { colors } from "../../theme/tokens";
+import { useLayout } from "../../hooks/useLayout";
+import { openOrderTracking } from "../../lib/desktopNavigate";
 import { useShops } from "../../lib/shops";
 import { useMyOrders } from "../../lib/orders";
 import { useWave } from "../../lib/wave";
 import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
 import { orderProgress, statusPill } from "./orderPresenters";
+import { StudentHomeWeb } from "./web/StudentHomeWeb";
 import type { Order, Shop } from "../../types";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
 
-const CARD_W = 168;
+const RAIL_CARD_W = 168;
 
 /**
- * v6 Home.
- *
- * Built on the reference's central move — no hero image, no headline, the
- * search is the hero — with two Wave-specific additions above it:
- *
- *  1. The Wave countdown. Deliveries go out on a schedule, and the deadline to
- *     join one is genuinely the most actionable fact on the screen.
- *  2. Both services. v5's hero offered "Buy For Me" and "Pickup"; the first v6
- *     pass dropped Pickup entirely, which silently removed half the product.
- *
- * What stays gone from v5: the greeting, the 40px countdown block that treated
- * a twice-weekly schedule as an emergency, and the four circular quick-action
- * tiles that duplicated the tab bar.
+ * Student home. Web uses a dedicated browse layout; native keeps the phone UI.
  */
 export function HomeScreen() {
+  const { isDesktop } = useLayout();
+  if (isDesktop) return <StudentHomeWeb />;
+  return <HomeScreenMobile />;
+}
+
+function HomeScreenMobile() {
   const navigation = useNavigation<Nav>();
+  const { gutter } = useLayout();
   const { data: shops, isLoading: shopsLoading } = useShops();
   const { data: orders } = useMyOrders();
   const wave = useWave();
@@ -100,19 +96,10 @@ export function HomeScreen() {
 
   return (
     <Screen>
-      <BrandBar
-        trailing={
-          <IconCircle accessibilityLabel="Notifications">
-            <BellIcon size={18} color={colors.ink} strokeWidth={1.7} />
-          </IconCircle>
-        }
-      />
+      <BrandBar />
 
       <ScreenBody bottomInset={32}>
         <Gutter className="pb-4 pt-1">
-          {/* The countdown opens the calendar. It used to drop straight into
-              the shop list, which meant the *only* Wave a student could order
-              onto was the next one — there was no route to a later date at all. */}
           {wave && !wave.closed ? (
             <WaveBanner wave={wave} onPress={() => navigation.navigate("WaveCalendar")} />
           ) : (
@@ -123,36 +110,24 @@ export function HomeScreen() {
         <Gutter className="pb-4">
           <SearchCapsule
             waveLabel={wave?.dateLabel ?? "Next Wave"}
-            onPressQuery={() => navigation.navigate("ShopSelection")}
-            // The Wave half of the capsule is a date affordance, so it opens the
-            // date picker rather than repeating what the query half does.
+            onPressQuery={() => navigation.navigate("ShopSelection", waveDate)}
             onPressWave={() => navigation.navigate("WaveCalendar")}
-            onSubmit={() => navigation.navigate("ShopSelection")}
+            onSubmit={() => navigation.navigate("ShopSelection", waveDate)}
           />
-        </Gutter>
-
-        {/* Both services, equally weighted. Wave does two things and the home
-            screen has to say so. */}
-        <Gutter className="mb-6 flex-row gap-3">
-          <ServiceTile
-            icon={<CartIcon size={20} color={colors.ink} strokeWidth={1.7} />}
-            title="Buy for me"
-            meta="We shop and bring it"
-            onPress={() => navigation.navigate("ShopSelection")}
-          />
-          <ServiceTile
-            icon={<BoxIcon size={20} color={colors.ink} strokeWidth={1.7} />}
-            title="Pickup"
-            meta="Move a package"
-            onPress={() => navigation.navigate("PickupRequest")}
-          />
+          <Pressable
+            onPress={() => navigation.navigate("PickupRequest", waveDate)}
+            accessibilityRole="button"
+            className="mt-3 self-start"
+          >
+            <Text className="font-sans-medium text-body text-ink">Need a package pickup instead?</Text>
+          </Pressable>
         </Gutter>
 
         {categories.length > 0 ? (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
+            contentContainerStyle={{ paddingHorizontal: gutter, gap: 8 }}
             className="mb-6 grow-0"
           >
             <Chip label="All" selected={category === null} onPress={() => setCategory(null)} />
@@ -170,7 +145,7 @@ export function HomeScreen() {
         {live ? (
           <LiveOrderCard
             order={live}
-            onPress={() => navigation.navigate("OrderTracking", { orderId: live.id })}
+            onPress={() => openOrderTracking(navigation, live.id)}
           />
         ) : null}
 
@@ -197,32 +172,6 @@ export function HomeScreen() {
   );
 }
 
-function ServiceTile({
-  icon,
-  title,
-  meta,
-  onPress,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  meta: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      className="flex-1 rounded-card bg-surface p-4 active:bg-hairline"
-    >
-      <View className="mb-3">{icon}</View>
-      <Text className="font-sans-medium text-body text-ink">{title}</Text>
-      <Text className="font-sans text-body text-muted" numberOfLines={1}>
-        {meta}
-      </Text>
-    </Pressable>
-  );
-}
-
 function Section({
   title,
   shops,
@@ -238,6 +187,31 @@ function Section({
   waveDate: { scheduledDate: string; isSpecialOrder: boolean };
   emptyNote?: string;
 }) {
+  const { useShopGrid, cardWidth, shopColumns } = useLayout();
+  const width = useShopGrid ? cardWidth : RAIL_CARD_W;
+
+  const cards = (list: Shop[]) =>
+    list.map((shop) => (
+      <PhotoCard
+        key={shop.id}
+        width={width}
+        imageUrl={shop.logoUrl}
+        title={shop.name}
+        meta={shop.locationText ?? titleCase(shop.category)}
+        priceLabel="from"
+        priceValue={`${formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)} delivery`}
+        badge={shop.isActive ? undefined : "Paused"}
+        onPress={() =>
+          navigation.navigate("ShopMenu", {
+            shopId: shop.id,
+            shopName: shop.name,
+            scheduledDate: waveDate.scheduledDate,
+            isSpecialOrder: waveDate.isSpecialOrder,
+          })
+        }
+      />
+    ));
+
   return (
     <View className="mb-section">
       <Gutter className="mb-3">
@@ -245,40 +219,29 @@ function Section({
       </Gutter>
 
       {loading ? (
-        <CardRail>
-          <SkeletonCard width={CARD_W} />
-          <SkeletonCard width={CARD_W} />
-        </CardRail>
+        useShopGrid ? (
+          <CardGrid>
+            {Array.from({ length: shopColumns }, (_, i) => (
+              <SkeletonCard key={i} width={cardWidth} />
+            ))}
+          </CardGrid>
+        ) : (
+          <CardRail>
+            <SkeletonCard width={RAIL_CARD_W} />
+            <SkeletonCard width={RAIL_CARD_W} />
+          </CardRail>
+        )
       ) : shops.length === 0 ? (
         <Gutter>
           <Text className="font-sans text-body text-muted">
             {emptyNote ?? "Nothing here yet."}
           </Text>
         </Gutter>
+      ) : useShopGrid ? (
+        <CardGrid>{cards(shops)}</CardGrid>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <CardRail>
-            {shops.map((shop) => (
-              <PhotoCard
-                key={shop.id}
-                width={CARD_W}
-                imageUrl={shop.logoUrl}
-                title={shop.name}
-                meta={shop.locationText ?? titleCase(shop.category)}
-                priceLabel="from"
-                priceValue={`${formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)} delivery`}
-                badge={shop.isActive ? undefined : "Paused"}
-                onPress={() =>
-                  navigation.navigate("ShopMenu", {
-                    shopId: shop.id,
-                    shopName: shop.name,
-                    scheduledDate: waveDate.scheduledDate,
-                    isSpecialOrder: waveDate.isSpecialOrder,
-                  })
-                }
-              />
-            ))}
-          </CardRail>
+          <CardRail>{cards(shops)}</CardRail>
         </ScrollView>
       )}
     </View>

@@ -89,7 +89,7 @@ export function PickupRequestScreen() {
         scheduledDate: toApiDate(scheduled),
         isSpecialOrder,
       });
-      navigation.navigate("Payment", {
+      navigation.replace("Payment", {
         orderId: order.id,
         totalAmount: Number(order.totalAmount),
       });
@@ -99,7 +99,7 @@ export function PickupRequestScreen() {
   }
 
   return (
-    <Screen>
+    <Screen narrow>
       <TopBar onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>

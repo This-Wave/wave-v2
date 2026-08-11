@@ -3,13 +3,17 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
+import { ActionBar, Button, CheckoutProgress, Gutter, Screen, ScreenBody, TopBar, WaveContextBanner } from "../../components/v6";
 import { PaystackCheckout, type CheckoutOutcome } from "../../components/PaystackCheckout";
 import { CardIcon, CheckIcon, MobileIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useInitiatePayment, waitForPayment } from "../../lib/payments";
+import { webAppOrigin } from "../../lib/paymentReturn";
 import { useAuthStore } from "../../store/authStore";
+import { useOrder } from "../../lib/orders";
 import { formatGhs, formatGhsCompact } from "../../lib/pricing";
+import { exitPaymentToOrders, resetAfterPaymentOutcome } from "../../lib/navigationFlows";
+import { showToast } from "../../store/toastStore";
 
 type Route = RouteProp<StudentStackParamList, "Payment">;
 type Method = "momo" | "card";
@@ -48,6 +52,7 @@ export function PaymentScreen() {
   const { params } = useRoute<Route>();
   const profile = useAuthStore((s) => s.profile);
   const initiatePayment = useInitiatePayment();
+  const { data: order } = useOrder(params.orderId);
 
   const [method, setMethod] = useState<Method>("momo");
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +88,10 @@ export function PaymentScreen() {
       });
       if (stopped || cancel.current.cancelled) return;
       if (status) {
-        navigation.replace("OrderConfirmed", { orderId: params.orderId });
+        resetAfterPaymentOutcome(navigation, {
+          name: "OrderConfirmed",
+          params: { orderId: params.orderId },
+        });
       }
     })();
 
@@ -98,6 +106,7 @@ export function PaymentScreen() {
       const { reference, payment_url: url } = await initiatePayment.mutateAsync({
         orderId: params.orderId,
         method,
+        returnOrigin: webAppOrigin(),
       });
       setCheckout({ url, reference });
       setPhase("checkout");
@@ -128,26 +137,40 @@ export function PaymentScreen() {
     if (cancel.current.cancelled) return;
 
     if (status) {
-      navigation.replace("OrderConfirmed", { orderId: params.orderId });
+      resetAfterPaymentOutcome(navigation, {
+        name: "OrderConfirmed",
+        params: { orderId: params.orderId },
+      });
     } else {
-      navigation.replace("PaymentFailed", {
-        orderId: params.orderId,
-        totalAmount: params.totalAmount,
+      resetAfterPaymentOutcome(navigation, {
+        name: "PaymentFailed",
+        params: {
+          orderId: params.orderId,
+          totalAmount: params.totalAmount,
+        },
       });
     }
   }
 
   if (phase === "checkout" && checkout) {
     return (
-      <Screen>
-        <PaystackCheckout paymentUrl={checkout.url} onOutcome={handleCheckoutOutcome} />
+      <Screen narrow>
+        <PaystackCheckout
+          paymentUrl={checkout.url}
+          pending={{
+            orderId: params.orderId,
+            reference: checkout.reference,
+            totalAmount: params.totalAmount,
+          }}
+          onOutcome={handleCheckoutOutcome}
+        />
       </Screen>
     );
   }
 
   if (phase === "confirming") {
     return (
-      <Screen>
+      <Screen narrow>
         <ScreenBody bottomInset={16}>
           <Gutter className="pt-16 items-center">
             <ActivityIndicator color={colors.ink} />
@@ -165,11 +188,24 @@ export function PaymentScreen() {
   }
 
   return (
-    <Screen>
-      <TopBar onBack={() => navigation.goBack()} />
+    <Screen narrow>
+      <TopBar
+        onBack={() => {
+          showToast("Order saved — pay anytime from Orders.");
+          exitPaymentToOrders(navigation);
+        }}
+      />
 
       <ScreenBody bottomInset={16}>
         <Gutter>
+          <CheckoutProgress step={3} />
+          {order ? (
+            <WaveContextBanner
+              scheduledDate={order.scheduledDate}
+              checkpointName={order.checkpoint?.name}
+              isSpecialOrder={order.isSpecialOrder}
+            />
+          ) : null}
           <Text className="font-sans text-body text-muted">You're paying</Text>
           <Text
             className="mb-10 mt-1 font-sans-bold text-ink"
@@ -197,7 +233,8 @@ export function PaymentScreen() {
           </View>
 
           <Text className="mt-6 font-sans text-body text-muted">
-            Paystack handles the payment, inside the app. You'll come straight back here.
+            Paystack handles the payment. You’ll stay in this tab and come straight back when
+            you’re done.
           </Text>
           {error ? <Text className="mt-4 font-sans text-body text-danger">{error}</Text> : null}
         </Gutter>

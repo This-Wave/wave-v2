@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { createProductSchema, updateProductStatusSchema } from "@wave/shared";
+import { findOwnedProduct } from "./access";
 
 export async function productRoutes(fastify: FastifyInstance) {
   fastify.get("/shops/:shopId/products", async (request, reply) => {
@@ -31,6 +32,8 @@ export async function productRoutes(fastify: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
+    const owned = await findOwnedProduct(fastify.prisma, id, request.user!.id);
+    if (!owned) return reply.code(404).send({ error: "Product not found" });
     const product = await fastify.prisma.product.update({ where: { id }, data: parsed.data });
     return reply.send({ product });
   });
@@ -44,6 +47,8 @@ export async function productRoutes(fastify: FastifyInstance) {
       if (!parsed.success) {
         return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
       }
+      const owned = await findOwnedProduct(fastify.prisma, id, request.user!.id);
+      if (!owned) return reply.code(404).send({ error: "Product not found" });
       const product = await fastify.prisma.product.update({ where: { id }, data: parsed.data });
       return reply.send({ product });
     },
@@ -51,6 +56,8 @@ export async function productRoutes(fastify: FastifyInstance) {
 
   fastify.delete("/products/:id", { preHandler: [fastify.authenticate, fastify.requireRole("shop_owner")] }, async (request, reply) => {
     const { id } = request.params as { id: string };
+    const owned = await findOwnedProduct(fastify.prisma, id, request.user!.id);
+    if (!owned) return reply.code(404).send({ error: "Product not found" });
     await fastify.prisma.product.delete({ where: { id } });
     return reply.code(204).send();
   });

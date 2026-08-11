@@ -6,6 +6,7 @@ import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
   ActionBar,
   Button,
+  CheckoutProgress,
   Gutter,
   Row,
   RowGroup,
@@ -13,11 +14,13 @@ import {
   ScreenBody,
   Sheet,
   TopBar,
+  WaveContextBanner,
 } from "../../components/v6";
 import { CheckIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useCheckpoints } from "../../lib/checkpoints";
 import { useAuthStore } from "../../store/authStore";
+import { useLastCheckpoint } from "../../hooks/useLastCheckpoint";
 import { formatFullDay, formatGhs } from "../../lib/pricing";
 import { DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT } from "@wave/shared";
 
@@ -47,7 +50,8 @@ export function DescribeOrderScreen() {
   const profile = useAuthStore((s) => s.profile);
   const { data: checkpoints } = useCheckpoints(profile?.universityId ?? undefined);
 
-  const [checkpointId, setCheckpointId] = useState<string | null>(null);
+  const checkpointIds = checkpoints?.map((c) => c.id);
+  const { checkpointId, selectCheckpoint } = useLastCheckpoint(checkpointIds);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const checkpoint = checkpoints?.find((c) => c.id === checkpointId) ?? checkpoints?.[0];
@@ -57,11 +61,17 @@ export function DescribeOrderScreen() {
   const basketTotal = params.itemsPreview.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
 
   return (
-    <Screen>
+    <Screen narrow>
       <TopBar onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>
         <Gutter>
+          <CheckoutProgress step={2} />
+          <WaveContextBanner
+            scheduledDate={params.scheduledDate}
+            checkpointName={checkpoint?.name}
+            isSpecialOrder={params.isSpecialOrder}
+          />
           <Text className="mb-2 font-sans-bold text-heading text-ink">Where do you want it?</Text>
           <Text className="mb-8 font-sans text-body text-muted">
             {itemCount} item{itemCount === 1 ? "" : "s"} from {params.shopName} ·{" "}
@@ -126,7 +136,7 @@ export function DescribeOrderScreen() {
                 ) : null
               }
               onPress={() => {
-                setCheckpointId(c.id);
+                selectCheckpoint(c.id);
                 setPickerOpen(false);
               }}
             />

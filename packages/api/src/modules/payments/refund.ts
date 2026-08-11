@@ -59,20 +59,25 @@ export async function endOrderWithRefund(
       return { ok: false, code: 409, error: `Cannot cancel an order that is already ${order.status}` };
     }
 
-    const isPaid = Boolean(order.paidAt && order.paystackRef);
-    if (intent === "refund" && !isPaid) {
+    const hasDeliveryPayment = Boolean(order.paidAt && order.paystackRef);
+    const hasGoodsPayment = Boolean(order.goodsPaidAt && order.goodsPaystackRef);
+    const refsToRefund: string[] = [];
+    if (hasDeliveryPayment) refsToRefund.push(order.paystackRef!);
+    if (hasGoodsPayment) refsToRefund.push(order.goodsPaystackRef!);
+
+    if (intent === "refund" && refsToRefund.length === 0) {
       return { ok: false, code: 400, error: "Order has no captured payment to refund" };
     }
 
     let refundIssued = false;
-    if (isPaid) {
+    for (const reference of refsToRefund) {
       try {
         const refund = await refundPaystackPayment(fastify.config.PAYSTACK_SECRET_KEY, {
-          reference: order.paystackRef!,
+          reference,
           note: `Wave order ${order.id}: ${reason}`.slice(0, 255),
         });
         log.info(
-          { orderId, refundId: refund.id, refundStatus: refund.status },
+          { orderId, refundId: refund.id, refundStatus: refund.status, reference },
           "Paystack refund accepted",
         );
         refundIssued = true;
@@ -81,6 +86,7 @@ export async function endOrderWithRefund(
         log.error(
           {
             orderId,
+            reference,
             httpStatus: axios.isAxiosError(err) ? err.response?.status : undefined,
             providerMessage,
           },

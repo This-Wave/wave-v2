@@ -109,7 +109,7 @@ export function SubmitVerificationScreen() {
 
   if (submitted) {
     return (
-      <Screen>
+      <Screen narrow>
         <ScreenBody bottomInset={16}>
           <Gutter className="pt-12">
             <View className="mb-6 h-14 w-14 items-center justify-center rounded-pill bg-lime">
@@ -130,7 +130,7 @@ export function SubmitVerificationScreen() {
   }
 
   return (
-    <Screen>
+    <Screen narrow>
       <TopBar onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>

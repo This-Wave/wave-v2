@@ -12,6 +12,8 @@ interface FakeOrder {
   status: string;
   paidAt: Date | null;
   paystackRef: string | null;
+  goodsPaidAt?: Date | null;
+  goodsPaystackRef?: string | null;
 }
 
 function harness(order: FakeOrder | null) {
@@ -196,6 +198,32 @@ describe("endOrderWithRefund", () => {
     });
 
     expect(result).toMatchObject({ ok: false, code: 404 });
+  });
+
+  test("refunds both delivery and goods charges when both were captured", async () => {
+    const h = harness({
+      ...paidOrder("o9"),
+      goodsPaidAt: new Date(),
+      goodsPaystackRef: "WAVEGOODS-o9-1",
+    });
+    const callOrder: string[] = [];
+    refundMock.mockImplementation(async (_key, params: { reference: string }) => {
+      callOrder.push(params.reference);
+      return { id: 1, status: "processed", amount: 1500, currency: "GHS" };
+    });
+
+    const result = await endOrderWithRefund({
+      fastify: h.fastify,
+      log: h.log,
+      orderId: "o9",
+      reason: "shop closed",
+      actorId: "admin-1",
+      intent: "refund",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(refundMock).toHaveBeenCalledTimes(2);
+    expect(callOrder).toEqual(["WAVE-o9-1", "WAVEGOODS-o9-1"]);
   });
 
   test("concurrent refunds of one order: only the first reaches Paystack", async () => {

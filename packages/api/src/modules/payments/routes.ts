@@ -5,11 +5,19 @@ import {
   initiatePaystackPayment,
   verifyPaystackSignature,
 } from "./paystack";
+import { paystackMatchesGhs } from "./amounts";
 import { confirmDeliveryFeePaid, confirmGoodsPaid } from "./confirm";
+
+const PAYABLE_DELIVERY_STATUSES = ["pending", "payment_pending"] as const;
 
 export async function paymentRoutes(fastify: FastifyInstance) {
   fastify.post("/initiate", { preHandler: fastify.authenticate }, async (request, reply) => {
-    const body = request.body as { orderId?: string; method?: "momo" | "card" };
+    const body = request.body as {
+      orderId?: string;
+      method?: "momo" | "card";
+      /** Web app origin — Paystack returns the student to this tab after pay. */
+      returnOrigin?: string;
+    };
     if (!body.orderId) return reply.code(400).send({ error: "orderId is required" });
     // The student already picked a method on the checkout screen; carrying it
     // through means Paystack opens on that channel instead of asking twice.
@@ -23,9 +31,16 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     if (order.studentId !== request.user!.id) {
       return reply.code(403).send({ error: "Not your order" });
     }
+    if (order.paidAt) {
+      return reply.code(409).send({ error: "This order has already been paid" });
+    }
+    if (!PAYABLE_DELIVERY_STATUSES.includes(order.status as (typeof PAYABLE_DELIVERY_STATUSES)[number])) {
+      return reply.code(409).send({ error: "This order cannot be paid in its current state" });
+    }
 
     const profile = await fastify.prisma.profile.findUnique({ where: { id: order.studentId } });
     const reference = `WAVE-${order.id}-${Date.now()}`;
+    const callbackUrl = paystackCallbackUrl(fastify.config.APP_URL, body.returnOrigin);
 
     let authorization_url: string;
     try {
@@ -33,7 +48,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
         email: `${profile!.phone}@wave.app`, // students register by phone, not email
         amountGhs: Number(order.totalAmount),
         reference,
-        callbackUrl: `${fastify.config.APP_URL}/v1/payments/callback`,
+        callbackUrl,
         metadata: { order_id: order.id, student_id: order.studentId },
         channels: channels ? [...channels] : undefined,
       }));
@@ -60,7 +75,11 @@ export async function paymentRoutes(fastify: FastifyInstance) {
    * computed here from the order rather than sent by the client.
    */
   fastify.post("/initiate-goods", { preHandler: fastify.authenticate }, async (request, reply) => {
-    const body = request.body as { orderId?: string; method?: "momo" | "card" };
+    const body = request.body as {
+      orderId?: string;
+      method?: "momo" | "card";
+      returnOrigin?: string;
+    };
     if (!body.orderId) return reply.code(400).send({ error: "orderId is required" });
     const channels =
       body.method === "momo" ? (["mobile_money"] as const)
@@ -88,6 +107,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
 
     const profile = await fastify.prisma.profile.findUnique({ where: { id: order.studentId } });
     const reference = `WAVEGOODS-${order.id}-${Date.now()}`;
+    const callbackUrl = paystackCallbackUrl(fastify.config.APP_URL, body.returnOrigin);
 
     let authorization_url: string;
     try {
@@ -95,7 +115,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
         email: profile?.email ?? `${profile!.phone}@wave.app`,
         amountGhs: goodsAmount,
         reference,
-        callbackUrl: `${fastify.config.APP_URL}/v1/payments/callback`,
+        callbackUrl,
         metadata: { order_id: order.id, student_id: order.studentId, kind: "goods" },
         channels: channels ? [...channels] : undefined,
       }));
@@ -125,7 +145,10 @@ export async function paymentRoutes(fastify: FastifyInstance) {
         return reply.code(401).send({ error: "Invalid signature" });
       }
 
-      const event = request.body as { event: string; data: { reference: string; status: string } };
+      const event = request.body as {
+        event: string;
+        data: { reference: string; status: string; amount: number; currency: string };
+      };
       if (event.event !== "charge.success") {
         return reply.send({ received: true });
       }
@@ -136,7 +159,13 @@ export async function paymentRoutes(fastify: FastifyInstance) {
       // to riders, neither of which must happen twice.
       const goodsOrder = await fastify.prisma.order.findUnique({
         where: { goodsPaystackRef: event.data.reference },
-        select: { id: true, goodsPaidAt: true, studentId: true, goodsPaystackRef: true },
+        select: {
+          id: true,
+          goodsPaidAt: true,
+          studentId: true,
+          goodsPaystackRef: true,
+          itemPrice: true,
+        },
       });
       // Re-check the reference on the row rather than trusting the lookup to
       // have been the only filter. Belt and braces on the money path: if this
@@ -144,6 +173,14 @@ export async function paymentRoutes(fastify: FastifyInstance) {
       // issue and the rider announcement, and the order would sit paid but
       // unconfirmed with nothing in the logs to say why.
       if (goodsOrder && goodsOrder.goodsPaystackRef === event.data.reference) {
+        const expectedGoods = Number(goodsOrder.itemPrice ?? 0);
+        if (!paystackMatchesGhs(event.data, expectedGoods)) {
+          request.log.error(
+            { orderId: goodsOrder.id, reference: event.data.reference, expectedGhs: expectedGoods },
+            "Paystack goods webhook amount mismatch — refusing to confirm",
+          );
+          return reply.code(400).send({ error: "Payment amount mismatch" });
+        }
         const { alreadyProcessed } = await confirmGoodsPaid({
           fastify,
           log: request.log,
@@ -154,9 +191,17 @@ export async function paymentRoutes(fastify: FastifyInstance) {
 
       const order = await fastify.prisma.order.findUnique({
         where: { paystackRef: event.data.reference },
-        select: { id: true },
+        select: { id: true, totalAmount: true },
       });
       if (!order) return reply.code(404).send({ error: "Order not found for reference" });
+
+      if (!paystackMatchesGhs(event.data, Number(order.totalAmount))) {
+        request.log.error(
+          { orderId: order.id, reference: event.data.reference, expectedGhs: Number(order.totalAmount) },
+          "Paystack delivery webhook amount mismatch — refusing to confirm",
+        );
+        return reply.code(400).send({ error: "Payment amount mismatch" });
+      }
 
       // All the actual work lives in confirmDeliveryFeePaid, shared with the
       // pull path in GET /verify/:ref so the two can never drift. It is
@@ -196,6 +241,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     reference: string;
     isGoods: boolean;
     orderId: string;
+    expectedGhs: number;
     log: typeof fastify.log;
   }): Promise<void> {
     let transaction;
@@ -208,6 +254,13 @@ export async function paymentRoutes(fastify: FastifyInstance) {
       return;
     }
     if (transaction?.status !== "success") return;
+    if (!paystackMatchesGhs(transaction, args.expectedGhs)) {
+      args.log.error(
+        { orderId: args.orderId, reference: args.reference, expectedGhs: args.expectedGhs },
+        "Paystack verify amount mismatch — refusing to confirm",
+      );
+      return;
+    }
 
     args.log.info(
       { orderId: args.orderId, reference: args.reference },
@@ -240,10 +293,12 @@ export async function paymentRoutes(fastify: FastifyInstance) {
 
     const settled = isGoods ? !!order.goodsPaidAt : !!order.paidAt;
     if (!settled) {
+      const expectedGhs = isGoods ? Number(order.itemPrice ?? 0) : Number(order.totalAmount);
       await reconcileWithPaystack({
         reference: ref,
         isGoods,
         orderId: order.id,
+        expectedGhs,
         log: request.log,
       });
       const refreshed = await fastify.prisma.order.findUnique({ where: { id: order.id } });
@@ -276,24 +331,50 @@ export async function paymentRoutes(fastify: FastifyInstance) {
          background:#F3F7EF; color:#10210B; font-family:system-ui,-apple-system,sans-serif; padding:24px; }
   .card { max-width:340px; text-align:center; background:#fff; border:1px solid #DCE8D3;
           border-radius:24px; padding:32px 24px; }
-  .mark { width:56px; height:56px; border-radius:50%; background:#009933; margin:0 auto 16px;
+  .mark { width:56px; height:56px; border-radius:50%; background:#87ea5c; margin:0 auto 16px;
           display:flex; align-items:center; justify-content:center; }
-  h1 { font-size:19px; margin:0 0 8px; letter-spacing:-0.01em; }
-  p { font-size:14px; line-height:1.5; color:#6B7D63; margin:0; }
+  h1 { font-size:19px; margin:0 0 8px; letter-spacing:-0.01em; color:#083400; }
+  p { font-size:14px; line-height:1.5; color:#6a6a6a; margin:0; }
 </style>
 </head>
 <body>
   <div class="card">
     <div class="mark">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="2.2"
+        <path d="M5 12.5l4.5 4.5L19 7.5" stroke="#083400" stroke-width="2.2"
               stroke-linecap="round" stroke-linejoin="round" />
       </svg>
     </div>
     <h1>Payment received</h1>
-    <p>You can close this window and return to Wave. Your order updates automatically.</p>
+    <p>You can close this and return to Wave. Your order updates automatically.</p>
   </div>
 </body>
 </html>`);
   });
+}
+
+/**
+ * Where Paystack should send the browser after checkout.
+ *
+ * Web same-tab checkout passes the Expo origin so the student lands back in the
+ * app (with `?wave_payment=1`); native WebView keeps the API HTML landing page.
+ */
+function paystackCallbackUrl(appUrl: string, returnOrigin?: string): string {
+  const fallback = `${appUrl.replace(/\/$/, "")}/v1/payments/callback`;
+  if (!returnOrigin) return fallback;
+  try {
+    const origin = new URL(returnOrigin).origin;
+    // Local Expo + https production only — never accept arbitrary hosts.
+    const host = new URL(origin).hostname;
+    const ok =
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host.endsWith(".exp.direct") ||
+      host.endsWith(".expo.dev") ||
+      origin.startsWith("https://");
+    if (!ok) return fallback;
+    return `${origin}/?wave_payment=1`;
+  } catch {
+    return fallback;
+  }
 }

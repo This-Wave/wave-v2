@@ -6,17 +6,20 @@ import type { ShopStackParamList } from "../../navigation/ShopNavigator";
 import {
   Empty,
   Gutter,
+  ListError,
+  ListSkeleton,
   PageTitle,
   Row,
   RowGroup,
   Screen,
   ScreenBody,
-  Skeleton,
   StatusPill,
 } from "../../components/v6";
 import { ShopSwitcher } from "../../components/shop/ShopSwitcher";
 import { useSelectedShop, useShopOrders } from "../../lib/shopOwner";
 import { useWave } from "../../lib/wave";
+import { useLayout } from "../../hooks/useLayout";
+import { openShopIncoming } from "../../lib/desktopNavigate";
 import { formatGhs } from "../../lib/pricing";
 
 function isToday(dateStr: string): boolean {
@@ -26,19 +29,14 @@ function isToday(dateStr: string): boolean {
 /**
  * The shop owner's morning screen: how today is going, and what needs a
  * decision right now.
- *
- * v5 put two stat cards side by side in boxes. The numbers now sit directly on
- * the canvas at display size — a stat in a bordered box reads as a widget, and
- * these two are the point of the screen.
  */
 export function ShopDashboardScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ShopStackParamList>>();
   const { shop, shops, selectShop, isLoading: shopLoading } = useSelectedShop();
-  const { data: allOrders, isLoading: ordersLoading } = useShopOrders();
+  const { data: allOrders, isLoading: ordersLoading, isError, refetch, isRefetching } = useShopOrders();
   const wave = useWave();
+  const { isDesktop } = useLayout();
 
-  // /orders/shop returns every order across every shop this owner holds, so the
-  // dashboard narrows to the one being viewed.
   const orders = useMemo(
     () => (shop ? allOrders?.filter((o) => o.shopId === shop.id) : allOrders),
     [allOrders, shop],
@@ -54,20 +52,39 @@ export function ShopDashboardScreen() {
 
   return (
     <Screen>
-      <ScreenBody bottomInset={24}>
-        <Gutter className="pb-6 pt-4">
+      <ScreenBody
+        bottomInset={24}
+        refreshing={isRefetching}
+        onRefresh={() => void refetch()}
+      >
+        <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-6 pt-4"}>
           <View className="mb-2 flex-row items-start justify-between">
             <View className="flex-1 pr-3">
-              <PageTitle>{shop?.name ?? "Your shop"}</PageTitle>
+              {isDesktop ? (
+                <>
+                  <Text className="font-sans-bold text-heading text-ink">
+                    {shop?.name ?? "Your shop"}
+                  </Text>
+                  <Text className="mt-1 font-sans text-ui text-muted">
+                    {wave
+                      ? `${wave.name} · closes in ${wave.countdown}. Accept what you can fulfil.`
+                      : "Today’s Wave and what needs a decision."}
+                  </Text>
+                </>
+              ) : (
+                <PageTitle>{shop?.name ?? "Your shop"}</PageTitle>
+              )}
             </View>
             <StatusPill
               label={shop?.isActive ? "Serving" : "Closed"}
               tone={shop?.isActive ? "done" : "neutral"}
             />
           </View>
-          <Text className="font-sans text-body text-muted">
-            {wave ? `${wave.name} · closes in ${wave.countdown}` : "Next Wave"}
-          </Text>
+          {!isDesktop ? (
+            <Text className="font-sans text-body text-muted">
+              {wave ? `${wave.name} · closes in ${wave.countdown}` : "Next Wave"}
+            </Text>
+          ) : null}
         </Gutter>
 
         {shops && shops.length > 1 ? (
@@ -76,25 +93,25 @@ export function ShopDashboardScreen() {
           </Gutter>
         ) : null}
 
-        <Gutter className="mb-section flex-row gap-8">
+        <Gutter className={`mb-section flex-row ${isDesktop ? "gap-16" : "gap-8"}`}>
           {isLoading ? (
-            <Skeleton height={64} radius={12} />
+            <ListSkeleton rows={1} />
           ) : (
             <>
               <View>
                 <Text className="font-sans text-body text-muted">Orders today</Text>
                 <Text
                   className="mt-1 font-sans-bold text-ink"
-                  style={{ fontSize: 40, lineHeight: 44 }}
+                  style={{ fontSize: isDesktop ? 48 : 40, lineHeight: isDesktop ? 52 : 44 }}
                 >
                   {todaysOrders.length}
                 </Text>
               </View>
               <View>
-                <Text className="font-sans text-body text-muted">Taken</Text>
+                <Text className="font-sans text-body text-muted">Order value today</Text>
                 <Text
                   className="mt-1 font-sans-bold text-ink"
-                  style={{ fontSize: 40, lineHeight: 44 }}
+                  style={{ fontSize: isDesktop ? 48 : 40, lineHeight: isDesktop ? 52 : 44 }}
                 >
                   {formatGhs(revenueToday)}
                 </Text>
@@ -104,7 +121,7 @@ export function ShopDashboardScreen() {
         </Gutter>
 
         <Gutter className="mb-3 flex-row items-center gap-2">
-          <Text className="font-sans-medium text-subheading text-ink">Needs you</Text>
+          <Text className="font-sans-medium text-heading-sm text-ink">Needs you</Text>
           {incoming.length > 0 ? (
             <StatusPill label={`${incoming.length}`} tone="active" />
           ) : null}
@@ -112,15 +129,11 @@ export function ShopDashboardScreen() {
 
         <Gutter>
           {isLoading ? (
-            <View className="gap-2">
-              <Skeleton height={64} radius={12} />
-              <Skeleton height={64} radius={12} />
-            </View>
+            <ListSkeleton rows={2} />
+          ) : isError ? (
+            <ListError onRetry={() => void refetch()} />
           ) : incoming.length === 0 ? (
-            <Empty
-              title="All clear"
-              body="Paid orders waiting on you will appear here."
-            />
+            <Empty title="All clear" body="Paid orders waiting on you will appear here." />
           ) : (
             <RowGroup>
               {incoming.map((order) => (
@@ -133,9 +146,7 @@ export function ShopDashboardScreen() {
                       {formatGhs(Number(order.totalAmount))}
                     </Text>
                   }
-                  onPress={() =>
-                    navigation.navigate("IncomingOrderDetail", { orderId: order.id })
-                  }
+                  onPress={() => openShopIncoming(navigation, order.id)}
                 />
               ))}
             </RowGroup>

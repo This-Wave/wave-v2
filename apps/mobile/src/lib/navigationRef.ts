@@ -1,4 +1,6 @@
 import { createNavigationContainerRef } from "@react-navigation/native";
+import { layout } from "../theme/layout";
+import { useDesktopPanelStore } from "../store/desktopPanelStore";
 
 /**
  * The routes reachable from outside the tree, across all three role stacks.
@@ -35,6 +37,11 @@ export function openOrder(orderId: string, role: "student" | "rider" | "other") 
     return;
   }
   if (role === "student") {
+    const min = Math.max(layout.desktopLayoutAt, layout.sidebarWidth + 360);
+    if (typeof window !== "undefined" && window.innerWidth >= min) {
+      useDesktopPanelStore.getState().openPanel({ type: "orderTracking", orderId });
+      return;
+    }
     navigationRef.navigate("OrderTracking", { orderId });
   }
   // Shop owners have no per-order tracking screen; the dashboard already lists

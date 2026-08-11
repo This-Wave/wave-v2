@@ -21,7 +21,12 @@ import { clientSafeOrder, feedOrder } from "../select";
 describe("rider feed privacy", () => {
   function harness(findMany: ReturnType<typeof vi.fn>) {
     return buildTestApp(orderRoutes, {
-      prisma: { order: { findMany } },
+      prisma: {
+        order: { findMany },
+        profile: {
+          findUnique: vi.fn().mockResolvedValue({ isVerified: true, universityId: "uni-1" }),
+        },
+      },
       user: { id: "rider-1", role: "rider" },
     });
   }
@@ -58,6 +63,17 @@ describe("rider feed privacy", () => {
     await app.close();
   });
 
+  it("scopes unclaimed orders to the rider's campus", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const app = await harness(findMany);
+
+    await app.inject({ method: "GET", url: "/available" });
+
+    const where = (findMany.mock.calls[0]![0] as { where: Record<string, unknown> }).where;
+    expect(where).toMatchObject({ universityId: "uni-1", status: "confirmed", riderId: null });
+    await app.close();
+  });
+
   it("uses feedOrder, not clientSafeOrder", async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const app = await harness(findMany);
@@ -79,8 +95,10 @@ describe("rider feed privacy", () => {
     await app.close();
   });
 
-  it("neither select ever exposes the delivery PIN hash", () => {
+  it("neither select ever exposes the delivery PIN hash or ciphertext", () => {
     expect(feedOrder).not.toHaveProperty("deliveryPinHash");
+    expect(feedOrder).not.toHaveProperty("deliveryPinCiphertext");
     expect(clientSafeOrder).not.toHaveProperty("deliveryPinHash");
+    expect(clientSafeOrder).not.toHaveProperty("deliveryPinCiphertext");
   });
 });

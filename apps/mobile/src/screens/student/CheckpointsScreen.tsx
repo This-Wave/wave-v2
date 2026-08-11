@@ -11,15 +11,20 @@ import {
 } from "../../components/v6";
 import { useCheckpoints } from "../../lib/checkpoints";
 import { useAuthStore } from "../../store/authStore";
+import { useLayout } from "../../hooks/useLayout";
+import { StudentCheckpointsWeb } from "./web/StudentCheckpointsWeb";
 
 /**
  * The campus drop-off points, read-only.
- *
- * Students pick a checkpoint per order, so there is no "default" to set here —
- * nothing in the schema stores one. This exists so a student can see where
- * deliveries actually land before they are standing in the wrong quad.
+ * Web uses a card grid; native keeps the phone list.
  */
 export function CheckpointsScreen() {
+  const { isDesktop } = useLayout();
+  if (isDesktop) return <StudentCheckpointsWeb />;
+  return <CheckpointsMobile />;
+}
+
+function CheckpointsMobile() {
   const universityId = useAuthStore((s) => s.profile?.universityId);
   const { data: checkpoints, isLoading, isError } = useCheckpoints(universityId ?? undefined);
 

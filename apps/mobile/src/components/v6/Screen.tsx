@@ -1,42 +1,97 @@
-import { SafeAreaView, ScrollView, View } from "react-native";
+import { SafeAreaView, ScrollView, View, RefreshControl } from "react-native";
 import type { ReactNode } from "react";
+import { useLayout } from "../../hooks/useLayout";
+import { layout } from "../../theme/layout";
 
 /**
  * Every v6 screen sits on the canvas (#f7f7f7), never on white. White is a
  * *card* colour — the value step between the two is what separates content in
  * this system, so a white screen background would flatten every card on it.
+ *
+ * On wide desktop, `narrow` caps checkout stacks. Phone + responsive web stay
+ * full-bleed.
  */
-export function Screen({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <SafeAreaView className={`flex-1 bg-canvas ${className}`}>{children}</SafeAreaView>;
+export function Screen({
+  children,
+  className = "",
+  narrow = false,
+}: {
+  children: ReactNode;
+  className?: string;
+  /** Cap width on desktop for form / payment stacks. */
+  narrow?: boolean;
+}) {
+  const { isDesktop } = useLayout();
+  const frame =
+    narrow && isDesktop ? (
+      <View
+        style={{
+          flex: 1,
+          width: "100%",
+          maxWidth: layout.narrowMaxWidth,
+          alignSelf: "center",
+        }}
+      >
+        {children}
+      </View>
+    ) : (
+      children
+    );
+
+  return <SafeAreaView className={`flex-1 bg-canvas ${className}`}>{frame}</SafeAreaView>;
 }
 
 /**
- * Scrolling body with the standard 24px gutter. `bottomInset` clears the tab
+ * Scrolling body with the standard gutter. `bottomInset` clears the tab
  * bar or a docked action bar.
  */
 export function ScreenBody({
   children,
   bottomInset = 24,
   className = "",
+  refreshing,
+  onRefresh,
 }: {
   children: ReactNode;
   bottomInset?: number;
   className?: string;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  /** @deprecated Prefer `<Screen narrow>` so the header stays aligned. */
+  narrow?: boolean;
 }) {
   return (
     <ScrollView
       className={`flex-1 ${className}`}
-      contentContainerStyle={{ paddingBottom: bottomInset }}
+      contentContainerStyle={{ paddingBottom: bottomInset, flexGrow: 1 }}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl refreshing={refreshing ?? false} onRefresh={onRefresh} />
+        ) : undefined
+      }
     >
       {children}
     </ScrollView>
   );
 }
 
-/** Horizontal gutter wrapper — 24px, the one screen-edge padding in the system. */
-export function Gutter({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <View className={`px-gutter ${className}`}>{children}</View>;
+/** Horizontal gutter — 24px on phone, 40px on wide web. */
+export function Gutter({
+  children,
+  className = "",
+  style,
+}: {
+  children: ReactNode;
+  className?: string;
+  style?: object;
+}) {
+  const { gutter } = useLayout();
+  return (
+    <View className={className} style={[{ paddingHorizontal: gutter }, style]}>
+      {children}
+    </View>
+  );
 }
 
 /**
@@ -45,5 +100,13 @@ export function Gutter({ children, className = "" }: { children: ReactNode; clas
  * for floating elements only.
  */
 export function ActionBar({ children }: { children: ReactNode }) {
-  return <View className="border-t border-hairline bg-canvas px-gutter pb-8 pt-4">{children}</View>;
+  const { gutter } = useLayout();
+  return (
+    <View
+      className="border-t border-hairline bg-canvas pb-8 pt-4"
+      style={{ paddingHorizontal: gutter }}
+    >
+      {children}
+    </View>
+  );
 }

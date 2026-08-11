@@ -6,12 +6,14 @@ import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
   ActionBar,
   Button,
+  CheckoutProgress,
   Gutter,
   Row,
   RowGroup,
   Screen,
   ScreenBody,
   TopBar,
+  WaveContextBanner,
 } from "../../components/v6";
 import { useCompletedDeliveryCount, useCreateOrder } from "../../lib/orders";
 import {
@@ -76,7 +78,7 @@ export function OrderSummaryScreen() {
         isSpecialOrder: params.isSpecialOrder,
         notes: params.notes,
       });
-      navigation.navigate("Payment", {
+      navigation.replace("Payment", {
         orderId: order.id,
         totalAmount: Number(order.totalAmount),
       });
@@ -90,11 +92,17 @@ export function OrderSummaryScreen() {
   }
 
   return (
-    <Screen>
+    <Screen narrow>
       <TopBar onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>
         <Gutter>
+          <CheckoutProgress step={2} />
+          <WaveContextBanner
+            scheduledDate={params.scheduledDate}
+            checkpointName={params.checkpointName}
+            isSpecialOrder={params.isSpecialOrder}
+          />
           <Text className="mb-8 font-sans-bold text-heading text-ink">Check this over</Text>
 
           <Text className="mb-2 font-sans-medium text-body text-ink">Your list</Text>

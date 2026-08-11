@@ -22,6 +22,7 @@ import { buildOrderLedger } from "../../lib/ledger";
 import { currentStepIndex, orderSteps, shortOrderRef, statusPill } from "./orderPresenters";
 import { describeWave } from "../../lib/wave";
 import { isStandardRunDay } from "../../lib/pricing";
+import { resetToShopMenu } from "../../lib/navigationFlows";
 
 type Route = RouteProp<StudentStackParamList, "OrderDetail">;
 
@@ -50,7 +51,7 @@ export function OrderDetailScreen() {
 
   if (!order) {
     return (
-      <Screen>
+      <Screen narrow>
         <TopBar onBack={() => navigation.goBack()} />
       </Screen>
     );
@@ -122,7 +123,7 @@ export function OrderDetailScreen() {
           <Button
             label="Order from here again"
             onPress={() =>
-              navigation.navigate("ShopMenu", {
+              resetToShopMenu(navigation, {
                 shopId: order.shop!.id,
                 shopName: order.shop!.name,
                 scheduledDate: nextWaveDate.scheduledDate,

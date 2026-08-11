@@ -13,6 +13,7 @@ import {
   StatusPill,
 } from "../../components/v6";
 import { useRiderEarnings } from "../../lib/rider";
+import { useLayout } from "../../hooks/useLayout";
 import { formatGhs } from "../../lib/pricing";
 
 type RangeKey = "today" | "week" | "all";
@@ -36,6 +37,7 @@ function isSameWeek(a: Date, b: Date) {
 export function EarningsScreen() {
   const [range, setRange] = useState<RangeKey>("today");
   const { data: earnings, isLoading } = useRiderEarnings();
+  const { isDesktop } = useLayout();
 
   const filtered = useMemo(() => {
     if (!earnings) return [];
@@ -59,25 +61,49 @@ export function EarningsScreen() {
   return (
     <Screen>
       <ScreenBody bottomInset={24}>
-        <Gutter className="pb-6 pt-4">
-          <PageTitle>Earnings</PageTitle>
+        <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-6 pt-4"}>
+          {isDesktop ? (
+            <>
+              <Text className="font-sans-bold text-heading text-ink">Earnings</Text>
+              <Text className="mt-1 font-sans text-ui text-muted">
+                What you’ve earned from closed deliveries.
+              </Text>
+            </>
+          ) : (
+            <PageTitle>Earnings</PageTitle>
+          )}
         </Gutter>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
-          className="mb-6 grow-0"
-        >
-          {RANGES.map((r) => (
-            <Chip
-              key={r.key}
-              label={r.label}
-              selected={range === r.key}
-              onPress={() => setRange(r.key)}
-            />
-          ))}
-        </ScrollView>
+        {isDesktop ? (
+          <Gutter className="mb-6">
+            <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+              {RANGES.map((r) => (
+                <Chip
+                  key={r.key}
+                  label={r.label}
+                  selected={range === r.key}
+                  onPress={() => setRange(r.key)}
+                />
+              ))}
+            </View>
+          </Gutter>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
+            className="mb-6 grow-0"
+          >
+            {RANGES.map((r) => (
+              <Chip
+                key={r.key}
+                label={r.label}
+                selected={range === r.key}
+                onPress={() => setRange(r.key)}
+              />
+            ))}
+          </ScrollView>
+        )}
 
         <Gutter className="mb-8">
           {isLoading ? (

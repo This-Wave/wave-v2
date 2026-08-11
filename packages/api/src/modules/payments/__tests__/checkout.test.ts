@@ -29,6 +29,13 @@ const ownOrder = {
   id: "order-1",
   studentId: "student-1",
   totalAmount: "40.00",
+  paystackRef: null,
+  status: "payment_pending",
+  paidAt: null,
+};
+
+const paidOrder = {
+  ...ownOrder,
   paystackRef: "WAVE-order-1-123",
   status: "confirmed",
   paidAt: new Date("2026-08-03T10:00:00Z"),
@@ -82,11 +89,19 @@ describe("POST /payments/initiate — channel selection", () => {
     expect(res.statusCode).toBe(403);
     expect(initiatePaystackPayment).not.toHaveBeenCalled();
   });
+
+  test("a student cannot re-initiate payment on an already-paid order", async () => {
+    const app = await buildTestApp(paymentRoutes, { prisma: makePrisma(paidOrder), user: STUDENT });
+    const res = await app.inject({ method: "POST", url: "/initiate", payload: { orderId: "order-1" } });
+
+    expect(res.statusCode).toBe(409);
+    expect(initiatePaystackPayment).not.toHaveBeenCalled();
+  });
 });
 
 describe("GET /payments/verify/:ref — ownership", () => {
   test("the owner sees the payment status", async () => {
-    const app = await buildTestApp(paymentRoutes, { prisma: makePrisma(ownOrder), user: STUDENT });
+    const app = await buildTestApp(paymentRoutes, { prisma: makePrisma(paidOrder), user: STUDENT });
     const res = await app.inject({ method: "GET", url: "/verify/WAVE-order-1-123" });
 
     expect(res.statusCode).toBe(200);
@@ -96,7 +111,7 @@ describe("GET /payments/verify/:ref — ownership", () => {
   test("another user gets 404, not the status", async () => {
     // Previously this route looked the order up by reference with no ownership
     // check at all, so any authenticated user could read any order's status.
-    const prisma = makePrisma({ ...ownOrder, studentId: "someone-else" });
+    const prisma = makePrisma({ ...paidOrder, studentId: "someone-else" });
     const app = await buildTestApp(paymentRoutes, { prisma, user: STUDENT });
     const res = await app.inject({ method: "GET", url: "/verify/WAVE-order-1-123" });
 
@@ -126,7 +141,7 @@ describe("GET /payments/callback", () => {
 
   test("is inert — it reads no order and confirms nothing", async () => {
     // Anyone can visit a redirect URL. Only the signed webhook may confirm.
-    const prisma = makePrisma(ownOrder);
+    const prisma = makePrisma(paidOrder);
     const app = await buildTestApp(paymentRoutes, { prisma, user: null });
     await app.inject({ method: "GET", url: "/callback" });
 

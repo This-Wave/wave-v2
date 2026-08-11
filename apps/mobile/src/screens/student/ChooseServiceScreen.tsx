@@ -26,7 +26,7 @@ export function ChooseServiceScreen() {
   const date = new Date(params.scheduledDate);
 
   return (
-    <Screen>
+    <Screen narrow>
       <TopBar onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={32}>

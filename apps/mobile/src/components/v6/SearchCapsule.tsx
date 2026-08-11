@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { SearchIcon } from "../icons";
 import { colors, shadowFloating } from "../../theme/tokens";
+import { useLayout } from "../../hooks/useLayout";
 
 /**
  * The hero of the home screen.
@@ -31,9 +32,13 @@ export function SearchCapsule({
   onPressWave?: () => void;
   onSubmit?: () => void;
 }) {
+  const { isDesktop } = useLayout();
   return (
     <View
-      style={shadowFloating}
+      style={[
+        shadowFloating,
+        isDesktop ? { width: "100%", alignSelf: "stretch" } : undefined,
+      ]}
       className="h-16 flex-row items-center rounded-pill bg-surface pl-5 pr-2"
     >
       <Pressable onPress={onPressQuery} className="flex-1 justify-center" accessibilityRole="search">

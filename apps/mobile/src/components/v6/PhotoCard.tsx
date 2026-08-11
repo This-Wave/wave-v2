@@ -1,5 +1,6 @@
 import { Image, Pressable, Text, View } from "react-native";
 import type { ReactNode } from "react";
+import { useLayout } from "../../hooks/useLayout";
 
 /**
  * The repeating content card — the workhorse of the whole redesign.
@@ -87,8 +88,29 @@ export function PhotoCard({
  * continuing — that is what invites the swipe.
  */
 export function CardRail({ children }: { children: ReactNode }) {
+  const { gutter } = useLayout();
   return (
-    <View className="flex-row gap-3 px-gutter" style={{ paddingRight: 8 }}>
+    <View className="flex-row gap-3" style={{ paddingLeft: gutter, paddingRight: 8 }}>
+      {children}
+    </View>
+  );
+}
+
+/**
+ * Wrapping shop grid for wide web — same PhotoCards as the rail, but columns
+ * instead of a horizontal scroll so desktop doesn't look like a stretched phone.
+ */
+export function CardGrid({ children }: { children: ReactNode }) {
+  const { gutter, isDesktop } = useLayout();
+  return (
+    <View
+      className="flex-row flex-wrap"
+      style={{
+        paddingHorizontal: gutter,
+        gap: isDesktop ? 16 : 12,
+        rowGap: isDesktop ? 28 : 24,
+      }}
+    >
       {children}
     </View>
   );

@@ -13,6 +13,23 @@ export function useMyOrders() {
   });
 }
 
+/** Student cancels their own order (refund when already paid). */
+export function useCancelOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ orderId, reason }: { orderId: string; reason: string }) => {
+      const { data } = await api.patch<{ order: Order; refundIssued: boolean }>(
+        `/orders/${orderId}/cancel`,
+        { reason },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+  });
+}
+
 export function useOrder(orderId: string | undefined, options?: { poll?: boolean }) {
   return useQuery({
     queryKey: ["orders", orderId],
@@ -39,21 +56,41 @@ export function useCreateOrder() {
 }
 
 /**
- * Re-sends the delivery PIN by SMS.
- *
- * This is the only recovery path for a lost PIN: the plaintext is never stored
- * — the server keeps a bcrypt hash and texts the digits once — so there is
- * nothing for the app to re-read. The endpoint has existed since Phase 3 and
- * had no caller anywhere in the app until the v6 pickup screen.
- *
- * The server throttles to one send per order per 60s and answers 429 with a
- * human-readable wait, which the screen surfaces verbatim.
+ * Fetches the student's delivery PIN for in-app display.
+ * Server keeps a bcrypt hash for rider verify + an encrypted copy for this.
+ */
+export function useDeliveryPin(orderId: string | undefined, options?: { pollUntilReady?: boolean }) {
+  return useQuery({
+    queryKey: ["orders", orderId, "delivery-pin"],
+    queryFn: async () => {
+      const { data } = await api.get<{ pin: string }>(`/orders/${orderId}/delivery-pin`);
+      return data.pin;
+    },
+    enabled: !!orderId,
+    staleTime: 60_000,
+    // Right after pay, webhook may still be confirming — retry briefly.
+    retry: options?.pollUntilReady ? 5 : 1,
+    retryDelay: 1500,
+    refetchInterval: (query) =>
+      options?.pollUntilReady && !query.state.data ? 2000 : false,
+  });
+}
+
+/**
+ * Re-issues the delivery PIN, texts it, and returns the digits so the screen
+ * can refresh. Throttled to one SMS per order per 60s (429 with wait copy).
  */
 export function useResendPin() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (orderId: string) => {
-      const { data } = await api.post<{ sent: boolean }>(`/orders/${orderId}/resend-pin`);
+      const { data } = await api.post<{ sent: boolean; pin: string }>(
+        `/orders/${orderId}/resend-pin`,
+      );
       return data;
+    },
+    onSuccess: (data, orderId) => {
+      queryClient.setQueryData(["orders", orderId, "delivery-pin"], data.pin);
     },
   });
 }

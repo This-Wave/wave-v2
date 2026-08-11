@@ -2,6 +2,7 @@ import { Image, Pressable, Text, View } from "react-native";
 import { Children, type ReactNode } from "react";
 import { ChevronRightIcon } from "../icons";
 import { colors } from "../../theme/tokens";
+import { useLayout } from "../../hooks/useLayout";
 
 /**
  * A list row. White card on canvas, 12px radius, no border. Rows in a group are
@@ -58,7 +59,40 @@ export function Row({
 export function RowGroup({ children }: { children: ReactNode }) {
   const real = Children.toArray(children).filter(Boolean);
   if (real.length === 0) return null;
-  return <View className="gap-1">{real}</View>;
+  // Inline gap — NativeWind `gap-*` is unreliable on RN Web, so cards were flush.
+  return <View style={{ gap: 8 }}>{real}</View>;
+}
+
+/** Distinct from empty — a failed fetch with retry. */
+export function ListError({ message, onRetry }: { message?: string; onRetry: () => void }) {
+  const { gutter } = useLayout();
+  return (
+    <View className="rounded-card bg-surface p-5" style={{ marginHorizontal: gutter }}>
+      <Text className="mb-1 font-sans-medium text-body text-ink">Couldn&apos;t load</Text>
+      <Text className="mb-4 font-sans text-body text-muted">
+        {message ?? "Check your connection and try again."}
+      </Text>
+      <Pressable
+        onPress={onRetry}
+        accessibilityRole="button"
+        className="self-start rounded-pill bg-lime px-4 py-2.5 active:bg-lime-600"
+      >
+        <Text className="font-sans-medium text-body text-ink">Retry</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+/** Skeleton rows for list loading states. */
+export function ListSkeleton({ rows = 3, height = 64 }: { rows?: number; height?: number }) {
+  const { gutter } = useLayout();
+  return (
+    <View style={{ gap: 8, paddingHorizontal: gutter }}>
+      {Array.from({ length: rows }, (_, i) => (
+        <View key={i} className="rounded-card bg-surface p-4" style={{ height }} />
+      ))}
+    </View>
+  );
 }
 
 /** Square thumbnail for a row's leading slot. */
@@ -87,8 +121,9 @@ export function Empty({
   body?: string;
   action?: ReactNode;
 }) {
+  const { gutter } = useLayout();
   return (
-    <View className="items-center px-gutter py-16">
+    <View className="items-center py-16" style={{ paddingHorizontal: gutter }}>
       <Text className="mb-1 text-center font-sans-medium text-ui text-ink">{title}</Text>
       {body ? (
         <Text className="mb-6 text-center font-sans text-body text-muted">{body}</Text>

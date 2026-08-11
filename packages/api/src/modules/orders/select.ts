@@ -13,7 +13,7 @@
 // how `GET /orders/available` came to serve every waiting student's full name,
 // phone number and student ID to every rider on campus.
 
-/** Columns on the order row itself. Never includes `deliveryPinHash`. */
+/** Columns on the order row itself. Never includes PIN hash or ciphertext. */
 const orderScalars = {
   id: true,
   orderType: true,

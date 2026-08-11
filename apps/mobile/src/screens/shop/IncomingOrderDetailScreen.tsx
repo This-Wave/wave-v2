@@ -15,6 +15,7 @@ import {
 import { useOrder } from "../../lib/orders";
 import { useShopAcceptOrder, useShopCancelOrder } from "../../lib/shopOwner";
 import { formatGhs } from "../../lib/pricing";
+import { showToast } from "../../store/toastStore";
 
 type Route = RouteProp<ShopStackParamList, "IncomingOrderDetail">;
 
@@ -34,6 +35,7 @@ export function IncomingOrderDetailScreen() {
 
   async function handleAccept() {
     await acceptOrder.mutateAsync(params.orderId);
+    showToast("Order accepted.", "success");
     navigation.goBack();
   }
 
@@ -42,11 +44,12 @@ export function IncomingOrderDetailScreen() {
       orderId: params.orderId,
       reason: "Unable to fulfill this order",
     });
+    showToast("Order rejected. Student will be refunded.", "success");
     navigation.goBack();
   }
 
   return (
-    <Screen>
+    <Screen narrow>
       <TopBar onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>

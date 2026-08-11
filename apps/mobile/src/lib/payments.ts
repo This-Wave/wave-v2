@@ -12,10 +12,20 @@ export function useInitiatePayment() {
   return useMutation({
     // The method is forwarded so Paystack opens on the channel the student
     // already chose, rather than asking them to pick a second time.
-    mutationFn: async ({ orderId, method }: { orderId: string; method: PaymentMethod }) => {
+    // `returnOrigin` (web) makes Paystack send the student back to this tab.
+    mutationFn: async ({
+      orderId,
+      method,
+      returnOrigin,
+    }: {
+      orderId: string;
+      method: PaymentMethod;
+      returnOrigin?: string;
+    }) => {
       const { data } = await api.post<InitiatePaymentResponse>("/payments/initiate", {
         orderId,
         method,
+        returnOrigin,
       });
       return data;
     },

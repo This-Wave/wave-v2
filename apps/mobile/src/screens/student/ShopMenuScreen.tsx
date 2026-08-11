@@ -6,19 +6,23 @@ import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
   ActionBar,
   Button,
+  CheckoutProgress,
   Chip,
   Empty,
   Field,
   Gutter,
+  ListError,
+  ListSkeleton,
   Screen,
   ScreenBody,
-  Skeleton,
   TopBar,
+  WaveContextBanner,
 } from "../../components/v6";
 import { MinusIcon, PlusIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useShopProducts } from "../../lib/products";
 import { formatGhs } from "../../lib/pricing";
+import { useLayout } from "../../hooks/useLayout";
 import { MAX_ITEM_QUANTITY, MAX_ORDER_ITEMS } from "@wave/shared";
 import type { Product } from "../../types";
 
@@ -43,7 +47,8 @@ type Route = RouteProp<StudentStackParamList, "ShopMenu">;
 export function ShopMenuScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
-  const { data: products, isLoading } = useShopProducts(params.shopId);
+  const { isDesktop, gutter } = useLayout();
+  const { data: products, isLoading, isError, refetch } = useShopProducts(params.shopId);
 
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [note, setNote] = useState("");
@@ -98,61 +103,87 @@ export function ShopMenuScreen() {
 
       <ScreenBody bottomInset={chosen.length > 0 ? 150 : 32}>
         <Gutter>
+          <CheckoutProgress step={1} />
+          <WaveContextBanner
+            scheduledDate={params.scheduledDate}
+            isSpecialOrder={params.isSpecialOrder}
+          />
           <Text className="mb-1 font-sans-bold text-heading text-ink">{params.shopName}</Text>
           <Text className="mb-6 font-sans text-body text-muted">
-            Tap to add what you want. We buy exactly this.
+            {isDesktop
+              ? "Add items from the menu. We buy exactly this list."
+              : "Tap to add what you want. We buy exactly this."}
           </Text>
         </Gutter>
 
         {categories.length > 0 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
-            className="mb-5 grow-0"
-          >
-            <Chip label="All" selected={category === null} onPress={() => setCategory(null)} />
-            {categories.map((c) => (
-              <Chip
-                key={c}
-                label={c.charAt(0).toUpperCase() + c.slice(1)}
-                selected={category === c}
-                onPress={() => setCategory(c)}
-              />
-            ))}
-          </ScrollView>
+          isDesktop ? (
+            <Gutter className="mb-5">
+              <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+                <Chip label="All" selected={category === null} onPress={() => setCategory(null)} />
+                {categories.map((c) => (
+                  <Chip
+                    key={c}
+                    label={c.charAt(0).toUpperCase() + c.slice(1)}
+                    selected={category === c}
+                    onPress={() => setCategory(c)}
+                  />
+                ))}
+              </View>
+            </Gutter>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: gutter, gap: 8 }}
+              className="mb-5 grow-0"
+            >
+              <Chip label="All" selected={category === null} onPress={() => setCategory(null)} />
+              {categories.map((c) => (
+                <Chip
+                  key={c}
+                  label={c.charAt(0).toUpperCase() + c.slice(1)}
+                  selected={category === c}
+                  onPress={() => setCategory(c)}
+                />
+              ))}
+            </ScrollView>
+          )
         ) : null}
 
         <Gutter>
           {isLoading ? (
-            <View className="gap-3">
-              <Skeleton height={72} radius={12} />
-              <Skeleton height={72} radius={12} />
-              <Skeleton height={72} radius={12} />
-            </View>
+            <ListSkeleton rows={3} />
+          ) : isError ? (
+            <ListError onRetry={() => void refetch()} />
           ) : visible.length === 0 ? (
             <Empty
               title="Nothing on the menu yet"
               body="This shop hasn't listed anything Wave can buy. Try another shop."
             />
           ) : (
-            <View className="gap-2">
+            <View
+              className={isDesktop ? "flex-row flex-wrap" : "gap-2"}
+              style={isDesktop ? { gap: 12 } : undefined}
+            >
               {visible.map((product) => (
-                <MenuRow
+                <View
                   key={product.id}
-                  product={product}
-                  quantity={quantities[product.id] ?? 0}
-                  // A brand-new line is blocked at the cap; an existing one can
-                  // still be adjusted, so a full basket never becomes read-only.
-                  canAdd={!atItemLimit || !!quantities[product.id]}
-                  onChange={(next) => setQuantity(product.id, next)}
-                />
+                  style={isDesktop ? { width: "48%" } : undefined}
+                >
+                  <MenuRow
+                    product={product}
+                    quantity={quantities[product.id] ?? 0}
+                    canAdd={!atItemLimit || !!quantities[product.id]}
+                    onChange={(next) => setQuantity(product.id, next)}
+                  />
+                </View>
               ))}
             </View>
           )}
 
           {chosen.length > 0 ? (
-            <View className="mt-8">
+            <View className="mt-8" style={isDesktop ? { maxWidth: 520 } : undefined}>
               <Field
                 label="Anything else your runner should know?"
                 value={note}

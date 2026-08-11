@@ -22,7 +22,7 @@ export function CutoffPassedScreen() {
   const nextRun = useMemo(() => upcomingRunDays(new Date(), 1)[0], []);
 
   return (
-    <Screen>
+    <Screen narrow>
       <TopBar onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>

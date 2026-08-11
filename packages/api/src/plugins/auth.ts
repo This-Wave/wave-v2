@@ -32,10 +32,13 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
 
       const profile = await fastify.prisma.profile.findUnique({
         where: { id: data.user.id },
-        select: { id: true, role: true },
+        select: { id: true, role: true, isActive: true },
       });
       if (!profile) {
         return reply.code(401).send({ error: "No profile for authenticated user" });
+      }
+      if (!profile.isActive) {
+        return reply.code(403).send({ error: "Account deactivated" });
       }
 
       request.user = { id: profile.id, role: profile.role as Role };

@@ -28,12 +28,16 @@ function sign(body: string): string {
   return crypto.createHmac("sha512", TEST_PAYSTACK_SECRET).update(body).digest("hex");
 }
 
-const PAID_EVENT = { event: "charge.success", data: { reference: "WAVE-order-1-123", status: "success" } };
+const PAID_EVENT = {
+  event: "charge.success",
+  data: { reference: "WAVE-order-1-123", status: "success", amount: 4000, currency: "GHS" },
+};
 
 function makeOrder(overrides: Record<string, unknown> = {}) {
   return {
     id: "order-1",
     universityId: "uni-1",
+    totalAmount: "40.00",
     paidAt: null,
     deliveryPinHash: null,
     student: { phone: "+233241234567" },
@@ -43,9 +47,17 @@ function makeOrder(overrides: Record<string, unknown> = {}) {
 }
 
 function makePrisma(order: unknown) {
+  const fullOrder = typeof order === "object" && order !== null ? { ...makeOrder(), ...order } : makeOrder();
   return {
     order: {
-      findUnique: vi.fn().mockResolvedValue(order),
+      findUnique: vi.fn(async (args: { where: Record<string, unknown> }) => {
+        if ("goodsPaystackRef" in args.where) return null;
+        if ("paystackRef" in args.where) {
+          return order === null ? null : { id: fullOrder.id, totalAmount: fullOrder.totalAmount };
+        }
+        if ("id" in args.where) return order === null ? null : fullOrder;
+        return order;
+      }),
       update: vi.fn().mockResolvedValue({}),
     },
   };
@@ -145,6 +157,20 @@ describe("POST /payments/webhook — event handling", () => {
     expect(issueDeliveryPin).not.toHaveBeenCalled();
   });
 
+  test("rejects a webhook whose amount does not match the order total", async () => {
+    const prisma = makePrisma(makeOrder());
+    const app = await buildTestApp(paymentRoutes, { prisma });
+    const tampered = {
+      ...PAID_EVENT,
+      data: { ...PAID_EVENT.data, amount: 100, currency: "GHS" },
+    };
+
+    const res = await post(app, tampered, sign(JSON.stringify(tampered)));
+
+    expect(res.statusCode).toBe(400);
+    expect(issueDeliveryPin).not.toHaveBeenCalled();
+  });
+
   test("a retry of an already-confirmed order does not re-issue the PIN", async () => {
     // Paystack retries until it gets a 2xx. Re-issuing would overwrite the hash
     // and invalidate the PIN already texted to the student.
@@ -176,7 +202,7 @@ describe("POST /payments/webhook — event handling", () => {
   test("still returns 2xx when the PIN SMS could not be sent", async () => {
     // A non-2xx makes Paystack retry, and the idempotency guard would then
     // strand the retry as a no-op — leaving the order paid but unconfirmed.
-    issueDeliveryPin.mockResolvedValue({ smsSent: false });
+    issueDeliveryPin.mockResolvedValue({ smsSent: false, pin: "123456" });
     const prisma = makePrisma(makeOrder());
     const app = await buildTestApp(paymentRoutes, { prisma });
 
@@ -185,20 +211,30 @@ describe("POST /payments/webhook — event handling", () => {
     expect(res.statusCode).toBe(200);
   });
 
-  test("persists the PIN hash and never the plaintext", async () => {
+  test("persists the PIN hash + ciphertext and never the plaintext", async () => {
     const prisma = makePrisma(makeOrder());
     // Run the callback the route hands to issueDeliveryPin, which is the only
-    // thing that writes the hash.
-    issueDeliveryPin.mockImplementation(async ({ persistHash }: { persistHash: (h: string) => Promise<void> }) => {
-      await persistHash("$2b$10$hashedvalue");
-      return { smsSent: true };
-    });
+    // thing that writes the secrets.
+    issueDeliveryPin.mockImplementation(
+      async ({
+        persist,
+      }: {
+        persist: (s: { hash: string; ciphertext: string }) => Promise<void>;
+      }) => {
+        await persist({ hash: "$2b$10$hashedvalue", ciphertext: "cipher-blob" });
+        return { smsSent: true, pin: "123456" };
+      },
+    );
     const app = await buildTestApp(paymentRoutes, { prisma });
 
     await post(app, PAID_EVENT, sign(JSON.stringify(PAID_EVENT)));
 
     const written = prisma.order.update.mock.calls[0]?.[0]?.data;
-    expect(written).toMatchObject({ status: "confirmed", deliveryPinHash: "$2b$10$hashedvalue" });
+    expect(written).toMatchObject({
+      status: "confirmed",
+      deliveryPinHash: "$2b$10$hashedvalue",
+      deliveryPinCiphertext: "cipher-blob",
+    });
     expect(JSON.stringify(written)).not.toMatch(/\b\d{6}\b/);
   });
 });

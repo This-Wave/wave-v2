@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { NavigationContainer } from "@react-navigation/native";
 import { QueryClientProvider } from "@tanstack/react-query";
 import * as SplashScreen from "expo-splash-screen";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
 import {
   DMSans_400Regular,
@@ -13,9 +14,11 @@ import {
 } from "@expo-google-fonts/dm-sans";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { navigationRef } from "./src/lib/navigationRef";
+import { PaymentReturnListener } from "./src/components/PaymentReturnListener";
 import { AuthProvider } from "./src/providers/AuthProvider";
 import { NotificationProvider } from "./src/providers/NotificationProvider";
 import { queryClient } from "./src/lib/queryClient";
+import { ToastHost } from "./src/components/v6";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -45,14 +48,18 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <NotificationProvider>
-          <NavigationContainer ref={navigationRef}>
-            <RootNavigator />
-            <StatusBar style="dark" />
-          </NavigationContainer>
-        </NotificationProvider>
-      </AuthProvider>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <NotificationProvider>
+            <NavigationContainer ref={navigationRef}>
+              <RootNavigator />
+              <PaymentReturnListener />
+              <ToastHost />
+              <StatusBar style="dark" />
+            </NavigationContainer>
+          </NotificationProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
     </QueryClientProvider>
   );
 }

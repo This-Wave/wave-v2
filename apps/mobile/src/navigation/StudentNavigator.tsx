@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import type { NavigatorScreenParams } from "@react-navigation/native";
+import { AppWebShell } from "../components/v6";
 import { StudentTabNavigator, type StudentTabParamList } from "./StudentTabNavigator";
 import { WaveCalendarScreen } from "../screens/student/WaveCalendarScreen";
 import { ChooseServiceScreen } from "../screens/student/ChooseServiceScreen";
@@ -19,6 +20,7 @@ import { OrderDetailScreen } from "../screens/student/OrderDetailScreen";
 import { PickupPinScreen } from "../screens/student/PickupPinScreen";
 import { CutoffPassedScreen } from "../screens/student/CutoffPassedScreen";
 import { PaymentFailedScreen } from "../screens/student/PaymentFailedScreen";
+import { PaymentReturnScreen } from "../screens/student/PaymentReturnScreen";
 
 /**
  * A chosen basket line, as it travels between screens.
@@ -76,6 +78,8 @@ export type StudentStackParamList = {
     notes?: string;
   } & WaveParams;
   Payment: { orderId: string; totalAmount: number };
+  /** Same-tab Paystack return — confirms then replaces with success/failure. */
+  PaymentReturn: { orderId: string; reference: string; totalAmount: number };
   PaymentMethods: undefined;
   Checkpoints: undefined;
   OrderConfirmed: { orderId: string };
@@ -91,26 +95,29 @@ const Stack = createNativeStackNavigator<StudentStackParamList>();
 
 export function StudentNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Tabs" component={StudentTabNavigator} />
-      <Stack.Screen name="WaveCalendar" component={WaveCalendarScreen} />
-      <Stack.Screen name="ChooseService" component={ChooseServiceScreen} />
-      <Stack.Screen name="ShopSelection" component={ShopSelectionScreen} />
-      <Stack.Screen name="ShopMenu" component={ShopMenuScreen} />
-      <Stack.Screen name="SuggestShop" component={SuggestShopScreen} />
-      <Stack.Screen name="SuggestOrderSummary" component={SuggestOrderSummaryScreen} />
-      <Stack.Screen name="DescribeOrder" component={DescribeOrderScreen} />
-      <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
-      <Stack.Screen name="Payment" component={PaymentScreen} />
-      <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
-      <Stack.Screen name="Checkpoints" component={CheckpointsScreen} />
-      <Stack.Screen name="OrderConfirmed" component={OrderConfirmedScreen} />
-      <Stack.Screen name="PickupRequest" component={PickupRequestScreen} />
-      <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
-      <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
-      <Stack.Screen name="PickupPin" component={PickupPinScreen} />
-      <Stack.Screen name="CutoffPassed" component={CutoffPassedScreen} />
-      <Stack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
-    </Stack.Navigator>
+    <AppWebShell role="student">
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Tabs" component={StudentTabNavigator} />
+        <Stack.Screen name="WaveCalendar" component={WaveCalendarScreen} />
+        <Stack.Screen name="ChooseService" component={ChooseServiceScreen} />
+        <Stack.Screen name="ShopSelection" component={ShopSelectionScreen} />
+        <Stack.Screen name="ShopMenu" component={ShopMenuScreen} />
+        <Stack.Screen name="SuggestShop" component={SuggestShopScreen} />
+        <Stack.Screen name="SuggestOrderSummary" component={SuggestOrderSummaryScreen} />
+        <Stack.Screen name="DescribeOrder" component={DescribeOrderScreen} />
+        <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
+        <Stack.Screen name="Payment" component={PaymentScreen} />
+        <Stack.Screen name="PaymentReturn" component={PaymentReturnScreen} />
+        <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
+        <Stack.Screen name="Checkpoints" component={CheckpointsScreen} />
+        <Stack.Screen name="OrderConfirmed" component={OrderConfirmedScreen} />
+        <Stack.Screen name="PickupRequest" component={PickupRequestScreen} />
+        <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
+        <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+        <Stack.Screen name="PickupPin" component={PickupPinScreen} />
+        <Stack.Screen name="CutoffPassed" component={CutoffPassedScreen} />
+        <Stack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
+      </Stack.Navigator>
+    </AppWebShell>
   );
 }

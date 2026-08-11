@@ -304,7 +304,10 @@ model Order {
   goodsPaystackRef String?   @unique @map("goods_paystack_ref")
   goodsPaidAt      DateTime? @map("goods_paid_at")
 
-  deliveryPinHash String?   @map("delivery_pin_hash")
+  // bcrypt for rider verify. Ciphertext (AES-GCM) so the owning student can
+  // read the code in the app — never selected on general order queries.
+  deliveryPinHash       String? @map("delivery_pin_hash")
+  deliveryPinCiphertext String? @map("delivery_pin_ciphertext")
   deliveredAt     DateTime? @map("delivered_at")
 
   notes               String?

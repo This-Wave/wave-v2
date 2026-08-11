@@ -38,11 +38,16 @@ export async function confirmDeliveryFeePaid(args: {
     fastify,
     log,
     phone: order.student.phone,
-    persistHash: (hash) =>
+    persist: ({ hash, ciphertext }) =>
       fastify.prisma.order
         .update({
           where: { id: order.id },
-          data: { status: "confirmed", paidAt: new Date(), deliveryPinHash: hash },
+          data: {
+            status: "confirmed",
+            paidAt: new Date(),
+            deliveryPinHash: hash,
+            deliveryPinCiphertext: ciphertext,
+          },
         })
         .then(() => undefined),
   });

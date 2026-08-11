@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
   Button,
+  CardGrid,
   Chip,
   Empty,
   Gutter,
@@ -16,9 +17,11 @@ import {
   TopBar,
 } from "../../components/v6";
 import { Field } from "../../components/v6";
+import { useLayout } from "../../hooks/useLayout";
 import { useShops } from "../../lib/shops";
 import { describeWave } from "../../lib/wave";
 import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
+import { openShopMenu } from "../../lib/desktopNavigate";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
@@ -32,6 +35,7 @@ type Route = RouteProp<StudentStackParamList, "ShopSelection">;
 export function ShopSelectionScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
+  const { gutter, cardWidth, shopColumns, isDesktop } = useLayout();
   const { data: shops, isLoading } = useShops();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
@@ -76,96 +80,124 @@ export function ShopSelectionScreen() {
       <TopBar onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={32}>
-        <Gutter className="pb-5">
-          <PageTitle>Where from?</PageTitle>
+        <Gutter className={isDesktop ? "pb-6 pt-2" : "pb-5"}>
+          {isDesktop ? (
+            <>
+              <Text className="font-sans-bold text-heading text-ink">Where from?</Text>
+              <Text className="mt-1 font-sans text-ui text-muted">
+                Pick a shop on this Wave. We’ll buy exactly what’s on their menu.
+              </Text>
+            </>
+          ) : (
+            <PageTitle>Where from?</PageTitle>
+          )}
         </Gutter>
 
         <Gutter className="mb-5">
-          <Field
-            label=""
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search shops, places, categories"
-          />
+          <View style={isDesktop ? { maxWidth: 480 } : undefined}>
+            <Field
+              label=""
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search shops, places, categories"
+            />
+          </View>
         </Gutter>
 
         {categories.length > 0 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
-            className="mb-6 grow-0"
-          >
-            <Chip label="All" selected={category === null} onPress={() => setCategory(null)} />
-            {categories.map((c) => (
-              <Chip
-                key={c}
-                label={c.charAt(0).toUpperCase() + c.slice(1)}
-                selected={category === c}
-                onPress={() => setCategory(c)}
-              />
-            ))}
-          </ScrollView>
+          isDesktop ? (
+            <Gutter className="mb-6">
+              <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+                <Chip label="All" selected={category === null} onPress={() => setCategory(null)} />
+                {categories.map((c) => (
+                  <Chip
+                    key={c}
+                    label={c.charAt(0).toUpperCase() + c.slice(1)}
+                    selected={category === c}
+                    onPress={() => setCategory(c)}
+                  />
+                ))}
+              </View>
+            </Gutter>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: gutter, gap: 8 }}
+              className="mb-6 grow-0"
+            >
+              <Chip label="All" selected={category === null} onPress={() => setCategory(null)} />
+              {categories.map((c) => (
+                <Chip
+                  key={c}
+                  label={c.charAt(0).toUpperCase() + c.slice(1)}
+                  selected={category === c}
+                  onPress={() => setCategory(c)}
+                />
+              ))}
+            </ScrollView>
+          )
         ) : null}
 
-        <Gutter>
-          {isLoading ? (
-            <View className="flex-row flex-wrap justify-between gap-y-6">
-              <SkeletonCard width={160} />
-              <SkeletonCard width={160} />
-            </View>
-          ) : results.length === 0 ? (
-            <Empty
-              title={query.trim() ? `No shop called "${query.trim()}"` : "No shops match"}
-              body={
-                query.trim()
-                  ? "Wave might not carry it yet. Tell us where it is and we'll send a runner — and the more people ask, the sooner it gets its own menu."
-                  : "Try a different word, or clear the filter."
-              }
-              action={
-                query.trim() && wave ? (
-                  <Button
-                    label={`Suggest ${query.trim()}`}
-                    onPress={() =>
-                      navigation.navigate("SuggestShop", {
-                        initialQuery: query.trim(),
-                        scheduledDate: wave.scheduledDate,
-                        isSpecialOrder: wave.isSpecialOrder,
-                      })
-                    }
-                  />
-                ) : undefined
-              }
-            />
-          ) : (
-            <View className="flex-row flex-wrap justify-between gap-y-6">
-              {results.map((shop) => (
-                <PhotoCard
-                  key={shop.id}
-                  width={160}
-                  imageUrl={shop.logoUrl}
-                  title={shop.name}
-                  meta={shop.locationText ?? shop.category}
-                  priceLabel="from"
-                  priceValue={`${formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)} delivery`}
-                  badge={shop.isActive ? undefined : "Paused"}
+        {isLoading ? (
+          <CardGrid>
+            {Array.from({ length: Math.max(shopColumns, 2) }, (_, i) => (
+              <SkeletonCard key={i} width={cardWidth} />
+            ))}
+          </CardGrid>
+        ) : results.length === 0 ? (
+          <Empty
+            title={query.trim() ? `No shop called "${query.trim()}"` : "No shops match"}
+            body={
+              query.trim()
+                ? "Wave might not carry it yet. Tell us where it is and we'll send a runner — and the more people ask, the sooner it gets its own menu."
+                : "Try a different word, or clear the filter."
+            }
+            action={
+              query.trim() && wave ? (
+                <Button
+                  label={`Suggest ${query.trim()}`}
                   onPress={() =>
-                    wave &&
-                    navigation.navigate("ShopMenu", {
-                      shopId: shop.id,
-                      shopName: shop.name,
+                    navigation.navigate("SuggestShop", {
+                      initialQuery: query.trim(),
                       scheduledDate: wave.scheduledDate,
                       isSpecialOrder: wave.isSpecialOrder,
                     })
                   }
                 />
-              ))}
-            </View>
-          )}
+              ) : undefined
+            }
+          />
+        ) : (
+          <CardGrid>
+            {results.map((shop) => (
+              <PhotoCard
+                key={shop.id}
+                width={cardWidth}
+                imageUrl={shop.logoUrl}
+                title={shop.name}
+                meta={shop.locationText ?? shop.category}
+                priceLabel="from"
+                priceValue={`${formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)} delivery`}
+                badge={shop.isActive ? undefined : "Paused"}
+                onPress={() =>
+                  wave &&
+                  openShopMenu(navigation, {
+                    shopId: shop.id,
+                    shopName: shop.name,
+                    scheduledDate: wave.scheduledDate,
+                    isSpecialOrder: wave.isSpecialOrder,
+                  })
+                }
+              />
+            ))}
+          </CardGrid>
+        )}
 
-          {/* Always reachable, not only from the empty state — a student may
-              see six shops and still not the one they want. */}
-          {results.length > 0 && wave ? (
+        {/* Always reachable, not only from the empty state — a student may
+            see six shops and still not the one they want. */}
+        {results.length > 0 && wave ? (
+          <Gutter>
             <Pressable
               onPress={() =>
                 navigation.navigate("SuggestShop", {
@@ -184,8 +216,8 @@ export function ShopSelectionScreen() {
                 Suggest it and we’ll send a runner anyway.
               </Text>
             </Pressable>
-          ) : null}
-        </Gutter>
+          </Gutter>
+        ) : null}
       </ScreenBody>
     </Screen>
   );

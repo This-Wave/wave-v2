@@ -6,6 +6,7 @@ import { ActionBar, Button, Gutter, Screen, ScreenBody } from "../../components/
 import { AlertIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { shortOrderRef } from "./orderPresenters";
+import { resetStudentTabs, resetToPayment } from "../../lib/navigationFlows";
 
 type Route = RouteProp<StudentStackParamList, "PaymentFailed">;
 
@@ -22,7 +23,7 @@ export function PaymentFailedScreen() {
   const { params } = useRoute<Route>();
 
   return (
-    <Screen>
+    <Screen narrow>
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-12">
           <View className="mb-6 h-14 w-14 items-center justify-center rounded-pill bg-hairline">
@@ -53,7 +54,7 @@ export function PaymentFailedScreen() {
           <Button
             label="Try paying again"
             onPress={() =>
-              navigation.replace("Payment", {
+              resetToPayment(navigation, {
                 orderId: params.orderId,
                 totalAmount: params.totalAmount,
               })
@@ -62,7 +63,7 @@ export function PaymentFailedScreen() {
           <Button
             label="Check my orders"
             variant="quiet"
-            onPress={() => navigation.navigate("Tabs", { screen: "Orders" })}
+            onPress={() => resetStudentTabs(navigation, "Orders")}
           />
         </View>
       </ActionBar>

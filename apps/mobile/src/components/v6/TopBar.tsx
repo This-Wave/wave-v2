@@ -2,6 +2,7 @@ import { Text, View } from "react-native";
 import type { ReactNode } from "react";
 import { ChevronLeftIcon } from "../icons";
 import { colors } from "../../theme/tokens";
+import { useLayout } from "../../hooks/useLayout";
 import { IconCircle } from "./Controls";
 
 /**
@@ -18,8 +19,12 @@ export function TopBar({
   onBack?: () => void;
   trailing?: ReactNode;
 }) {
+  const { gutter } = useLayout();
   return (
-    <View className="h-16 flex-row items-center justify-between px-gutter">
+    <View
+      className="h-16 flex-row items-center justify-between"
+      style={{ paddingHorizontal: gutter }}
+    >
       <View className="w-10">
         {onBack ? (
           <IconCircle onPress={onBack} accessibilityLabel="Go back">
@@ -45,8 +50,23 @@ export function TopBar({
  * logo exactly this exemption.
  */
 export function BrandBar({ trailing }: { trailing?: ReactNode }) {
+  const { gutter, isDesktop } = useLayout();
+  // Web chrome already shows the wordmark in the side nav — don't duplicate it.
+  if (isDesktop) {
+    return (
+      <View
+        className="h-14 flex-row items-center justify-end"
+        style={{ paddingHorizontal: gutter }}
+      >
+        <View className="flex-row items-center gap-2">{trailing}</View>
+      </View>
+    );
+  }
   return (
-    <View className="h-16 flex-row items-center justify-between px-gutter">
+    <View
+      className="h-16 flex-row items-center justify-between"
+      style={{ paddingHorizontal: gutter }}
+    >
       <View className="flex-row items-center gap-2">
         <View className="h-7 w-7 items-center justify-center rounded-pill bg-lime">
           <Text className="font-sans-bold text-body text-ink">W</Text>

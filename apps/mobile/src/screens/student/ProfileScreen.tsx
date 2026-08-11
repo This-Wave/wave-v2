@@ -17,19 +17,19 @@ import { useMyOrders } from "../../lib/orders";
 import { signOut } from "../../lib/auth";
 import { formatGhs } from "../../lib/pricing";
 import { DEFAULT_LOYALTY_DISCOUNT_PCT, DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
+import { useLayout } from "../../hooks/useLayout";
+import { StudentProfileWeb } from "./web/StudentProfileWeb";
 
 /**
- * Profile.
- *
- * v5 led with an avatar card and a three-tile stat strip. The tiles are gone:
- * two of the three numbers were decorative, and the one that mattered — money
- * saved — was **wrong**. It summed `discountApplied` across orders and printed
- * the result as cedis, but that column holds a *percentage*. Six loyalty
- * discounts of 20% each rendered as "GH₵120 saved" when the true figure was
- * GH₵6. It is now derived from the delivery fee the percentage applies to, the
- * same way `lib/ledger.ts` does it.
+ * Profile. Web uses a two-panel account page; native keeps the phone layout.
  */
 export function ProfileScreen() {
+  const { isDesktop } = useLayout();
+  if (isDesktop) return <StudentProfileWeb />;
+  return <ProfileMobile />;
+}
+
+function ProfileMobile() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const profile = useAuthStore((s) => s.profile);
   const { data: orders } = useMyOrders();

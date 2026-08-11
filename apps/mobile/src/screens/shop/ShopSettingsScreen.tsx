@@ -12,21 +12,34 @@ import {
 import { ToggleSwitch } from "../../components/ui/ToggleSwitch";
 import { ShopSwitcher } from "../../components/shop/ShopSwitcher";
 import { useSelectedShop, useSetShopServing } from "../../lib/shopOwner";
+import { useLayout } from "../../hooks/useLayout";
 import { signOut } from "../../lib/auth";
 
 export function ShopSettingsScreen() {
   const { shop, shops, selectShop } = useSelectedShop();
   const setServing = useSetShopServing(shop?.id);
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const { isDesktop } = useLayout();
 
   return (
     <Screen>
       <ScreenBody bottomInset={24}>
-        <Gutter className="pb-8 pt-4">
-          <PageTitle>{shop?.name ?? "Your shop"}</PageTitle>
-          <Text className="mt-2 font-sans text-body text-muted">
-            {[shop?.category, shop?.locationText].filter(Boolean).join(" · ") || "—"}
-          </Text>
+        <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-8 pt-4"}>
+          {isDesktop ? (
+            <>
+              <Text className="font-sans-bold text-heading text-ink">Settings</Text>
+              <Text className="mt-1 font-sans text-ui text-muted">
+                Storefront status and account for {shop?.name ?? "your shop"}.
+              </Text>
+            </>
+          ) : (
+            <>
+              <PageTitle>{shop?.name ?? "Your shop"}</PageTitle>
+              <Text className="mt-2 font-sans text-body text-muted">
+                {[shop?.category, shop?.locationText].filter(Boolean).join(" · ") || "—"}
+              </Text>
+            </>
+          )}
         </Gutter>
 
         {shops && shops.length > 1 ? (
@@ -35,39 +48,56 @@ export function ShopSettingsScreen() {
           </Gutter>
         ) : null}
 
-        <Gutter className="mb-8">
-          <View className="flex-row items-center gap-3 rounded-card bg-surface p-5">
-            <View className="flex-1">
-              <Text className="font-sans-medium text-body text-ink">Serving</Text>
-              <Text className="font-sans text-body text-muted">
-                {setServing.isError
-                  ? "Couldn't update — check your connection."
-                  : shop?.isActive === false
-                    ? "Paused. Students can't see your shop."
-                    : "Students can order from you right now."}
-              </Text>
-            </View>
-            <ToggleSwitch
-              value={shop?.isActive ?? false}
-              disabled={!shop || setServing.isPending}
-              onValueChange={(next) => setServing.mutate(next)}
-            />
-          </View>
-        </Gutter>
-
         <Gutter>
-          <RowGroup>
-            {shop?.openingTime && shop?.closingTime ? (
-              <Row
-                title={`${shop.openingTime} – ${shop.closingTime}`}
-                meta="Opening hours"
-                chevron={false}
+          <View
+            className={isDesktop ? "flex-row flex-wrap" : undefined}
+            style={isDesktop ? { gap: 24 } : undefined}
+          >
+            <View
+              className={`flex-row items-center gap-3 rounded-card bg-surface p-5 ${
+                isDesktop ? "" : "mb-8"
+              }`}
+              style={isDesktop ? { flex: 1, minWidth: 280 } : undefined}
+            >
+              <View className="flex-1">
+                <Text className="font-sans-medium text-body text-ink">Serving</Text>
+                <Text className="font-sans text-body text-muted">
+                  {setServing.isError
+                    ? "Couldn't update — check your connection."
+                    : shop?.isActive === false
+                      ? "Paused. Students can't see your shop."
+                      : "Students can order from you right now."}
+                </Text>
+              </View>
+              <ToggleSwitch
+                value={shop?.isActive ?? false}
+                disabled={!shop || setServing.isPending}
+                onValueChange={(next) => setServing.mutate(next)}
               />
-            ) : null}
-          </RowGroup>
+            </View>
 
-          <View className="mt-8">
-            <Row title="Log out" onPress={() => setConfirmLogout(true)} chevron={false} />
+            <View style={isDesktop ? { flex: 1, minWidth: 280 } : undefined}>
+              <RowGroup>
+                {isDesktop ? (
+                  <Row
+                    title={shop?.name ?? "Your shop"}
+                    meta={[shop?.category, shop?.locationText].filter(Boolean).join(" · ") || "—"}
+                    chevron={false}
+                  />
+                ) : null}
+                {shop?.openingTime && shop?.closingTime ? (
+                  <Row
+                    title={`${shop.openingTime} – ${shop.closingTime}`}
+                    meta="Opening hours"
+                    chevron={false}
+                  />
+                ) : null}
+              </RowGroup>
+
+              <View className="mt-8">
+                <Row title="Log out" onPress={() => setConfirmLogout(true)} chevron={false} />
+              </View>
+            </View>
           </View>
         </Gutter>
       </ScreenBody>

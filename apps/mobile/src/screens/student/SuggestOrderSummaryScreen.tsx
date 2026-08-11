@@ -19,6 +19,7 @@ import { colors } from "../../theme/tokens";
 import { useCheckpoints } from "../../lib/checkpoints";
 import { useCompletedDeliveryCount, useCreateOrder } from "../../lib/orders";
 import { useAuthStore } from "../../store/authStore";
+import { useLastCheckpoint } from "../../hooks/useLastCheckpoint";
 import {
   deliveryDayFor,
   estimateOrderTotal,
@@ -49,7 +50,8 @@ export function SuggestOrderSummaryScreen() {
   const createOrder = useCreateOrder();
   const completedDeliveries = useCompletedDeliveryCount();
 
-  const [checkpointId, setCheckpointId] = useState<string | null>(null);
+  const checkpointIds = checkpoints?.map((c) => c.id);
+  const { checkpointId, selectCheckpoint } = useLastCheckpoint(checkpointIds);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,7 +81,7 @@ export function SuggestOrderSummaryScreen() {
         scheduledDate: toApiDate(scheduledDate),
         isSpecialOrder: params.isSpecialOrder,
       });
-      navigation.navigate("Payment", {
+      navigation.replace("Payment", {
         orderId: order.id,
         totalAmount: Number(order.totalAmount),
       });
@@ -89,7 +91,7 @@ export function SuggestOrderSummaryScreen() {
   }
 
   return (
-    <Screen>
+    <Screen narrow>
       <TopBar onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>
@@ -184,7 +186,7 @@ export function SuggestOrderSummaryScreen() {
               meta={c.description ?? undefined}
               selected={checkpoint?.id === c.id}
               onPress={() => {
-                setCheckpointId(c.id);
+                selectCheckpoint(c.id);
                 setPickerOpen(false);
               }}
             />

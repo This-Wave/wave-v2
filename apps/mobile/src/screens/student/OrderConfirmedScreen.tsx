@@ -5,8 +5,12 @@ import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import { ActionBar, Button, Gutter, Row, RowGroup, Screen, ScreenBody } from "../../components/v6";
 import { CheckIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
-import { useOrder } from "../../lib/orders";
+import { useDeliveryPin, useOrder } from "../../lib/orders";
 import { formatFullDay } from "../../lib/pricing";
+import {
+  resetAfterOrderConfirmed,
+  resetStudentTabs,
+} from "../../lib/navigationFlows";
 import { shortOrderRef } from "./orderPresenters";
 
 type Route = RouteProp<StudentStackParamList, "OrderConfirmed">;
@@ -16,16 +20,17 @@ type Route = RouteProp<StudentStackParamList, "OrderConfirmed">;
  *
  * No confetti, no illustration — the reference has no such vocabulary. A lime
  * disc with an ink check is the entire celebration, and the screen spends its
- * space on the two things a student needs next: when the run is, and that the
- * delivery code is coming by text.
+ * space on the two things a student needs next: when the run is, and their
+ * delivery code (also texted as backup).
  */
 export function OrderConfirmedScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
   const { data: order } = useOrder(params.orderId);
+  const { data: pin } = useDeliveryPin(params.orderId, { pollUntilReady: true });
 
   return (
-    <Screen>
+    <Screen narrow>
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-12">
           <View className="mb-6 h-14 w-14 items-center justify-center rounded-pill bg-lime">
@@ -53,13 +58,29 @@ export function OrderConfirmedScreen() {
             />
           </RowGroup>
 
-          <View className="mt-6 rounded-card bg-surface p-5">
-            <Text className="mb-1 font-sans-semibold text-meta text-muted">NEXT</Text>
-            <Text className="font-sans text-body text-ink">
-              We're texting you a six-digit code. Read it to your runner at the checkpoint to close
-              the delivery — it's the only way to confirm you got your things.
-            </Text>
-          </View>
+          {pin ? (
+            <View className="mt-6 items-center rounded-card bg-surface px-5 py-6">
+              <Text className="mb-2 font-sans-semibold text-meta text-muted">YOUR DELIVERY CODE</Text>
+              <Text
+                className="font-sans-bold text-ink"
+                style={{ fontSize: 36, letterSpacing: 10 }}
+                accessibilityLabel={`Delivery code ${pin.split("").join(" ")}`}
+              >
+                {pin}
+              </Text>
+              <Text className="mt-3 text-center font-sans text-body text-muted">
+                Read this to your runner at the checkpoint. We also texted it to your phone.
+              </Text>
+            </View>
+          ) : (
+            <View className="mt-6 rounded-card bg-surface p-5">
+              <Text className="mb-1 font-sans-semibold text-meta text-muted">NEXT</Text>
+              <Text className="font-sans text-body text-ink">
+                Your six-digit delivery code is ready under Track → Show pickup code. We also text
+                it to your phone.
+              </Text>
+            </View>
+          )}
         </Gutter>
       </ScreenBody>
 
@@ -67,9 +88,13 @@ export function OrderConfirmedScreen() {
         <View className="gap-2">
           <Button
             label="Track this order"
-            onPress={() => navigation.replace("OrderTracking", { orderId: params.orderId })}
+            onPress={() => resetAfterOrderConfirmed(navigation, params.orderId, "tracking")}
           />
-          <Button label="Back to home" variant="quiet" onPress={() => navigation.navigate("Tabs")} />
+          <Button
+            label="Back to home"
+            variant="quiet"
+            onPress={() => resetStudentTabs(navigation, "Home")}
+          />
         </View>
       </ActionBar>
     </Screen>

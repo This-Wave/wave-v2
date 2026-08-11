@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Linking, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -5,6 +6,8 @@ import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
   ActionBar,
   Button,
+  Confirm,
+  DeliveryPinSnippet,
   Gutter,
   IconCircle,
   Ledger,
@@ -19,36 +22,51 @@ import {
 } from "../../components/v6";
 import { PhoneIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
-import { useOrder } from "../../lib/orders";
+import { useCancelOrder, useOrder } from "../../lib/orders";
 import { buildOrderLedger } from "../../lib/ledger";
+import { resetStudentTabs } from "../../lib/navigationFlows";
+import { showToast } from "../../store/toastStore";
 import { currentStepIndex, orderSteps, shortOrderRef, statusPill } from "./orderPresenters";
 
 type Route = RouteProp<StudentStackParamList, "OrderTracking">;
 
-/**
- * Order tracking, rebuilt.
- *
- * v5 opened on a 220px empty green rectangle — a map slot with no map behind it,
- * on the screen a student checks most often. Wave stores no coordinates for
- * shops or checkpoints, so a map was never possible; the space now goes to the
- * thing that actually answers "where is my food": the step list.
- *
- * The v5 header also carried a message button and a call button with no
- * `onPress` on either, rendered even while no runner was assigned. The message
- * button is gone (Wave has no messaging), and calling is now real, gated on
- * there being someone to call.
- */
+const STUDENT_CANCELLABLE = ["confirmed", "rider_assigned", "pending", "payment_pending"];
+
 export function OrderTrackingScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
   const { data: order } = useOrder(params.orderId, { poll: true });
+  const cancelOrder = useCancelOrder();
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   const pill = order ? statusPill(order.status) : null;
   const rider = order?.rider;
   const ledger = order ? buildOrderLedger(order) : null;
+  const canCancel = order && STUDENT_CANCELLABLE.includes(order.status);
+
+  async function handleCancel() {
+    try {
+      const result = await cancelOrder.mutateAsync({
+        orderId: params.orderId,
+        reason: "Cancelled by student in the app",
+      });
+      setConfirmCancel(false);
+      showToast(
+        result.refundIssued
+          ? "Order cancelled. Your refund is on its way."
+          : "Order cancelled.",
+        "success",
+      );
+      resetStudentTabs(navigation, "Orders");
+    } catch (err) {
+      const message = (err as { response?: { data?: { error?: string } } }).response?.data?.error;
+      showToast(message ?? "Could not cancel right now.", "danger");
+      setConfirmCancel(false);
+    }
+  }
 
   return (
-    <Screen>
+    <Screen narrow>
       <TopBar title={order ? shortOrderRef(order.id) : ""} onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>
@@ -67,12 +85,16 @@ export function OrderTrackingScreen() {
             </Text>
           </View>
 
+          <DeliveryPinSnippet
+            orderId={params.orderId}
+            orderStatus={order?.status}
+            onOpenFull={() => navigation.navigate("PickupPin", { orderId: params.orderId })}
+          />
+
           <View className="mb-6 rounded-card bg-surface p-5">
             {order ? <Steps steps={orderSteps(order)} currentIndex={currentStepIndex(order.status)} /> : null}
           </View>
 
-          {/* Only rendered once there is a runner — and the call button dials a
-              real number rather than sitting inert. */}
           {rider ? (
             <View className="mb-6 flex-row items-center gap-3 rounded-card bg-surface p-4">
               <Thumb size={44} />
@@ -107,6 +129,20 @@ export function OrderTrackingScreen() {
               <Ledger ledger={ledger} />
             </View>
           ) : null}
+
+          {canCancel ? (
+            <View className="mt-8">
+              <Button
+                label="Cancel this order"
+                variant="ghost"
+                onPress={() => setConfirmCancel(true)}
+                loading={cancelOrder.isPending}
+              />
+              <Text className="mt-2 font-sans text-body text-muted">
+                Only before your runner is on the way. Paid orders are refunded automatically.
+              </Text>
+            </View>
+          ) : null}
         </Gutter>
       </ScreenBody>
 
@@ -116,6 +152,15 @@ export function OrderTrackingScreen() {
           onPress={() => navigation.navigate("PickupPin", { orderId: params.orderId })}
         />
       </ActionBar>
+
+      <Confirm
+        visible={confirmCancel}
+        title="Cancel this order?"
+        body="We'll stop the run. If you already paid, the refund goes back to how you paid."
+        confirmLabel="Yes, cancel"
+        onConfirm={() => void handleCancel()}
+        onCancel={() => setConfirmCancel(false)}
+      />
     </Screen>
   );
 }

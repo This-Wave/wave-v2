@@ -13,35 +13,31 @@ import {
   type IconProps,
 } from "../icons";
 import { colors } from "../../theme/tokens";
+import { useLayout } from "../../hooks/useLayout";
 
-// One bar serves all three roles; the route name picks the glyph.
 const ICONS: Record<string, (p: IconProps) => JSX.Element> = {
-  // student
   Home: HomeIcon,
   Orders: BoxIcon,
   Checkpoints: PinIcon,
   Profile: UserIcon,
-  // rider
   Feed: BoltIcon,
   MyOrders: BoxIcon,
   Earnings: WalletIcon,
-  // shop owner
   Dashboard: DashboardIcon,
   ShopOrders: CartIcon,
-  Menu: BoxIcon, // shop route "ShopOrders" carries the cart, so Menu keeps the box
+  Menu: BoxIcon,
   Settings: SettingsIcon,
 };
 
 /**
- * Flat bottom navigation. v5 floated a rounded pill above the content; the
- * reference has no such object — navigation is a plain bar with a hairline, and
- * the content scrolls to meet it.
- *
- * Active state is ink text plus a small lime dot. Lime cannot carry the label
- * itself (far too low contrast at 14px), so the accent marks the position while
- * ink does the reading.
+ * Bottom bar for phone + narrow web. Hidden on wide desktop (SideNav instead).
  */
 export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const { isDesktop } = useLayout();
+  if (isDesktop) {
+    return null;
+  }
+
   return (
     <View className="flex-row border-t border-hairline bg-surface pb-7 pt-2">
       {state.routes.map((route, index) => {
@@ -65,9 +61,19 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 navigation.navigate(route.name);
               }
             }}
-            className="flex-1 items-center gap-1 py-1"
+            className="relative flex-1 items-center gap-1 py-1"
           >
             <Icon size={22} color={focused ? colors.ink : colors.muted} strokeWidth={1.7} />
+            {options.tabBarBadge != null ? (
+              <View
+                className="absolute -right-2 -top-1 min-h-[18px] min-w-[18px] items-center justify-center rounded-pill bg-lime px-1"
+                accessibilityLabel={`${options.tabBarBadge} updates`}
+              >
+                <Text className="font-sans-semibold text-caption text-ink">
+                  {String(options.tabBarBadge)}
+                </Text>
+              </View>
+            ) : null}
             <Text
               className={`text-caption ${
                 focused ? "font-sans-semibold text-ink" : "font-sans text-muted"

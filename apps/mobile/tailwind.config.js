@@ -121,8 +121,15 @@ module.exports = {
       },
       spacing: {
         // 4px base. The reference's compact scale.
-        gutter: "24px", // screen horizontal padding
+        // Runtime gutters also adapt on web via `useLayout()` (24 → 40).
+        gutter: "24px", // screen horizontal padding (mobile default)
         section: "32px", // gap between stacked sections
+        "section-lg": "48px", // desktop section gap (Airbnb reference)
+      },
+      maxWidth: {
+        page: "1440px",
+        narrow: "560px",
+        search: "880px",
       },
     },
   },

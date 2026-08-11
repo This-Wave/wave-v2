@@ -18,7 +18,7 @@ export function PaymentMethodsScreen() {
   const profile = useAuthStore((s) => s.profile);
 
   return (
-    <Screen>
+    <Screen narrow>
       <TopBar onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={24}>

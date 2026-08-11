@@ -10,6 +10,10 @@ export const STANDARD_DELIVERY_DAYS = ["sunday", "wednesday"] as const;
 export const PROFILE_ROLES = ["student", "rider", "shop_owner", "admin"] as const;
 export type ProfileRole = (typeof PROFILE_ROLES)[number];
 
+/** Roles a user may pick at self-serve signup — never `admin`. */
+export const SELF_SERVE_PROFILE_ROLES = ["student", "rider", "shop_owner"] as const;
+export type SelfServeProfileRole = (typeof SELF_SERVE_PROFILE_ROLES)[number];
+
 export const PRODUCT_STATUSES = ["active", "out_of_stock", "not_serving"] as const;
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 
