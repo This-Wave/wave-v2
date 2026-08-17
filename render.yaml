@@ -34,7 +34,7 @@ services:
     # Build from the repo root: this is an npm-workspaces monorepo, and the API
     # imports @wave/shared and @wave/db, which must be compiled to JS first.
     # `npm run build --workspace packages/api` chains all three in order.
-    buildCommand: npm ci --include=dev && npm run build --workspace packages/api
+    buildCommand: npm ci --include=dev && npm run build --workspace packages/api && npm run migrate:deploy --workspace @wave/db
     startCommand: npm start --workspace packages/api
     healthCheckPath: /health
     envVars:
@@ -53,6 +53,10 @@ services:
       # `z.string().url()`, so the API would fail to boot. Set it by hand after
       # the first deploy assigns the URL.
       - key: APP_URL
+        sync: false
+      # Comma-separated browser origins that may call this API (checklist H3).
+      # Example: https://wave-admin.onrender.com,https://your-student-web.vercel.app,http://localhost:8081
+      - key: CORS_ORIGINS
         sync: false
       - key: DATABASE_URL # Neon pooled connection string
         sync: false

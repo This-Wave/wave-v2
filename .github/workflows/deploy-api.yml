@@ -1,27 +1,14 @@
-name: Deploy API
+# API deploys on Render via render.yaml (Blueprint or connected repo).
+# Railway auto-deploy was retired 2026-08-11 to avoid dual-host drift (checklist C9).
+name: Deploy API (Render — manual reference only)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "packages/api/**"
-      - "packages/db/**"
-      - "packages/shared/**"
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  note:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-      - run: npm ci
-      - run: npm run build --workspace=@wave/db
-      - run: npm run build --workspace=@wave/api
-      - name: Deploy to Railway
-        uses: bervProject/railway-deploy@main
-        with:
-          railway_token: ${{ secrets.RAILWAY_TOKEN }}
-          service: wave-api
+      - run: |
+          echo "Wave API deploys on Render, not Railway."
+          echo "See render.yaml and README.md → Deployment."

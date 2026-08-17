@@ -97,6 +97,43 @@ export async function adminRoutes(fastify: FastifyInstance) {
     return reply.send({ orders, total, page: currentPage, pageSize: take });
   });
 
+  fastify.get("/orders/:orderId", async (request, reply) => {
+    const { orderId } = request.params as { orderId: string };
+    const order = await fastify.prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        status: true,
+        orderType: true,
+        totalAmount: true,
+        deliveryFee: true,
+        itemPrice: true,
+        paidAt: true,
+        goodsPaidAt: true,
+        paystackRef: true,
+        goodsPaystackRef: true,
+        scheduledDate: true,
+        isSpecialOrder: true,
+        itemDescription: true,
+        cancellationReason: true,
+        createdAt: true,
+        updatedAt: true,
+        student: { select: { id: true, fullName: true, phone: true, studentId: true } },
+        shop: { select: { id: true, name: true } },
+        checkpoint: { select: { name: true } },
+        rider: { select: { id: true, fullName: true, phone: true } },
+        items: { select: { name: true, quantity: true, unitPrice: true, actualUnitPrice: true } },
+        statusHistory: {
+          orderBy: { createdAt: "desc" },
+          take: 8,
+          select: { status: true, note: true, createdAt: true, changer: { select: { fullName: true } } },
+        },
+      },
+    });
+    if (!order) return reply.code(404).send({ error: "Order not found" });
+    return reply.send({ order });
+  });
+
   fastify.get("/users", async (request, reply) => {
     const { role } = request.query as { role?: string };
     const users = await fastify.prisma.profile.findMany({ where: role ? { role: role as never } : undefined });

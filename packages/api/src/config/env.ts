@@ -5,6 +5,9 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   APP_URL: z.string().url().default("http://localhost:4000"),
 
+  /** Comma-separated browser origins (admin URL, student web URL, localhost dev). Required in production. */
+  CORS_ORIGINS: z.string().optional(),
+
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required (Neon.tech, never Supabase DB)"),
 
   SUPABASE_URL: z.string().url(),

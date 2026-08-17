@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../lib/api";
@@ -130,8 +131,10 @@ export default function OrdersPage() {
               orders.map((order, i) => (
                 <tr key={order.id} className={i < orders.length - 1 ? "border-b border-border" : ""}>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-ink">{order.student?.fullName ?? "—"}</div>
-                    <div className="font-mono text-[11px] text-muted">{order.student?.phone ?? ""}</div>
+                    <Link href={`/orders/${order.id}`} className="block hover:opacity-80">
+                      <div className="font-medium text-ink">{order.student?.fullName ?? "—"}</div>
+                      <div className="font-mono text-[11px] text-muted">{order.student?.phone ?? ""}</div>
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-muted">{order.shop?.name ?? "—"}</td>
                   <td className="px-4 py-3 text-muted">{order.checkpoint?.name ?? "—"}</td>

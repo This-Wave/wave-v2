@@ -23,6 +23,8 @@ import { findOrderForUser } from "./access";
 import { clientSafeOrder, feedOrder } from "./select";
 import { endOrderWithRefund } from "../payments/refund";
 import { notifyGoodsCostRecorded, notifyOrderStatus } from "../notifications/dispatch";
+import rateLimit from "@fastify/rate-limit";
+import { PIN_RESEND_RATE_LIMIT } from "../../plugins/rateLimit";
 
 export async function orderRoutes(fastify: FastifyInstance) {
   // POST /orders — student places a "Buy For Me" order.
@@ -628,7 +630,15 @@ export async function orderRoutes(fastify: FastifyInstance) {
 
   fastify.post(
     "/:id/resend-pin",
-    { preHandler: [fastify.authenticate, fastify.requireRole("student")] },
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole("student")],
+      config: {
+        rateLimit: {
+          ...PIN_RESEND_RATE_LIMIT,
+          keyGenerator: (request) => `${request.user?.id ?? request.ip}:pin-resend`,
+        },
+      },
+    },
     async (request, reply) => {
       const { id } = request.params as { id: string };
 

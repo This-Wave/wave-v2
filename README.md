@@ -106,7 +106,7 @@ Chosen for maximum capability at near-zero cost during the pilot phase (~500–2
 | Auth / Storage / Realtime | **Supabase** | Free, does not pause; used *only* for these three — never as the primary database |
 | Payments | **Paystack** | Ghana-native, card + MTN/Vodafone MoMo |
 | Push notifications | **Expo Notifications** | Free, no ejection needed |
-| Hosting | **Railway** (API) + **Vercel** (admin) | Generous free tiers, simple deploys |
+| Hosting | **Render** (API + admin) + **Vercel** (student web) | See `render.yaml` + `apps/mobile/vercel.json` |
 | CI/CD | **GitHub Actions** | Free, already wired up in `.github/workflows/` |
 | Error monitoring | **Sentry** | 5k errors/month free |
 
@@ -299,13 +299,45 @@ feature/my-thing → PR into develop → tested → develop → PR into main →
 
 ## Deployment
 
-| Service | Deploys | Trigger |
-|---|---|---|
-| Railway | `packages/api` | Push to `main` touching `packages/api`, `packages/db`, or `packages/shared` |
-| Vercel | `apps/admin` | Push to `main` touching `apps/admin` or `packages/shared` |
-| Expo EAS | `apps/mobile` | Manual `eas build` / `eas update` (OTA) |
+**Canonical hosts (2026-08-11 pilot):**
 
-Workflows live in `.github/workflows/`. CI (`ci.yml`) runs lint, type-check, unit, and integration tests on every PR into `main` or `develop`.
+| Service | Host | Config |
+|---------|------|--------|
+| **API** | Render (`render.yaml`) | Auto-deploy on push to `main` |
+| **Admin** | Render (`render.yaml`) | Set `NEXT_PUBLIC_*` at **build** time |
+| **Student web** | Vercel (`apps/mobile/vercel.json`) | Set `EXPO_PUBLIC_*` at build time |
+| **Native app** | Expo EAS | Manual `eas build` / OTA |
+
+Railway and Vercel admin GitHub workflows are **disabled** (checklist C9) — do not re-enable without removing Render to avoid dual deploys.
+
+### Render API release pipeline
+
+Each deploy runs:
+
+1. `npm ci --include=dev`
+2. `npm run build --workspace packages/api` (shared + db + API)
+3. `npm run migrate:deploy --workspace @wave/db` (applies pending Prisma migrations)
+
+Required env vars on **wave-api** (see `.env.example`):
+
+| Variable | Notes |
+|----------|--------|
+| `APP_URL` | This service's public URL, with `https://` |
+| `CORS_ORIGINS` | Comma-separated: admin URL + student web URL + localhost dev |
+| `DATABASE_URL` | Neon pooled connection string |
+| `PAYSTACK_SECRET_KEY` | `sk_test_…` or `sk_live_…` — **not** `pk_…` |
+| `SUPABASE_*`, `JWT_SECRET`, `SMS_HOOK_SECRET`, `MNOTIFY_*` | As documented in `render.yaml` |
+
+**Before live Paystack:** upgrade API to a **paid always-on** Render plan (checklist C11) — free tier cold-starts can drop webhooks.
+
+### Local migrations
+
+```bash
+npm run db:migrate        # dev: create/apply locally
+npm run db:migrate:deploy # prod-style: apply pending only
+```
+
+Workflows: `.github/workflows/ci.yml` runs lint, type-check, and unit tests on PRs. Deploy workflows are manual reference only.
 
 ---
 
@@ -315,10 +347,10 @@ Designed to run at **$0/month fixed cost** for the pilot (0–500 users), scalin
 
 | Users | Database | API | Auth/Storage | Monthly fixed |
 |---|---|---|---|---|
-| 0–500 | Neon free | Railway free | Supabase free | **$0** |
-| 500–2,000 | Neon free | Railway $5/mo | Supabase free | **$5** |
-| 2,000–5,000 | DigitalOcean $15/mo | Railway $20/mo | Supabase Pro $25/mo | **~$60** |
-| 5,000+ | DigitalOcean $50/mo | Railway $50/mo | Supabase Pro $25/mo | **~$125** |
+| 0–500 | Neon free | Render free → **paid for live** | Supabase free | **$0** pilot |
+| 500–2,000 | Neon free | Render starter | Supabase free | **~$7** |
+| 2,000–5,000 | DigitalOcean $15/mo | Render standard | Supabase Pro $25/mo | **~$60** |
+| 5,000+ | DigitalOcean $50/mo | Render pro | Supabase Pro $25/mo | **~$125** |
 
 Paystack transaction fees (~1.5% + ¢10/txn) apply throughout and are covered by delivery fee revenue.
 

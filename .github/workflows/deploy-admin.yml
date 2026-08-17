@@ -1,22 +1,14 @@
-name: Deploy Admin
+# Admin deploys on Render via render.yaml (same Blueprint as the API).
+# Vercel auto-deploy was retired 2026-08-11 — admin + API share one Render project.
+name: Deploy Admin (Render — manual reference only)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/admin/**"
-      - "packages/shared/**"
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  note:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: apps/admin
-          vercel-args: "--prod"
+      - run: |
+          echo "Wave admin deploys on Render, not Vercel."
+          echo "See render.yaml and README.md → Deployment."

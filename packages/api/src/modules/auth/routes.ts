@@ -1,8 +1,14 @@
 import type { FastifyInstance } from "fastify";
+import rateLimit from "@fastify/rate-limit";
 import { Webhook, WebhookVerificationError } from "standardwebhooks";
 import { loginSchema, registerSchema } from "@wave/shared";
 import { createServerSupabaseClient } from "../../lib/supabaseServer";
 import { SmsSendError, sendOtpSms } from "../../lib/sms";
+import {
+  LOGIN_RATE_LIMIT,
+  REGISTER_RATE_LIMIT,
+  SMS_HOOK_RATE_LIMIT,
+} from "../../plugins/rateLimit";
 
 export async function authRoutes(fastify: FastifyInstance) {
   const supabase = createServerSupabaseClient(
@@ -12,7 +18,10 @@ export async function authRoutes(fastify: FastifyInstance) {
 
   // Register — creates a Supabase auth user, then a matching Prisma profile.
   // Supabase Auth issues the JWT; Neon/Prisma stores the app-level profile.
-  fastify.post("/register", async (request, reply) => {
+  await fastify.register(
+    async (scoped) => {
+      await scoped.register(rateLimit, REGISTER_RATE_LIMIT);
+      scoped.post("/register", async (request, reply) => {
     const parsed = registerSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
@@ -47,9 +56,14 @@ export async function authRoutes(fastify: FastifyInstance) {
       fastify.log.error(err);
       return reply.code(500).send({ error: "Failed to create profile" });
     }
-  });
+      });
+    },
+  );
 
-  fastify.post("/login", async (request, reply) => {
+  await fastify.register(
+    async (scoped) => {
+      await scoped.register(rateLimit, LOGIN_RATE_LIMIT);
+      scoped.post("/login", async (request, reply) => {
     const parsed = loginSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
@@ -66,7 +80,9 @@ export async function authRoutes(fastify: FastifyInstance) {
       refresh_token: data.session.refresh_token,
       expires_at: data.session.expires_at,
     });
-  });
+      });
+    },
+  );
 
   // NOTE: there is deliberately no /refresh and no /logout here.
   //
@@ -84,10 +100,13 @@ export async function authRoutes(fastify: FastifyInstance) {
   // mNotify instead of a built-in provider. Auth'd by Standard Webhooks
   // signature (configured in Supabase dashboard → Auth → Hooks), not by
   // fastify.authenticate — Supabase itself is the caller, not a Wave user.
-  fastify.post(
-    "/sms-hook",
-    { config: { rawBody: true } },
-    async (request, reply) => {
+  await fastify.register(
+    async (scoped) => {
+      await scoped.register(rateLimit, SMS_HOOK_RATE_LIMIT);
+      scoped.post(
+        "/sms-hook",
+        { config: { rawBody: true } },
+        async (request, reply) => {
       const rawSecret = fastify.config.SMS_HOOK_SECRET;
       const mnotifyApiKey = fastify.config.MNOTIFY_API_KEY;
       if (!rawSecret || !mnotifyApiKey) {
@@ -122,6 +141,8 @@ export async function authRoutes(fastify: FastifyInstance) {
       }
 
       return reply.code(200).send({});
+        },
+      );
     },
   );
 }
