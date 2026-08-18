@@ -12,7 +12,11 @@ export async function completeProfile(input: CompleteProfileInput): Promise<Prof
   return data.profile;
 }
 
-export async function updateProfile(input: { fullName?: string; avatarUrl?: string }): Promise<Profile> {
+export async function updateProfile(input: {
+  fullName?: string;
+  avatarUrl?: string;
+  email?: string | null;
+}): Promise<Profile> {
   const { data } = await api.put<{ profile: Profile }>("/profile/me", input);
   return data.profile;
 }

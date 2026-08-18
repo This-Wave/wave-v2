@@ -43,7 +43,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
-    const { fullName, role, universityId, studentId } = parsed.data;
+    const { fullName, role, universityId, studentId, email } = parsed.data;
 
     const profile = await fastify.prisma.profile.create({
       data: {
@@ -53,6 +53,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
         role,
         universityId,
         studentId,
+        email,
         isVerified: role === "student",
       },
     });
@@ -70,13 +71,23 @@ export async function profileRoutes(fastify: FastifyInstance) {
   });
 
   fastify.put("/me", { preHandler: fastify.authenticate }, async (request, reply) => {
-    const body = request.body as Record<string, unknown>;
+    const body = request.body as {
+      fullName?: string;
+      avatarUrl?: string;
+      email?: string | null;
+    };
+    const data: { fullName?: string; avatarUrl?: string; email?: string | null } = {};
+    if (body.fullName !== undefined) data.fullName = body.fullName;
+    if (body.avatarUrl !== undefined) data.avatarUrl = body.avatarUrl;
+    if (body.email !== undefined) {
+      if (body.email !== null && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
+        return reply.code(400).send({ error: "Invalid email address" });
+      }
+      data.email = body.email;
+    }
     const profile = await fastify.prisma.profile.update({
       where: { id: request.user!.id },
-      data: {
-        fullName: body.fullName as string | undefined,
-        avatarUrl: body.avatarUrl as string | undefined,
-      },
+      data,
     });
     return reply.send({ profile });
   });

@@ -14,6 +14,11 @@ import { ShopSwitcher } from "../../components/shop/ShopSwitcher";
 import { useSelectedShop, useSetShopServing } from "../../lib/shopOwner";
 import { useLayout } from "../../hooks/useLayout";
 import { signOut } from "../../lib/auth";
+import {
+  hasSupportContact,
+  openSupportContact,
+  supportContactLabel,
+} from "../../lib/support";
 
 export function ShopSettingsScreen() {
   const { shop, shops, selectShop } = useSelectedShop();
@@ -73,6 +78,9 @@ export function ShopSettingsScreen() {
                 value={shop?.isActive ?? false}
                 disabled={!shop || setServing.isPending}
                 onValueChange={(next) => setServing.mutate(next)}
+                accessibilityLabel={
+                  shop?.isActive === false ? "Shop is paused" : "Shop is serving orders"
+                }
               />
             </View>
 
@@ -90,6 +98,13 @@ export function ShopSettingsScreen() {
                     title={`${shop.openingTime} – ${shop.closingTime}`}
                     meta="Opening hours"
                     chevron={false}
+                  />
+                ) : null}
+                {hasSupportContact() ? (
+                  <Row
+                    title="Help & support"
+                    meta={supportContactLabel()}
+                    onPress={() => void openSupportContact()}
                   />
                 ) : null}
               </RowGroup>

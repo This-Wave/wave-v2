@@ -92,3 +92,27 @@ describe("negative authz — deliver without assignment (H9)", () => {
     await app.close();
   });
 });
+
+describe("negative authz — rider verification (H9)", () => {
+  it("returns 403 when an unverified rider tries to accept an order", async () => {
+    const prisma = {
+      profile: {
+        findUnique: vi.fn().mockResolvedValue({ isVerified: false, universityId: "uni-1" }),
+      },
+      order: {
+        findUnique: vi.fn(),
+        update: vi.fn(),
+      },
+    };
+
+    const app = await buildTestApp(orderRoutes, {
+      prisma,
+      user: { id: "rider-1", role: "rider" },
+    });
+
+    const res = await app.inject({ method: "PATCH", url: "/order-1/accept" });
+    expect(res.statusCode).toBe(403);
+    expect(prisma.order.update).not.toHaveBeenCalled();
+    await app.close();
+  });
+});

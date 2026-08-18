@@ -5,6 +5,7 @@ import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../lib/api";
 import { PageHeader } from "../../../components/ui/PageHeader";
 import { Button } from "../../../components/ui/Button";
+import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 
 interface ConfigRow {
   key: string;
@@ -69,18 +70,23 @@ const KNOWN_KEYS = GROUPS.flatMap((g) => g.keys.map((k) => k.key));
 export default function ConfigPage() {
   const { accessToken } = useAdminAuth();
   const [rows, setRows] = useState<ConfigRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!accessToken) return;
+    setError(null);
     apiFetch<{ config: ConfigRow[] }>("/admin/config", accessToken)
       .then((res) => {
         setRows(res.config);
         setDraft(Object.fromEntries(res.config.map((r) => [r.key, r.value])));
       })
-      .catch(() => setRows([]));
+      .catch(() => {
+        setRows([]);
+        setError("Could not load platform config. Check your connection and try again.");
+      });
   }, [accessToken]);
 
   useEffect(() => {
@@ -131,6 +137,8 @@ export default function ConfigPage() {
           placed keep the fee, discount and surcharge they were created with.
         </p>
       </div>
+
+      {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
 
       {rows === null ? (
         <p className="text-[13.5px] text-muted">Loading…</p>

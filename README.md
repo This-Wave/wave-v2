@@ -335,6 +335,25 @@ Set `NEXT_PUBLIC_SENTRY_DSN` on **wave-admin** and `EXPO_PUBLIC_SENTRY_DSN` on *
 
 **Pilot E2E:** follow [`docs/pilot-e2e-walkthrough.md`](docs/pilot-e2e-walkthrough.md) (checklist C16) on test Paystack before live keys.
 
+**Student web (Vercel)** — set at build time:
+
+| Variable | Notes |
+|----------|--------|
+| `EXPO_PUBLIC_API_URL` | e.g. `https://wave-api-ei19.onrender.com/v1` |
+| `EXPO_PUBLIC_SUPABASE_*` | Auth client |
+| `EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY` | `pk_test_…` matching API secret |
+| `EXPO_PUBLIC_SENTRY_DSN` | Optional crash reporting |
+| `EXPO_PUBLIC_SUPPORT_EMAIL` / `WHATSAPP` | Pilot support on Profile |
+| `EXPO_PUBLIC_TERMS_URL` / `PRIVACY_URL` | Legal links on signup (H11) |
+
+**Backup:** [`docs/neon-backup-restore-runbook.md`](docs/neon-backup-restore-runbook.md) (M2).
+
+### CI & branch protection (H8)
+
+`.github/workflows/ci.yml` runs on PRs to `main`/`develop` and pushes to both branches (lint, type-check, unit + integration smoke tests).
+
+In GitHub → **Settings → Branches**, require the **CI** check before merging to `main` (repo admin action).
+
 ### Local migrations
 
 ```bash
@@ -342,7 +361,7 @@ npm run db:migrate        # dev: create/apply locally
 npm run db:migrate:deploy # prod-style: apply pending only
 ```
 
-Workflows: `.github/workflows/ci.yml` runs lint, type-check, and unit tests on PRs. Deploy workflows are manual reference only.
+Workflows: `.github/workflows/ci.yml` runs lint, type-check, unit tests, and API integration smoke tests on PRs to `main`/`develop`. Deploy workflows are manual reference only.
 
 ---
 

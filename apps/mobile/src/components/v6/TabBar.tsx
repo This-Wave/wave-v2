@@ -51,6 +51,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             key={route.key}
             accessibilityRole="button"
             accessibilityState={focused ? { selected: true } : {}}
+            accessibilityLabel={`${label} tab`}
             onPress={() => {
               const event = navigation.emit({
                 type: "tabPress",

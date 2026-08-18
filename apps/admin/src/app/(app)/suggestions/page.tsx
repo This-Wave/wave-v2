@@ -8,6 +8,7 @@ import { DataTable, type Column } from "../../../components/ui/DataTable";
 import { StatusPill } from "../../../components/ui/StatusPill";
 import { RowAction } from "../../../components/ui/Button";
 import { ResolveSuggestionModal } from "../../../components/ResolveSuggestionModal";
+import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 
 export interface Suggestion {
   normalizedName: string;
@@ -37,6 +38,7 @@ export interface Suggestion {
 export default function SuggestionsPage() {
   const { accessToken } = useAdminAuth();
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"pending" | "all">("pending");
   const [resolving, setResolving] = useState<Suggestion | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
@@ -44,12 +46,16 @@ export default function SuggestionsPage() {
   const load = useCallback(() => {
     if (!accessToken) return;
     setSuggestions(null);
+    setError(null);
     apiFetch<{ suggestions: Suggestion[] }>(
       `/admin/shop-suggestions?status=${statusFilter}`,
       accessToken,
     )
       .then((res) => setSuggestions(res.suggestions))
-      .catch(() => setSuggestions([]));
+      .catch(() => {
+        setSuggestions([]);
+        setError("Could not load shop suggestions. Check your connection and try again.");
+      });
   }, [accessToken, statusFilter]);
 
   useEffect(() => {
@@ -160,6 +166,8 @@ export default function SuggestionsPage() {
           </button>
         }
       />
+
+      {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
 
       <ResolveSuggestionModal
         suggestion={resolving}

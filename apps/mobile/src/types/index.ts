@@ -6,6 +6,7 @@ export interface Profile {
   fullName: string;
   phone: string;
   studentId: string | null;
+  email: string | null;
   role: ProfileRole;
   avatarUrl: string | null;
   pushToken: string | null;

@@ -74,7 +74,11 @@ export function OrderFeedScreen() {
             )}
           </View>
           <View className="items-end gap-1.5">
-            <ToggleSwitch value={online} onValueChange={handleToggle} />
+            <ToggleSwitch
+              value={online}
+              onValueChange={handleToggle}
+              accessibilityLabel={online ? "Available for deliveries" : "Not available for deliveries"}
+            />
             <Text className="font-sans text-meta text-muted">{online ? "Online" : "Offline"}</Text>
           </View>
         </Gutter>

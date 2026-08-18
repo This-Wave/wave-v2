@@ -22,6 +22,7 @@ import {
   openSupportContact,
   supportContactLabel,
 } from "../../../lib/support";
+import { LegalLinksRow } from "../../../components/LegalNotice";
 
 /** Desktop profile — account panel + settings column. */
 export function StudentProfileWeb() {
@@ -98,6 +99,7 @@ export function StudentProfileWeb() {
                 ) : null}
               </RowGroup>
               <View className="mt-6">
+                <LegalLinksRow />
                 <Row title="Log out" onPress={() => setConfirmLogout(true)} chevron={false} />
               </View>
             </View>

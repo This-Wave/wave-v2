@@ -17,6 +17,11 @@ import { useAuthStore } from "../../store/authStore";
 import { useVerificationStatus } from "../../lib/rider";
 import { useLayout } from "../../hooks/useLayout";
 import { signOut } from "../../lib/auth";
+import {
+  hasSupportContact,
+  openSupportContact,
+  supportContactLabel,
+} from "../../lib/support";
 
 function verificationPill(status?: string): {
   label: string;
@@ -97,6 +102,13 @@ export function RiderProfileScreen() {
                     }
                     meta="Photo of your ID plus a selfie"
                     onPress={() => navigation.navigate("SubmitVerification")}
+                  />
+                ) : null}
+                {hasSupportContact() ? (
+                  <Row
+                    title="Help & support"
+                    meta={supportContactLabel()}
+                    onPress={() => void openSupportContact()}
                   />
                 ) : null}
               </RowGroup>

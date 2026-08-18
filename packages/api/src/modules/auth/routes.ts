@@ -27,7 +27,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
-    const { fullName, phone, password, role, universityId, studentId } = parsed.data;
+    const { fullName, phone, password, role, universityId, studentId, email } = parsed.data;
 
     const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
       phone,
@@ -47,6 +47,7 @@ export async function authRoutes(fastify: FastifyInstance) {
           role,
           universityId,
           studentId,
+          email,
           isVerified: role === "student", // riders/shops require admin verification
         },
       });
