@@ -14,7 +14,7 @@ const SEVERITY_BG: Record<Severity, string> = {
 const SEVERITY_ICON_COLOR: Record<Severity, string> = {
   neutral: "#6B7D63",
   error: "#B3453A",
-  success: "#009933",
+  success: "#083400",
 };
 
 interface EmptyStateProps {

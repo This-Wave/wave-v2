@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 type Variant = "primary" | "secondary" | "danger";
 
 const VARIANT: Record<Variant, string> = {
-  primary: "bg-wave-500 text-white",
+  primary: "bg-lime text-ink",
   secondary: "border border-border bg-surface text-ink",
   danger: "border border-danger-border bg-surface text-danger-text",
 };
@@ -55,7 +55,7 @@ export function RowAction({
       onClick={onClick}
       disabled={disabled}
       className={`text-[13px] font-semibold disabled:opacity-40 ${
-        tone === "danger" ? "text-danger-text" : "text-wave-500"
+        tone === "danger" ? "text-danger-text" : "text-ink"
       }`}
     >
       {label}

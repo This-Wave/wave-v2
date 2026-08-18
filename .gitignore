@@ -60,6 +60,7 @@ Thumbs.db
 !README.md
 !docs/pilot-e2e-walkthrough.md
 !docs/neon-backup-restore-runbook.md
+!docs/staging-environment.md
 devlogs/
 
 # Compiled workspace output (packages/*/dist) — built at deploy time

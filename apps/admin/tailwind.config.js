@@ -5,32 +5,33 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Wave v6 — ink + lime (aligns with mobile student system)
         wave: {
-          DEFAULT: "#009933",
-          50: "#F3F7EF",
-          100: "#DCE8D3",
-          200: "#b0e892",
-          500: "#009933",
-          600: "#008A2E",
-          700: "#007526",
-          lime: "#b0e892",
+          DEFAULT: "#87ea5c",
+          50: "#f7f7f7",
+          100: "#eefce6",
+          200: "#d9f7c8",
+          500: "#87ea5c",
+          600: "#6fd943",
+          700: "#083400",
+          lime: "#87ea5c",
         },
-        ink: "#10210B",
-        canvas: "#F3F7EF",
-        muted: "#6B7D63",
-        faint: "#B7C4AE",
+        ink: "#083400",
+        canvas: "#f7f7f7",
+        muted: "#6a6a6a",
+        faint: "#a8a8a8",
         border: {
-          DEFAULT: "#DCE8D3",
-          divider: "#DCE8D3",
+          DEFAULT: "#ebebeb",
+          divider: "#ebebeb",
         },
         surface: {
           DEFAULT: "#FFFFFF",
-          muted: "#F3F7EF",
-          subtle: "#F3F7EF",
+          muted: "#f7f7f7",
+          subtle: "#f7f7f7",
         },
         success: {
-          text: "#009933",
-          bg: "#b0e892",
+          text: "#083400",
+          bg: "#87ea5c",
         },
         danger: {
           text: "#B3453A",
@@ -43,8 +44,12 @@ module.exports = {
           border: "#EFE0C2",
         },
         admin: {
-          text: "#009933",
-          bg: "#b0e892",
+          text: "#083400",
+          bg: "#87ea5c",
+        },
+        lime: {
+          DEFAULT: "#87ea5c",
+          faint: "#eefce6",
         },
       },
       fontFamily: {
@@ -52,15 +57,15 @@ module.exports = {
         mono: ["Geist", "monospace"],
       },
       borderRadius: {
-        card: "24px",
-        control: "18px",
-        pill: "18px",
-        well: "18px",
-        tile: "14px",
+        card: "12px",
+        control: "8px",
+        pill: "9999px",
+        well: "8px",
+        tile: "8px",
       },
       boxShadow: {
         sm: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-        card: "0 0 0 1px rgb(16 33 11 / 0.04), 0 1px 3px rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08)",
+        card: "0 0 0 1px rgb(8 52 0 / 0.04), 0 1px 3px rgb(0 0 0 / 0.08)",
       },
     },
   },

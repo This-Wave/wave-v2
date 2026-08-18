@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { ProductStatus } from "@wave/shared";
+import type { Product } from "../../types";
 import {
   Empty,
   Field,
@@ -17,14 +18,16 @@ import {
 import { PlusIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { ProductStatusSheet } from "../../components/shop/ProductStatusSheet";
+import { ProductFormSheet } from "../../components/shop/ProductFormSheet";
 import {
   useCreateProduct,
+  useDeleteProduct,
   useSelectedShop,
   useShopProducts,
+  useUpdateProduct,
   useUpdateProductStatus,
 } from "../../lib/shopOwner";
 import { ShopSwitcher } from "../../components/shop/ShopSwitcher";
-import { AddProductSheet } from "../../components/shop/AddProductSheet";
 import { useLayout } from "../../hooks/useLayout";
 import { formatGhs } from "../../lib/pricing";
 import { showToast } from "../../store/toastStore";
@@ -43,8 +46,11 @@ export function MenuScreen() {
   const { data: products, isLoading, isError, refetch, isRefetching } = useShopProducts(shop?.id);
   const updateStatus = useUpdateProductStatus(shop?.id);
   const createProduct = useCreateProduct(shop?.id);
+  const updateProduct = useUpdateProduct(shop?.id);
+  const deleteProduct = useDeleteProduct(shop?.id);
   const [query, setQuery] = useState("");
-  const [adding, setAdding] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "edit" | null>(null);
+  const [editTarget, setEditTarget] = useState<Product | null>(null);
   const [statusTarget, setStatusTarget] = useState<{
     id: string;
     name: string;
@@ -58,6 +64,16 @@ export function MenuScreen() {
     if (!q) return products;
     return products.filter((p) => p.name.toLowerCase().includes(q));
   }, [products, query]);
+
+  function openEdit(product: Product) {
+    setEditTarget(product);
+    setFormMode("edit");
+  }
+
+  function closeForm() {
+    setFormMode(null);
+    setEditTarget(null);
+  }
 
   return (
     <Screen>
@@ -82,7 +98,7 @@ export function MenuScreen() {
             </View>
             <Pressable
               disabled={!shop}
-              onPress={() => setAdding(true)}
+              onPress={() => setFormMode("create")}
               accessibilityRole="button"
               accessibilityLabel="Add an item"
               className={`h-11 flex-row items-center gap-1.5 rounded-pill px-4 ${
@@ -126,14 +142,9 @@ export function MenuScreen() {
                 {filtered.map((product, i) => (
                   <Pressable
                     key={product.id}
-                    onPress={() =>
-                      setStatusTarget({
-                        id: product.id,
-                        name: product.name,
-                        status: product.status,
-                      })
-                    }
+                    onPress={() => openEdit(product)}
                     accessibilityRole="button"
+                    accessibilityLabel={`Edit ${product.name}`}
                     className={`flex-row items-center px-5 py-4 active:bg-canvas ${
                       i === filtered.length - 1 ? "" : "border-b border-hairline"
                     }`}
@@ -147,14 +158,26 @@ export function MenuScreen() {
                     <Text className="flex-1 font-sans text-body text-muted">
                       {formatGhs(Number(product.price))}
                     </Text>
-                    <View className="w-36">
+                    <Pressable
+                      className="w-36"
+                      onPress={(event) => {
+                        event.stopPropagation?.();
+                        setStatusTarget({
+                          id: product.id,
+                          name: product.name,
+                          status: product.status,
+                        });
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Change status for ${product.name}`}
+                    >
                       <StatusPill {...STATUS_PILL[product.status]} />
-                    </View>
+                    </Pressable>
                   </Pressable>
                 ))}
               </View>
               <Text className="mt-3 font-sans text-meta text-muted">
-                Click an item to change whether it is on the menu.
+                Click an item to edit name, price, or photo. Click status to change availability.
               </Text>
             </>
           ) : (
@@ -165,20 +188,14 @@ export function MenuScreen() {
                     key={product.id}
                     title={product.name}
                     meta={formatGhs(Number(product.price))}
-                    chevron={false}
+                    chevron
                     trailing={<StatusPill {...STATUS_PILL[product.status]} />}
-                    onPress={() =>
-                      setStatusTarget({
-                        id: product.id,
-                        name: product.name,
-                        status: product.status,
-                      })
-                    }
+                    onPress={() => openEdit(product)}
                   />
                 ))}
               </RowGroup>
               <Text className="mt-3 font-sans text-meta text-muted">
-                Tap an item to change whether it is on the menu.
+                Tap an item to edit. Use “Change menu status” inside the edit sheet.
               </Text>
             </>
           )}
@@ -202,14 +219,50 @@ export function MenuScreen() {
         }}
       />
 
-      <AddProductSheet
-        visible={adding}
-        onClose={() => setAdding(false)}
-        submitting={createProduct.isPending}
+      <ProductFormSheet
+        visible={formMode !== null}
+        mode={formMode === "edit" ? "edit" : "create"}
+        initial={editTarget}
+        onClose={closeForm}
+        submitting={createProduct.isPending || updateProduct.isPending}
+        deleting={deleteProduct.isPending}
         error={
-          createProduct.isError ? "Could not save the item. Check the details and try again." : null
+          createProduct.isError || updateProduct.isError
+            ? "Could not save the item. Check the details and try again."
+            : deleteProduct.isError
+              ? "Could not remove the item."
+              : null
         }
-        onSubmit={(input) => createProduct.mutateAsync(input)}
+        onSubmit={(input) => {
+          if (formMode === "edit" && editTarget) {
+            return updateProduct.mutateAsync({ productId: editTarget.id, input }).then(() => {
+              showToast("Item updated.", "success");
+            });
+          }
+          return createProduct.mutateAsync(input).then(() => {
+            showToast("Item added.", "success");
+          });
+        }}
+        onDelete={
+          formMode === "edit" && editTarget
+            ? () =>
+                deleteProduct.mutateAsync(editTarget.id).then(() => {
+                  showToast("Item removed.", "success");
+                })
+            : undefined
+        }
+        onChangeStatus={
+          formMode === "edit" && editTarget
+            ? () => {
+                closeForm();
+                setStatusTarget({
+                  id: editTarget.id,
+                  name: editTarget.name,
+                  status: editTarget.status,
+                });
+              }
+            : undefined
+        }
       />
     </Screen>
   );

@@ -112,3 +112,64 @@ services:
         sync: false
       - key: NEXT_PUBLIC_SENTRY_DSN
         sync: false
+
+  # ---------------------------------------------------------------------------
+  # STAGING — deploys from `develop`, separate Neon branch + Paystack test keys.
+  # See docs/staging-environment.md for first-time setup.
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: wave-api-staging
+    runtime: node
+    region: frankfurt
+    plan: free
+    branch: develop
+    buildCommand: npm ci --include=dev && npm run build --workspace packages/api && npm run migrate:deploy --workspace @wave/db
+    startCommand: npm start --workspace packages/api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_URL
+        sync: false # e.g. https://wave-api-staging.onrender.com
+      - key: CORS_ORIGINS
+        sync: false # staging admin + student web + localhost dev origins
+      - key: DATABASE_URL # Neon *branch* connection string — never prod
+        sync: false
+      - key: SUPABASE_URL
+        sync: false # can share prod Supabase project or a separate one
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false # distinct from prod
+      - key: PAYSTACK_SECRET_KEY
+        sync: false # sk_test_… only
+      - key: MNOTIFY_API_KEY
+        sync: false
+      - key: MNOTIFY_SENDER_ID
+        value: TACCBooking
+      - key: SMS_HOOK_SECRET
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+
+  - type: web
+    name: wave-admin-staging
+    runtime: node
+    region: frankfurt
+    plan: free
+    branch: develop
+    buildCommand: npm ci --include=dev && npm run build --workspace apps/admin
+    startCommand: npm start --workspace apps/admin
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        sync: false # wave-api-staging public URL
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: NEXT_PUBLIC_SENTRY_DSN
+        sync: false

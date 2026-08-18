@@ -16,6 +16,7 @@ export function Row({
   trailing,
   onPress,
   chevron = true,
+  accessibilityLabel,
 }: {
   title: string;
   meta?: string;
@@ -23,12 +24,14 @@ export function Row({
   trailing?: ReactNode;
   onPress?: () => void;
   chevron?: boolean;
+  accessibilityLabel?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={accessibilityLabel ?? title}
       className="flex-row items-center gap-3 rounded-card bg-surface px-4 py-3.5 active:bg-hairline"
     >
       {leading}

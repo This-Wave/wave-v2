@@ -129,10 +129,10 @@ export default function ConfigPage() {
 
       <div className="mb-7 flex max-w-[720px] gap-3 rounded-control bg-wave-lime p-4">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0">
-          <circle cx="12" cy="12" r="9" stroke="#009933" strokeWidth="1.7" />
-          <path d="M12 11v5.5M12 7.8v.4" stroke="#009933" strokeWidth="1.9" strokeLinecap="round" />
+          <circle cx="12" cy="12" r="9" stroke="#083400" strokeWidth="1.7" />
+          <path d="M12 11v5.5M12 7.8v.4" stroke="#083400" strokeWidth="1.9" strokeLinecap="round" />
         </svg>
-        <p className="text-[12.5px] leading-5 text-wave-500">
+        <p className="text-[12.5px] leading-5 text-ink">
           Changes apply to <strong className="font-semibold">new orders only</strong>. Orders already
           placed keep the fee, discount and surcharge they were created with.
         </p>
