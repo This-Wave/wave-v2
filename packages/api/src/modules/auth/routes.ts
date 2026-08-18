@@ -4,6 +4,7 @@ import { Webhook, WebhookVerificationError } from "standardwebhooks";
 import { loginSchema, registerSchema } from "@wave/shared";
 import { createServerSupabaseClient } from "../../lib/supabaseServer";
 import { SmsSendError, sendOtpSms } from "../../lib/sms";
+import { captureSmsError } from "../../lib/sentry";
 import {
   LOGIN_RATE_LIMIT,
   REGISTER_RATE_LIMIT,
@@ -137,6 +138,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         // which contains the OTP in plaintext. SmsSendError omits it.
         const detail = err instanceof SmsSendError ? err.message : "unknown SMS failure";
         request.log.error({ detail }, "mNotify OTP send failed");
+        captureSmsError(err, { phase: "sms_hook" });
         return reply.code(500).send({ error: "Failed to send SMS" });
       }
 

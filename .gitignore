@@ -58,6 +58,7 @@ Thumbs.db
 # Project docs / session logs (kept locally, not tracked in git)
 *.md
 !README.md
+!docs/pilot-e2e-walkthrough.md
 devlogs/
 
 # Compiled workspace output (packages/*/dist) — built at deploy time

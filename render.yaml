@@ -79,6 +79,8 @@ services:
         value: TACCBooking
       - key: SMS_HOOK_SECRET
         sync: false
+      - key: SENTRY_DSN
+        sync: false
 
   # ---------------------------------------------------------------------------
   # Admin — Next.js 14. Safe to leave on free: a cold start only ever makes an
@@ -107,4 +109,6 @@ services:
       - key: NEXT_PUBLIC_SUPABASE_URL
         sync: false
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: NEXT_PUBLIC_SENTRY_DSN
         sync: false

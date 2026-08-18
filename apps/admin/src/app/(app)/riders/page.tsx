@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../lib/api";
+import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 
 type VerificationStatus = "pending" | "approved" | "rejected";
 
@@ -32,14 +33,19 @@ export default function RidersPage() {
   const { accessToken } = useAdminAuth();
   const [tab, setTab] = useState<VerificationStatus>("pending");
   const [verifications, setVerifications] = useState<Verification[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!accessToken) return;
     setVerifications(null);
+    setError(null);
     apiFetch<{ verifications: Verification[] }>(`/riders/admin/riders?status=${tab}`, accessToken)
       .then((res) => setVerifications(res.verifications))
-      .catch(() => setVerifications([]));
+      .catch(() => {
+        setVerifications([]);
+        setError("Could not load rider verifications. Check your connection and try again.");
+      });
   }, [accessToken, tab]);
 
   useEffect(() => {
@@ -66,6 +72,8 @@ export default function RidersPage() {
         <h1 className="text-[26px] font-semibold tracking-tight text-ink">Rider Verifications</h1>
         <p className="mt-0.5 text-[13px] text-muted">Review submitted IDs and selfies</p>
       </div>
+
+      {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
 
       <div className="mb-5 inline-flex rounded-control border border-border bg-surface p-1">
         {TABS.map((t) => (

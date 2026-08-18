@@ -327,8 +327,13 @@ Required env vars on **wave-api** (see `.env.example`):
 | `DATABASE_URL` | Neon pooled connection string |
 | `PAYSTACK_SECRET_KEY` | `sk_test_…` or `sk_live_…` — **not** `pk_…` |
 | `SUPABASE_*`, `JWT_SECRET`, `SMS_HOOK_SECRET`, `MNOTIFY_*` | As documented in `render.yaml` |
+| `SENTRY_DSN` | Optional — API error monitoring; alerts on payment/SMS failures |
 
 **Before live Paystack:** upgrade API to a **paid always-on** Render plan (checklist C11) — free tier cold-starts can drop webhooks.
+
+Set `NEXT_PUBLIC_SENTRY_DSN` on **wave-admin** and `EXPO_PUBLIC_SENTRY_DSN` on **student web** (Vercel) when Sentry projects exist. Configure Sentry alert rules for tags `wave.domain=payment` and `wave.domain=sms`.
+
+**Pilot E2E:** follow [`docs/pilot-e2e-walkthrough.md`](docs/pilot-e2e-walkthrough.md) (checklist C16) on test Paystack before live keys.
 
 ### Local migrations
 

@@ -9,6 +9,7 @@ import {
 } from "./paystack";
 import { paystackMatchesGhs } from "./amounts";
 import { confirmDeliveryFeePaid, confirmGoodsPaid } from "./confirm";
+import { capturePaymentError, capturePaymentIssue } from "../../lib/sentry";
 
 const PAYABLE_DELIVERY_STATUSES = ["pending", "payment_pending"] as const;
 
@@ -62,6 +63,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     } catch (err) {
       const message = paystackErrorMessage(err);
       request.log.error(err, "Paystack initiate failed");
+      capturePaymentError(err, { phase: "initiate", orderId: order.id, reference });
       return reply.code(502).send({ error: message ?? "Payment provider error, please try again" });
     }
 
@@ -129,6 +131,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     } catch (err) {
       const message = paystackErrorMessage(err);
       request.log.error(err, "Paystack goods initiate failed");
+      capturePaymentError(err, { phase: "initiate_goods", orderId: order.id, reference });
       return reply.code(502).send({ error: message ?? "Payment provider error, please try again" });
     }
 
@@ -186,6 +189,12 @@ export async function paymentRoutes(fastify: FastifyInstance) {
             { orderId: goodsOrder.id, reference: event.data.reference, expectedGhs: expectedGoods },
             "Paystack goods webhook amount mismatch — refusing to confirm",
           );
+          capturePaymentIssue("Paystack goods webhook amount mismatch", {
+            phase: "webhook_goods",
+            orderId: goodsOrder.id,
+            reference: event.data.reference,
+            expectedGhs: expectedGoods,
+          });
           return reply.code(400).send({ error: "Payment amount mismatch" });
         }
         const { alreadyProcessed } = await confirmGoodsPaid({
@@ -207,6 +216,12 @@ export async function paymentRoutes(fastify: FastifyInstance) {
           { orderId: order.id, reference: event.data.reference, expectedGhs: Number(order.totalAmount) },
           "Paystack delivery webhook amount mismatch — refusing to confirm",
         );
+        capturePaymentIssue("Paystack delivery webhook amount mismatch", {
+          phase: "webhook_delivery",
+          orderId: order.id,
+          reference: event.data.reference,
+          expectedGhs: Number(order.totalAmount),
+        });
         return reply.code(400).send({ error: "Payment amount mismatch" });
       }
 
@@ -266,6 +281,12 @@ export async function paymentRoutes(fastify: FastifyInstance) {
         { orderId: args.orderId, reference: args.reference, expectedGhs: args.expectedGhs },
         "Paystack verify amount mismatch — refusing to confirm",
       );
+      capturePaymentIssue("Paystack verify amount mismatch", {
+        phase: args.isGoods ? "verify_goods" : "verify_delivery",
+        orderId: args.orderId,
+        reference: args.reference,
+        expectedGhs: args.expectedGhs,
+      });
       return;
     }
 

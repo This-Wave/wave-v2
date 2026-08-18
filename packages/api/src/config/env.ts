@@ -36,6 +36,9 @@ const envSchema = z.object({
   // from-address must be on a domain verified in the Resend dashboard.
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM: z.string().default("Wave <notifications@wave.app>"),
+
+  /** Optional error monitoring — unset means Sentry stays disabled. */
+  SENTRY_DSN: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

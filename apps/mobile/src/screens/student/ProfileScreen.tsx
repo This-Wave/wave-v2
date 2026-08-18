@@ -19,6 +19,12 @@ import { formatGhs } from "../../lib/pricing";
 import { DEFAULT_LOYALTY_DISCOUNT_PCT, DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
 import { useLayout } from "../../hooks/useLayout";
 import { StudentProfileWeb } from "./web/StudentProfileWeb";
+import {
+  getSupportContact,
+  hasSupportContact,
+  openSupportContact,
+  supportContactLabel,
+} from "../../lib/support";
 
 /**
  * Profile. Web uses a two-panel account page; native keeps the phone layout.
@@ -89,6 +95,13 @@ function ProfileMobile() {
               meta="How you pay for deliveries"
               onPress={() => navigation.navigate("PaymentMethods")}
             />
+            {hasSupportContact() ? (
+              <Row
+                title="Help & support"
+                meta={supportContactLabel()}
+                onPress={() => void openSupportContact()}
+              />
+            ) : null}
           </RowGroup>
 
           <View className="mt-8">

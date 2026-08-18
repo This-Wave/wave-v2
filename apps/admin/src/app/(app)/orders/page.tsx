@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../lib/api";
+import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 
 interface OrderRow {
   id: string;
@@ -53,10 +54,12 @@ export default function OrdersPage() {
   const [page, setPage] = useState(1);
   const [orders, setOrders] = useState<OrderRow[] | null>(null);
   const [total, setTotal] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!accessToken) return;
     setOrders(null);
+    setError(null);
     const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
     if (status) params.set("status", status);
     apiFetch<{ orders: OrderRow[]; total: number }>(`/admin/orders?${params}`, accessToken)
@@ -67,6 +70,7 @@ export default function OrdersPage() {
       .catch(() => {
         setOrders([]);
         setTotal(0);
+        setError("Could not load orders. Check your connection and try again.");
       });
   }, [accessToken, status, page]);
 
@@ -100,6 +104,8 @@ export default function OrdersPage() {
           ))}
         </select>
       </div>
+
+      {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
 
       <div className="overflow-hidden rounded-card border border-border bg-surface">
         <table className="w-full text-left text-[13px]">

@@ -2,7 +2,7 @@
   "name": "@wave/admin",
   "version": "0.1.0",
   "private": true,
-  "description": "Wave admin dashboard \u2014 Next.js 14",
+  "description": "Wave admin dashboard — Next.js 14",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,6 +11,9 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.70.0",
+    "@sentry/node": "^10.70.0",
+    "@sentry/react-native": "^8.23.0",
     "@supabase/supabase-js": "^2.45.4",
     "@wave/shared": "*",
     "autoprefixer": "^10.4.20",
