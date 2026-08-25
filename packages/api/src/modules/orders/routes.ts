@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import type { OrderStatus } from "@wave/shared";
 import {
   cancelOrderSchema,
   createOrderSchema,
@@ -20,6 +21,7 @@ import { verifyDeliveryPin } from "./pin";
 import { issueDeliveryPin } from "./issuePin";
 import { decryptDeliveryPin } from "./pinCrypto";
 import { findOrderForUser, redactStudentContactForShop } from "./access";
+import { allowedPredecessors } from "./transitions";
 import { clientSafeOrder, feedOrder } from "./select";
 import { endOrderWithRefund } from "../payments/refund";
 import { notifyGoodsCostRecorded, notifyOrderStatus } from "../notifications/dispatch";
@@ -341,15 +343,39 @@ export async function orderRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: `status must be one of: ${RIDER_SETTABLE_STATUSES.join(", ")}` });
       }
 
+      // The current status belongs in the predicate, not in a prior read: two
+      // requests would both pass a read-then-check. Same reasoning as the rider
+      // claim lock above.
+      //
+      // Without this the predicate was `{ id, riderId }` alone — and a
+      // delivered order still has a `riderId`, so a finished, cancelled or
+      // refunded order could be pushed back to `en_route`
+      // (review 09-architecture, C2).
+      const target = body.status as OrderStatus;
       let order;
       try {
         order = await fastify.prisma.order.update({
-          where: { id, riderId: request.user!.id },
-          data: { status: body.status as never },
+          where: {
+            id,
+            riderId: request.user!.id,
+            status: { in: allowedPredecessors(target) },
+          },
+          data: { status: target as never },
           select: clientSafeOrder,
         });
       } catch {
-        return reply.code(404).send({ error: "Order not found or not assigned to you" });
+        // Three ways to land here — not yours, not found, or the wrong state —
+        // and they need different answers. Re-read to say which.
+        const existing = await fastify.prisma.order.findFirst({
+          where: { id, riderId: request.user!.id },
+          select: { status: true },
+        });
+        if (!existing) {
+          return reply.code(404).send({ error: "Order not found or not assigned to you" });
+        }
+        return reply.code(409).send({
+          error: `This order is ${existing.status} — it can't be marked ${target}`,
+        });
       }
 
       await fastify.prisma.orderStatusHistory.create({
@@ -508,9 +534,26 @@ export async function orderRoutes(fastify: FastifyInstance) {
     const valid = await verifyDeliveryPin(parsed.data.pin, order.deliveryPinHash);
     if (!valid) return reply.code(403).send({ error: "Incorrect PIN" });
 
-    const updated = await fastify.prisma.order.update({
-      where: { id },
+    // Delivering is not idempotent — it increments
+    // `studentDeliveryStats.totalDeliveries`, which is what earns the 20%
+    // loyalty discount. Without a status predicate this route would happily
+    // deliver an already-delivered order again and move the student closer to a
+    // discount they did not earn, or mark a refunded order delivered
+    // (review 09-architecture, C2).
+    //
+    // In the predicate rather than an `if` above, so two riders holding the
+    // same PIN cannot both pass the check before either writes.
+    const deliverable = await fastify.prisma.order.updateMany({
+      where: { id, status: { in: allowedPredecessors("delivered") } },
       data: { status: "delivered", deliveredAt: new Date() },
+    });
+    if (deliverable.count === 0) {
+      return reply.code(409).send({
+        error: `This order is ${order.status} — it can't be marked delivered`,
+      });
+    }
+    const updated = await fastify.prisma.order.findUnique({
+      where: { id },
       select: clientSafeOrder,
     });
 
@@ -769,11 +812,24 @@ export async function orderRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
 
-    const shop = await fastify.prisma.shop.findFirst({ where: { ownerId: request.user!.id } });
-    const order = shop
-      ? await fastify.prisma.order.findUnique({ where: { id }, select: { shopId: true } })
-      : null;
-    if (!order || order.shopId !== shop!.id) {
+    // Scope by ownership *in the predicate*, matching `/:id/shop-accept` above.
+    //
+    // This used to resolve one shop with `findFirst({ where: { ownerId } })` and
+    // compare it to `order.shopId` (review 09-architecture, H2). An owner may
+    // hold several shops, and that `findFirst` carried no `orderBy` — so it
+    // returned an arbitrary shop, and rejecting an order belonging to any other
+    // one 404'd. Non-deterministically, too: with no ordering, Postgres is free
+    // to return a different row between requests, so the same call could work
+    // once and fail the next time.
+    //
+    // The listing route above hit the identical bug and was fixed there; this
+    // path was missed. One query now, and ownership cannot drift from what
+    // `/shops/my` returns.
+    const order = await fastify.prisma.order.findFirst({
+      where: { id, shop: { ownerId: request.user!.id } },
+      select: { id: true },
+    });
+    if (!order) {
       return reply.code(404).send({ error: "Order not found" });
     }
 

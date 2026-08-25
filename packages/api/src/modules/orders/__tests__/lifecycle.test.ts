@@ -29,6 +29,12 @@ function makePrisma(overrides: Record<string, unknown> = {}) {
         return null;
       }),
       update: vi.fn().mockResolvedValue({ id: "order-1" }),
+      // Conditional delivery write — see the deliver tests below.
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      // The re-read the status route does when its conditional update matches
+      // nothing, to tell "not yours" apart from "wrong state". Null by default
+      // = not yours = 404.
+      findFirst: vi.fn().mockResolvedValue(null),
       ...(overrides.order as object),
     },
     profile: {
@@ -122,8 +128,15 @@ describe("PATCH /:id/status", () => {
   });
 
   test("a transition on someone else's order 404s and writes no history", async () => {
+    // NOTE: the trailing `...overrides` in makePrisma replaces `order`
+    // wholesale, so anything the route touches has to be listed here.
+    // `findFirst` is the re-read that distinguishes "not yours" (404) from
+    // "wrong state" (409); null means not yours.
     const prisma = makePrisma({
-      order: { update: vi.fn().mockRejectedValue(new Error("record not found")) },
+      order: {
+        update: vi.fn().mockRejectedValue(new Error("record not found")),
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
     });
     const res = await (await app(prisma, RIDER)).inject({
       method: "PATCH",
@@ -140,7 +153,11 @@ describe("PATCH /:id/status", () => {
 describe("PATCH /:id/deliver — PIN", () => {
   const PIN = "482915";
 
-  async function deliverWith(pin: string, hash: string | null) {
+  async function deliverWith(
+    pin: string,
+    hash: string | null,
+    { status = "at_checkpoint", deliverable = true }: { status?: string; deliverable?: boolean } = {},
+  ) {
     const prisma = makePrisma({
       order: {
         findUnique: vi.fn().mockResolvedValue(
@@ -151,9 +168,14 @@ describe("PATCH /:id/deliver — PIN", () => {
                 studentId: "student-1",
                 riderId: "rider-1",
                 orderType: "shop_catalog",
+                status,
                 deliveryPinHash: hash,
               },
         ),
+        // Delivery is a conditional update now: it may only run from a status
+        // the lifecycle allows, so an already-delivered order cannot be
+        // delivered twice and credited twice.
+        updateMany: vi.fn().mockResolvedValue({ count: deliverable ? 1 : 0 }),
         update: vi.fn().mockResolvedValue({ id: "order-1", status: "delivered" }),
       },
     });
@@ -170,7 +192,7 @@ describe("PATCH /:id/deliver — PIN", () => {
     const { res, prisma } = await deliverWith(PIN, hash);
 
     expect(res.statusCode).toBe(200);
-    expect(prisma.order.update.mock.calls[0]?.[0]?.data).toMatchObject({ status: "delivered" });
+    expect(prisma.order.updateMany.mock.calls[0]?.[0]?.data).toMatchObject({ status: "delivered" });
     expect(prisma.studentDeliveryStats.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { studentId: "student-1" } }),
     );
@@ -181,7 +203,19 @@ describe("PATCH /:id/deliver — PIN", () => {
     const { res, prisma } = await deliverWith("000000", hash);
 
     expect(res.statusCode).toBe(403);
-    expect(prisma.order.update).not.toHaveBeenCalled();
+    expect(prisma.order.updateMany).not.toHaveBeenCalled();
+    expect(prisma.studentDeliveryStats.upsert).not.toHaveBeenCalled();
+  });
+
+  test("a second delivery of the same order does not credit loyalty twice", async () => {
+    // The money-adjacent one: totalDeliveries drives the 20% loyalty discount.
+    const hash = await bcrypt.hash(PIN, 10);
+    const { res, prisma } = await deliverWith(PIN, hash, {
+      status: "delivered",
+      deliverable: false,
+    });
+
+    expect(res.statusCode).toBe(409);
     expect(prisma.studentDeliveryStats.upsert).not.toHaveBeenCalled();
   });
 
@@ -283,3 +317,53 @@ describe("authentication", () => {
     expect(prisma.order.update).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * The two illegal jumps that were reachable before the transition table existed
+ * (review 09-architecture, C2).
+ */
+describe("status transitions are enforced at the route", () => {
+  test("the status update is scoped by current status, not just ownership", async () => {
+    const prisma = makePrisma({
+      order: {
+        update: vi.fn().mockResolvedValue({ id: "order-1" }),
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+    });
+
+    await (await app(prisma, RIDER)).inject({
+      method: "PATCH",
+      url: "/order-1/status",
+      payload: { status: "en_route" },
+    });
+
+    const where = prisma.order.update.mock.calls[0]?.[0]?.where;
+    expect(where).toMatchObject({ id: "order-1", riderId: "rider-1" });
+    // The part that was missing: a delivered order still has a riderId.
+    expect(where.status.in).toContain("rider_assigned");
+    expect(where.status.in).not.toContain("delivered");
+    expect(where.status.in).not.toContain("refunded");
+  });
+
+  test("409, not 404, when the order is theirs but in the wrong state", async () => {
+    const prisma = makePrisma({
+      order: {
+        update: vi.fn().mockRejectedValue(new Error("no rows matched")),
+        findFirst: vi.fn().mockResolvedValue({ status: "delivered" }),
+      },
+    });
+
+    const res = await (await app(prisma, RIDER)).inject({
+      method: "PATCH",
+      url: "/order-1/status",
+      payload: { status: "en_route" },
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toContain("delivered");
+    expect(prisma.orderStatusHistory.create).not.toHaveBeenCalled();
+    expect(notifyOrderStatus).not.toHaveBeenCalled();
+  });
+
+});
+
