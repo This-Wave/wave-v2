@@ -63,6 +63,7 @@ Thumbs.db
 !docs/staging-environment.md
 !docs/design-surfaces.md
 !docs/supabase-dashboard-config.md
+!docs/data-retention-and-deletion.md
 devlogs/
 
 # Compiled workspace output (packages/*/dist) — built at deploy time

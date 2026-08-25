@@ -6,7 +6,12 @@ import {
   uploadVerificationImageSchema,
 } from "@wave/shared";
 import { createServerSupabaseClient } from "../../lib/supabaseServer";
-import { VERIFICATION_BUCKET, ownsVerificationPath, signVerificationImages } from "./images";
+import {
+  VERIFICATION_BUCKET,
+  deleteVerificationImages,
+  ownsVerificationPath,
+  signVerificationImages,
+} from "./images";
 
 export async function riderRoutes(fastify: FastifyInstance) {
   fastify.post(
@@ -141,6 +146,20 @@ export async function riderRoutes(fastify: FastifyInstance) {
       });
       if (parsed.data.status === "approved") {
         await fastify.prisma.profile.update({ where: { id: verification.riderId }, data: { isVerified: true } });
+      }
+
+      // Rejection is the one unambiguous deletion trigger Wave has for the most
+      // sensitive data it holds, so the photographs go now rather than waiting
+      // for a manual purge (review 07-privacy, H1/H2). The row itself stays —
+      // it records that a decision was made and why, without the images.
+      if (parsed.data.status === "rejected") {
+        const { deleted } = await deleteVerificationImages(fastify.config, verification, request.log);
+        request.log.info(
+          { verificationId: verification.id, deleted },
+          deleted
+            ? "Deleted ID photographs for rejected verification"
+            : "Rejected verification had no deletable image paths, or storage delete failed",
+        );
       }
       return reply.send({ verification });
     },

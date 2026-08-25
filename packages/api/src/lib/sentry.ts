@@ -10,6 +10,12 @@ export function initSentry(env: Pick<Env, "SENTRY_DSN" | "NODE_ENV">): void {
   Sentry.init({
     dsn: env.SENTRY_DSN,
     environment: env.NODE_ENV,
+    // Explicit, not left to the SDK default (review 07-privacy, checklist item
+    // "No PII in analytics"). Wave's users are identified by phone number, so
+    // an SDK upgrade that flipped this default would start shipping student
+    // phone numbers, IPs and request bodies to a third-party service. Pinning
+    // it means that change would be a visible diff rather than a silent one.
+    sendDefaultPii: false,
     tracesSampleRate: env.NODE_ENV === "production" ? 0.1 : 1,
   });
   enabled = true;

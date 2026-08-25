@@ -19,7 +19,7 @@ import {
 import { verifyDeliveryPin } from "./pin";
 import { issueDeliveryPin } from "./issuePin";
 import { decryptDeliveryPin } from "./pinCrypto";
-import { findOrderForUser } from "./access";
+import { findOrderForUser, redactStudentContactForShop } from "./access";
 import { clientSafeOrder, feedOrder } from "./select";
 import { endOrderWithRefund } from "../payments/refund";
 import { notifyGoodsCostRecorded, notifyOrderStatus } from "../notifications/dispatch";
@@ -264,7 +264,12 @@ export async function orderRoutes(fastify: FastifyInstance) {
       select: clientSafeOrder,
       orderBy: { createdAt: "desc" },
     });
-    return reply.send({ orders });
+    // The larger of the two exposures: this returns every order the shop has
+    // ever had in one response, so an unredacted version is a standing export
+    // of the contact details of every student who has ordered from them.
+    return reply.send({
+      orders: orders.map((o) => redactStudentContactForShop(o, request.user!)),
+    });
   });
 
   fastify.get("/:id", { preHandler: fastify.authenticate }, async (request, reply) => {

@@ -87,3 +87,48 @@ export async function signVerificationImages<T extends VerificationRow>(
 export function ownsVerificationPath(path: string, riderId: string): boolean {
   return path.startsWith(`${riderId}/`) && !path.includes("..");
 }
+
+/**
+ * Deletes a rejected applicant's ID photographs from the private bucket.
+ *
+ * The retention decision (2026-08-25, `docs/data-retention-and-deletion.md`):
+ * there is no reason to keep a government ID photograph belonging to somebody
+ * you declined. Rejection is the clearest deletion trigger Wave has, and this
+ * is the most sensitive data it holds — so it is automated here rather than
+ * left as a calendar obligation nobody remembers.
+ *
+ * **Never throws.** A storage failure must not roll back the review decision:
+ * the admin's judgement is the important outcome, and an orphaned object is
+ * recoverable by hand where a lost rejection is confusing for everyone. Returns
+ * whether the delete actually happened so the caller can log it.
+ *
+ * Legacy rows hold an absolute URL rather than a path; those predate the
+ * private bucket and cannot be addressed for deletion here.
+ */
+export async function deleteVerificationImages(
+  config: Pick<Env, "SUPABASE_URL" | "SUPABASE_SERVICE_ROLE_KEY">,
+  row: VerificationRow,
+  log?: { warn: (obj: unknown, msg: string) => void },
+): Promise<{ deleted: boolean }> {
+  const paths = [row.idImagePath, row.selfiePath].filter(
+    (value) => value && !isLegacyAbsoluteUrl(value),
+  );
+  if (paths.length === 0) return { deleted: false };
+
+  try {
+    const supabase = createServerSupabaseClient(
+      config.SUPABASE_URL,
+      config.SUPABASE_SERVICE_ROLE_KEY,
+    );
+    const { error } = await supabase.storage.from(VERIFICATION_BUCKET).remove(paths);
+    if (error) {
+      log?.warn(error, "failed to delete rejected verification images");
+      return { deleted: false };
+    }
+    return { deleted: true };
+  } catch (err) {
+    log?.warn(err, "failed to delete rejected verification images");
+    return { deleted: false };
+  }
+}
+

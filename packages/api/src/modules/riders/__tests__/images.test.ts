@@ -4,19 +4,23 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 // can reference this without a temporal-dead-zone error. The alternative,
 // top-level `await import(...)`, is not valid under this package's CommonJS
 // target and fails `npm run type-check`.
-const { createSignedUrls } = vi.hoisted(() => ({ createSignedUrls: vi.fn() }));
-
-vi.mock("@supabase/supabase-js", () => ({
-  createClient: () => ({ storage: { from: () => ({ createSignedUrls }) } }),
+const { createSignedUrls, remove } = vi.hoisted(() => ({
+  createSignedUrls: vi.fn(),
+  remove: vi.fn(),
 }));
 
-import { ownsVerificationPath, signVerificationImages } from "../images";
+vi.mock("@supabase/supabase-js", () => ({
+  createClient: () => ({ storage: { from: () => ({ createSignedUrls, remove }) } }),
+}));
+
+import { deleteVerificationImages, ownsVerificationPath, signVerificationImages } from "../images";
 
 const config = { SUPABASE_URL: "https://example.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "service-role" };
 const RIDER = "4e45b6f3-0da4-446b-a547-2cf8138028e0";
 
 beforeEach(() => {
   createSignedUrls.mockReset();
+  remove.mockReset().mockResolvedValue({ error: null });
 });
 
 describe("ownsVerificationPath", () => {
@@ -97,5 +101,67 @@ describe("signVerificationImages", () => {
     );
     expect(signed?.idImageUrl).toBeNull();
     expect(warn).toHaveBeenCalled();
+  });
+});
+
+/**
+ * Rejected applicants' ID photographs are deleted immediately (review
+ * 07-privacy, H1; retention decision 2026-08-25). There is no reason to hold a
+ * government ID belonging to someone you declined, and this is the most
+ * sensitive data Wave stores.
+ */
+describe("deleteVerificationImages", () => {
+  const row = {
+    idImagePath: `${RIDER}/id-1730000000000.jpeg`,
+    selfiePath: `${RIDER}/selfie-1730000000000.jpeg`,
+  };
+
+  test("removes both objects in one call", async () => {
+    const result = await deleteVerificationImages(config, row);
+
+    expect(remove).toHaveBeenCalledWith([row.idImagePath, row.selfiePath]);
+    expect(result).toEqual({ deleted: true });
+  });
+
+  test("reports failure rather than throwing when storage errors", async () => {
+    // The review decision must not roll back because a bucket call failed — an
+    // orphaned object is recoverable by hand; a lost rejection confuses everyone.
+    remove.mockResolvedValue({ error: { message: "bucket unavailable" } });
+    const warn = vi.fn();
+
+    const result = await deleteVerificationImages(config, row, { warn });
+
+    expect(result).toEqual({ deleted: false });
+    expect(warn).toHaveBeenCalled();
+  });
+
+  test("survives the storage client throwing outright", async () => {
+    remove.mockRejectedValue(new Error("network down"));
+    const warn = vi.fn();
+
+    await expect(deleteVerificationImages(config, row, { warn })).resolves.toEqual({
+      deleted: false,
+    });
+    expect(warn).toHaveBeenCalled();
+  });
+
+  test("skips legacy absolute URLs, which cannot be addressed for deletion", async () => {
+    const legacy = {
+      idImagePath: "https://example.supabase.co/storage/v1/object/public/verifications/x.jpg",
+      selfiePath: "https://example.supabase.co/storage/v1/object/public/verifications/y.jpg",
+    };
+
+    const result = await deleteVerificationImages(config, legacy);
+
+    expect(remove).not.toHaveBeenCalled();
+    expect(result).toEqual({ deleted: false });
+  });
+
+  test("deletes the one real path when the other is legacy", async () => {
+    const mixed = { idImagePath: row.idImagePath, selfiePath: "https://example.com/old.jpg" };
+
+    await deleteVerificationImages(config, mixed);
+
+    expect(remove).toHaveBeenCalledWith([row.idImagePath]);
   });
 });
