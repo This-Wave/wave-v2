@@ -16,6 +16,7 @@ import { useOrder } from "../../lib/orders";
 import { useShopAcceptOrder, useShopCancelOrder } from "../../lib/shopOwner";
 import { formatGhs } from "../../lib/pricing";
 import { showToast } from "../../store/toastStore";
+import { apiErrorMessage } from "../../lib/apiError";
 
 type Route = RouteProp<ShopStackParamList, "IncomingOrderDetail">;
 
@@ -42,18 +43,37 @@ export function IncomingOrderDetailScreen() {
   const cancelOrder = useShopCancelOrder();
 
   async function handleAccept() {
-    await acceptOrder.mutateAsync(params.orderId);
-    showToast("Thanks — the runner knows you're on it.", "success");
-    navigation.goBack();
+    try {
+      await acceptOrder.mutateAsync(params.orderId);
+      showToast("Thanks — the runner knows you're on it.", "success");
+      navigation.goBack();
+    } catch (err) {
+      showToast(apiErrorMessage(err, "Couldn't save that — try again."), "danger");
+    }
   }
 
   async function handleCancel() {
-    await cancelOrder.mutateAsync({
-      orderId: params.orderId,
-      reason: "Unable to fulfill this order",
-    });
-    showToast("Order rejected. Student will be refunded.", "success");
-    navigation.goBack();
+    // The one that matters. This triggers a refund, and `endOrderWithRefund`
+    // calls Paystack *before* touching the order — so a Paystack failure
+    // answers 502 with "the order was left unchanged" and nothing has moved.
+    // Unhandled, that showed the shop nothing at all: no toast, no navigation.
+    // They would reasonably conclude either that it worked or that the button
+    // is broken, and both readings are wrong (review 08-mobile, H4).
+    try {
+      await cancelOrder.mutateAsync({
+        orderId: params.orderId,
+        reason: "Unable to fulfill this order",
+      });
+      showToast("Order rejected. Student will be refunded.", "success");
+      navigation.goBack();
+    } catch (err) {
+      // Stay on the screen: the order is still live and still theirs to deal
+      // with, so navigating away would hide the problem.
+      showToast(
+        apiErrorMessage(err, "Couldn't reject this order. Nothing was changed."),
+        "danger",
+      );
+    }
   }
 
   return (

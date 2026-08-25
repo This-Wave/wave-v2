@@ -15,6 +15,7 @@ import {
 import { useOrder } from "../../lib/orders";
 import { useRecordGoodsCost } from "../../lib/rider";
 import { formatGhs } from "../../lib/pricing";
+import { apiErrorMessage } from "../../lib/apiError";
 
 type Route = RouteProp<RiderStackParamList, "RecordGoodsCost">;
 
@@ -69,8 +70,7 @@ export function RecordGoodsCostScreen() {
       });
       navigation.goBack();
     } catch (err) {
-      const message = (err as { response?: { data?: { error?: string } } }).response?.data?.error;
-      setError(message ?? "Couldn't save that. Check your connection and try again.");
+      setError(apiErrorMessage(err, "Couldn't save that. Check your connection and try again."));
     }
   }
 

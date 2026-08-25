@@ -15,6 +15,8 @@ import {
 } from "../../components/v6";
 import { useOrder } from "../../lib/orders";
 import { useAcceptOrder } from "../../lib/rider";
+import { apiErrorMessage } from "../../lib/apiError";
+import { showToast } from "../../store/toastStore";
 import { formatGhs } from "../../lib/pricing";
 
 type Route = RouteProp<RiderStackParamList, "OrderDetail">;
@@ -36,8 +38,21 @@ export function OrderDetailScreen() {
   const acceptOrder = useAcceptOrder();
 
   async function handleAccept() {
-    await acceptOrder.mutateAsync(params.orderId);
-    navigation.replace("ActiveDelivery", { orderId: params.orderId });
+    // Two riders tapping Accept on the same feed entry is ordinary contention,
+    // not an edge case — the server says so in the claim-lock comment on
+    // `PATCH /orders/:id/accept` and answers 409 to the loser. `mutateAsync`
+    // rejects on that, and without this catch the rejection was unhandled: the
+    // spinner stopped, no message appeared, and the rider was left tapping a
+    // button that silently did nothing (review 08-mobile, H4).
+    try {
+      await acceptOrder.mutateAsync(params.orderId);
+      navigation.replace("ActiveDelivery", { orderId: params.orderId });
+    } catch (err) {
+      // The API's own copy names the actual reason ("already accepted by
+      // another rider"), which is what tells them to go back to the feed.
+      showToast(apiErrorMessage(err, "Could not accept this order."), "danger");
+      navigation.goBack();
+    }
   }
 
   return (
