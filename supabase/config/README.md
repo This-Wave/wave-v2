@@ -9,3 +9,6 @@ Once a Supabase project exists for this pilot:
 - Create a private `verifications` storage bucket for rider ID/selfie uploads (no public URLs, signed URLs only, 1-hour expiry).
 - Create a `product-images` bucket for shop product photos.
 - Enable Realtime on the `orders` table only after RLS policies are applied (see GOTCHA-004 in `debug.md`).
+
+**Full dashboard checklist (bucket privacy, SMS hook, verification steps):**
+[`docs/supabase-dashboard-config.md`](../../docs/supabase-dashboard-config.md)
