@@ -1,35 +1,62 @@
 import { useMemo, useState } from "react";
-import { Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
-import { Plus, UtensilsCrossed } from "lucide-react-native";
+import { Pressable, Text, View } from "react-native";
 import type { ProductStatus } from "@wave/shared";
-import { Badge } from "../../components/ui/Badge";
-import { SearchBar } from "../../components/ui/SearchBar";
-import { EmptyState } from "../../components/ui/EmptyState";
-import { Skeleton } from "../../components/ui/Skeleton";
-import { useCreateProduct, useSelectedShop, useShopProducts, useUpdateProductStatus } from "../../lib/shopOwner";
+import type { Product } from "../../types";
+import {
+  Empty,
+  Field,
+  Gutter,
+  ListError,
+  ListSkeleton,
+  PageTitle,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  StatusPill,
+} from "../../components/v6";
+import { PlusIcon } from "../../components/icons";
+import { colors } from "../../theme/tokens";
+import { ProductStatusSheet } from "../../components/shop/ProductStatusSheet";
+import { ProductFormSheet } from "../../components/shop/ProductFormSheet";
+import {
+  useCreateProduct,
+  useDeleteProduct,
+  useSelectedShop,
+  useShopProducts,
+  useUpdateProduct,
+  useUpdateProductStatus,
+} from "../../lib/shopOwner";
 import { ShopSwitcher } from "../../components/shop/ShopSwitcher";
-import { AddProductSheet } from "../../components/shop/AddProductSheet";
+import { useLayout } from "../../hooks/useLayout";
 import { formatGhs } from "../../lib/pricing";
+import { showToast } from "../../store/toastStore";
 
-const STATUS_BADGE: Record<ProductStatus, { label: string; variant: "success" | "neutral" | "warning" }> = {
-  active: { label: "Active", variant: "success" },
-  out_of_stock: { label: "Out of Stock", variant: "neutral" },
-  not_serving: { label: "Not Serving", variant: "warning" },
-};
-
-const STATUS_CYCLE: Record<ProductStatus, ProductStatus> = {
-  active: "out_of_stock",
-  out_of_stock: "not_serving",
-  not_serving: "active",
+const STATUS_PILL: Record<
+  ProductStatus,
+  { label: string; tone: "neutral" | "active" | "done" | "danger" }
+> = {
+  active: { label: "On", tone: "done" },
+  out_of_stock: { label: "Out of stock", tone: "neutral" },
+  not_serving: { label: "Off", tone: "neutral" },
 };
 
 export function MenuScreen() {
   const { shop, shops, selectShop } = useSelectedShop();
-  const { data: products, isLoading } = useShopProducts(shop?.id);
+  const { data: products, isLoading, isError, refetch, isRefetching } = useShopProducts(shop?.id);
   const updateStatus = useUpdateProductStatus(shop?.id);
   const createProduct = useCreateProduct(shop?.id);
+  const updateProduct = useUpdateProduct(shop?.id);
+  const deleteProduct = useDeleteProduct(shop?.id);
   const [query, setQuery] = useState("");
-  const [adding, setAdding] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "edit" | null>(null);
+  const [editTarget, setEditTarget] = useState<Product | null>(null);
+  const [statusTarget, setStatusTarget] = useState<{
+    id: string;
+    name: string;
+    status: ProductStatus;
+  } | null>(null);
+  const { isDesktop } = useLayout();
 
   const filtered = useMemo(() => {
     if (!products) return [];
@@ -38,73 +65,205 @@ export function MenuScreen() {
     return products.filter((p) => p.name.toLowerCase().includes(q));
   }, [products, query]);
 
+  function openEdit(product: Product) {
+    setEditTarget(product);
+    setFormMode("edit");
+  }
+
+  function closeForm() {
+    setFormMode(null);
+    setEditTarget(null);
+  }
+
   return (
-    <SafeAreaView className="flex-1 bg-surface-muted">
-      <View className="flex-row items-center justify-between px-6 pb-3 pt-2">
-        <Text className="font-sans-extrabold text-[20px] tracking-tight text-ink">Menu</Text>
-        <Pressable
-          className="flex-row items-center gap-1.5 rounded-well bg-wave-500 px-3.5 py-2"
-          disabled={!shop}
-          style={!shop ? { opacity: 0.5 } : undefined}
-          onPress={() => setAdding(true)}
-        >
-          <Plus size={15} color="#fff" strokeWidth={2.5} />
-          <Text className="font-sans-semibold text-[12px] text-white">Add Item</Text>
-        </Pressable>
-      </View>
-
-      <View className="px-6">
-        <ShopSwitcher shops={shops} selectedId={shop?.id} onSelect={selectShop} />
-      </View>
-
-      <View className="px-6 pb-3">
-        <SearchBar value={query} onChangeText={setQuery} placeholder="Search menu..." />
-      </View>
-
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: 128 }}>
-        {isLoading ? (
-          <View className="gap-2.5">
-            <Skeleton height={62} radius={14} />
-            <Skeleton height={62} radius={14} />
+    <Screen>
+      <ScreenBody
+        bottomInset={24}
+        refreshing={isRefetching}
+        onRefresh={() => void refetch()}
+      >
+        <Gutter className={isDesktop ? "pb-6 pt-8" : "pb-5 pt-4"}>
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1 pr-4">
+              {isDesktop ? (
+                <>
+                  <Text className="font-sans-bold text-heading text-ink">Menu</Text>
+                  <Text className="mt-1 font-sans text-ui text-muted">
+                    What students can order from {shop?.name ?? "your shop"}.
+                  </Text>
+                </>
+              ) : (
+                <PageTitle>Menu</PageTitle>
+              )}
+            </View>
+            <Pressable
+              disabled={!shop}
+              onPress={() => setFormMode("create")}
+              accessibilityRole="button"
+              accessibilityLabel="Add an item"
+              className={`h-11 flex-row items-center gap-1.5 rounded-pill px-4 ${
+                shop ? "bg-lime active:bg-lime-600" : "bg-surface-muted"
+              }`}
+            >
+              <PlusIcon size={16} color={colors.ink} strokeWidth={2.2} />
+              <Text className="font-sans-medium text-body text-ink">Add</Text>
+            </Pressable>
           </View>
-        ) : filtered.length === 0 ? (
-          <EmptyState icon={UtensilsCrossed} title="No items yet" description="Tap “Add Item” to start building your menu." />
-        ) : (
-          <View className="overflow-hidden rounded-well border border-border bg-surface">
-            {filtered.map((product, i) => {
-              const dimmed = product.status === "out_of_stock" ? 0.6 : product.status === "not_serving" ? 0.5 : 1;
-              return (
-                <Pressable
-                  key={product.id}
-                  onPress={() =>
-                    updateStatus.mutate({ productId: product.id, status: STATUS_CYCLE[product.status] })
-                  }
-                  style={{ opacity: dimmed }}
-                  className={`flex-row items-center justify-between px-3.5 py-3.5 ${
-                    i < filtered.length - 1 ? "border-b border-surface-muted" : ""
-                  }`}
-                >
-                  <View className="flex-1 pr-3">
-                    <Text className="font-sans-semibold text-[13px] text-ink" numberOfLines={1}>
+        </Gutter>
+
+        {shops && shops.length > 1 ? (
+          <Gutter className="mb-5">
+            <ShopSwitcher shops={shops} selectedId={shop?.id} onSelect={selectShop} />
+          </Gutter>
+        ) : null}
+
+        <Gutter className="mb-5">
+          <Field label="" value={query} onChangeText={setQuery} placeholder="Search your menu" />
+        </Gutter>
+
+        <Gutter>
+          {isLoading ? (
+            <ListSkeleton rows={4} />
+          ) : isError ? (
+            <ListError onRetry={() => void refetch()} />
+          ) : filtered.length === 0 ? (
+            <Empty
+              title={query ? "Nothing matches" : "No items yet"}
+              body={query ? "Try a different word." : "Add your first item to start selling."}
+            />
+          ) : isDesktop ? (
+            <>
+              <View className="overflow-hidden rounded-card bg-surface">
+                <View className="flex-row border-b border-hairline px-5 py-3">
+                  <Text className="flex-[2] font-sans-semibold text-meta text-muted">ITEM</Text>
+                  <Text className="flex-1 font-sans-semibold text-meta text-muted">PRICE</Text>
+                  <Text className="w-36 font-sans-semibold text-meta text-muted">STATUS</Text>
+                </View>
+                {filtered.map((product, i) => (
+                  <Pressable
+                    key={product.id}
+                    onPress={() => openEdit(product)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Edit ${product.name}`}
+                    className={`flex-row items-center px-5 py-4 active:bg-canvas ${
+                      i === filtered.length - 1 ? "" : "border-b border-hairline"
+                    }`}
+                  >
+                    <Text
+                      className="flex-[2] pr-3 font-sans-medium text-body text-ink"
+                      numberOfLines={1}
+                    >
                       {product.name}
                     </Text>
-                    <Text className="mt-0.5 text-[12px] text-muted">{formatGhs(Number(product.price))}</Text>
-                  </View>
-                  <Badge {...STATUS_BADGE[product.status]} />
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
-      </ScrollView>
+                    <Text className="flex-1 font-sans text-body text-muted">
+                      {formatGhs(Number(product.price))}
+                    </Text>
+                    <Pressable
+                      className="w-36"
+                      onPress={(event) => {
+                        event.stopPropagation?.();
+                        setStatusTarget({
+                          id: product.id,
+                          name: product.name,
+                          status: product.status,
+                        });
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Change status for ${product.name}`}
+                    >
+                      <StatusPill {...STATUS_PILL[product.status]} />
+                    </Pressable>
+                  </Pressable>
+                ))}
+              </View>
+              <Text className="mt-3 font-sans text-meta text-muted">
+                Click an item to edit name, price, or photo. Click status to change availability.
+              </Text>
+            </>
+          ) : (
+            <>
+              <RowGroup>
+                {filtered.map((product) => (
+                  <Row
+                    key={product.id}
+                    title={product.name}
+                    meta={formatGhs(Number(product.price))}
+                    chevron
+                    trailing={<StatusPill {...STATUS_PILL[product.status]} />}
+                    onPress={() => openEdit(product)}
+                  />
+                ))}
+              </RowGroup>
+              <Text className="mt-3 font-sans text-meta text-muted">
+                Tap an item to edit. Use “Change menu status” inside the edit sheet.
+              </Text>
+            </>
+          )}
+        </Gutter>
+      </ScreenBody>
 
-      <AddProductSheet
-        visible={adding}
-        onClose={() => setAdding(false)}
-        submitting={createProduct.isPending}
-        error={createProduct.isError ? "Could not save the item. Check the details and try again." : null}
-        onSubmit={(input) => createProduct.mutateAsync(input)}
+      <ProductStatusSheet
+        visible={!!statusTarget}
+        productName={statusTarget?.name ?? ""}
+        current={statusTarget?.status ?? "active"}
+        onClose={() => setStatusTarget(null)}
+        onSelect={(status) => {
+          if (!statusTarget) return;
+          updateStatus.mutate(
+            { productId: statusTarget.id, status },
+            {
+              onSuccess: () => showToast("Menu updated.", "success"),
+              onError: () => showToast("Could not update item.", "danger"),
+            },
+          );
+        }}
       />
-    </SafeAreaView>
+
+      <ProductFormSheet
+        visible={formMode !== null}
+        mode={formMode === "edit" ? "edit" : "create"}
+        initial={editTarget}
+        onClose={closeForm}
+        submitting={createProduct.isPending || updateProduct.isPending}
+        deleting={deleteProduct.isPending}
+        error={
+          createProduct.isError || updateProduct.isError
+            ? "Could not save the item. Check the details and try again."
+            : deleteProduct.isError
+              ? "Could not remove the item."
+              : null
+        }
+        onSubmit={(input) => {
+          if (formMode === "edit" && editTarget) {
+            return updateProduct.mutateAsync({ productId: editTarget.id, input }).then(() => {
+              showToast("Item updated.", "success");
+            });
+          }
+          return createProduct.mutateAsync(input).then(() => {
+            showToast("Item added.", "success");
+          });
+        }}
+        onDelete={
+          formMode === "edit" && editTarget
+            ? () =>
+                deleteProduct.mutateAsync(editTarget.id).then(() => {
+                  showToast("Item removed.", "success");
+                })
+            : undefined
+        }
+        onChangeStatus={
+          formMode === "edit" && editTarget
+            ? () => {
+                closeForm();
+                setStatusTarget({
+                  id: editTarget.id,
+                  name: editTarget.name,
+                  status: editTarget.status,
+                });
+              }
+            : undefined
+        }
+      />
+    </Screen>
   );
 }

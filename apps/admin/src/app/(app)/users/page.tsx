@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../lib/api";
+import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 import { PageHeader } from "../../../components/ui/PageHeader";
 import { DataTable, FilterTabs, type Column } from "../../../components/ui/DataTable";
 import { StatusPill } from "../../../components/ui/StatusPill";
@@ -46,15 +47,20 @@ export default function UsersPage() {
   const [role, setRole] = useState<RoleFilter>("all");
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState<User[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!accessToken) return;
     setUsers(null);
+    setError(null);
     const query = role === "all" ? "" : `?role=${role}`;
     apiFetch<{ users: User[] }>(`/admin/users${query}`, accessToken)
       .then((res) => setUsers(res.users))
-      .catch(() => setUsers([]));
+      .catch(() => {
+        setUsers([]);
+        setError("Could not load users. Check your connection and try again.");
+      });
   }, [accessToken, role]);
 
   useEffect(() => {
@@ -142,6 +148,8 @@ export default function UsersPage() {
   return (
     <div className="px-10 py-8">
       <PageHeader title="Users" subtitle="All platform users across roles" />
+
+      {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
 
       <div className="mb-5 flex flex-wrap items-center gap-2.5">
         <div className="flex-1">

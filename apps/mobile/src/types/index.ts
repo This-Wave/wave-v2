@@ -6,6 +6,7 @@ export interface Profile {
   fullName: string;
   phone: string;
   studentId: string | null;
+  email: string | null;
   role: ProfileRole;
   avatarUrl: string | null;
   pushToken: string | null;
@@ -72,13 +73,59 @@ export type OrderStatus =
 
 export type DeliveryDay = "sunday" | "wednesday" | "special";
 
+export type OrderType = "buy_for_me" | "pickup" | "shop_pickup";
+
+export type SuggestionStatus = "pending" | "onboarded" | "rejected";
+
+/**
+ * A shop a student asked for that Wave doesn't carry yet.
+ *
+ * `status` is what decides whether it can still be ordered from: once it is
+ * `onboarded` the real shop exists and ordering moves to its catalogue.
+ */
+export interface ShopSuggestion {
+  id: string;
+  studentId: string;
+  universityId: string;
+  name: string;
+  normalizedName: string;
+  locationText: string | null;
+  category: string | null;
+  status: SuggestionStatus;
+  resolvedShopId: string | null;
+  createdAt: string;
+  resolvedShop?: Pick<Shop, "id" | "name" | "logoUrl"> | null;
+}
+
+/**
+ * One line of the basket.
+ *
+ * `unitPrice` is null on a manual list (nobody knows the price yet) and
+ * `actualUnitPrice` is null until the rider records what they paid at the till.
+ * Both are strings for the same reason as every other Decimal here.
+ */
+export interface OrderItem {
+  id: string;
+  productId: string | null;
+  name: string;
+  unitPrice: string | null;
+  quantity: number;
+  actualUnitPrice: string | null;
+}
+
 // Decimal fields come back JSON-serialized as strings from Prisma — parse with
 // Number(...) at the point of display, never assume they're already numbers.
 export interface Order {
   id: string;
   studentId: string;
   riderId: string | null;
-  shopId: string;
+  orderType: OrderType;
+  originCheckpointId: string | null;
+  originCheckpoint?: Checkpoint | null;
+  /** Null on a pickup order — there is no shop involved. */
+  shopId: string | null;
+  /** Set only on a shop_pickup — the suggested shop this order buys from. */
+  suggestionId: string | null;
   checkpointId: string;
   universityId: string;
   productId: string | null;
@@ -94,12 +141,17 @@ export interface Order {
   isSpecialOrder: boolean;
   paystackRef: string | null;
   paidAt: string | null;
+  /** Set when the second charge on a shop_pickup clears. Null on other types. */
+  goodsPaidAt: string | null;
+  shopAcceptedAt: string | null;
   deliveredAt: string | null;
   notes: string | null;
   cancellationReason: string | null;
   createdAt: string;
   updatedAt: string;
   shop?: Shop | null;
+  suggestion?: Pick<ShopSuggestion, "id" | "name" | "locationText" | "category" | "status"> | null;
+  items?: OrderItem[];
   checkpoint?: Checkpoint | null;
   student?: Profile | null;
   rider?: Profile | null;
@@ -114,6 +166,7 @@ export interface RiderEarning {
   amount: string;
   status: EarningStatus;
   paidAt: string | null;
+  shopAcceptedAt: string | null;
   createdAt: string;
   order?: { id: string; createdAt: string; shop?: { name: string } | null } | null;
 }

@@ -1,33 +1,46 @@
 import { useMemo } from "react";
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Package } from "lucide-react-native";
 import type { ShopStackParamList } from "../../navigation/ShopNavigator";
-import { Card } from "../../components/ui/Card";
-import { Badge } from "../../components/ui/Badge";
-import { Button } from "../../components/ui/Button";
-import { Skeleton } from "../../components/ui/Skeleton";
-import { EmptyState } from "../../components/ui/EmptyState";
-import { useSelectedShop, useShopCancelOrder, useShopOrders } from "../../lib/shopOwner";
+import {
+  Empty,
+  Gutter,
+  ListError,
+  ListSkeleton,
+  PageTitle,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  StatusPill,
+} from "../../components/v6";
 import { ShopSwitcher } from "../../components/shop/ShopSwitcher";
+import { useSelectedShop, useShopOrders } from "../../lib/shopOwner";
+import { useWave } from "../../lib/wave";
+import { useLayout } from "../../hooks/useLayout";
+import { openShopIncoming } from "../../lib/desktopNavigate";
 import { formatGhs } from "../../lib/pricing";
 
 function isToday(dateStr: string): boolean {
   return new Date(dateStr).toDateString() === new Date().toDateString();
 }
 
+/**
+ * The shop owner's morning screen: how today is going, and what needs a
+ * decision right now.
+ */
 export function ShopDashboardScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ShopStackParamList>>();
   const { shop, shops, selectShop, isLoading: shopLoading } = useSelectedShop();
-  const { data: allOrders, isLoading: ordersLoading } = useShopOrders();
-  // /orders/shop returns every order across every shop this owner holds, so the
-  // dashboard narrows to the one being viewed.
+  const { data: allOrders, isLoading: ordersLoading, isError, refetch, isRefetching } = useShopOrders();
+  const wave = useWave();
+  const { isDesktop } = useLayout();
+
   const orders = useMemo(
     () => (shop ? allOrders?.filter((o) => o.shopId === shop.id) : allOrders),
     [allOrders, shop],
   );
-  const cancelOrder = useShopCancelOrder();
 
   const incoming = orders?.filter((o) => o.status === "confirmed" && !o.riderId) ?? [];
   const todaysOrders = useMemo(() => orders?.filter((o) => isToday(o.createdAt)) ?? [], [orders]);
@@ -38,91 +51,108 @@ export function ShopDashboardScreen() {
   const isLoading = shopLoading || ordersLoading;
 
   return (
-    <SafeAreaView className="flex-1 bg-surface-muted">
-      <View className="px-6 pb-3 pt-2">
-        <View className="mb-1 flex-row items-center justify-between">
-          <Text className="font-sans-extrabold text-[20px] tracking-tight text-ink">
-            {shop?.name ?? "Your Shop"}
-          </Text>
-          <Badge label={shop?.isActive ? "Serving" : "Closed"} variant={shop?.isActive ? "success" : "neutral"} />
-        </View>
-        <Text className="text-[12px] text-muted">
-          {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })}
-        </Text>
-      </View>
-
-      <View className="px-6">
-        <ShopSwitcher shops={shops} selectedId={shop?.id} onSelect={selectShop} />
-      </View>
-
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ gap: 14, paddingBottom: 128 }}>
-        {isLoading ? (
-          <View className="flex-row gap-2.5">
-            <Skeleton height={80} radius={14} className="flex-1" />
-            <Skeleton height={80} radius={14} className="flex-1" />
+    <Screen>
+      <ScreenBody
+        bottomInset={24}
+        refreshing={isRefetching}
+        onRefresh={() => void refetch()}
+      >
+        <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-6 pt-4"}>
+          <View className="mb-2 flex-row items-start justify-between">
+            <View className="flex-1 pr-3">
+              {isDesktop ? (
+                <>
+                  <Text className="font-sans-bold text-heading text-ink">
+                    {shop?.name ?? "Your shop"}
+                  </Text>
+                  <Text className="mt-1 font-sans text-ui text-muted">
+                    {wave
+                      ? `${wave.name} · closes in ${wave.countdown}. Flag anything you can’t fulfil.`
+                      : "Today’s Wave and what needs a decision."}
+                  </Text>
+                </>
+              ) : (
+                <PageTitle>{shop?.name ?? "Your shop"}</PageTitle>
+              )}
+            </View>
+            <StatusPill
+              label={shop?.isActive ? "Serving" : "Closed"}
+              tone={shop?.isActive ? "done" : "neutral"}
+            />
           </View>
-        ) : (
-          <View className="flex-row gap-2.5">
-            <Card className="flex-1">
-              <Text className="mb-1 text-[11px] text-muted">Orders Today</Text>
-              <Text className="font-sans-extrabold text-[22px] text-ink">{todaysOrders.length}</Text>
-            </Card>
-            <Card className="flex-1">
-              <Text className="mb-1 text-[11px] text-muted">Revenue</Text>
-              <Text className="font-sans-extrabold text-[22px] text-ink">{formatGhs(revenueToday)}</Text>
-            </Card>
-          </View>
-        )}
+          {!isDesktop ? (
+            <Text className="font-sans text-body text-muted">
+              {wave ? `${wave.name} · closes in ${wave.countdown}` : "Next Wave"}
+            </Text>
+          ) : null}
+        </Gutter>
 
-        <View>
-          <View className="mb-2 flex-row items-center gap-2">
-            <Text className="font-sans-bold text-[13px] text-ink">Incoming Orders</Text>
-            {incoming.length > 0 ? <Badge label={`${incoming.length} new`} variant="warning" /> : null}
-          </View>
+        {shops && shops.length > 1 ? (
+          <Gutter className="mb-6">
+            <ShopSwitcher shops={shops} selectedId={shop?.id} onSelect={selectShop} />
+          </Gutter>
+        ) : null}
 
+        <Gutter className={`mb-section flex-row ${isDesktop ? "gap-16" : "gap-8"}`}>
           {isLoading ? (
-            <Skeleton height={140} radius={14} />
-          ) : incoming.length === 0 ? (
-            <EmptyState icon={Package} title="No incoming orders" description="New paid orders will show up here." />
+            <ListSkeleton rows={1} />
           ) : (
-            <View className="gap-2.5">
+            <>
+              <View>
+                <Text className="font-sans text-body text-muted">Orders today</Text>
+                <Text
+                  className="mt-1 font-sans-bold text-ink"
+                  style={{ fontSize: isDesktop ? 48 : 40, lineHeight: isDesktop ? 52 : 44 }}
+                >
+                  {todaysOrders.length}
+                </Text>
+              </View>
+              <View>
+                <Text className="font-sans text-body text-muted">Order value today</Text>
+                <Text
+                  className="mt-1 font-sans-bold text-ink"
+                  style={{ fontSize: isDesktop ? 48 : 40, lineHeight: isDesktop ? 52 : 44 }}
+                >
+                  {formatGhs(revenueToday)}
+                </Text>
+              </View>
+            </>
+          )}
+        </Gutter>
+
+        <Gutter className="mb-3 flex-row items-center gap-2">
+          <Text className="font-sans-medium text-heading-sm text-ink">Needs you</Text>
+          {incoming.length > 0 ? (
+            <StatusPill label={`${incoming.length}`} tone="active" />
+          ) : null}
+        </Gutter>
+
+        <Gutter>
+          {isLoading ? (
+            <ListSkeleton rows={2} />
+          ) : isError ? (
+            <ListError onRetry={() => void refetch()} />
+          ) : incoming.length === 0 ? (
+            <Empty title="All clear" body="Paid orders waiting on you will appear here." />
+          ) : (
+            <RowGroup>
               {incoming.map((order) => (
-                <Card key={order.id}>
-                  <View className="mb-2.5 flex-row items-start justify-between">
-                    <View className="flex-1">
-                      <Text className="mb-0.5 font-sans-bold text-[13px] text-ink">
-                        {order.student?.fullName ?? "Student"}
-                      </Text>
-                      <Text className="text-[11px] text-muted" numberOfLines={1}>
-                        {order.itemDescription}
-                      </Text>
-                    </View>
-                    <Text className="font-sans-extrabold text-[14px] text-ink">
+                <Row
+                  key={order.id}
+                  title={order.student?.fullName ?? "Student"}
+                  meta={order.itemDescription}
+                  trailing={
+                    <Text className="font-sans-semibold text-body text-ink">
                       {formatGhs(Number(order.totalAmount))}
                     </Text>
-                  </View>
-                  <View className="flex-row gap-2.5">
-                    <View className="flex-1">
-                      <Button
-                        label="Reject"
-                        variant="secondary"
-                        onPress={() => cancelOrder.mutate({ orderId: order.id, reason: "Rejected by shop" })}
-                        loading={cancelOrder.isPending}
-                      />
-                    </View>
-                    <View className="flex-1">
-                      <Button
-                        label="Accept Order"
-                        onPress={() => navigation.navigate("IncomingOrderDetail", { orderId: order.id })}
-                      />
-                    </View>
-                  </View>
-                </Card>
+                  }
+                  onPress={() => openShopIncoming(navigation, order.id)}
+                />
               ))}
-            </View>
+            </RowGroup>
           )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        </Gutter>
+      </ScreenBody>
+    </Screen>
   );
 }

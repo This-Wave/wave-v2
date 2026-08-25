@@ -1,124 +1,283 @@
-import { useState } from "react";
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
-import * as WebBrowser from "expo-web-browser";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { ScreenHeader } from "../../components/ui/ScreenHeader";
-import { PaymentMethodRow } from "../../components/ui/PaymentMethodRow";
-import { Button } from "../../components/ui/Button";
-import { CardIcon, MobileIcon } from "../../components/icons";
+import { ActionBar, Button, CheckoutProgress, Gutter, Screen, ScreenBody, TopBar, WaveContextBanner } from "../../components/v6";
+import { PaystackCheckout, type CheckoutOutcome } from "../../components/PaystackCheckout";
+import { CardIcon, CheckIcon, MobileIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
-import { useInitiatePayment, waitForPayment } from "../../lib/payments";
+import { useInitiatePayment, waitForPayment, paymentInitiateErrorMessage } from "../../lib/payments";
+import { webAppOrigin } from "../../lib/paymentReturn";
 import { useAuthStore } from "../../store/authStore";
+import { useOrder } from "../../lib/orders";
 import { formatGhs, formatGhsCompact } from "../../lib/pricing";
+import { exitPaymentToOrders, resetAfterPaymentOutcome } from "../../lib/navigationFlows";
+import { showToast } from "../../store/toastStore";
 
 type Route = RouteProp<StudentStackParamList, "Payment">;
 type Method = "momo" | "card";
 
 /**
- * Checkout, built on the v5 payment-method rows (screen 15) with the amount
- * shown in the screen-06 total treatment. The chosen method is sent to the API,
- * which restricts Paystack to that channel so checkout opens where the student
- * expects rather than asking them to choose again.
+ * Checkout, as an explicit state machine.
  *
- * Nothing here decides whether payment succeeded. The browser closing means the
- * student is back, not that they paid — only the Paystack webhook confirms an
- * order, so this asks the API and waits for it.
+ *   choosing → checkout → confirming → (OrderConfirmed | PaymentFailed)
+ *
+ * **The bug this replaces.** The old flow was one straight line: open the
+ * browser, `await` it, then poll five times over ~7 seconds. That `await` only
+ * blocks on native. On Expo Web `openBrowserAsync` resolves the instant the tab
+ * opens, so the poll ran while the student was still on the Paystack page, and
+ * the app announced "We couldn't confirm that" a few seconds after checkout
+ * appeared — before they had entered anything.
+ *
+ * The fix is not a longer timer. It is knowing which state we are in:
+ *
+ *  - **checkout** — the student is at Paystack. We wait. We do not judge, and
+ *    there is no time limit, because there is nothing to be impatient about.
+ *  - **confirming** — checkout genuinely finished. Only now does the wait for
+ *    the webhook begin, and only from here can it be reported as unconfirmed.
+ *
+ * Polling runs during BOTH states. That is what lets a web student, whose tab we
+ * cannot observe, be carried straight to confirmation the moment their money
+ * lands — no button, no guessing.
+ *
+ * Nothing here decides whether payment succeeded. Checkout closing means the
+ * student is back, not that they paid; only the signed Paystack webhook confirms
+ * an order.
  */
+type Phase = "choosing" | "checkout" | "confirming";
+
 export function PaymentScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
   const profile = useAuthStore((s) => s.profile);
   const initiatePayment = useInitiatePayment();
+  const { data: order } = useOrder(params.orderId);
+
   const [method, setMethod] = useState<Method>("momo");
   const [error, setError] = useState<string | null>(null);
-  const [verifying, setVerifying] = useState(false);
+  const [phase, setPhase] = useState<Phase>("choosing");
+  const [checkout, setCheckout] = useState<{ url: string; reference: string } | null>(null);
+
+  // Cancelled when the screen unmounts so a poll can't navigate a screen the
+  // student has already left.
+  const cancel = useRef({ cancelled: false });
+  useEffect(() => {
+    const signal = cancel.current;
+    return () => {
+      signal.cancelled = true;
+    };
+  }, []);
+
+  /**
+   * Watches for the money landing, for as long as the student is on this screen.
+   *
+   * Runs from the moment checkout opens rather than after it closes, because on
+   * web we cannot see the other tab: this poll is the only way that student ever
+   * reaches confirmation. It never routes to failure — only the explicit
+   * `confirming` phase below is allowed to conclude anything negative.
+   */
+  useEffect(() => {
+    if (!checkout || phase === "choosing") return;
+    let stopped = false;
+
+    (async () => {
+      const status = await waitForPayment(checkout.reference, {
+        attempts: 240, // ~6 minutes at 1.5s
+        signal: cancel.current,
+      });
+      if (stopped || cancel.current.cancelled) return;
+      if (status) {
+        resetAfterPaymentOutcome(navigation, {
+          name: "OrderConfirmed",
+          params: { orderId: params.orderId },
+        });
+      }
+    })();
+
+    return () => {
+      stopped = true;
+    };
+  }, [checkout, phase, navigation, params.orderId]);
 
   async function handlePay() {
     setError(null);
-
-    let reference: string;
-    let paymentUrl: string;
     try {
-      ({ reference, payment_url: paymentUrl } = await initiatePayment.mutateAsync({
+      const { reference, payment_url: url } = await initiatePayment.mutateAsync({
         orderId: params.orderId,
         method,
-      }));
-    } catch {
-      // Nothing was charged — checkout never opened. Stay put so they can retry
-      // without losing the screen.
-      setError("Couldn't start the payment. Check your connection and try again.");
-      return;
-    }
-
-    // An in-app browser, not Linking.openURL: this resolves when the student
-    // closes it, which is what gives us a moment to check the outcome. Handing
-    // off to the system browser left the app with no idea what happened and no
-    // way back.
-    setVerifying(true);
-    try {
-      await WebBrowser.openBrowserAsync(paymentUrl, { showTitle: true, enableBarCollapsing: true });
-      const status = await waitForPayment(reference);
-      if (status) {
-        navigation.replace("OrderConfirmed", { orderId: params.orderId });
-      } else {
-        // Not necessarily a failure — they may have abandoned checkout, or the
-        // webhook may still be in flight. Either way we must not claim success.
-        navigation.replace("PaymentFailed", {
-          orderId: params.orderId,
-          totalAmount: params.totalAmount,
-        });
-      }
-    } finally {
-      setVerifying(false);
+        returnOrigin: webAppOrigin(),
+      });
+      setCheckout({ url, reference });
+      setPhase("checkout");
+    } catch (err) {
+      setError(paymentInitiateErrorMessage(err));
     }
   }
 
-  return (
-    <SafeAreaView className="flex-1 bg-canvas">
-      <ScreenHeader title="Payment" onBack={() => navigation.goBack()} />
+  /**
+   * Checkout finished or was dismissed.
+   *
+   * Either way we move to `confirming` rather than straight to failure: a
+   * student who backed out of an embedded checkout may still have completed a
+   * MoMo prompt on their phone, and the webhook can arrive seconds later.
+   */
+  async function handleCheckoutOutcome(outcome: CheckoutOutcome) {
+    if (!checkout) return;
+    setPhase("confirming");
 
-      <ScrollView className="flex-1 px-5 pt-5" contentContainerStyle={{ paddingBottom: 24 }}>
-        <View className="mb-7 items-center">
-          <Text className="mb-1.5 font-sans-medium text-[12px] uppercase tracking-[0.6px] text-muted">Amount due</Text>
-          <Text className="font-sans-semibold text-[40px] tracking-tighter text-wave-500">
+    const status = await waitForPayment(checkout.reference, {
+      // Generous when we know they finished; brief when they backed out, since
+      // in that case we are only catching a payment already in flight.
+      attempts: outcome === "completed" ? 40 : 8,
+      signal: cancel.current,
+    });
+    if (cancel.current.cancelled) return;
+
+    if (status) {
+      resetAfterPaymentOutcome(navigation, {
+        name: "OrderConfirmed",
+        params: { orderId: params.orderId },
+      });
+    } else {
+      resetAfterPaymentOutcome(navigation, {
+        name: "PaymentFailed",
+        params: {
+          orderId: params.orderId,
+          totalAmount: params.totalAmount,
+        },
+      });
+    }
+  }
+
+  if (phase === "checkout" && checkout) {
+    return (
+      <Screen narrow>
+        <PaystackCheckout
+          paymentUrl={checkout.url}
+          pending={{
+            orderId: params.orderId,
+            reference: checkout.reference,
+            totalAmount: params.totalAmount,
+          }}
+          onOutcome={handleCheckoutOutcome}
+        />
+      </Screen>
+    );
+  }
+
+  if (phase === "confirming") {
+    return (
+      <Screen narrow>
+        <ScreenBody bottomInset={16}>
+          <Gutter className="pt-16 items-center">
+            <ActivityIndicator color={colors.ink} />
+            <Text className="mb-2 mt-6 text-center font-sans-bold text-heading text-ink">
+              Confirming your payment
+            </Text>
+            <Text className="text-center font-sans text-body text-muted">
+              This takes a few seconds. Don't pay again — if your money left, this will finish on
+              its own.
+            </Text>
+          </Gutter>
+        </ScreenBody>
+      </Screen>
+    );
+  }
+
+  return (
+    <Screen narrow>
+      <TopBar
+        onBack={() => {
+          showToast("Order saved — pay anytime from Orders.");
+          exitPaymentToOrders(navigation);
+        }}
+      />
+
+      <ScreenBody bottomInset={16}>
+        <Gutter>
+          <CheckoutProgress step={3} />
+          {order ? (
+            <WaveContextBanner
+              scheduledDate={order.scheduledDate}
+              checkpointName={order.checkpoint?.name}
+              isSpecialOrder={order.isSpecialOrder}
+            />
+          ) : null}
+          <Text className="font-sans text-body text-muted">You're paying</Text>
+          <Text
+            className="mb-10 mt-1 font-sans-bold text-ink"
+            style={{ fontSize: 48, lineHeight: 52 }}
+          >
             {formatGhsCompact(params.totalAmount)}
           </Text>
-        </View>
 
-        <Text className="mb-3 font-sans-semibold text-[18px] text-ink">Pay with</Text>
-        <View className="gap-3">
-          <PaymentMethodRow
-            label="Mobile Money"
-            subtitle={profile?.phone ?? "MTN · Telecel · AirtelTigo"}
-            icon={<MobileIcon />}
-            selected={method === "momo"}
-            onPress={() => setMethod("momo")}
-          />
-          <PaymentMethodRow
-            label="Card"
-            subtitle="Visa or Mastercard"
-            icon={<CardIcon size={18} color={colors.ink} strokeWidth={1.6} />}
-            selected={method === "card"}
-            onPress={() => setMethod("card")}
-          />
-        </View>
+          <Text className="mb-3 font-sans-medium text-subheading text-ink">How?</Text>
+          <View className="gap-2">
+            <MethodRow
+              label="Mobile Money"
+              meta={profile?.phone ?? "MTN · Telecel · AirtelTigo"}
+              icon={<MobileIcon size={20} color={colors.ink} strokeWidth={1.7} />}
+              selected={method === "momo"}
+              onPress={() => setMethod("momo")}
+            />
+            <MethodRow
+              label="Card"
+              meta="Visa or Mastercard"
+              icon={<CardIcon size={20} color={colors.ink} strokeWidth={1.7} />}
+              selected={method === "card"}
+              onPress={() => setMethod("card")}
+            />
+          </View>
 
-        <Text className="mt-5 text-center text-[12px] text-muted">
-          Payments are secured by Paystack. Checkout opens here in the app.
-        </Text>
-        {error ? <Text className="mt-3 text-center text-[12px] text-danger-text">{error}</Text> : null}
-      </ScrollView>
+          <Text className="mt-6 font-sans text-body text-muted">
+            Paystack handles the payment. You’ll stay in this tab and come straight back when
+            you’re done.
+          </Text>
+          {error ? <Text className="mt-4 font-sans text-body text-danger">{error}</Text> : null}
+        </Gutter>
+      </ScreenBody>
 
-      <View className="border-t border-border bg-canvas px-5 pb-11 pt-4">
+      <ActionBar>
         <Button
-          label={verifying ? "Confirming payment…" : `Pay ${formatGhs(params.totalAmount)}`}
+          label={`Pay ${formatGhs(params.totalAmount)}`}
           onPress={handlePay}
-          disabled={initiatePayment.isPending || verifying}
-          loading={initiatePayment.isPending || verifying}
+          disabled={initiatePayment.isPending}
+          loading={initiatePayment.isPending}
         />
+      </ActionBar>
+    </Screen>
+  );
+}
+
+function MethodRow({
+  label,
+  meta,
+  icon,
+  selected,
+  onPress,
+}: {
+  label: string;
+  meta: string;
+  icon: React.ReactNode;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      className={`flex-row items-center gap-3 rounded-card p-4 ${
+        selected ? "bg-lime-faint" : "bg-surface"
+      }`}
+    >
+      {icon}
+      <View className="flex-1">
+        <Text className="font-sans-medium text-body text-ink">{label}</Text>
+        <Text className="font-sans text-body text-muted">{meta}</Text>
       </View>
-    </SafeAreaView>
+      {selected ? <CheckIcon size={18} color={colors.ink} strokeWidth={2.2} /> : null}
+    </Pressable>
   );
 }

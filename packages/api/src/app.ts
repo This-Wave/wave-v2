@@ -4,8 +4,10 @@ import helmet from "@fastify/helmet";
 import sensible from "@fastify/sensible";
 import rawBody from "fastify-raw-body";
 import { loadEnv, type Env } from "./config/env";
+import { parseCorsOrigins } from "./config/cors";
 import prismaPlugin from "./plugins/prisma";
 import authPlugin from "./plugins/auth";
+import rateLimitPlugin from "./plugins/rateLimit";
 import { authRoutes } from "./modules/auth/routes";
 import { profileRoutes } from "./modules/profiles/routes";
 import { universityRoutes } from "./modules/checkpoints/routes";
@@ -16,6 +18,8 @@ import { paymentRoutes } from "./modules/payments/routes";
 import { riderRoutes } from "./modules/riders/routes";
 import { adminRoutes } from "./modules/admin/routes";
 import { notificationRoutes } from "./modules/notifications/routes";
+import { suggestionRoutes } from "./modules/suggestions/routes";
+import { setupSentryFastify } from "./lib/sentry";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -31,7 +35,7 @@ export function buildApp(): FastifyInstance {
   app.decorate("config", env);
 
   app.register(helmet);
-  app.register(cors, { origin: true });
+  app.register(cors, { origin: parseCorsOrigins(env) });
   app.register(sensible);
   // Opt-in per-route via { config: { rawBody: true } } — the Paystack
   // webhook needs the exact raw request bytes to verify its HMAC signature;
@@ -40,9 +44,18 @@ export function buildApp(): FastifyInstance {
   app.register(rawBody, { field: "rawBody", global: false, runFirst: true });
 
   app.register(prismaPlugin);
+  app.register(rateLimitPlugin);
   app.register(authPlugin);
 
-  app.get("/health", async () => ({ status: "ok", env: env.NODE_ENV }));
+  app.get("/health", async (request, reply) => {
+    try {
+      await app.prisma.$queryRaw`SELECT 1`;
+      return { status: "ok", env: env.NODE_ENV, db: "ok" };
+    } catch (err) {
+      request.log.error(err, "health check: database unreachable");
+      return reply.code(503).send({ status: "degraded", env: env.NODE_ENV, db: "error" });
+    }
+  });
 
   app.register(authRoutes, { prefix: "/v1/auth" });
   app.register(profileRoutes, { prefix: "/v1/profile" });
@@ -54,6 +67,9 @@ export function buildApp(): FastifyInstance {
   app.register(riderRoutes, { prefix: "/v1/riders" });
   app.register(adminRoutes, { prefix: "/v1/admin" });
   app.register(notificationRoutes, { prefix: "/v1/notifications" });
+  app.register(suggestionRoutes, { prefix: "/v1/shop-suggestions" });
+
+  setupSentryFastify(app);
 
   return app;
 }

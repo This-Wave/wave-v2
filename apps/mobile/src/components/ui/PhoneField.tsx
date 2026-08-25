@@ -1,4 +1,5 @@
 import { Text, TextInput, View } from "react-native";
+import { normalizeGhanaLocalDigits } from "@wave/shared";
 import { colors } from "../../theme/tokens";
 
 interface PhoneFieldProps {
@@ -15,7 +16,7 @@ export function PhoneField({ value, onChangeText, placeholder = "54 321 0000" }:
       <Text className="font-sans-medium text-[15px] text-muted">+233 </Text>
       <TextInput
         value={value}
-        onChangeText={onChangeText}
+        onChangeText={(text) => onChangeText(normalizeGhanaLocalDigits(text))}
         placeholder={placeholder}
         placeholderTextColor={colors.faint}
         keyboardType="phone-pad"

@@ -1,24 +1,48 @@
-import { useMemo, useState } from "react";
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
+import { useState } from "react";
+import { Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { ScreenHeader } from "../../components/ui/ScreenHeader";
-import { TextField } from "../../components/ui/TextField";
-import { FieldLabel } from "../../components/ui/FieldLabel";
-import { DaySelectorCard } from "../../components/ui/DaySelectorCard";
-import { Button } from "../../components/ui/Button";
+import {
+  ActionBar,
+  Button,
+  CheckoutProgress,
+  Gutter,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  Sheet,
+  TopBar,
+  WaveContextBanner,
+} from "../../components/v6";
+import { CheckIcon } from "../../components/icons";
+import { colors } from "../../theme/tokens";
 import { useCheckpoints } from "../../lib/checkpoints";
 import { useAuthStore } from "../../store/authStore";
-import { earliestSpecialOrderDate, formatDayCell, upcomingRunDays } from "../../lib/pricing";
+import { useLastCheckpoint } from "../../hooks/useLastCheckpoint";
+import { formatFullDay, formatGhs } from "../../lib/pricing";
+import { DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT } from "@wave/shared";
 
 type Route = RouteProp<StudentStackParamList, "DescribeOrder">;
 
 /**
- * v5 screen 05 "Buy For Me · Request". Field order follows the design exactly:
- * shop, items, the budget-cap / deliver-to pair, then runner notes. The run-day
- * chips are Wave-specific (the design assumes a single upcoming run) and use the
- * screen-07 day-chip treatment so they read as native to the set.
+ * Where and when — the last question before review.
+ *
+ * This screen used to be the whole order: a free-text "Your list" box, a budget
+ * cap, a day picker and a checkpoint picker. Two of those are gone and it is
+ * worth saying why, because both were load-bearing before:
+ *
+ *  - **The list** moved to `ShopMenuScreen`, where the shop's real catalogue
+ *    supplies names and prices. Wave now knows what an order is worth before a
+ *    runner leaves.
+ *  - **The budget cap** is gone entirely. It existed because nobody knew the
+ *    price up front, so the student capped their exposure. With a priced basket
+ *    the total is on the next screen, and a spend limit on a known total is a
+ *    field that can only contradict it.
+ *
+ * The day is now chosen on the calendar before any of this, so it is shown here
+ * as a fact rather than a picker.
  */
 export function DescribeOrderScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
@@ -26,116 +50,99 @@ export function DescribeOrderScreen() {
   const profile = useAuthStore((s) => s.profile);
   const { data: checkpoints } = useCheckpoints(profile?.universityId ?? undefined);
 
-  const [description, setDescription] = useState("");
-  const [budget, setBudget] = useState("");
-  const [notes, setNotes] = useState("");
-  const runDays = useMemo(() => upcomingRunDays(), []);
-  const specialDate = useMemo(() => earliestSpecialOrderDate(), []);
-  const dayOptions = [...runDays, specialDate];
+  const checkpointIds = checkpoints?.map((c) => c.id);
+  const { checkpointId, selectCheckpoint } = useLastCheckpoint(checkpointIds);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [checkpointIndex, setCheckpointIndex] = useState(0);
+  const checkpoint = checkpoints?.find((c) => c.id === checkpointId) ?? checkpoints?.[0];
+  const scheduledDate = new Date(params.scheduledDate);
 
-  const selectedDate = dayOptions[selectedIndex];
-  const isSpecial = selectedIndex === dayOptions.length - 1;
-  const checkpoint = checkpoints?.[checkpointIndex % (checkpoints.length || 1)];
-
-  function handleContinue() {
-    if (!checkpoint) return;
-    // The backend has no budget field, so the cap rides along in the runner
-    // notes where it's actually actionable at the till.
-    const budgetLine = budget.trim() ? `Budget cap: GH₵${budget.trim()}` : "";
-    const runnerNotes = [budgetLine, notes.trim()].filter(Boolean).join("\n");
-
-    navigation.navigate("OrderSummary", {
-      shopId: params.shopId,
-      shopName: params.shopName,
-      itemDescription: description,
-      scheduledDate: selectedDate.toISOString(),
-      isSpecialOrder: isSpecial,
-      checkpointId: checkpoint.id,
-      checkpointName: checkpoint.name,
-      budget: budget.trim() || undefined,
-      notes: runnerNotes || undefined,
-    });
-  }
+  const itemCount = params.itemsPreview.reduce((n, l) => n + l.quantity, 0);
+  const basketTotal = params.itemsPreview.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas">
-      <ScreenHeader title="Buy For Me" onBack={() => navigation.goBack()} />
+    <Screen narrow>
+      <TopBar onBack={() => navigation.goBack()} />
 
-      <ScrollView className="flex-1 px-5 pt-5" contentContainerStyle={{ paddingBottom: 24 }}>
-        <View className="mb-5">
-          <FieldLabel>Where should we buy from?</FieldLabel>
-          <View className="h-[52px] justify-center rounded-control border border-border bg-surface px-4">
-            <Text className="font-sans-medium text-[15px] text-ink">{params.shopName}</Text>
-          </View>
-        </View>
-
-        <View className="mb-5">
-          <TextField
-            label="What do you need?"
-            value={description}
-            onChangeText={setDescription}
-            placeholder={"1x extension cable (2m)\n1x A4 notebook, ruled"}
-            multiline
-            maxLength={500}
+      <ScreenBody bottomInset={16}>
+        <Gutter>
+          <CheckoutProgress step={2} />
+          <WaveContextBanner
+            scheduledDate={params.scheduledDate}
+            checkpointName={checkpoint?.name}
+            isSpecialOrder={params.isSpecialOrder}
           />
-        </View>
+          <Text className="mb-2 font-sans-bold text-heading text-ink">Where do you want it?</Text>
+          <Text className="mb-8 font-sans text-body text-muted">
+            {itemCount} item{itemCount === 1 ? "" : "s"} from {params.shopName} ·{" "}
+            {formatGhs(basketTotal)}
+          </Text>
 
-        <View className="mb-5 flex-row gap-3">
-          <View className="flex-1">
-            <TextField
-              label="Budget cap"
-              value={budget}
-              onChangeText={setBudget}
-              placeholder="GH₵ 150"
-              keyboardType="number-pad"
-              accent
+          <Text className="mb-2 font-sans-medium text-body text-ink">Delivery</Text>
+          <RowGroup>
+            <Row
+              title={checkpoint?.name ?? "Choose a checkpoint"}
+              meta={checkpoint?.description ?? "Where you'll collect it"}
+              onPress={() => setPickerOpen(true)}
             />
-          </View>
-          <View className="flex-1">
-            <TextField
-              label="Deliver to"
-              value={checkpoint?.name ?? "Loading..."}
-              selectable
-              onPress={() => setCheckpointIndex((i) => i + 1)}
+            <Row
+              title={formatFullDay(scheduledDate)}
+              meta={
+                params.isSpecialOrder
+                  ? `Rush order · ${DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT}% more on the delivery fee`
+                  : "Standard Wave"
+              }
+              chevron={false}
             />
-          </View>
-        </View>
+          </RowGroup>
 
-        <FieldLabel>Delivery day</FieldLabel>
-        <View className="mb-5 flex-row gap-2">
-          {dayOptions.map((date, index) => {
-            const { weekday, day } = formatDayCell(date);
-            const special = index === dayOptions.length - 1;
-            return (
-              <DaySelectorCard
-                key={index}
-                dayLabel={special ? "Rush" : weekday}
-                dateLabel={day}
-                tag={special ? "+30%" : undefined}
-                selected={selectedIndex === index}
-                surcharge={special}
-                onPress={() => setSelectedIndex(index)}
-              />
-            );
-          })}
-        </View>
+          <Text className="mt-6 font-sans text-body text-muted">
+            Need a different day? Go back to the calendar.
+          </Text>
+        </Gutter>
+      </ScreenBody>
 
-        <TextField
-          label="Notes for your runner"
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Call me if the notebook is out of stock."
-          multiline
-          compactMultiline
+      <ActionBar>
+        <Button
+          label="Review order"
+          disabled={!checkpoint}
+          onPress={() =>
+            navigation.navigate("OrderSummary", {
+              shopId: params.shopId,
+              shopName: params.shopName,
+              items: params.items,
+              itemsPreview: params.itemsPreview,
+              scheduledDate: params.scheduledDate,
+              isSpecialOrder: params.isSpecialOrder,
+              checkpointId: checkpoint!.id,
+              checkpointName: checkpoint!.name,
+              notes: params.notes,
+            })
+          }
         />
-      </ScrollView>
+      </ActionBar>
 
-      <View className="border-t border-border bg-canvas px-5 pb-11 pt-4">
-        <Button label="Review order" onPress={handleContinue} disabled={description.trim().length < 3 || !checkpoint} />
-      </View>
-    </SafeAreaView>
+      <Sheet visible={pickerOpen} onClose={() => setPickerOpen(false)} title="Where?">
+        <View className="gap-1">
+          {(checkpoints ?? []).map((c) => (
+            <Row
+              key={c.id}
+              title={c.name}
+              meta={c.description ?? undefined}
+              chevron={false}
+              trailing={
+                checkpoint?.id === c.id ? (
+                  <CheckIcon size={18} color={colors.ink} strokeWidth={2.2} />
+                ) : null
+              }
+              onPress={() => {
+                selectCheckpoint(c.id);
+                setPickerOpen(false);
+              }}
+            />
+          ))}
+        </View>
+      </Sheet>
+    </Screen>
   );
 }

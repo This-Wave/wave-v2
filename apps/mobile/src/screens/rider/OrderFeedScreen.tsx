@@ -1,24 +1,45 @@
 import { useState } from "react";
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { MapPin, Store } from "lucide-react-native";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
-import { Card } from "../../components/ui/Card";
-import { Button } from "../../components/ui/Button";
+import {
+  Empty,
+  Gutter,
+  ListError,
+  ListSkeleton,
+  PageTitle,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  Thumb,
+} from "../../components/v6";
+import { ChevronRightIcon } from "../../components/icons";
+import { colors } from "../../theme/tokens";
 import { ToggleSwitch } from "../../components/ui/ToggleSwitch";
-import { Skeleton } from "../../components/ui/Skeleton";
-import { EmptyState } from "../../components/ui/EmptyState";
 import { useAuthStore } from "../../store/authStore";
 import { useAvailableOrders, useSetAvailability } from "../../lib/rider";
+import { useWave } from "../../lib/wave";
+import { useLayout } from "../../hooks/useLayout";
+import { openRiderClaim } from "../../lib/desktopNavigate";
 import { formatGhs } from "../../lib/pricing";
+import type { Order } from "../../types";
 
+/**
+ * The rider's feed of unclaimed orders, on v6.
+ *
+ * The fee leads each row — it is the one number a rider decides on — set as the
+ * trailing value rather than buried in a coloured corner as it was in v5.
+ */
 export function OrderFeedScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RiderStackParamList>>();
   const profile = useAuthStore((s) => s.profile);
   const [online, setOnline] = useState(profile?.isActive ?? true);
-  const { data: orders, isLoading } = useAvailableOrders();
+  const { data: orders, isLoading, isError, refetch, isRefetching } = useAvailableOrders();
   const setAvailability = useSetAvailability();
+  const wave = useWave();
+  const { isDesktop } = useLayout();
 
   function handleToggle(value: boolean) {
     setOnline(value);
@@ -26,58 +47,135 @@ export function OrderFeedScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-surface-muted">
-      <View className="flex-row items-center justify-between px-6 pb-3 pt-1">
-        <View>
-          <Text className="text-[12px] font-sans-medium text-muted">Order Feed</Text>
-          <Text className="font-sans-extrabold text-[20px] tracking-tight text-ink">
-            Hi, {profile?.fullName?.split(" ")[0] ?? "Rider"}
-          </Text>
-        </View>
-        <View className="flex-row items-center gap-2">
-          <Text className={`font-sans-semibold text-[12px] ${online ? "text-wave-500" : "text-muted"}`}>
-            {online ? "Online" : "Offline"}
-          </Text>
-          <ToggleSwitch value={online} onValueChange={handleToggle} />
-        </View>
-      </View>
+    <Screen>
+      <ScreenBody
+        bottomInset={24}
+        refreshing={isRefetching}
+        onRefresh={() => void refetch()}
+      >
+        <Gutter className={isDesktop ? "flex-row items-end justify-between pb-8 pt-8" : "pb-6 pt-4"}>
+          <View className="flex-1 pr-4">
+            {isDesktop ? (
+              <>
+                <Text className="font-sans-bold text-heading text-ink">Available</Text>
+                <Text className="mt-1 font-sans text-ui text-muted">
+                  {wave
+                    ? `${wave.name} · closes in ${wave.countdown}. Claim what you can run.`
+                    : "Orders for the next Wave land here."}
+                </Text>
+              </>
+            ) : (
+              <>
+                <PageTitle>Available</PageTitle>
+                <Text className="mt-2 font-sans text-body text-muted">
+                  {wave ? `${wave.name} · closes in ${wave.countdown}` : "Next Wave"}
+                </Text>
+              </>
+            )}
+          </View>
+          <View className="items-end gap-1.5">
+            <ToggleSwitch
+              value={online}
+              onValueChange={handleToggle}
+              accessibilityLabel={online ? "Available for deliveries" : "Not available for deliveries"}
+            />
+            <Text className="font-sans text-meta text-muted">{online ? "Online" : "Offline"}</Text>
+          </View>
+        </Gutter>
 
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ gap: 10, paddingBottom: 128 }}>
-        <Text className="px-1 text-[12px] text-muted">
-          {isLoading ? "Loading orders…" : `${orders?.length ?? 0} orders available near you`}
-        </Text>
+        {!online ? (
+          <Gutter className="mb-4 rounded-card bg-surface px-4 py-3">
+            <Text className="font-sans-medium text-body text-ink">You are offline</Text>
+            <Text className="mt-0.5 font-sans text-body text-muted">
+              Turn availability on to see and claim new orders.
+            </Text>
+          </Gutter>
+        ) : null}
 
-        {isLoading ? (
-          <>
-            <Skeleton height={110} radius={14} />
-            <Skeleton height={110} radius={14} />
-          </>
-        ) : !orders || orders.length === 0 ? (
-          <EmptyState
-            icon={Store}
-            title="No orders right now"
-            description={online ? "New orders will show up here as students place them." : "Go online to start receiving orders."}
-          />
-        ) : (
-          orders.map((order) => (
-            <Card key={order.id}>
-              <View className="mb-2.5 flex-row items-start justify-between">
-                <View className="flex-1">
-                  <Text className="font-sans-bold text-[14px] text-ink">{order.shop?.name ?? "Shop"}</Text>
-                  <View className="mt-1 flex-row items-center gap-1">
-                    <MapPin size={12} color="#6B7D63" />
-                    <Text className="text-[11px] text-muted" numberOfLines={1}>
-                      {order.shop?.locationText ?? "Off-campus"} · {order.checkpoint?.name ?? "Checkpoint"}
-                    </Text>
-                  </View>
-                </View>
-                <Text className="font-sans-extrabold text-[15px] text-wave-500">{formatGhs(Number(order.deliveryFee))}</Text>
+        <Gutter>
+          {isLoading ? (
+            <ListSkeleton rows={3} />
+          ) : isError ? (
+            <ListError onRetry={() => void refetch()} />
+          ) : !orders || orders.length === 0 ? (
+            <Empty
+              title="Nothing waiting"
+              body={
+                online
+                  ? "New orders land here as students place them for this Wave."
+                  : "You're offline. Turn on availability to receive orders."
+              }
+            />
+          ) : isDesktop ? (
+            <View className="overflow-hidden rounded-card bg-surface">
+              <View className="flex-row border-b border-hairline px-5 py-3">
+                <Text className="flex-[2] font-sans-semibold text-meta text-muted">SHOP</Text>
+                <Text className="flex-[2] font-sans-semibold text-meta text-muted">ROUTE</Text>
+                <Text className="w-28 font-sans-semibold text-meta text-muted">FEE</Text>
               </View>
-              <Button label="Accept" onPress={() => navigation.navigate("OrderDetail", { orderId: order.id })} />
-            </Card>
-          ))
-        )}
-      </ScrollView>
-    </SafeAreaView>
+              {orders.map((order, i) => (
+                <FeedRow
+                  key={order.id}
+                  order={order}
+                  last={i === orders.length - 1}
+                  onPress={() => openRiderClaim(navigation, order.id)}
+                />
+              ))}
+            </View>
+          ) : (
+            <RowGroup>
+              {orders.map((order) => (
+                <Row
+                  key={order.id}
+                  title={order.shop?.name ?? "Shop"}
+                  meta={`${order.shop?.locationText ?? "Off-campus"} → ${order.checkpoint?.name ?? "checkpoint"}`}
+                  leading={<Thumb uri={order.shop?.logoUrl} />}
+                  trailing={
+                    <Text className="font-sans-semibold text-body text-ink">
+                      {formatGhs(Number(order.deliveryFee))}
+                    </Text>
+                  }
+                  onPress={() => openRiderClaim(navigation, order.id)}
+                />
+              ))}
+            </RowGroup>
+          )}
+        </Gutter>
+      </ScreenBody>
+    </Screen>
+  );
+}
+
+function FeedRow({
+  order,
+  last,
+  onPress,
+}: {
+  order: Order;
+  last: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      className={`flex-row items-center px-5 py-4 active:bg-canvas ${
+        last ? "" : "border-b border-hairline"
+      }`}
+    >
+      <View className="flex-[2] flex-row items-center gap-3 pr-3">
+        <Thumb uri={order.shop?.logoUrl} size={40} />
+        <Text className="flex-1 font-sans-medium text-body text-ink" numberOfLines={1}>
+          {order.shop?.name ?? "Shop"}
+        </Text>
+      </View>
+      <Text className="flex-[2] pr-3 font-sans text-body text-muted" numberOfLines={1}>
+        {order.shop?.locationText ?? "Off-campus"} → {order.checkpoint?.name ?? "checkpoint"}
+      </Text>
+      <Text className="w-28 font-sans-semibold text-body text-ink">
+        {formatGhs(Number(order.deliveryFee))}
+      </Text>
+      <ChevronRightIcon size={18} color={colors.subtle} strokeWidth={2} />
+    </Pressable>
   );
 }

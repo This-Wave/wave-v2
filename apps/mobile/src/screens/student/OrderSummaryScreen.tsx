@@ -1,94 +1,190 @@
 import { useMemo, useState } from "react";
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { ScreenHeader } from "../../components/ui/ScreenHeader";
-import { Card } from "../../components/ui/Card";
-import { FeeBreakdownRow } from "../../components/ui/FeeBreakdownRow";
-import { Button } from "../../components/ui/Button";
-import { PinIcon } from "../../components/icons";
-import { useCreateOrder } from "../../lib/orders";
-import { estimateOrderTotal, formatFullDay, formatGhs, formatGhsCompact } from "../../lib/pricing";
+import {
+  ActionBar,
+  Button,
+  CheckoutProgress,
+  Gutter,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  TopBar,
+  WaveContextBanner,
+} from "../../components/v6";
+import { useCompletedDeliveryCount, useCreateOrder } from "../../lib/orders";
+import {
+  deliveryDayFor,
+  estimateOrderTotal,
+  formatFullDay,
+  formatGhs,
+  formatGhsCompact,
+  toApiDate,
+} from "../../lib/pricing";
 
 type Route = RouteProp<StudentStackParamList, "OrderSummary">;
 
 /**
- * v5 screen 06 "Review order": an elevated summary card, the delivery row, then
- * the fee ledger with the 26px green total.
+ * Review before paying.
+ *
+ * The fee lines here are an *estimate* — `estimateOrderTotal` mirrors the
+ * server's rules but the server recalculates from its own config when the order
+ * is created, and its number is the one charged. That is said plainly on the
+ * screen rather than in a footnote, because a total that changes between two
+ * screens with no explanation is how you lose someone at checkout.
+ *
+ * ⚠️ This screen used to pass `itemPrice: 0` into the estimate while the server
+ * charged for the item, so every quote shown here was short by the entire cost
+ * of the shopping. Now that a basket is priced from the catalogue, the estimate
+ * takes the real basket total — and the two numbers agree.
  */
 export function OrderSummaryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
   const createOrder = useCreateOrder();
+  const completedDeliveries = useCompletedDeliveryCount();
   const [error, setError] = useState<string | null>(null);
 
   const scheduledDate = new Date(params.scheduledDate);
+
+  const basketTotal = useMemo(
+    () => params.itemsPreview.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0),
+    [params.itemsPreview],
+  );
+
   const estimate = useMemo(
-    () => estimateOrderTotal({ itemPrice: 0, isSpecialOrder: params.isSpecialOrder, completedDeliveries: 0 }),
-    [params.isSpecialOrder],
+    () =>
+      estimateOrderTotal({
+        itemPrice: basketTotal,
+        isSpecialOrder: params.isSpecialOrder,
+        completedDeliveries,
+      }),
+    [basketTotal, params.isSpecialOrder, completedDeliveries],
   );
 
   async function handleConfirm() {
     setError(null);
     try {
       const order = await createOrder.mutateAsync({
+        orderType: "buy_for_me",
         shopId: params.shopId,
         checkpointId: params.checkpointId,
-        itemDescription: params.itemDescription,
-        deliveryDay: params.isSpecialOrder ? "special" : scheduledDate.getDay() === 0 ? "sunday" : "wednesday",
-        scheduledDate: params.scheduledDate,
+        items: params.items,
+        deliveryDay: deliveryDayFor(scheduledDate, params.isSpecialOrder),
+        scheduledDate: toApiDate(scheduledDate),
         isSpecialOrder: params.isSpecialOrder,
         notes: params.notes,
       });
-      navigation.navigate("Payment", { orderId: order.id, totalAmount: Number(order.totalAmount) });
-    } catch {
-      setError("Couldn't create your order. Please try again.");
+      navigation.replace("Payment", {
+        orderId: order.id,
+        totalAmount: Number(order.totalAmount),
+      });
+    } catch (err) {
+      // The server refuses a basket whose items went out of stock between the
+      // menu and here. That is worth saying in its own words rather than as
+      // "something went wrong" — it tells the student what to change.
+      const message = (err as { response?: { data?: { error?: string } } }).response?.data?.error;
+      setError(message ?? "Couldn't create your order. Please try again.");
     }
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas">
-      <ScreenHeader title="Review order" onBack={() => navigation.goBack()} />
+    <Screen narrow>
+      <TopBar onBack={() => navigation.goBack()} />
 
-      <ScrollView className="flex-1 px-5 pt-5" contentContainerStyle={{ paddingBottom: 24 }}>
-        <Card elevated className="mb-5 p-[18px]">
-          <Text className="mb-1.5 font-sans-semibold text-[12px] uppercase tracking-[0.6px] text-muted">
-            Buying from
-          </Text>
-          <Text className="mb-3.5 font-sans-semibold text-[18px] text-ink">{params.shopName}</Text>
-          <Text className="text-[14px] leading-[22px] text-ink">{params.itemDescription}</Text>
-        </Card>
+      <ScreenBody bottomInset={16}>
+        <Gutter>
+          <CheckoutProgress step={2} />
+          <WaveContextBanner
+            scheduledDate={params.scheduledDate}
+            checkpointName={params.checkpointName}
+            isSpecialOrder={params.isSpecialOrder}
+          />
+          <Text className="mb-8 font-sans-bold text-heading text-ink">Check this over</Text>
 
-        <View className="mb-6 flex-row items-center gap-3 rounded-card border border-border bg-surface p-3.5">
-          <PinIcon size={20} />
-          <View className="flex-1">
-            <Text className="font-sans-semibold text-[14px] text-ink">Deliver to {params.checkpointName}</Text>
-            <Text className="text-[12px] text-muted">Included in {formatFullDay(scheduledDate)}&apos;s run</Text>
+          <Text className="mb-2 font-sans-medium text-body text-ink">Your list</Text>
+          <View className="mb-6 rounded-card bg-surface p-4">
+            {params.itemsPreview.map((line, i) => (
+              <View
+                key={i}
+                className={`flex-row items-center justify-between py-2.5 ${
+                  i > 0 ? "border-t border-hairline" : ""
+                }`}
+              >
+                <Text className="flex-1 font-sans text-body text-ink">
+                  {line.quantity}× {line.name}
+                </Text>
+                <Text className="font-sans text-body text-ink">
+                  {formatGhs(line.unitPrice * line.quantity)}
+                </Text>
+              </View>
+            ))}
           </View>
-        </View>
 
-        <Text className="mb-3 font-sans-semibold text-[18px] text-ink">Order summary</Text>
-        {params.budget ? <FeeBreakdownRow label="Budget cap" value={`GH₵${params.budget}`} /> : null}
-        <FeeBreakdownRow label="Item cost" value="Charged at pickup" />
-        <FeeBreakdownRow label="Delivery" value={formatGhs(estimate.deliveryFee)} />
-        {estimate.surchargeAmount > 0 ? (
-          <FeeBreakdownRow label="Special order surcharge" value={`+${formatGhs(estimate.surchargeAmount)}`} />
-        ) : null}
-        {estimate.discountAmount > 0 ? (
-          <FeeBreakdownRow label="Loyalty discount" value={`-${formatGhs(estimate.discountAmount)}`} isDiscount />
-        ) : null}
-        <FeeBreakdownRow label="Total" value={formatGhsCompact(estimate.total)} isTotal />
+          <RowGroup>
+            <Row title={params.shopName} meta="Buying from" chevron={false} />
+            <Row title={params.checkpointName} meta="Delivering to" chevron={false} />
+            <Row title={formatFullDay(scheduledDate)} meta="On this Wave" chevron={false} />
+          </RowGroup>
 
-        <Text className="mt-4 text-center text-[12px] text-muted">
-          The server recalculates the final total when your order is created.
-        </Text>
-        {error ? <Text className="mt-3 text-center text-[12px] text-danger-text">{error}</Text> : null}
-      </ScrollView>
+          {params.notes ? (
+            <View className="mt-6">
+              <Text className="mb-2 font-sans-medium text-body text-ink">Your note</Text>
+              <View className="rounded-card bg-surface p-4">
+                <Text className="font-sans text-body text-ink">{params.notes}</Text>
+              </View>
+            </View>
+          ) : null}
 
-      <View className="border-t border-border bg-canvas px-5 pb-11 pt-4">
-        <Button label="Confirm & place order" onPress={handleConfirm} loading={createOrder.isPending} />
-      </View>
-    </SafeAreaView>
+          <Text className="mb-3 mt-8 font-sans-medium text-subheading text-ink">What you pay</Text>
+          <View className="rounded-card bg-surface p-5">
+            <Line label="Items" value={formatGhs(basketTotal)} />
+            <Line label="Delivery" value={formatGhs(estimate.deliveryFee)} />
+            {estimate.surchargeAmount > 0 ? (
+              <Line
+                label={`Rush order (+${estimate.surchargePct}%)`}
+                value={`+${formatGhs(estimate.surchargeAmount)}`}
+              />
+            ) : null}
+            {estimate.discountAmount > 0 ? (
+              <Line
+                label={`Loyalty discount (−${estimate.discountPct}% of delivery)`}
+                value={`−${formatGhs(estimate.discountAmount)}`}
+              />
+            ) : null}
+            <View className="mt-1 h-px bg-hairline" />
+            <View className="flex-row items-center justify-between pt-4">
+              <Text className="font-sans-medium text-ui text-ink">Total</Text>
+              <Text className="font-sans-bold text-heading-sm text-ink">
+                {formatGhsCompact(estimate.total)}
+              </Text>
+            </View>
+          </View>
+
+          <Text className="mt-4 font-sans text-body text-muted">
+            You pay for everything now. If the shop is out of something, we'll cancel and refund you
+            in full.
+          </Text>
+
+          {error ? <Text className="mt-4 font-sans text-body text-danger">{error}</Text> : null}
+        </Gutter>
+      </ScreenBody>
+
+      <ActionBar>
+        <Button label="Place order" onPress={handleConfirm} loading={createOrder.isPending} />
+      </ActionBar>
+    </Screen>
+  );
+}
+
+function Line({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="flex-row items-center justify-between py-2.5">
+      <Text className="font-sans text-body text-muted">{label}</Text>
+      <Text className="font-sans text-body text-ink">{value}</Text>
+    </View>
   );
 }

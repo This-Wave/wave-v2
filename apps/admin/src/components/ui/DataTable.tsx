@@ -92,7 +92,7 @@ export function FilterTabs<K extends string>({
           onClick={() => onChange(t.key)}
           className={`h-10 rounded-control px-[18px] text-[13px] ${
             active === t.key
-              ? "bg-wave-500 font-semibold text-white"
+              ? "bg-lime font-semibold text-ink"
               : "border border-border bg-surface font-medium text-muted"
           }`}
         >

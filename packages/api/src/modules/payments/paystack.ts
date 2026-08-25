@@ -19,6 +19,26 @@ export interface InitiatePaymentParams {
   channels?: PaystackChannel[];
 }
 
+/** Paystack rejects `+` in emails — strip E.164 to digits-only local part. */
+export function paystackCustomerEmail(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  return `${digits || "customer"}@wave.app`;
+}
+
+export function paystackErrorMessage(err: unknown): string | undefined {
+  if (!axios.isAxiosError(err)) return undefined;
+  const status = err.response?.status;
+  const message = (err.response?.data as { message?: string } | undefined)?.message;
+
+  if (status === 401 || message === "Invalid key") {
+    return "Payment could not start — the server Paystack key is invalid. Set PAYSTACK_SECRET_KEY on Render to your sk_test_… secret (not the pk_test_ public key).";
+  }
+  if (message === "Invalid Amount Sent") {
+    return "This order total is invalid for payment. Go back and try placing the order again.";
+  }
+  return message;
+}
+
 export async function initiatePaystackPayment(secretKey: string, params: InitiatePaymentParams) {
   const response = await axios.post(
     `${PAYSTACK_BASE_URL}/transaction/initialize`,
@@ -76,7 +96,53 @@ export async function refundPaystackPayment(
   return response.data.data as PaystackRefund;
 }
 
+export interface PaystackTransaction {
+  /** "success" | "failed" | "abandoned" | "ongoing" | "pending" | … */
+  status: string;
+  reference: string;
+  amount: number; // pesewas
+  currency: string;
+  paid_at: string | null;
+}
+
+/**
+ * Asks Paystack directly whether a transaction succeeded.
+ *
+ * This is the **backstop for the webhook**, and it is exactly as trustworthy:
+ * both are server-to-server exchanges authenticated with the secret key, and
+ * neither takes the client's word for anything. The client can only ever supply
+ * a reference, which it already knows.
+ *
+ * Two situations need it:
+ *  - **Local development.** Paystack cannot reach `localhost`, so the webhook
+ *    never arrives and an order would sit `payment_pending` forever after a
+ *    genuinely successful payment.
+ *  - **Production.** Webhooks get delayed, retried, or dropped. Without a pull
+ *    path, a single lost delivery strands a paid order with no way back.
+ *
+ * Returns null when Paystack has no such transaction, so a made-up reference
+ * reads as "not paid" rather than an error.
+ */
+export async function fetchPaystackTransaction(
+  secretKey: string,
+  reference: string,
+): Promise<PaystackTransaction | null> {
+  try {
+    const response = await axios.get(
+      `${PAYSTACK_BASE_URL}/transaction/verify/${encodeURIComponent(reference)}`,
+      { headers: { Authorization: `Bearer ${secretKey}` } },
+    );
+    return response.data?.data as PaystackTransaction;
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+    throw err;
+  }
+}
+
 export function verifyPaystackSignature(secretKey: string, rawBody: string, signature: string): boolean {
   const hash = crypto.createHmac("sha512", secretKey).update(rawBody).digest("hex");
-  return hash === signature;
+  const expected = Buffer.from(hash, "utf8");
+  const received = Buffer.from(signature, "utf8");
+  if (expected.length !== received.length) return false;
+  return crypto.timingSafeEqual(expected, received);
 }

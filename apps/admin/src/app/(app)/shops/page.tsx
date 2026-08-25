@@ -8,6 +8,7 @@ import { DataTable, type Column } from "../../../components/ui/DataTable";
 import { StatusPill } from "../../../components/ui/StatusPill";
 import { Button, RowAction } from "../../../components/ui/Button";
 import { CreateShopModal } from "../../../components/CreateShopModal";
+import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 
 interface Shop {
   id: string;
@@ -22,14 +23,19 @@ interface Shop {
 export default function ShopsPage() {
   const { accessToken } = useAdminAuth();
   const [shops, setShops] = useState<Shop[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   const load = useCallback(() => {
     if (!accessToken) return;
+    setError(null);
     apiFetch<{ shops: Shop[] }>("/admin/shops", accessToken)
       .then((res) => setShops(res.shops))
-      .catch(() => setShops([]));
+      .catch(() => {
+        setShops([]);
+        setError("Could not load shops. Check your connection and try again.");
+      });
   }, [accessToken]);
 
   useEffect(() => {
@@ -112,6 +118,8 @@ export default function ShopsPage() {
         subtitle="Directory and moderation"
         action={<Button label="Add shop" onClick={() => setCreating(true)} />}
       />
+
+      {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
 
       <CreateShopModal
         open={creating}

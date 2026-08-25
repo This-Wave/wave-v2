@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../lib/api";
+import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 
 type VerificationStatus = "pending" | "approved" | "rejected";
 
@@ -32,14 +33,19 @@ export default function RidersPage() {
   const { accessToken } = useAdminAuth();
   const [tab, setTab] = useState<VerificationStatus>("pending");
   const [verifications, setVerifications] = useState<Verification[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!accessToken) return;
     setVerifications(null);
+    setError(null);
     apiFetch<{ verifications: Verification[] }>(`/riders/admin/riders?status=${tab}`, accessToken)
       .then((res) => setVerifications(res.verifications))
-      .catch(() => setVerifications([]));
+      .catch(() => {
+        setVerifications([]);
+        setError("Could not load rider verifications. Check your connection and try again.");
+      });
   }, [accessToken, tab]);
 
   useEffect(() => {
@@ -66,6 +72,8 @@ export default function RidersPage() {
         <h1 className="text-[26px] font-semibold tracking-tight text-ink">Rider Verifications</h1>
         <p className="mt-0.5 text-[13px] text-muted">Review submitted IDs and selfies</p>
       </div>
+
+      {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
 
       <div className="mb-5 inline-flex rounded-control border border-border bg-surface p-1">
         {TABS.map((t) => (
@@ -113,7 +121,7 @@ export default function RidersPage() {
                 <tr key={v.id} className={i < verifications.length - 1 ? "border-b border-border" : ""}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-wave-500 text-[11px] font-bold text-white">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-lime text-[11px] font-bold text-ink">
                         {initials(v.rider.fullName)}
                       </div>
                       <span className="font-medium text-ink">{v.rider.fullName}</span>
@@ -153,7 +161,7 @@ export default function RidersPage() {
                     <span
                       className={`rounded-pill px-[11px] py-[5px] text-[11px] font-semibold ${
                         v.status === "approved"
-                          ? "bg-success-bg text-wave-700"
+                          ? "bg-success-bg text-ink"
                           : v.status === "rejected"
                             ? "bg-danger-bg text-danger-text"
                             : "bg-warning-bg text-warning-text"
@@ -175,7 +183,7 @@ export default function RidersPage() {
                         <button
                           onClick={() => handleReview(v.id, "approved")}
                           disabled={actioning === v.id}
-                          className="rounded-tile bg-wave-500 px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50"
+                          className="rounded-tile bg-lime px-3 py-1.5 text-[11px] font-semibold text-ink disabled:opacity-50"
                         >
                           Approve
                         </button>

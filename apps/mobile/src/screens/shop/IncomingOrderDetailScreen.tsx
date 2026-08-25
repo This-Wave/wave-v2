@@ -1,17 +1,39 @@
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { ArrowLeft, Calendar, MapPin, User } from "lucide-react-native";
 import type { ShopStackParamList } from "../../navigation/ShopNavigator";
-import { IconButton } from "../../components/ui/IconButton";
-import { Card } from "../../components/ui/Card";
-import { Button } from "../../components/ui/Button";
+import {
+  ActionBar,
+  Button,
+  Gutter,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  TopBar,
+} from "../../components/v6";
 import { useOrder } from "../../lib/orders";
 import { useShopAcceptOrder, useShopCancelOrder } from "../../lib/shopOwner";
 import { formatGhs } from "../../lib/pricing";
+import { showToast } from "../../store/toastStore";
 
 type Route = RouteProp<ShopStackParamList, "IncomingOrderDetail">;
 
+/**
+ * Acknowledge or reject one paid order.
+ *
+ * The refund consequence is stated as plain body text rather than in a green
+ * panel: it is the most important sentence on the screen and v5's success-green
+ * treatment made it read as reassurance rather than a warning.
+ *
+ * The primary action used to read "Accept order", which described a gate that
+ * does not exist (review 03-product-manager, H2). `shopAcceptedAt` is advisory:
+ * the rider feed filters on paid status, campus and rider verification, never on
+ * it, so a runner can be on their way before a shop has opened the app at all. A
+ * shop reading "Accept" reasonably assumes nothing moves until they tap — and
+ * then a rider arrives for an order they thought they were still considering.
+ * The label now describes what the tap actually does.
+ */
 export function IncomingOrderDetailScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ShopStackParamList>>();
   const { params } = useRoute<Route>();
@@ -21,67 +43,113 @@ export function IncomingOrderDetailScreen() {
 
   async function handleAccept() {
     await acceptOrder.mutateAsync(params.orderId);
+    showToast("Thanks — the runner knows you're on it.", "success");
     navigation.goBack();
   }
 
   async function handleCancel() {
-    await cancelOrder.mutateAsync({ orderId: params.orderId, reason: "Unable to fulfill this order" });
+    await cancelOrder.mutateAsync({
+      orderId: params.orderId,
+      reason: "Unable to fulfill this order",
+    });
+    showToast("Order rejected. Student will be refunded.", "success");
     navigation.goBack();
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas">
-      <View className="flex-row items-center gap-3 px-6 pb-3.5 pt-1.5">
-        <IconButton icon={ArrowLeft} onPress={() => navigation.goBack()} compact />
-        <Text className="flex-1 font-sans-extrabold text-[16px] tracking-tight text-ink">Incoming Order</Text>
-      </View>
+    <Screen narrow>
+      <TopBar onBack={() => navigation.goBack()} />
 
-      <ScrollView className="flex-1 px-6" contentContainerStyle={{ gap: 12 }}>
-        <Card>
-          <Text className="mb-2.5 font-sans-semibold text-[11px] uppercase tracking-wider text-muted">
-            Items Ordered
+      <ScreenBody bottomInset={16}>
+        <Gutter className="pt-2">
+          <Text className="font-sans text-body text-muted">Order value</Text>
+          <Text
+            className="mb-8 mt-1 font-sans-bold text-ink"
+            style={{ fontSize: 44, lineHeight: 48 }}
+          >
+            {order?.totalAmount ? formatGhs(Number(order.totalAmount)) : "—"}
           </Text>
-          <View className="mb-1 flex-row items-start justify-between">
-            <Text className="flex-1 pr-3 text-[13px] text-ink">{order?.itemDescription}</Text>
-            <Text className="font-sans-bold text-[13px] text-ink">
-              {order?.itemPrice ? formatGhs(Number(order.itemPrice)) : "—"}
-            </Text>
-          </View>
-          {order?.notes ? <Text className="mt-1.5 text-[11px] italic text-muted">{order.notes}</Text> : null}
-        </Card>
 
-        <Card>
-          <View className="mb-2.5 flex-row items-center gap-2">
-            <User size={14} color="#6B7D63" />
-            <Text className="text-[12px] text-ink">{order?.student?.fullName ?? "Student"}</Text>
+          {/* Itemised, so the kitchen can read quantities off the screen. Falls
+              back to the summary line for orders placed before baskets existed. */}
+          <Text className="mb-2 font-sans-medium text-body text-ink">What they want</Text>
+          <View className="mb-2 rounded-card bg-surface p-4">
+            {order?.items?.length ? (
+              order.items.map((item, i) => (
+                <View
+                  key={item.id}
+                  className={`flex-row items-center justify-between py-2 ${
+                    i > 0 ? "border-t border-hairline" : ""
+                  }`}
+                >
+                  <Text className="flex-1 font-sans text-body text-ink">
+                    {item.quantity}× {item.name}
+                  </Text>
+                  {item.unitPrice ? (
+                    <Text className="font-sans text-body text-muted">
+                      {formatGhs(Number(item.unitPrice) * item.quantity)}
+                    </Text>
+                  ) : null}
+                </View>
+              ))
+            ) : (
+              <Text className="font-sans text-body text-ink">{order?.itemDescription ?? "—"}</Text>
+            )}
+            {order?.notes ? (
+              <Text className="mt-3 border-t border-hairline pt-3 font-sans text-body text-muted">
+                {order.notes}
+              </Text>
+            ) : null}
           </View>
-          <View className="mb-2.5 flex-row items-center gap-2">
-            <MapPin size={14} color="#6B7D63" />
-            <Text className="text-[12px] text-ink">{order?.checkpoint?.name ?? "Checkpoint"}</Text>
-          </View>
-          <View className="flex-row items-center gap-2">
-            <Calendar size={14} color="#6B7D63" />
-            <Text className="text-[12px] text-ink capitalize">
-              {order?.deliveryDay ?? "—"} run · pickup by rider once accepted
-            </Text>
-          </View>
-        </Card>
 
-        <View className="rounded-card border border-success-border bg-success-bg p-3.5">
-          <Text className="text-[12px] leading-5 text-success-text">
-            If you cancel, the student will be fully refunded automatically.
+          <View className="mt-5">
+            <RowGroup>
+              <Row
+                title={order?.student?.fullName ?? "Student"}
+                meta="Ordered by"
+                chevron={false}
+              />
+              <Row
+                title={order?.checkpoint?.name ?? "Checkpoint"}
+                meta="A runner collects and delivers here"
+                chevron={false}
+              />
+              <Row
+                title={order?.deliveryDay ? `${capitalise(order.deliveryDay)}'s Wave` : "—"}
+                meta="Goes out on"
+                chevron={false}
+              />
+            </RowGroup>
+          </View>
+
+          <Text className="mt-7 font-sans text-body text-muted">
+            A runner may arrive before you tap below — this order is already paid and in the
+            queue. Letting us know you&apos;ve seen it just tells the runner you&apos;re on it.
           </Text>
-        </View>
-      </ScrollView>
 
-      <View className="flex-row gap-3 px-6 pb-6 pt-3">
-        <View className="flex-1">
-          <Button label="Cancel Order" variant="danger" onPress={handleCancel} loading={cancelOrder.isPending} />
+          <Text className="mt-3 font-sans text-body text-muted">
+            If you can&apos;t fulfil this, the student is refunded in full automatically. That
+            cannot be undone from here, and there is no way to supply only part of the order —
+            it is all of it or none.
+          </Text>
+        </Gutter>
+      </ScreenBody>
+
+      <ActionBar>
+        <View className="gap-2">
+          <Button label="We'll start prep" onPress={handleAccept} loading={acceptOrder.isPending} />
+          <Button
+            label="Can't fulfil this"
+            variant="ghost"
+            onPress={handleCancel}
+            loading={cancelOrder.isPending}
+          />
         </View>
-        <View className="flex-[2]">
-          <Button label="Accept Order" onPress={handleAccept} loading={acceptOrder.isPending} />
-        </View>
-      </View>
-    </SafeAreaView>
+      </ActionBar>
+    </Screen>
   );
+}
+
+function capitalise(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }

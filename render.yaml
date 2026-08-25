@@ -10,9 +10,16 @@
 #
 # ⚠️ FREE PLAN COLD STARTS — read before taking real money.
 # A free web service spins down after ~15 minutes with no traffic and takes
-# roughly 30-60s to wake. That is survivable for the admin dashboard and risky
-# for the API, because the Paystack webhook is the ONLY thing that marks an order
-# paid. See `PLAN.md` Phase 9 for the full analysis and the keep-warm options.
+# roughly 30-60s to wake. Survivable for the admin dashboard; still a risk for
+# the API, though less than it was.
+#
+# UPDATE 2026-08-08: the webhook is no longer the ONLY thing that marks an order
+# paid. `GET /v1/payments/verify/:ref` now asks Paystack directly and runs the
+# same confirmation, so a webhook that arrives during a cold start and gets
+# dropped is recovered the next time the student's app polls. That makes a cold
+# start survivable rather than order-losing — but only while the student has the
+# app open. Someone who pays and immediately closes it still depends on the
+# webhook landing. Keep-warm options in `PLAN.md` Phase 9 still apply.
 
 services:
   # ---------------------------------------------------------------------------
@@ -27,7 +34,7 @@ services:
     # Build from the repo root: this is an npm-workspaces monorepo, and the API
     # imports @wave/shared and @wave/db, which must be compiled to JS first.
     # `npm run build --workspace packages/api` chains all three in order.
-    buildCommand: npm ci && npm run build --workspace packages/api
+    buildCommand: npm ci --include=dev && npm run build --workspace packages/api && npm run migrate:deploy --workspace @wave/db
     startCommand: npm start --workspace packages/api
     healthCheckPath: /health
     envVars:
@@ -47,6 +54,10 @@ services:
       # the first deploy assigns the URL.
       - key: APP_URL
         sync: false
+      # Comma-separated browser origins that may call this API (checklist H3).
+      # Example: https://wave-admin.onrender.com,https://your-student-web.vercel.app,http://localhost:8081
+      - key: CORS_ORIGINS
+        sync: false
       - key: DATABASE_URL # Neon pooled connection string
         sync: false
       - key: SUPABASE_URL
@@ -61,10 +72,24 @@ services:
         sync: false
       - key: MNOTIFY_API_KEY # without this, no OTP and no delivery PIN are ever sent
         sync: false
+      # `Wave` is DECLINED by mNotify. `TACCBooking` is the approved sender and is
+      # confirmed working as of 2026-08-08 — messages send successfully under it.
+      # Students will see texts from "TACCBooking" until `Wave` is approved.
       - key: MNOTIFY_SENDER_ID
-        value: Wave
+        value: TACCBooking
       - key: SMS_HOOK_SECRET
         sync: false
+      - key: SENTRY_DSN
+        sync: false
+      # Shop-live alert emails. `sendEmailQuietly` deliberately no-ops rather
+      # than throwing when this is unset, so a missing key produces NO error —
+      # suggestions get onboarded and the student who asked for the shop is
+      # simply never told. Declared here so the gap is visible in the Render
+      # dashboard rather than silent in production.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        value: Wave <notifications@wave.app>
 
   # ---------------------------------------------------------------------------
   # Admin — Next.js 14. Safe to leave on free: a cold start only ever makes an
@@ -76,7 +101,7 @@ services:
     region: frankfurt
     plan: free
     branch: main
-    buildCommand: npm ci && npm run build --workspace apps/admin
+    buildCommand: npm ci --include=dev && npm run build --workspace apps/admin
     startCommand: npm start --workspace apps/admin
     envVars:
       - key: NODE_ENV
@@ -93,4 +118,67 @@ services:
       - key: NEXT_PUBLIC_SUPABASE_URL
         sync: false
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: NEXT_PUBLIC_SENTRY_DSN
+        sync: false
+
+  # ---------------------------------------------------------------------------
+  # STAGING — deploys from `develop`, separate Neon branch + Paystack test keys.
+  # See docs/staging-environment.md for first-time setup.
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: wave-api-staging
+    runtime: node
+    region: frankfurt
+    plan: free
+    branch: develop
+    buildCommand: npm ci --include=dev && npm run build --workspace packages/api && npm run migrate:deploy --workspace @wave/db
+    startCommand: npm start --workspace packages/api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_URL
+        sync: false # e.g. https://wave-api-staging.onrender.com
+      - key: CORS_ORIGINS
+        sync: false # staging admin + student web + localhost dev origins
+      - key: DATABASE_URL # Neon *branch* connection string — never prod
+        sync: false
+      - key: SUPABASE_URL
+        sync: false # can share prod Supabase project or a separate one
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false # distinct from prod
+      - key: PAYSTACK_SECRET_KEY
+        sync: false # sk_test_… only
+      - key: MNOTIFY_API_KEY
+        sync: false
+      - key: MNOTIFY_SENDER_ID
+        value: TACCBooking
+      - key: SMS_HOOK_SECRET
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+
+  - type: web
+    name: wave-admin-staging
+    runtime: node
+    region: frankfurt
+    plan: free
+    branch: develop
+    buildCommand: npm ci --include=dev && npm run build --workspace apps/admin
+    startCommand: npm start --workspace apps/admin
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        sync: false # wave-api-staging public URL
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: NEXT_PUBLIC_SENTRY_DSN
         sync: false

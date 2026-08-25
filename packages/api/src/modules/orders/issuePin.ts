@@ -1,5 +1,6 @@
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import { generateDeliveryPin } from "./pin";
+import { encryptDeliveryPin } from "./pinCrypto";
 import { SmsSendError, sendDeliveryPinSms } from "../../lib/sms";
 
 export interface IssueDeliveryPinArgs {
@@ -8,30 +9,30 @@ export interface IssueDeliveryPinArgs {
   /** E.164 phone of the student who placed the order. */
   phone: string;
   /**
-   * Writes the bcrypt hash to the order. Awaited *before* the SMS goes out, so
-   * a PIN in a student's hand is always one the DB can verify — never the other
-   * way round.
+   * Writes the bcrypt hash + encrypted PIN to the order. Awaited *before* the
+   * SMS goes out, so a PIN in a student's hand is always one the DB can verify.
    */
-  persistHash: (hash: string) => Promise<void>;
+  persist: (secrets: { hash: string; ciphertext: string }) => Promise<void>;
 }
 
 /**
- * Issues a delivery PIN: generates it, persists only the bcrypt hash, and
- * texts the plaintext to the student.
+ * Issues a delivery PIN: generates it, persists the bcrypt hash + an encrypted
+ * copy for in-app display, and texts the plaintext to the student.
  *
- * The plaintext exists only inside this function and in the SMS. It is never
- * returned, never written to the DB, and never logged — which is why a failed
- * send cannot be recovered by re-reading anything and has to be re-issued
- * (see `POST /orders/:id/resend-pin`).
+ * The plaintext is never logged and never returned on general order GETs —
+ * only `GET /orders/:id/delivery-pin` (owner) decrypts the ciphertext.
  */
-export async function issueDeliveryPin(args: IssueDeliveryPinArgs): Promise<{ smsSent: boolean }> {
+export async function issueDeliveryPin(
+  args: IssueDeliveryPinArgs,
+): Promise<{ smsSent: boolean; pin: string }> {
   const { pin, hash } = await generateDeliveryPin();
-  await args.persistHash(hash);
+  const ciphertext = encryptDeliveryPin(pin, args.fastify.config.JWT_SECRET);
+  await args.persist({ hash, ciphertext });
 
   const apiKey = args.fastify.config.MNOTIFY_API_KEY;
   if (!apiKey) {
     args.log.error("Delivery PIN issued but MNOTIFY_API_KEY is not configured — no SMS sent");
-    return { smsSent: false };
+    return { smsSent: false, pin };
   }
 
   try {
@@ -46,8 +47,8 @@ export async function issueDeliveryPin(args: IssueDeliveryPinArgs): Promise<{ sm
     // error here would print the PIN.
     const detail = err instanceof SmsSendError ? err.message : "unknown SMS failure";
     args.log.error({ detail }, "Delivery PIN SMS failed");
-    return { smsSent: false };
+    return { smsSent: false, pin };
   }
 
-  return { smsSent: true };
+  return { smsSent: true, pin };
 }

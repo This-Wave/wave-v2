@@ -1,17 +1,25 @@
 import { useState } from "react";
-import { SafeAreaView, Text, View } from "react-native";
+import { Text } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { ArrowLeft, ShieldCheck } from "lucide-react-native";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
-import { IconButton } from "../../components/ui/IconButton";
+import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
 import { CodeInput } from "../../components/ui/CodeInput";
-import { Button } from "../../components/ui/Button";
 import { useOrder } from "../../lib/orders";
 import { useDeliverOrder } from "../../lib/rider";
+import { resetRiderTabs } from "../../lib/navigationFlows";
+import { showToast } from "../../store/toastStore";
 
 type Route = RouteProp<RiderStackParamList, "PinEntry">;
 
+/**
+ * The handover. The rider types the six digits the student reads out.
+ *
+ * This is the only way a delivery can be closed, and it is typed — there is no
+ * scanner anywhere in Wave. The student's side used to imply otherwise with a
+ * decorative barcode; that is gone, so the two screens now describe the same
+ * mechanism.
+ */
 export function PinEntryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RiderStackParamList>>();
   const { params } = useRoute<Route>();
@@ -24,48 +32,42 @@ export function PinEntryScreen() {
     setError(null);
     try {
       await deliverOrder.mutateAsync({ orderId: params.orderId, pin });
-      navigation.navigate("Tabs", { screen: "MyOrders" });
+      showToast("Delivery complete.", "success");
+      resetRiderTabs(navigation, "MyOrders");
     } catch {
-      setError("Incorrect PIN. Ask the student to check their code.");
+      setError("That code doesn't match. Ask the student to read it again.");
       setPin("");
     }
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas">
-      <View className="flex-1 px-6 pt-4">
-        <IconButton icon={ArrowLeft} onPress={() => navigation.goBack()} />
+    <Screen narrow>
+      <TopBar onBack={() => navigation.goBack()} />
 
-        <View className="mt-7 items-center">
-          <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-success-bg">
-            <ShieldCheck size={30} color="#009933" strokeWidth={1.6} />
-          </View>
-          <Text className="mb-1.5 font-sans-extrabold text-[20px] tracking-tight text-ink">Confirm Delivery</Text>
-          <Text className="mb-7 text-center text-[13px] leading-5 text-muted">
-            Enter PIN from{" "}
-            <Text className="font-sans-bold text-ink">{order?.student?.fullName ?? "the student"}</Text>
-            {"\n"}
-            {order?.checkpoint?.name ?? "Checkpoint"}
+      <ScreenBody bottomInset={16}>
+        <Gutter className="pt-2">
+          <Text className="mb-2 font-sans-bold text-heading text-ink">Ask for the code</Text>
+          <Text className="mb-10 font-sans text-body text-muted">
+            {order?.student?.fullName ?? "The student"} has a six-digit code by text. Type it in to
+            close this delivery at {order?.checkpoint?.name ?? "the checkpoint"}.
           </Text>
-        </View>
 
-        <CodeInput value={pin} onChangeText={setPin} state={error ? "error" : "default"} />
-        {error ? (
-          <View className="mt-3 rounded-well border border-danger-border bg-danger-bg p-3">
-            <Text className="text-center text-[12px] text-danger-text">{error}</Text>
-          </View>
-        ) : null}
+          <CodeInput value={pin} onChangeText={setPin} state={error ? "error" : "default"} />
 
-        <View className="mb-auto" />
-        <View className="pb-6">
-          <Button
-            label={error ? "Try Again" : "Confirm Delivery"}
-            onPress={handleConfirm}
-            loading={deliverOrder.isPending}
-            disabled={pin.length < 6}
-          />
-        </View>
-      </View>
-    </SafeAreaView>
+          {error ? (
+            <Text className="mt-4 text-center font-sans text-body text-danger">{error}</Text>
+          ) : null}
+        </Gutter>
+      </ScreenBody>
+
+      <ActionBar>
+        <Button
+          label="Confirm delivery"
+          onPress={handleConfirm}
+          loading={deliverOrder.isPending}
+          disabled={pin.length < 6}
+        />
+      </ActionBar>
+    </Screen>
   );
 }

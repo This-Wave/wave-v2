@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   MapPin,
   Package,
+  Lightbulb,
   Settings2,
   Store,
   Users,
@@ -29,6 +30,7 @@ export function Sidebar({ pendingVerifications = 0 }: { pendingVerifications?: n
     { href: "/orders", label: "Orders", icon: Package },
     { href: "/riders", label: "Riders", icon: Bike, badge: pendingVerifications },
     { href: "/shops", label: "Shops", icon: Store },
+    { href: "/suggestions", label: "Suggested", icon: Lightbulb },
     { href: "/users", label: "Users", icon: Users },
     { href: "/checkpoints", label: "Checkpoints", icon: MapPin },
     { href: "/config", label: "Config", icon: Settings2 },
@@ -52,16 +54,16 @@ export function Sidebar({ pendingVerifications = 0 }: { pendingVerifications?: n
               key={item.href}
               href={item.href}
               className={`mb-[3px] flex h-10 items-center gap-2.5 rounded-tile px-3 text-[13.5px] font-medium ${
-                isActive ? "bg-wave-500 text-white" : "text-ink hover:bg-canvas"
+                isActive ? "bg-lime text-ink" : "text-ink hover:bg-canvas"
               }`}
             >
-              <Icon size={17} strokeWidth={1.7} className={isActive ? "text-white" : "text-muted"} />
+              <Icon size={17} strokeWidth={1.7} className={isActive ? "text-ink" : "text-muted"} />
               <span className="flex-1">{item.label}</span>
               {item.badge ? (
                 <span
                   className={`rounded-pill border px-2 py-[2px] text-[10px] font-semibold ${
                     isActive
-                      ? "border-transparent bg-white/20 text-white"
+                      ? "border-transparent bg-ink/10 text-ink"
                       : "border-danger-border bg-danger-bg text-danger-text"
                   }`}
                 >

@@ -1,28 +1,37 @@
 import type { FastifyInstance } from "fastify";
-import { createClient } from "@supabase/supabase-js";
-import { completeProfileSchema } from "@wave/shared";
+import { completeProfileSchema, updateProfileSchema } from "@wave/shared";
+import { resolveSupabaseUser } from "../../lib/authUser";
+
+/**
+ * `resolveSupabaseUser` plus the 401 these routes answer with. The resolution
+ * itself is shared with `POST /auth/register`, which needs the same
+ * profile-less token check.
+ */
+async function resolveAuthUser(
+  fastify: FastifyInstance,
+  authHeader: string | undefined,
+  reply: { code: (status: number) => { send: (body: unknown) => unknown } },
+) {
+  const user = await resolveSupabaseUser(fastify, authHeader);
+  if (!user) {
+    reply.code(401).send({ error: "Invalid or expired token" });
+    return null;
+  }
+  return user;
+}
 
 export async function profileRoutes(fastify: FastifyInstance) {
-  // No `authenticate` preHandler here on purpose: `authenticate` requires an
-  // existing Profile row, but this route's whole job is to create the first
-  // one for a Supabase phone-OTP user who has an auth user but no profile yet.
+  // No `authenticate` preHandler on POST or GET /me: `authenticate` requires an
+  // existing Profile row, but phone-OTP signups have a Supabase user first and
+  // create their Profile on ProfileSetupScreen.
   fastify.post("/", async (request, reply) => {
-    const authHeader = request.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-      return reply.code(401).send({ error: "Missing bearer token" });
-    }
-
-    const supabase = createClient(fastify.config.SUPABASE_URL, fastify.config.SUPABASE_SERVICE_ROLE_KEY);
-    const token = authHeader.slice("Bearer ".length);
-    const { data, error } = await supabase.auth.getUser(token);
-    if (error || !data.user) {
-      return reply.code(401).send({ error: "Invalid or expired token" });
-    }
-    if (!data.user.phone) {
+    const user = await resolveAuthUser(fastify, request.headers.authorization, reply);
+    if (!user) return;
+    if (!user.phone) {
       return reply.code(400).send({ error: "Authenticated user has no phone number" });
     }
 
-    const existing = await fastify.prisma.profile.findUnique({ where: { id: data.user.id } });
+    const existing = await fastify.prisma.profile.findUnique({ where: { id: user.id } });
     if (existing) {
       return reply.code(409).send({ error: "Profile already exists" });
     }
@@ -31,51 +40,51 @@ export async function profileRoutes(fastify: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
-    const { fullName, role, universityId, studentId } = parsed.data;
+    const { fullName, role, universityId, studentId, email } = parsed.data;
 
     const profile = await fastify.prisma.profile.create({
       data: {
-        id: data.user.id,
-        phone: data.user.phone,
+        id: user.id,
+        phone: user.phone,
         fullName,
         role,
         universityId,
         studentId,
+        email,
         isVerified: role === "student",
       },
     });
     return reply.code(201).send({ profile });
   });
 
-  fastify.get("/me", { preHandler: fastify.authenticate }, async (request, reply) => {
+  fastify.get("/me", async (request, reply) => {
+    const user = await resolveAuthUser(fastify, request.headers.authorization, reply);
+    if (!user) return;
+
     const profile = await fastify.prisma.profile.findUnique({
-      where: { id: request.user!.id },
+      where: { id: user.id },
     });
     return reply.send({ profile });
   });
 
   fastify.put("/me", { preHandler: fastify.authenticate }, async (request, reply) => {
-    const body = request.body as Record<string, unknown>;
-    const profile = await fastify.prisma.profile.update({
-      where: { id: request.user!.id },
-      data: {
-        fullName: body.fullName as string | undefined,
-        avatarUrl: body.avatarUrl as string | undefined,
-      },
-    });
-    return reply.send({ profile });
-  });
-
-  // Avatar upload goes through Supabase Storage from the client;
-  // this endpoint just persists the resulting public/signed URL.
-  fastify.post("/avatar", { preHandler: fastify.authenticate }, async (request, reply) => {
-    const body = request.body as { avatarUrl?: string };
-    if (!body.avatarUrl) {
-      return reply.code(400).send({ error: "avatarUrl is required" });
+    const parsed = updateProfileSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
+    const body = parsed.data;
+
+    // Built key-by-key rather than spread: `exactOptionalPropertyTypes` aside,
+    // handing Prisma the parse result wholesale would write `undefined` keys
+    // and makes the set of updatable columns implicit. The schema is `.strict()`,
+    // so `role` / `isVerified` / `isActive` are rejected before reaching here.
+    const data: { fullName?: string; avatarUrl?: string; email?: string | null } = {};
+    if (body.fullName !== undefined) data.fullName = body.fullName;
+    if (body.avatarUrl !== undefined) data.avatarUrl = body.avatarUrl;
+    if (body.email !== undefined) data.email = body.email;
     const profile = await fastify.prisma.profile.update({
       where: { id: request.user!.id },
-      data: { avatarUrl: body.avatarUrl },
+      data,
     });
     return reply.send({ profile });
   });

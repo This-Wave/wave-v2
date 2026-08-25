@@ -16,7 +16,7 @@ async function main() {
 
   await prisma.platformConfig.createMany({
     data: [
-      { key: "delivery_fee_base", value: "5.00", description: "Base delivery fee in GHS" },
+      { key: "delivery_fee_base", value: "20.00", description: "Base delivery fee in GHS" },
       { key: "special_order_surcharge_pct", value: "30", description: "Special order surcharge %" },
       { key: "loyalty_discount_pct", value: "20", description: "Discount % after 6 deliveries" },
       { key: "loyalty_threshold", value: "6", description: "Deliveries needed for discount" },
@@ -234,18 +234,16 @@ async function main() {
   // the storefront grids look broken rather than sparse. This seeds enough for
   // every screen to look like a real campus.
   //
-  // Images are `loremflickr` topical photos with a fixed `lock`, so each row
-  // gets a stable, real photograph rather than a grey block. They are stand-ins
-  // for real photography, not final assets — swap them when the pilot has its
-  // own. Every URL here was verified to return HTTP 200 image/jpeg.
+  // Images use picsum.photos with a fixed seed so each row gets a stable photo.
+  // loremflickr was used earlier but started returning 500s in production.
   //
   // NOTE: `shop.category` is free text, and the mobile filter rail is derived
   // from the distinct values present in the data (see handoff.md). The
   // categories below are therefore load-bearing: they *are* the filter rail.
   // ---------------------------------------------------------------------------
 
-  const img = (keywords: string, lock: number, w = 600, h = 400) =>
-    `https://loremflickr.com/${w}/${h}/${keywords}?lock=${lock}`;
+  const img = (_keywords: string, lock: number, w = 600, h = 400) =>
+    `https://picsum.photos/seed/wave-${lock}/${w}/${h}`;
 
   // Give the original shop the logo it never had.
   await prisma.shop.update({

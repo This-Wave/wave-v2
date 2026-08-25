@@ -135,3 +135,32 @@ export function useUploadVerificationImage() {
     },
   });
 }
+
+/**
+ * Records what the rider actually paid, per item, at a shop with no Wave menu.
+ *
+ * Only valid on a `shop_pickup`, and only once — the server refuses a second
+ * submission because the student may already have been charged against the
+ * first. See `POST /orders/:id/goods-cost`.
+ */
+export function useRecordGoodsCost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      orderId,
+      lines,
+    }: {
+      orderId: string;
+      lines: { itemId: string; actualUnitPrice: number }[];
+    }) => {
+      const { data } = await api.post<{ order: Order; goodsTotal: number }>(
+        `/orders/${orderId}/goods-cost`,
+        { lines },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+  });
+}

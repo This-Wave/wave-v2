@@ -21,11 +21,19 @@ const RIDER = { id: "rider-1", role: "rider" as Role };
 const STUDENT = { id: "student-1", role: "student" as Role };
 
 function makePrisma(overrides: Record<string, unknown> = {}) {
+  const acceptCandidate = { universityId: "uni-1", status: "confirmed", riderId: null };
   return {
     order: {
-      findUnique: vi.fn().mockResolvedValue(null),
+      findUnique: vi.fn().mockImplementation(async (args: { select?: Record<string, boolean> }) => {
+        if (args.select?.universityId && args.select?.status) return acceptCandidate;
+        return null;
+      }),
       update: vi.fn().mockResolvedValue({ id: "order-1" }),
       ...(overrides.order as object),
+    },
+    profile: {
+      findUnique: vi.fn().mockResolvedValue({ isVerified: true, universityId: "uni-1" }),
+      ...(overrides.profile as object),
     },
     orderStatusHistory: { create: vi.fn().mockResolvedValue({}) },
     studentDeliveryStats: { upsert: vi.fn().mockResolvedValue({}) },
@@ -58,7 +66,7 @@ describe("PATCH /:id/accept", () => {
     await (await app(prisma, RIDER)).inject({ method: "PATCH", url: "/order-1/accept" });
 
     expect(prisma.order.update.mock.calls[0]?.[0]).toMatchObject({
-      where: { id: "order-1", riderId: null, status: "confirmed" },
+      where: { id: "order-1", riderId: null, status: "confirmed", universityId: "uni-1" },
       data: { riderId: "rider-1", status: "rider_assigned" },
     });
   });
@@ -136,7 +144,15 @@ describe("PATCH /:id/deliver — PIN", () => {
     const prisma = makePrisma({
       order: {
         findUnique: vi.fn().mockResolvedValue(
-          hash === null ? null : { id: "order-1", studentId: "student-1", deliveryPinHash: hash },
+          hash === null
+            ? null
+            : {
+                id: "order-1",
+                studentId: "student-1",
+                riderId: "rider-1",
+                orderType: "shop_catalog",
+                deliveryPinHash: hash,
+              },
         ),
         update: vi.fn().mockResolvedValue({ id: "order-1", status: "delivered" }),
       },

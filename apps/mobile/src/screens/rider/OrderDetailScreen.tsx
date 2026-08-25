@@ -1,17 +1,34 @@
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { ArrowLeft, Calendar, MapPin, User } from "lucide-react-native";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
-import { IconButton } from "../../components/ui/IconButton";
-import { Card } from "../../components/ui/Card";
-import { Button } from "../../components/ui/Button";
+import {
+  ActionBar,
+  Button,
+  Gutter,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  Thumb,
+  TopBar,
+} from "../../components/v6";
 import { useOrder } from "../../lib/orders";
 import { useAcceptOrder } from "../../lib/rider";
 import { formatGhs } from "../../lib/pricing";
 
 type Route = RouteProp<RiderStackParamList, "OrderDetail">;
 
+/**
+ * What a rider sees before claiming an order.
+ *
+ * The fee is the headline because it is the entire decision. v5 put it in a
+ * green panel at the bottom, below the fold on a small phone.
+ *
+ * Note the student's name and number are deliberately NOT shown here — this
+ * screen is reachable before the order is claimed. See `debug.md`: the API
+ * currently sends them anyway, which is an open defect.
+ */
 export function OrderDetailScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RiderStackParamList>>();
   const { params } = useRoute<Route>();
@@ -24,51 +41,67 @@ export function OrderDetailScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas">
-      <View className="flex-row items-center gap-3 px-6 pb-3.5 pt-1.5">
-        <IconButton icon={ArrowLeft} onPress={() => navigation.goBack()} compact />
-        <Text className="flex-1 font-sans-extrabold text-[16px] tracking-tight text-ink">Order Detail</Text>
-      </View>
+    <Screen narrow>
+      <TopBar onBack={() => navigation.goBack()} />
 
-      <ScrollView className="flex-1 px-6" contentContainerStyle={{ gap: 12 }}>
-        <Card>
-          <Text className="mb-1 font-sans-bold text-[14px] text-ink">{order?.shop?.name ?? "Shop"}</Text>
-          <Text className="mb-3 text-[11px] text-muted">{order?.shop?.locationText ?? "Off-campus"}</Text>
-          <Text className="mb-1.5 font-sans-semibold text-[11px] uppercase tracking-wider text-muted">Items to buy</Text>
-          <Text className="text-[13px] leading-5 text-ink">{order?.itemDescription ?? "—"}</Text>
-        </Card>
-
-        <Card>
-          <View className="mb-2.5 flex-row items-center gap-2">
-            <User size={14} color="#6B7D63" />
-            <Text className="text-[12px] text-ink">{order?.student?.fullName ?? "Student"}</Text>
-          </View>
-          <View className="mb-2.5 flex-row items-center gap-2">
-            <MapPin size={14} color="#6B7D63" />
-            <Text className="text-[12px] text-ink">{order?.checkpoint?.name ?? "Checkpoint"}</Text>
-          </View>
-          <View className="flex-row items-center gap-2">
-            <Calendar size={14} color="#6B7D63" />
-            <Text className="text-[12px] text-ink capitalize">{order?.deliveryDay ?? "—"} run</Text>
-          </View>
-        </Card>
-
-        <View className="rounded-card border border-success-border bg-success-bg p-3.5">
-          <Text className="mb-0.5 text-[11px] text-success-text">Your earnings</Text>
-          <Text className="font-sans-extrabold text-[20px] text-success-text">
+      <ScreenBody bottomInset={16}>
+        <Gutter className="pt-2">
+          <Text className="font-sans text-body text-muted">You'd earn</Text>
+          <Text
+            className="mb-8 mt-1 font-sans-bold text-ink"
+            style={{ fontSize: 48, lineHeight: 52 }}
+          >
             {order ? formatGhs(Number(order.deliveryFee)) : "—"}
           </Text>
-        </View>
-      </ScrollView>
 
-      <View className="flex-row gap-3 px-6 pb-6 pt-3">
-        <View className="flex-1">
-          <Button label="Pass" variant="secondary" onPress={() => navigation.goBack()} />
+          <Text className="mb-2 font-sans-medium text-body text-ink">The job</Text>
+          <RowGroup>
+            <Row
+              title={order?.shop?.name ?? "Shop"}
+              meta={order?.shop?.locationText ?? "Buy from here"}
+              leading={<Thumb uri={order?.shop?.logoUrl} />}
+              chevron={false}
+            />
+            <Row
+              title={order?.checkpoint?.name ?? "Checkpoint"}
+              meta="Hand over here"
+              chevron={false}
+            />
+            <Row
+              title={order?.deliveryDay ? `${capitalise(order.deliveryDay)}'s Wave` : "—"}
+              meta="Goes out on"
+              chevron={false}
+            />
+          </RowGroup>
+
+          <Text className="mb-2 mt-7 font-sans-medium text-body text-ink">What to buy</Text>
+          <View className="rounded-card bg-surface p-4">
+            <Text className="font-sans text-body text-ink">{order?.itemDescription ?? "—"}</Text>
+          </View>
+
+          {order?.notes ? (
+            <>
+              <Text className="mb-2 mt-7 font-sans-medium text-body text-ink">
+                Notes from the student
+              </Text>
+              <View className="rounded-card bg-surface p-4">
+                <Text className="font-sans text-body text-ink">{order.notes}</Text>
+              </View>
+            </>
+          ) : null}
+        </Gutter>
+      </ScreenBody>
+
+      <ActionBar>
+        <View className="gap-2">
+          <Button label="Accept this order" onPress={handleAccept} loading={acceptOrder.isPending} />
+          <Button label="Pass" variant="quiet" onPress={() => navigation.goBack()} />
         </View>
-        <View className="flex-[2]">
-          <Button label="Accept Order" onPress={handleAccept} loading={acceptOrder.isPending} />
-        </View>
-      </View>
-    </SafeAreaView>
+      </ActionBar>
+    </Screen>
   );
+}
+
+function capitalise(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }

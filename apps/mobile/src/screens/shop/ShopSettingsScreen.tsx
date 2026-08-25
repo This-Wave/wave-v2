@@ -1,69 +1,133 @@
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
-import { Clock, LogOut, MapPin, Store } from "lucide-react-native";
-import { Card } from "../../components/ui/Card";
+import { useState } from "react";
+import { Text, View } from "react-native";
+import {
+  Confirm,
+  Gutter,
+  PageTitle,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+} from "../../components/v6";
 import { ToggleSwitch } from "../../components/ui/ToggleSwitch";
-import { ListRow } from "../../components/ui/ListRow";
-import { useSelectedShop, useSetShopServing } from "../../lib/shopOwner";
 import { ShopSwitcher } from "../../components/shop/ShopSwitcher";
+import { useSelectedShop, useSetShopServing } from "../../lib/shopOwner";
+import { useLayout } from "../../hooks/useLayout";
 import { signOut } from "../../lib/auth";
+import {
+  hasSupportContact,
+  openSupportContact,
+  supportContactLabel,
+} from "../../lib/support";
 
 export function ShopSettingsScreen() {
   const { shop, shops, selectShop } = useSelectedShop();
   const setServing = useSetShopServing(shop?.id);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const { isDesktop } = useLayout();
 
   return (
-    <SafeAreaView className="flex-1 bg-surface-muted">
-      <ScrollView className="flex-1 px-6 pt-3" contentContainerStyle={{ paddingBottom: 128 }}>
-        <ShopSwitcher shops={shops} selectedId={shop?.id} onSelect={selectShop} />
-
-        <Card className="mb-3 bg-surface">
-          <View className="mb-3 flex-row items-center gap-3">
-            <View className="h-12 w-12 items-center justify-center rounded-well bg-surface-muted">
-              <Store size={20} color="#6B7D63" />
-            </View>
-            <View className="flex-1">
-              <Text className="font-sans-extrabold text-[16px] text-ink">{shop?.name ?? "Your Shop"}</Text>
-              <Text className="mt-0.5 text-[11px] text-muted">{shop?.category ?? "—"}</Text>
-            </View>
-          </View>
-          {shop?.locationText ? (
-            <View className="mb-1.5 flex-row items-center gap-2">
-              <MapPin size={13} color="#6B7D63" />
-              <Text className="text-[12px] text-muted">{shop.locationText}</Text>
-            </View>
-          ) : null}
-          {shop?.openingTime && shop?.closingTime ? (
-            <View className="flex-row items-center gap-2">
-              <Clock size={13} color="#6B7D63" />
-              <Text className="text-[12px] text-muted">
-                {shop.openingTime} – {shop.closingTime}
+    <Screen>
+      <ScreenBody bottomInset={24}>
+        <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-8 pt-4"}>
+          {isDesktop ? (
+            <>
+              <Text className="font-sans-bold text-heading text-ink">Settings</Text>
+              <Text className="mt-1 font-sans text-ui text-muted">
+                Storefront status and account for {shop?.name ?? "your shop"}.
               </Text>
+            </>
+          ) : (
+            <>
+              <PageTitle>{shop?.name ?? "Your shop"}</PageTitle>
+              <Text className="mt-2 font-sans text-body text-muted">
+                {[shop?.category, shop?.locationText].filter(Boolean).join(" · ") || "—"}
+              </Text>
+            </>
+          )}
+        </Gutter>
+
+        {shops && shops.length > 1 ? (
+          <Gutter className="mb-6">
+            <ShopSwitcher shops={shops} selectedId={shop?.id} onSelect={selectShop} />
+          </Gutter>
+        ) : null}
+
+        <Gutter>
+          <View
+            className={isDesktop ? "flex-row flex-wrap" : undefined}
+            style={isDesktop ? { gap: 24 } : undefined}
+          >
+            <View
+              className={`flex-row items-center gap-3 rounded-card bg-surface p-5 ${
+                isDesktop ? "" : "mb-8"
+              }`}
+              style={isDesktop ? { flex: 1, minWidth: 280 } : undefined}
+            >
+              <View className="flex-1">
+                <Text className="font-sans-medium text-body text-ink">Serving</Text>
+                <Text className="font-sans text-body text-muted">
+                  {setServing.isError
+                    ? "Couldn't update — check your connection."
+                    : shop?.isActive === false
+                      ? "Paused. Students can't see your shop."
+                      : "Students can order from you right now."}
+                </Text>
+              </View>
+              <ToggleSwitch
+                value={shop?.isActive ?? false}
+                disabled={!shop || setServing.isPending}
+                onValueChange={(next) => setServing.mutate(next)}
+                accessibilityLabel={
+                  shop?.isActive === false ? "Shop is paused" : "Shop is serving orders"
+                }
+              />
             </View>
-          ) : null}
-        </Card>
 
-        <Card className="mb-3 flex-row items-center justify-between bg-surface">
-          <View className="flex-1 pr-3">
-            <Text className="font-sans-bold text-[13px] text-ink">Serving</Text>
-            <Text className="mt-0.5 text-[11px] text-muted">
-              {setServing.isError
-                ? "Could not update — check your connection and try again."
-                : shop?.isActive === false
-                  ? "Paused. Students cannot see your shop."
-                  : "Toggle off to pause new orders"}
-            </Text>
+            <View style={isDesktop ? { flex: 1, minWidth: 280 } : undefined}>
+              <RowGroup>
+                {isDesktop ? (
+                  <Row
+                    title={shop?.name ?? "Your shop"}
+                    meta={[shop?.category, shop?.locationText].filter(Boolean).join(" · ") || "—"}
+                    chevron={false}
+                  />
+                ) : null}
+                {shop?.openingTime && shop?.closingTime ? (
+                  <Row
+                    title={`${shop.openingTime} – ${shop.closingTime}`}
+                    meta="Opening hours"
+                    chevron={false}
+                  />
+                ) : null}
+                {hasSupportContact() ? (
+                  <Row
+                    title="Help & support"
+                    meta={supportContactLabel()}
+                    onPress={() => void openSupportContact()}
+                  />
+                ) : null}
+              </RowGroup>
+
+              <View className="mt-8">
+                <Row title="Log out" onPress={() => setConfirmLogout(true)} chevron={false} />
+              </View>
+            </View>
           </View>
-          <ToggleSwitch
-            value={shop?.isActive ?? false}
-            disabled={!shop || setServing.isPending}
-            onValueChange={(next) => setServing.mutate(next)}
-          />
-        </Card>
+        </Gutter>
+      </ScreenBody>
 
-        <View className="overflow-hidden rounded-well border border-border bg-surface">
-          <ListRow leading={<LogOut size={18} color="#B3453A" />} title="Log Out" danger onPress={() => signOut()} />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      <Confirm
+        visible={confirmLogout}
+        title="Log out?"
+        body="You'll need your phone number and a code to get back in."
+        confirmLabel="Log out"
+        onConfirm={() => {
+          setConfirmLogout(false);
+          void signOut();
+        }}
+        onCancel={() => setConfirmLogout(false)}
+      />
+    </Screen>
   );
 }

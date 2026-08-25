@@ -5,11 +5,14 @@ import { clientSafeOrder } from "../orders/select";
 import { notifyOrderStatus } from "../notifications/dispatch";
 
 /**
- * Orders whose refund is mid-flight, so a double-click cannot fire two refunds.
- * Per-process only — Paystack rejecting a second refund of the same transaction
- * is the real backstop, this just keeps the common case from reaching it.
+ * How long a claimed refund may sit before another caller may take it over.
+ *
+ * Without this, a process killed between claiming and finishing would leave
+ * `refundStartedAt` set forever and the order permanently unrefundable — the
+ * classic failure of a lock with no lease. Comfortably longer than a Paystack
+ * refund call, short enough that a human retry is not blocked for long.
  */
-const inFlight = new Set<string>();
+const REFUND_CLAIM_TTL_MS = 2 * 60_000;
 
 export interface EndOrderWithRefundArgs {
   fastify: FastifyInstance;
@@ -43,12 +46,39 @@ export async function endOrderWithRefund(
 ): Promise<EndOrderWithRefundResult> {
   const { fastify, log, orderId, reason, actorId, intent } = args;
 
-  if (inFlight.has(orderId)) {
+  // Pre-flight checks that do not need the claim. Doing these first keeps a
+  // 404 or an already-refunded 409 from taking — and then having to release —
+  // a lock it never needed.
+  const existing = await fastify.prisma.order.findUnique({ where: { id: orderId } });
+  if (!existing) return { ok: false, code: 404, error: "Order not found" };
+  if (existing.status === "refunded") {
+    return { ok: false, code: 409, error: "Order has already been refunded" };
+  }
+
+  // The claim. A conditional UPDATE means the database picks the winner, so
+  // this holds across processes — the previous in-memory Set did not, and two
+  // API instances would each have kept their own and enforced nothing. A
+  // double-refund is real money, and Paystack rejecting the second call is a
+  // backstop we should not be relying on.
+  //
+  // The staleness arm is the lease: a claim older than the TTL is assumed to
+  // belong to a process that died mid-refund and may be taken over.
+  const staleBefore = new Date(Date.now() - REFUND_CLAIM_TTL_MS);
+  const claim = await fastify.prisma.order.updateMany({
+    where: {
+      id: orderId,
+      OR: [{ refundStartedAt: null }, { refundStartedAt: { lt: staleBefore } }],
+    },
+    data: { refundStartedAt: new Date() },
+  });
+  if (claim.count === 0) {
     return { ok: false, code: 409, error: "This order is already being cancelled" };
   }
-  inFlight.add(orderId);
 
+  let settled = false;
   try {
+    // Re-read under the claim: `existing` was fetched before it was held, so a
+    // concurrent writer could have moved the order on since.
     const order = await fastify.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) return { ok: false, code: 404, error: "Order not found" };
 
@@ -59,20 +89,25 @@ export async function endOrderWithRefund(
       return { ok: false, code: 409, error: `Cannot cancel an order that is already ${order.status}` };
     }
 
-    const isPaid = Boolean(order.paidAt && order.paystackRef);
-    if (intent === "refund" && !isPaid) {
+    const hasDeliveryPayment = Boolean(order.paidAt && order.paystackRef);
+    const hasGoodsPayment = Boolean(order.goodsPaidAt && order.goodsPaystackRef);
+    const refsToRefund: string[] = [];
+    if (hasDeliveryPayment) refsToRefund.push(order.paystackRef!);
+    if (hasGoodsPayment) refsToRefund.push(order.goodsPaystackRef!);
+
+    if (intent === "refund" && refsToRefund.length === 0) {
       return { ok: false, code: 400, error: "Order has no captured payment to refund" };
     }
 
     let refundIssued = false;
-    if (isPaid) {
+    for (const reference of refsToRefund) {
       try {
         const refund = await refundPaystackPayment(fastify.config.PAYSTACK_SECRET_KEY, {
-          reference: order.paystackRef!,
+          reference,
           note: `Wave order ${order.id}: ${reason}`.slice(0, 255),
         });
         log.info(
-          { orderId, refundId: refund.id, refundStatus: refund.status },
+          { orderId, refundId: refund.id, refundStatus: refund.status, reference },
           "Paystack refund accepted",
         );
         refundIssued = true;
@@ -81,6 +116,7 @@ export async function endOrderWithRefund(
         log.error(
           {
             orderId,
+            reference,
             httpStatus: axios.isAxiosError(err) ? err.response?.status : undefined,
             providerMessage,
           },
@@ -112,8 +148,21 @@ export async function endOrderWithRefund(
     // place that knows whether money actually moved.
     await notifyOrderStatus({ fastify, log, orderId, status: nextStatus });
 
+    settled = true;
     return { ok: true, order: updated, refundIssued };
   } finally {
-    inFlight.delete(orderId);
+    // Released only when the refund did NOT complete, so a retry can re-claim.
+    // On success the timestamp stays as a record of when the money moved — the
+    // terminal `refunded` / `cancelled` status is what blocks a second attempt
+    // from there, not the lock.
+    if (!settled) {
+      await fastify.prisma.order
+        .updateMany({ where: { id: orderId }, data: { refundStartedAt: null } })
+        .catch((err: unknown) => {
+          // Never mask the real failure with a cleanup failure. The TTL above
+          // means a claim we could not clear frees itself.
+          log.error({ orderId, err }, "Could not release the refund claim — it will expire via TTL");
+        });
+    }
   }
 }

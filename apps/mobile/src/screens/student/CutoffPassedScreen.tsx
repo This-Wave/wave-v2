@@ -1,57 +1,63 @@
 import { useMemo } from "react";
-import { SafeAreaView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { ScreenHeader } from "../../components/ui/ScreenHeader";
-import { Button } from "../../components/ui/Button";
-import { AlertIcon } from "../../components/icons";
-import { colors } from "../../theme/tokens";
-import { DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT } from "@wave/shared";
-import { formatFullDay, upcomingRunDays } from "../../lib/pricing";
+import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
+import {
+  DEFAULT_DELIVERY_FEE_GHS,
+  DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
+} from "@wave/shared";
+import { formatFullDay, formatGhs, formatGhsCompact, upcomingRunDays } from "../../lib/pricing";
 
 /**
- * v5 screen 19 error state, applied to the noon cutoff — warning-toned rather
- * than destructive, since nothing has gone wrong.
+ * Shown once the noon cutoff on a run day has passed.
+ *
+ * Nothing has gone wrong here, so there is no warning colour and no alert
+ * glyph — v5 dressed this as an error state with an amber panel. It is a
+ * schedule, stated plainly, with the two real options underneath.
  */
 export function CutoffPassedScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const nextRun = useMemo(() => upcomingRunDays(new Date(), 1)[0], []);
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas">
-      <ScreenHeader title="Order window" onBack={() => navigation.goBack()} />
+    <Screen narrow>
+      <TopBar onBack={() => navigation.goBack()} />
 
-      <View className="flex-1 items-center justify-center px-10">
-        <View className="mb-6 h-[84px] w-[84px] items-center justify-center rounded-card bg-warning-bg">
-          <AlertIcon color={colors.warning} />
-        </View>
-        <Text className="mb-2.5 text-center font-sans-semibold text-[20px] text-ink">Today&apos;s run is closed</Text>
-        <Text className="mb-6 text-center text-[14px] leading-[21px] text-muted">
-          Orders lock at 12:00 noon on a run day. The next standard run is{" "}
-          {nextRun ? formatFullDay(nextRun) : "coming up"}.
-        </Text>
-
-        <View className="mb-7 w-full rounded-card border border-warning-border bg-warning-bg p-4">
-          <Text className="text-[13px] leading-5 text-warning-text-dark">
-            Need it sooner? A special order runs today for a {DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT}% delivery-fee
-            surcharge, with at least 24 hours&apos; notice.
+      <ScreenBody bottomInset={16}>
+        <Gutter className="pt-8">
+          <Text className="mb-2 font-sans-bold text-heading text-ink">
+            Today's run is full
           </Text>
-        </View>
+          <Text className="mb-8 font-sans text-body text-muted">
+            Orders lock at noon on a run day so runners can shop and get back before evening. The
+            next standard run is {nextRun ? formatFullDay(nextRun) : "coming up"}.
+          </Text>
 
-        <View className="w-full gap-3">
+          <View className="rounded-card bg-surface p-5">
+            <Text className="mb-1 font-sans-semibold text-meta text-muted">NEED IT SOONER?</Text>
+            <Text className="font-sans text-body text-ink">
+              A rush order can go out ahead of the schedule for {DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT}
+              % more on the delivery fee — on a {formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)} fee
+              that's{" "}
+              {formatGhs((DEFAULT_DELIVERY_FEE_GHS * DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT) / 100)}{" "}
+              extra. It needs 24 hours' notice.
+            </Text>
+          </View>
+        </Gutter>
+      </ScreenBody>
+
+      <ActionBar>
+        <View className="gap-2">
+          <Button label="Place a rush order" onPress={() => navigation.navigate("ShopSelection")} />
           <Button
-            label={`Place special order · +${DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT}%`}
-            onPress={() => navigation.navigate("ShopSelection")}
-          />
-          <Button
-            label="Back to home"
-            variant="secondary"
-            size="compact"
+            label="Wait for the next run"
+            variant="quiet"
             onPress={() => navigation.navigate("Tabs", { screen: "Home" })}
           />
         </View>
-      </View>
-    </SafeAreaView>
+      </ActionBar>
+    </Screen>
   );
 }

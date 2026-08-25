@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --wave-green: #2ea64e;
+  --wave-lime: #87ea5c;
+  --wave-ink: #083400;
 }
 
 body {

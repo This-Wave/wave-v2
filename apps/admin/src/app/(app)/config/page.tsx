@@ -5,6 +5,7 @@ import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../lib/api";
 import { PageHeader } from "../../../components/ui/PageHeader";
 import { Button } from "../../../components/ui/Button";
+import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 
 interface ConfigRow {
   key: string;
@@ -69,18 +70,23 @@ const KNOWN_KEYS = GROUPS.flatMap((g) => g.keys.map((k) => k.key));
 export default function ConfigPage() {
   const { accessToken } = useAdminAuth();
   const [rows, setRows] = useState<ConfigRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!accessToken) return;
+    setError(null);
     apiFetch<{ config: ConfigRow[] }>("/admin/config", accessToken)
       .then((res) => {
         setRows(res.config);
         setDraft(Object.fromEntries(res.config.map((r) => [r.key, r.value])));
       })
-      .catch(() => setRows([]));
+      .catch(() => {
+        setRows([]);
+        setError("Could not load platform config. Check your connection and try again.");
+      });
   }, [accessToken]);
 
   useEffect(() => {
@@ -123,14 +129,16 @@ export default function ConfigPage() {
 
       <div className="mb-7 flex max-w-[720px] gap-3 rounded-control bg-wave-lime p-4">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0">
-          <circle cx="12" cy="12" r="9" stroke="#009933" strokeWidth="1.7" />
-          <path d="M12 11v5.5M12 7.8v.4" stroke="#009933" strokeWidth="1.9" strokeLinecap="round" />
+          <circle cx="12" cy="12" r="9" stroke="#083400" strokeWidth="1.7" />
+          <path d="M12 11v5.5M12 7.8v.4" stroke="#083400" strokeWidth="1.9" strokeLinecap="round" />
         </svg>
-        <p className="text-[12.5px] leading-5 text-wave-500">
+        <p className="text-[12.5px] leading-5 text-ink">
           Changes apply to <strong className="font-semibold">new orders only</strong>. Orders already
           placed keep the fee, discount and surcharge they were created with.
         </p>
       </div>
+
+      {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
 
       {rows === null ? (
         <p className="text-[13.5px] text-muted">Loading…</p>

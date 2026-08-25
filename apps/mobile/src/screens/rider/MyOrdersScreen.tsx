@@ -1,101 +1,190 @@
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Package, Store } from "lucide-react-native";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
-import { ListRow } from "../../components/ui/ListRow";
-import { Badge } from "../../components/ui/Badge";
-import { EmptyState } from "../../components/ui/EmptyState";
-import { Skeleton } from "../../components/ui/Skeleton";
+import {
+  Empty,
+  Gutter,
+  ListError,
+  ListSkeleton,
+  PageTitle,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  StatusPill,
+  Thumb,
+} from "../../components/v6";
 import { useMyDeliveries } from "../../lib/rider";
+import { useLayout } from "../../hooks/useLayout";
 import { formatGhs } from "../../lib/pricing";
-import type { OrderStatus } from "../../types";
+import { statusPill } from "../student/orderPresenters";
+import type { Order, OrderStatus } from "../../types";
 
 const ACTIVE_STATUSES: OrderStatus[] = ["rider_assigned", "en_route", "at_checkpoint"];
 
-function statusBadge(status: OrderStatus): { label: string; variant: "success" | "error" | "neutral"; pulse?: boolean } {
-  if (status === "delivered") return { label: "Delivered", variant: "success" };
-  if (status === "cancelled" || status === "refunded") return { label: status === "refunded" ? "Refunded" : "Cancelled", variant: "error" };
-  if (status === "en_route") return { label: "En Route", variant: "success", pulse: true };
-  return { label: status.replace(/_/g, " "), variant: "neutral" };
-}
-
 export function MyOrdersScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RiderStackParamList>>();
-  const { data: orders, isLoading } = useMyDeliveries();
+  const { data: orders, isLoading, isError, refetch, isRefetching } = useMyDeliveries();
+  const { isDesktop } = useLayout();
 
   const active = orders?.filter((o) => ACTIVE_STATUSES.includes(o.status)) ?? [];
   const past = orders?.filter((o) => !ACTIVE_STATUSES.includes(o.status)) ?? [];
 
-  function handlePress(orderId: string, status: OrderStatus) {
-    if (ACTIVE_STATUSES.includes(status)) {
-      navigation.navigate("ActiveDelivery", { orderId });
-    }
-  }
-
   return (
-    <SafeAreaView className="flex-1 bg-surface-muted">
-      <View className="px-6 pb-3 pt-2">
-        <Text className="font-sans-extrabold text-[20px] tracking-tight text-ink">My Orders</Text>
-      </View>
+    <Screen>
+      <ScreenBody
+        bottomInset={24}
+        refreshing={isRefetching}
+        onRefresh={() => void refetch()}
+      >
+        <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-6 pt-4"}>
+          {isDesktop ? (
+            <>
+              <Text className="font-sans-bold text-heading text-ink">Deliveries</Text>
+              <Text className="mt-1 font-sans text-ui text-muted">
+                Active runs and what you’ve already handed over.
+              </Text>
+            </>
+          ) : (
+            <PageTitle>My deliveries</PageTitle>
+          )}
+        </Gutter>
 
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ gap: 12, paddingBottom: 128 }}>
         {isLoading ? (
-          <>
-            <Skeleton height={62} radius={14} />
-            <Skeleton height={62} radius={14} />
-          </>
+          <Gutter>
+            <ListSkeleton rows={3} />
+          </Gutter>
+        ) : isError ? (
+          <Gutter>
+            <ListError onRetry={() => void refetch()} />
+          </Gutter>
         ) : !orders || orders.length === 0 ? (
-          <EmptyState icon={Package} title="No deliveries yet" description="Accept an order from the Feed tab to get started." />
+          <Empty
+            title="Nothing yet"
+            body="Accept an order from the Feed and it'll appear here."
+          />
         ) : (
           <>
             {active.length > 0 ? (
-              <View>
-                <Text className="mb-2 px-1 font-sans-bold text-[13px] text-ink">Active</Text>
-                <View className="overflow-hidden rounded-well border border-border bg-surface">
-                  {active.map((order, i) => (
-                    <ListRow
-                      key={order.id}
-                      bordered={i < active.length - 1}
-                      leading={
-                        <View className="h-[34px] w-[34px] items-center justify-center rounded-well bg-surface-muted">
-                          <Store size={15} color="#6B7D63" />
-                        </View>
-                      }
-                      title={order.shop?.name ?? "Shop"}
-                      subtitle={formatGhs(Number(order.deliveryFee))}
-                      trailing={<Badge {...statusBadge(order.status)} />}
-                      onPress={() => handlePress(order.id, order.status)}
-                    />
-                  ))}
-                </View>
+              <View className="mb-section">
+                <Gutter className="mb-3">
+                  <Text className="font-sans-medium text-heading-sm text-ink">In progress</Text>
+                </Gutter>
+                <Gutter style={isDesktop ? { gap: 12 } : undefined}>
+                  {isDesktop
+                    ? active.map((order) => (
+                        <Pressable
+                          key={order.id}
+                          onPress={() =>
+                            navigation.navigate("ActiveDelivery", { orderId: order.id })
+                          }
+                          className="flex-row items-center gap-4 rounded-card bg-surface px-5 py-4 active:bg-hairline"
+                        >
+                          <Thumb uri={order.shop?.logoUrl} size={52} />
+                          <View className="min-w-0 flex-1">
+                            <Text className="font-sans-medium text-ui text-ink" numberOfLines={1}>
+                              {order.shop?.name ?? "Delivery"}
+                            </Text>
+                            <Text className="mt-1 font-sans text-body text-muted" numberOfLines={1}>
+                              To {order.checkpoint?.name ?? "checkpoint"}
+                            </Text>
+                          </View>
+                          <StatusPill {...statusPill(order.status)} />
+                          <Text className="font-sans-medium text-body text-ink">Open →</Text>
+                        </Pressable>
+                      ))
+                    : (
+                        <RowGroup>
+                          {active.map((order) => (
+                            <Row
+                              key={order.id}
+                              title={order.shop?.name ?? "Delivery"}
+                              meta={`To ${order.checkpoint?.name ?? "checkpoint"}`}
+                              leading={<Thumb uri={order.shop?.logoUrl} />}
+                              trailing={<StatusPill {...statusPill(order.status)} />}
+                              onPress={() =>
+                                navigation.navigate("ActiveDelivery", { orderId: order.id })
+                              }
+                            />
+                          ))}
+                        </RowGroup>
+                      )}
+                </Gutter>
               </View>
             ) : null}
 
             {past.length > 0 ? (
               <View>
-                <Text className="mb-2 px-1 font-sans-bold text-[13px] text-ink">Past</Text>
-                <View className="overflow-hidden rounded-well border border-border bg-surface">
-                  {past.map((order, i) => (
-                    <ListRow
-                      key={order.id}
-                      bordered={i < past.length - 1}
-                      leading={
-                        <View className="h-[34px] w-[34px] items-center justify-center rounded-well bg-surface-muted">
-                          <Store size={15} color="#6B7D63" />
-                        </View>
-                      }
-                      title={order.shop?.name ?? "Shop"}
-                      subtitle={formatGhs(Number(order.deliveryFee))}
-                      trailing={<Badge {...statusBadge(order.status)} />}
-                    />
-                  ))}
-                </View>
+                <Gutter className="mb-3">
+                  <Text className="font-sans-medium text-heading-sm text-ink">Done</Text>
+                </Gutter>
+                <Gutter>
+                  {isDesktop ? (
+                    <View className="overflow-hidden rounded-card bg-surface">
+                      <View className="flex-row border-b border-hairline px-5 py-3">
+                        <Text className="flex-[2] font-sans-semibold text-meta text-muted">
+                          SHOP
+                        </Text>
+                        <Text className="flex-1 font-sans-semibold text-meta text-muted">DATE</Text>
+                        <Text className="w-28 font-sans-semibold text-meta text-muted">FEE</Text>
+                      </View>
+                      {past.map((order, i) => (
+                        <PastRow key={order.id} order={order} last={i === past.length - 1} />
+                      ))}
+                    </View>
+                  ) : (
+                    <RowGroup>
+                      {past.map((order) => (
+                        <Row
+                          key={order.id}
+                          title={order.shop?.name ?? "Delivery"}
+                          meta={new Date(order.createdAt).toLocaleDateString([], {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                          leading={<Thumb uri={order.shop?.logoUrl} />}
+                          chevron={false}
+                          trailing={
+                            <Text className="font-sans-semibold text-body text-ink">
+                              {formatGhs(Number(order.deliveryFee))}
+                            </Text>
+                          }
+                        />
+                      ))}
+                    </RowGroup>
+                  )}
+                </Gutter>
               </View>
             ) : null}
           </>
         )}
-      </ScrollView>
-    </SafeAreaView>
+      </ScreenBody>
+    </Screen>
+  );
+}
+
+function PastRow({ order, last }: { order: Order; last: boolean }) {
+  return (
+    <View
+      className={`flex-row items-center px-5 py-4 ${last ? "" : "border-b border-hairline"}`}
+    >
+      <View className="flex-[2] flex-row items-center gap-3 pr-3">
+        <Thumb uri={order.shop?.logoUrl} size={40} />
+        <Text className="flex-1 font-sans-medium text-body text-ink" numberOfLines={1}>
+          {order.shop?.name ?? "Delivery"}
+        </Text>
+      </View>
+      <Text className="flex-1 font-sans text-body text-muted">
+        {new Date(order.createdAt).toLocaleDateString([], {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })}
+      </Text>
+      <Text className="w-28 font-sans-semibold text-body text-ink">
+        {formatGhs(Number(order.deliveryFee))}
+      </Text>
+    </View>
   );
 }

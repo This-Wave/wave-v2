@@ -1,5 +1,8 @@
+import { loadEnv } from "./config/env";
+import { initSentry } from "./lib/sentry";
 import { buildApp } from "./app";
 
+initSentry(loadEnv());
 const app = buildApp();
 
 app

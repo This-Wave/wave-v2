@@ -1,48 +1,72 @@
-import { SafeAreaView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { ScreenHeader } from "../../components/ui/ScreenHeader";
-import { Button } from "../../components/ui/Button";
+import { ActionBar, Button, Gutter, Screen, ScreenBody } from "../../components/v6";
 import { AlertIcon } from "../../components/icons";
-import { formatGhs } from "../../lib/pricing";
+import { colors } from "../../theme/tokens";
 import { shortOrderRef } from "./orderPresenters";
+import { resetStudentTabs, resetToPayment } from "../../lib/navigationFlows";
 
 type Route = RouteProp<StudentStackParamList, "PaymentFailed">;
 
-/** v5 screen 19 error state, applied to a failed charge. */
+/**
+ * Reached when the app could not confirm a payment.
+ *
+ * The copy is deliberately uncertain, because the situation is: the student may
+ * have abandoned checkout, or the Paystack webhook may simply not have landed
+ * yet. Claiming "payment failed" outright would be a lie in the second case,
+ * and a student who was in fact charged would read it as money lost.
+ */
 export function PaymentFailedScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas">
-      <ScreenHeader title={`Order ${shortOrderRef(params.orderId)}`} onBack={() => navigation.goBack()} />
+    <Screen narrow>
+      <ScreenBody bottomInset={16}>
+        <Gutter className="pt-12">
+          <View className="mb-6 h-14 w-14 items-center justify-center rounded-pill bg-hairline">
+            <AlertIcon size={26} color={colors.ink} strokeWidth={1.8} />
+          </View>
 
-      <View className="flex-1 items-center justify-center px-10">
-        <View className="mb-6 h-[84px] w-[84px] items-center justify-center rounded-card bg-danger-bg">
-          <AlertIcon />
-        </View>
-        <Text className="mb-2.5 text-center font-sans-semibold text-[20px] text-ink">Payment didn&apos;t go through</Text>
-        <Text className="mb-7 text-center text-[14px] leading-[21px] text-muted">
-          We couldn&apos;t collect {formatGhs(params.totalAmount)}. Your order is safe and unpaid — try again or use a
-          different payment method.
-        </Text>
-        <View className="w-full gap-3">
+          <Text className="mb-2 font-sans-bold text-heading text-ink">
+            We couldn't confirm that
+          </Text>
+          <Text className="mb-8 font-sans text-body text-muted">
+            Your order {shortOrderRef(params.orderId)} is still waiting to be paid for. If money
+            already left your account, it will settle shortly and the order will move on by itself —
+            check back in a few minutes before paying again.
+          </Text>
+
+          <View className="rounded-card bg-surface p-5">
+            <Text className="mb-1 font-sans-semibold text-meta text-muted">NOTHING IS LOST</Text>
+            <Text className="font-sans text-body text-ink">
+              The order is saved exactly as you built it. You can pay for it from your orders list
+              at any time before the run.
+            </Text>
+          </View>
+        </Gutter>
+      </ScreenBody>
+
+      <ActionBar>
+        <View className="gap-2">
           <Button
-            label="Try again"
+            label="Try paying again"
             onPress={() =>
-              navigation.replace("Payment", { orderId: params.orderId, totalAmount: params.totalAmount })
+              resetToPayment(navigation, {
+                orderId: params.orderId,
+                totalAmount: params.totalAmount,
+              })
             }
           />
           <Button
-            label="Back to home"
-            variant="secondary"
-            size="compact"
-            onPress={() => navigation.navigate("Tabs", { screen: "Home" })}
+            label="Check my orders"
+            variant="quiet"
+            onPress={() => resetStudentTabs(navigation, "Orders")}
           />
         </View>
-      </View>
-    </SafeAreaView>
+      </ActionBar>
+    </Screen>
   );
 }

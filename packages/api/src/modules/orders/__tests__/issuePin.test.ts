@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import { issueDeliveryPin } from "../issuePin";
 import { verifyDeliveryPin } from "../pin";
+import { decryptDeliveryPin } from "../pinCrypto";
 import { SmsSendError, sendDeliveryPinSms } from "../../../lib/sms";
 
 vi.mock("../../../lib/sms", async (importOriginal) => {
@@ -10,10 +11,11 @@ vi.mock("../../../lib/sms", async (importOriginal) => {
 });
 
 const sendMock = vi.mocked(sendDeliveryPinSms);
+const JWT = "test-jwt-secret-for-pin-crypto";
 
 function fakeFastify(apiKey?: string) {
   return {
-    config: { MNOTIFY_API_KEY: apiKey, MNOTIFY_SENDER_ID: "Wave" },
+    config: { MNOTIFY_API_KEY: apiKey, MNOTIFY_SENDER_ID: "Wave", JWT_SECRET: JWT },
   } as unknown as FastifyInstance;
 }
 
@@ -27,31 +29,31 @@ beforeEach(() => {
 });
 
 describe("issueDeliveryPin", () => {
-  test("texts the plaintext PIN and persists only its hash", async () => {
-    const persisted: string[] = [];
+  test("texts the plaintext PIN and persists hash + ciphertext (never plaintext)", async () => {
+    const persisted: { hash: string; ciphertext: string }[] = [];
     const result = await issueDeliveryPin({
       fastify: fakeFastify("key"),
       log: fakeLog(),
       phone: "+233241234567",
-      persistHash: async (hash) => void persisted.push(hash),
+      persist: async (secrets) => void persisted.push(secrets),
     });
 
     expect(result.smsSent).toBe(true);
+    expect(result.pin).toMatch(/^\d{6}$/);
     expect(sendMock).toHaveBeenCalledTimes(1);
 
     const sentPin = sendMock.mock.calls[0]![0].pin;
-    expect(sentPin).toMatch(/^\d{6}$/);
+    expect(sentPin).toBe(result.pin);
 
-    // Exactly one hash written, and it is a bcrypt hash — not the PIN itself.
     expect(persisted).toHaveLength(1);
-    expect(persisted[0]).toMatch(/^\$2[aby]\$/);
-    expect(persisted[0]).not.toContain(sentPin);
-
-    // The transmitted PIN is the one the stored hash will verify.
-    expect(await verifyDeliveryPin(sentPin, persisted[0]!)).toBe(true);
+    expect(persisted[0]!.hash).toMatch(/^\$2[aby]\$/);
+    expect(persisted[0]!.hash).not.toContain(sentPin);
+    expect(persisted[0]!.ciphertext).not.toContain(sentPin);
+    expect(decryptDeliveryPin(persisted[0]!.ciphertext, JWT)).toBe(sentPin);
+    expect(await verifyDeliveryPin(sentPin, persisted[0]!.hash)).toBe(true);
   });
 
-  test("persists the hash before sending, so a delivered PIN always verifies", async () => {
+  test("persists secrets before sending, so a delivered PIN always verifies", async () => {
     const order: string[] = [];
     sendMock.mockImplementation(async () => void order.push("sms"));
 
@@ -59,29 +61,29 @@ describe("issueDeliveryPin", () => {
       fastify: fakeFastify("key"),
       log: fakeLog(),
       phone: "+233241234567",
-      persistHash: async () => void order.push("persist"),
+      persist: async () => void order.push("persist"),
     });
 
     expect(order).toEqual(["persist", "sms"]);
   });
 
-  test("reports smsSent false when the send fails, leaving the hash stored", async () => {
+  test("reports smsSent false when the send fails, leaving secrets stored", async () => {
     sendMock.mockRejectedValue(new SmsSendError(400, "insufficient balance"));
-    const persisted: string[] = [];
+    const persisted: unknown[] = [];
 
     const result = await issueDeliveryPin({
       fastify: fakeFastify("key"),
       log: fakeLog(),
       phone: "+233241234567",
-      persistHash: async (hash) => void persisted.push(hash),
+      persist: async (secrets) => void persisted.push(secrets),
     });
 
     expect(result.smsSent).toBe(false);
+    expect(result.pin).toMatch(/^\d{6}$/);
     expect(persisted).toHaveLength(1);
   });
 
   test("does not log the PIN when the send fails", async () => {
-    sendMock.mockRejectedValue(new SmsSendError(500, "provider down"));
     const log = fakeLog();
     let capturedPin = "";
     sendMock.mockImplementation(async (params) => {
@@ -93,7 +95,7 @@ describe("issueDeliveryPin", () => {
       fastify: fakeFastify("key"),
       log,
       phone: "+233241234567",
-      persistHash: async () => undefined,
+      persist: async () => undefined,
     });
 
     const logged = JSON.stringify(vi.mocked(log.error).mock.calls);
@@ -106,10 +108,11 @@ describe("issueDeliveryPin", () => {
       fastify: fakeFastify(undefined),
       log: fakeLog(),
       phone: "+233241234567",
-      persistHash: async () => undefined,
+      persist: async () => undefined,
     });
 
     expect(result.smsSent).toBe(false);
+    expect(result.pin).toMatch(/^\d{6}$/);
     expect(sendMock).not.toHaveBeenCalled();
   });
 });

@@ -172,6 +172,23 @@ export const PlusIcon: Icon = ({ size = 16, color = colors.primary, strokeWidth 
   </Svg>
 );
 
+export const MinusIcon: Icon = ({ size = 16, color = colors.ink, strokeWidth = 2 }) => (
+  <Svg {...box({ size })} fill="none">
+    <Path d="M4 12h16" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+  </Svg>
+);
+
+export const CalendarIcon: Icon = ({ size = 18, color = colors.ink, strokeWidth = 1.6 }) => (
+  <Svg {...box({ size })} fill="none">
+    <Path
+      d="M4.5 6.5a1.5 1.5 0 011.5-1.5h12a1.5 1.5 0 011.5 1.5v12a1.5 1.5 0 01-1.5 1.5H6a1.5 1.5 0 01-1.5-1.5v-12z"
+      stroke={color}
+      strokeWidth={strokeWidth}
+    />
+    <Path d="M4.5 9.5h15M8.5 3.5v3M15.5 3.5v3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+  </Svg>
+);
+
 export const AlertIcon: Icon = ({ size = 38, color = colors.danger, strokeWidth = 1.7 }) => (
   <Svg {...box({ size })} fill="none">
     <Path d="M12 8v5" stroke={color} strokeWidth={strokeWidth + 0.5} strokeLinecap="round" />

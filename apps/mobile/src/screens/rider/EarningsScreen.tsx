@@ -1,18 +1,26 @@
 import { useMemo, useState } from "react";
-import { Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
-import { Wallet } from "lucide-react-native";
-import { Badge } from "../../components/ui/Badge";
-import { ListRow } from "../../components/ui/ListRow";
-import { EmptyState } from "../../components/ui/EmptyState";
-import { Skeleton } from "../../components/ui/Skeleton";
+import { ScrollView, Text, View } from "react-native";
+import {
+  Chip,
+  Empty,
+  Gutter,
+  PageTitle,
+  Row,
+  RowGroup,
+  Screen,
+  ScreenBody,
+  Skeleton,
+  StatusPill,
+} from "../../components/v6";
 import { useRiderEarnings } from "../../lib/rider";
+import { useLayout } from "../../hooks/useLayout";
 import { formatGhs } from "../../lib/pricing";
 
 type RangeKey = "today" | "week" | "all";
 const RANGES: { key: RangeKey; label: string }[] = [
   { key: "today", label: "Today" },
-  { key: "week", label: "This Week" },
-  { key: "all", label: "All Time" },
+  { key: "week", label: "This week" },
+  { key: "all", label: "All time" },
 ];
 
 function isSameDay(a: Date, b: Date) {
@@ -29,6 +37,8 @@ function isSameWeek(a: Date, b: Date) {
 export function EarningsScreen() {
   const [range, setRange] = useState<RangeKey>("today");
   const { data: earnings, isLoading } = useRiderEarnings();
+  const { isDesktop } = useLayout();
+
   const filtered = useMemo(() => {
     if (!earnings) return [];
     // Read the clock inside the memo: a `now` computed during render is a new
@@ -44,87 +54,134 @@ export function EarningsScreen() {
   }, [earnings, range]);
 
   const total = filtered.reduce((sum, e) => sum + Number(e.amount), 0);
-  const pendingTotal = filtered.filter((e) => e.status === "pending").reduce((sum, e) => sum + Number(e.amount), 0);
+  const pendingTotal = filtered
+    .filter((e) => e.status === "pending")
+    .reduce((sum, e) => sum + Number(e.amount), 0);
 
   return (
-    <SafeAreaView className="flex-1 bg-surface-muted">
-      <View className="px-6 pb-3 pt-2">
-        <Text className="font-sans-extrabold text-[20px] tracking-tight text-ink">Earnings</Text>
-      </View>
-
-      <View className="px-6 pb-3">
-        <View className="flex-row rounded-well border border-border bg-surface p-1">
-          {RANGES.map((r) => (
-            <Pressable
-              key={r.key}
-              onPress={() => setRange(r.key)}
-              className={`flex-1 items-center rounded-chip py-2 ${range === r.key ? "bg-ink" : ""}`}
-            >
-              <Text className={`font-sans-semibold text-[11px] ${range === r.key ? "text-white" : "text-text-tertiary"}`}>
-                {r.label}
+    <Screen>
+      <ScreenBody bottomInset={24}>
+        <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-6 pt-4"}>
+          {isDesktop ? (
+            <>
+              <Text className="font-sans-bold text-heading text-ink">Earnings</Text>
+              <Text className="mt-1 font-sans text-ui text-muted">
+                What you’ve earned from closed deliveries.
               </Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
+            </>
+          ) : (
+            <PageTitle>Earnings</PageTitle>
+          )}
+        </Gutter>
 
-      <ScrollView className="flex-1 px-6" contentContainerStyle={{ gap: 12, paddingBottom: 128 }}>
-        {isLoading ? (
-          <Skeleton height={110} radius={14} />
+        {isDesktop ? (
+          <Gutter className="mb-6">
+            <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+              {RANGES.map((r) => (
+                <Chip
+                  key={r.key}
+                  label={r.label}
+                  selected={range === r.key}
+                  onPress={() => setRange(r.key)}
+                />
+              ))}
+            </View>
+          </Gutter>
         ) : (
-          <View className="rounded-card bg-ink p-4">
-            <Text className="mb-1 text-[11px] text-white opacity-70">
-              {RANGES.find((r) => r.key === range)?.label} Earnings
-            </Text>
-            <Text className="mb-1 font-sans-extrabold text-[28px] text-white">{formatGhs(total)}</Text>
-            <Text className="text-[11px] text-white opacity-70">{filtered.length} deliveries</Text>
-          </View>
-        )}
-
-        {isLoading ? (
-          <Skeleton height={140} radius={14} />
-        ) : filtered.length === 0 ? (
-          <EmptyState icon={Wallet} title="No earnings yet" description="Completed deliveries will show up here." />
-        ) : (
-          <View className="overflow-hidden rounded-well border border-border bg-surface">
-            {filtered.map((earning, i) => (
-              <ListRow
-                key={earning.id}
-                bordered={i < filtered.length - 1}
-                title={earning.order?.shop?.name ?? "Delivery"}
-                subtitle={new Date(earning.createdAt).toLocaleDateString()}
-                trailing={
-                  <View className="items-end gap-1">
-                    <Text className="font-sans-bold text-[13px] text-success-text">+{formatGhs(Number(earning.amount))}</Text>
-                    {earning.status === "pending" ? <Badge label="Pending" variant="warning" /> : <Badge label="Paid" variant="success" /> }
-                  </View>
-                }
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
+            className="mb-6 grow-0"
+          >
+            {RANGES.map((r) => (
+              <Chip
+                key={r.key}
+                label={r.label}
+                selected={range === r.key}
+                onPress={() => setRange(r.key)}
               />
             ))}
-          </View>
+          </ScrollView>
         )}
 
-        {/*
-          The "Request Payout" button was removed rather than wired. There is no
-          payout endpoint, no payout model, and no record of a rider's payment
-          details anywhere in the schema — so the button could only ever have
-          done nothing. A rider tapping it and seeing no confirmation would
-          reasonably assume their money was on its way.
+        <Gutter className="mb-8">
+          {isLoading ? (
+            <Skeleton height={80} radius={12} />
+          ) : (
+            <View>
+              <Text className="font-sans text-body text-muted">
+                {RANGES.find((r) => r.key === range)?.label}
+              </Text>
+              <Text
+                className="mt-1 font-sans-bold text-ink"
+                style={{ fontSize: 44, lineHeight: 48 }}
+              >
+                {formatGhs(total)}
+              </Text>
+              <Text className="mt-1 font-sans text-body text-muted">
+                {filtered.length} {filtered.length === 1 ? "delivery" : "deliveries"}
+              </Text>
+            </View>
+          )}
+        </Gutter>
 
-          What is true today is stated instead: the pending total is real, and
-          settlement happens off-app.
-        */}
-        {!isLoading && pendingTotal > 0 ? (
-          <View className="mt-1 rounded-card border border-border bg-surface p-4">
-            <Text className="font-sans-semibold text-[13px] text-ink">
-              {formatGhs(pendingTotal)} awaiting payout
-            </Text>
-            <Text className="mt-1 text-[12px] leading-[17px] text-muted">
-              Payouts are settled by the Wave team. Nothing to do here.
-            </Text>
-          </View>
-        ) : null}
-      </ScrollView>
-    </SafeAreaView>
+        <Gutter>
+          {isLoading ? (
+            <View className="gap-2">
+              <Skeleton height={64} radius={12} />
+              <Skeleton height={64} radius={12} />
+            </View>
+          ) : filtered.length === 0 ? (
+            <Empty
+              title="Nothing yet"
+              body="Completed deliveries show up here as soon as they're closed."
+            />
+          ) : (
+            <RowGroup>
+              {filtered.map((earning) => (
+                <Row
+                  key={earning.id}
+                  title={earning.order?.shop?.name ?? "Delivery"}
+                  meta={new Date(earning.createdAt).toLocaleDateString([], {
+                    day: "numeric",
+                    month: "short",
+                  })}
+                  chevron={false}
+                  trailing={
+                    <View className="items-end gap-1">
+                      <Text className="font-sans-semibold text-body text-ink">
+                        +{formatGhs(Number(earning.amount))}
+                      </Text>
+                      <StatusPill
+                        label={earning.status === "pending" ? "Pending" : "Paid"}
+                        tone={earning.status === "pending" ? "neutral" : "done"}
+                      />
+                    </View>
+                  }
+                />
+              ))}
+            </RowGroup>
+          )}
+
+          {/*
+            The "Request Payout" button was removed rather than wired. There is
+            no payout endpoint, no payout model, and no record of a rider's
+            payment details anywhere in the schema — so it could only ever have
+            done nothing, and a rider tapping it would reasonably assume their
+            money was on its way. What is true is stated instead.
+          */}
+          {!isLoading && pendingTotal > 0 ? (
+            <View className="mt-6 rounded-card bg-surface p-5">
+              <Text className="mb-1 font-sans-semibold text-meta text-muted">AWAITING PAYOUT</Text>
+              <Text className="font-sans text-body text-ink">
+                {formatGhs(pendingTotal)} is settled by the Wave team directly. There's nothing to
+                request here.
+              </Text>
+            </View>
+          ) : null}
+        </Gutter>
+      </ScreenBody>
+    </Screen>
   );
 }

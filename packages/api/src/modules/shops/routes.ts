@@ -19,10 +19,18 @@ export async function shopRoutes(fastify: FastifyInstance) {
     return reply.send({ shops });
   });
 
+  // Public and unauthenticated, so it carries the same `isActive`/`isVerified`
+  // gate as the list above. It used to be a bare `findUnique` on the id, which
+  // meant deactivating or un-verifying a shop hid it from the listing while
+  // leaving it fully readable to anyone who already had — or guessed — its id.
+  // `findFirst` rather than `findUnique` because the extra predicates are not
+  // part of a unique index. Owners reach their own inactive shops via /my.
   fastify.get("/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const shop = await fastify.prisma.shop.findUnique({
-      where: { id },
+    const shop = await fastify.prisma.shop.findFirst({
+      where: { id, isActive: true, isVerified: true },
+      // Products are returned whole, including `out_of_stock` / `not_serving`:
+      // those are display states the storefront greys out, not hidden rows.
       include: { products: true },
     });
     if (!shop) return reply.code(404).send({ error: "Shop not found" });

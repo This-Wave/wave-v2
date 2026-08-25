@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../lib/api";
+import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 
 interface OrderRow {
   id: string;
@@ -52,10 +54,12 @@ export default function OrdersPage() {
   const [page, setPage] = useState(1);
   const [orders, setOrders] = useState<OrderRow[] | null>(null);
   const [total, setTotal] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!accessToken) return;
     setOrders(null);
+    setError(null);
     const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
     if (status) params.set("status", status);
     apiFetch<{ orders: OrderRow[]; total: number }>(`/admin/orders?${params}`, accessToken)
@@ -66,6 +70,7 @@ export default function OrdersPage() {
       .catch(() => {
         setOrders([]);
         setTotal(0);
+        setError("Could not load orders. Check your connection and try again.");
       });
   }, [accessToken, status, page]);
 
@@ -100,6 +105,8 @@ export default function OrdersPage() {
         </select>
       </div>
 
+      {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
+
       <div className="overflow-hidden rounded-card border border-border bg-surface">
         <table className="w-full text-left text-[13px]">
           <thead>
@@ -130,8 +137,10 @@ export default function OrdersPage() {
               orders.map((order, i) => (
                 <tr key={order.id} className={i < orders.length - 1 ? "border-b border-border" : ""}>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-ink">{order.student?.fullName ?? "—"}</div>
-                    <div className="font-mono text-[11px] text-muted">{order.student?.phone ?? ""}</div>
+                    <Link href={`/orders/${order.id}`} className="block hover:opacity-80">
+                      <div className="font-medium text-ink">{order.student?.fullName ?? "—"}</div>
+                      <div className="font-mono text-[11px] text-muted">{order.student?.phone ?? ""}</div>
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-muted">{order.shop?.name ?? "—"}</td>
                   <td className="px-4 py-3 text-muted">{order.checkpoint?.name ?? "—"}</td>

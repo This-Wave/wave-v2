@@ -46,20 +46,27 @@ export function CreateShopModal({
   const [phone, setPhone] = useState("");
   const [locationText, setLocationText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open || !accessToken) return;
+    setLoadError(null);
     apiFetch<{ universities: University[] }>("/universities", accessToken)
       .then((res) => {
         setUniversities(res.universities);
         if (res.universities.length === 1) setUniversityId(res.universities[0]!.id);
       })
-      .catch(() => setUniversities([]));
-    // The API rejects an owner without the shop_owner role, so only offer those.
+      .catch(() => {
+        setUniversities([]);
+        setLoadError("Could not load universities.");
+      });
     apiFetch<{ users: Owner[] }>("/admin/users?role=shop_owner", accessToken)
       .then((res) => setOwners(res.users))
-      .catch(() => setOwners([]));
+      .catch(() => {
+        setOwners([]);
+        setLoadError("Could not load shop owners.");
+      });
   }, [open, accessToken]);
 
   function reset() {
@@ -128,7 +135,7 @@ export function CreateShopModal({
       }
     >
       <div className="flex flex-col gap-4">
-        <FormError message={error} />
+        <FormError message={loadError ?? error} />
         <SelectField
           label="Owner"
           required

@@ -106,7 +106,7 @@ Chosen for maximum capability at near-zero cost during the pilot phase (~500–2
 | Auth / Storage / Realtime | **Supabase** | Free, does not pause; used *only* for these three — never as the primary database |
 | Payments | **Paystack** | Ghana-native, card + MTN/Vodafone MoMo |
 | Push notifications | **Expo Notifications** | Free, no ejection needed |
-| Hosting | **Railway** (API) + **Vercel** (admin) | Generous free tiers, simple deploys |
+| Hosting | **Render** (API + admin) + **Vercel** (student web) | See `render.yaml` + `apps/mobile/vercel.json` |
 | CI/CD | **GitHub Actions** | Free, already wired up in `.github/workflows/` |
 | Error monitoring | **Sentry** | 5k errors/month free |
 
@@ -196,8 +196,8 @@ Key variables:
 |---|---|---|
 | `DATABASE_URL` | `packages/db`, `packages/api` | **Must** point at Neon.tech (`ep-xxx.neon.tech`), never Supabase's DB |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_ANON_KEY` | `packages/api`, `apps/admin`, `apps/mobile` | Auth + Storage + Realtime only |
-| `PAYSTACK_SECRET_KEY` / `PAYSTACK_WEBHOOK_SECRET` | `packages/api` | Use Paystack **test** keys in development |
-| `JWT_SECRET` | `packages/api` | Any long random string in dev |
+| `PAYSTACK_SECRET_KEY` | `packages/api` | Use Paystack **test** keys in development. Also verifies webhook signatures — Paystack signs with the secret key, so there is **no** separate `PAYSTACK_WEBHOOK_SECRET` |
+| `JWT_SECRET` | `packages/api` | AES key for delivery-PIN ciphertext (`orders/pinCrypto.ts`), **not** for signing JWTs — Supabase issues those. Any long random string in dev. **Rotating it makes every undelivered PIN undecryptable**, so orders in flight must be drained first; the bcrypt hash still verifies, only in-app PIN display breaks. |
 | `EXPO_PUBLIC_*` | `apps/mobile` | Must be prefixed `EXPO_PUBLIC_` to be readable client-side |
 | `NEXT_PUBLIC_*` | `apps/admin` | Must be prefixed `NEXT_PUBLIC_` to be readable client-side |
 
@@ -299,13 +299,69 @@ feature/my-thing → PR into develop → tested → develop → PR into main →
 
 ## Deployment
 
-| Service | Deploys | Trigger |
-|---|---|---|
-| Railway | `packages/api` | Push to `main` touching `packages/api`, `packages/db`, or `packages/shared` |
-| Vercel | `apps/admin` | Push to `main` touching `apps/admin` or `packages/shared` |
-| Expo EAS | `apps/mobile` | Manual `eas build` / `eas update` (OTA) |
+**Canonical hosts (2026-08-11 pilot):**
 
-Workflows live in `.github/workflows/`. CI (`ci.yml`) runs lint, type-check, unit, and integration tests on every PR into `main` or `develop`.
+| Service | Host | Config |
+|---------|------|--------|
+| **API** | Render (`render.yaml`) | Auto-deploy on push to `main` |
+| **Admin** | Render (`render.yaml`) | Set `NEXT_PUBLIC_*` at **build** time |
+| **Student web** | Vercel (`apps/mobile/vercel.json`) | Set `EXPO_PUBLIC_*` at build time |
+| **Native app** | Expo EAS | Manual `eas build` / OTA |
+
+Railway and Vercel admin GitHub workflows are **disabled** (checklist C9) — do not re-enable without removing Render to avoid dual deploys.
+
+### Render API release pipeline
+
+Each deploy runs:
+
+1. `npm ci --include=dev`
+2. `npm run build --workspace packages/api` (shared + db + API)
+3. `npm run migrate:deploy --workspace @wave/db` (applies pending Prisma migrations)
+
+Required env vars on **wave-api** (see `.env.example`):
+
+| Variable | Notes |
+|----------|--------|
+| `APP_URL` | This service's public URL, with `https://` |
+| `CORS_ORIGINS` | Comma-separated: admin URL + student web URL + localhost dev |
+| `DATABASE_URL` | Neon pooled connection string |
+| `PAYSTACK_SECRET_KEY` | `sk_test_…` or `sk_live_…` — **not** `pk_…` |
+| `SUPABASE_*`, `JWT_SECRET`, `SMS_HOOK_SECRET`, `MNOTIFY_*` | As documented in `render.yaml` |
+| `SENTRY_DSN` | Optional — API error monitoring; alerts on payment/SMS failures |
+
+**Before live Paystack:** upgrade API to a **paid always-on** Render plan (checklist C11) — free tier cold-starts can drop webhooks.
+
+Set `NEXT_PUBLIC_SENTRY_DSN` on **wave-admin** and `EXPO_PUBLIC_SENTRY_DSN` on **student web** (Vercel) when Sentry projects exist. Configure Sentry alert rules for tags `wave.domain=payment` and `wave.domain=sms`.
+
+**Pilot E2E:** follow [`docs/pilot-e2e-walkthrough.md`](docs/pilot-e2e-walkthrough.md) (checklist C16) on test Paystack before live keys.
+
+**Student web (Vercel)** — set at build time:
+
+| Variable | Notes |
+|----------|--------|
+| `EXPO_PUBLIC_API_URL` | e.g. `https://wave-api-ei19.onrender.com/v1` |
+| `EXPO_PUBLIC_SUPABASE_*` | Auth client |
+| `EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY` | `pk_test_…` matching API secret |
+| `EXPO_PUBLIC_SENTRY_DSN` | Optional crash reporting |
+| `EXPO_PUBLIC_SUPPORT_EMAIL` / `WHATSAPP` | Pilot support on Profile |
+| `EXPO_PUBLIC_TERMS_URL` / `PRIVACY_URL` | Legal links on signup (H11) |
+
+**Backup:** [`docs/neon-backup-restore-runbook.md`](docs/neon-backup-restore-runbook.md) (M2).
+
+### CI & branch protection (H8)
+
+`.github/workflows/ci.yml` runs on PRs to `main`/`develop` and pushes to both branches (lint, type-check, unit + integration smoke tests).
+
+In GitHub → **Settings → Branches**, require the **CI** check before merging to `main` (repo admin action).
+
+### Local migrations
+
+```bash
+npm run db:migrate        # dev: create/apply locally
+npm run db:migrate:deploy # prod-style: apply pending only
+```
+
+Workflows: `.github/workflows/ci.yml` runs lint, type-check, unit tests, and API integration smoke tests on PRs to `main`/`develop`. Deploy workflows are manual reference only.
 
 ---
 
@@ -315,10 +371,10 @@ Designed to run at **$0/month fixed cost** for the pilot (0–500 users), scalin
 
 | Users | Database | API | Auth/Storage | Monthly fixed |
 |---|---|---|---|---|
-| 0–500 | Neon free | Railway free | Supabase free | **$0** |
-| 500–2,000 | Neon free | Railway $5/mo | Supabase free | **$5** |
-| 2,000–5,000 | DigitalOcean $15/mo | Railway $20/mo | Supabase Pro $25/mo | **~$60** |
-| 5,000+ | DigitalOcean $50/mo | Railway $50/mo | Supabase Pro $25/mo | **~$125** |
+| 0–500 | Neon free | Render free → **paid for live** | Supabase free | **$0** pilot |
+| 500–2,000 | Neon free | Render starter | Supabase free | **~$7** |
+| 2,000–5,000 | DigitalOcean $15/mo | Render standard | Supabase Pro $25/mo | **~$60** |
+| 5,000+ | DigitalOcean $50/mo | Render pro | Supabase Pro $25/mo | **~$125** |
 
 Paystack transaction fees (~1.5% + ¢10/txn) apply throughout and are covered by delivery fee revenue.
 

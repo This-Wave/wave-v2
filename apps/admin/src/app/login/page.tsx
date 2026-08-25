@@ -63,7 +63,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 h-[44px] rounded-[12px] bg-wave-500 text-[14px] font-semibold text-white disabled:opacity-60"
+            className="mt-2 h-[44px] rounded-[12px] bg-lime text-[14px] font-semibold text-ink disabled:opacity-60"
           >
             {loading ? "Signing in…" : "Sign in"}
           </button>
