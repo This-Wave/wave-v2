@@ -5,6 +5,21 @@ export const DEFAULT_LOYALTY_DISCOUNT_PCT = 20;
 export const DEFAULT_LOYALTY_THRESHOLD = 6;
 export const DEFAULT_SPECIAL_ORDER_LEAD_HOURS = 24;
 
+/**
+ * Ceiling on the goods total a rider may record for a suggested-shop order.
+ *
+ * A `shop_pickup` is charged twice: the delivery fee up front, then whatever the
+ * rider says they paid at the till — and that second charge is taken from the
+ * student automatically. The only guard used to be a GHS 10,000 per-unit cap in
+ * the Zod schema, which across a 20-line basket permits a charge in the
+ * millions. One mistyped amount is a real charge to a student's MoMo wallet.
+ *
+ * GHS 1,000 is 50x the base delivery fee — generous for a campus errand, and
+ * far below anything that could be a typo or a fraud. Overridable at runtime via
+ * the `goods_cost_max_ghs` row in `platform_config` (review 11-campus, M2).
+ */
+export const DEFAULT_GOODS_COST_MAX_GHS = 1000;
+
 export const STANDARD_DELIVERY_DAYS = ["sunday", "wednesday"] as const;
 
 export const PROFILE_ROLES = ["student", "rider", "shop_owner", "admin"] as const;

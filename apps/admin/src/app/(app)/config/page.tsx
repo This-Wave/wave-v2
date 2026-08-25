@@ -53,6 +53,17 @@ const GROUPS: { title: string; keys: { key: string; label: string; suffix?: stri
     ],
   },
   {
+    title: "Safety limits",
+    keys: [
+      {
+        key: "goods_cost_max_ghs",
+        label: "Max goods total",
+        suffix: "GH₵",
+        hint: "Largest till total a rider may record on a suggested-shop order. Above this they are asked to re-check rather than charging the student.",
+      },
+    ],
+  },
+  {
     title: "Scheduling",
     keys: [
       {

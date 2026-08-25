@@ -30,6 +30,13 @@ export interface Checkpoint {
   universityId: string;
   name: string;
   description: string | null;
+  /**
+   * Prisma `Decimal` serialises as a string over JSON. Null for checkpoints
+   * whose coordinates nobody has recorded yet, which is most of them until
+   * someone walks the campus — so every consumer must handle the absence.
+   */
+  latitude: string | null;
+  longitude: string | null;
   isActive: boolean;
 }
 

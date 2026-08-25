@@ -20,7 +20,7 @@ import { PhoneIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useOrder } from "../../lib/orders";
 import { useUpdateOrderStatus } from "../../lib/rider";
-import { openMapsSearch } from "../../lib/maps";
+import { openCheckpointInMaps, openMapsSearch } from "../../lib/maps";
 import { apiErrorMessage } from "../../lib/apiError";
 import { showToast } from "../../store/toastStore";
 import { formatGhs } from "../../lib/pricing";
@@ -54,6 +54,9 @@ export function ActiveDeliveryScreen() {
 
   // Shops have no coordinates, only free text — so the map opens on a search.
   // Name and location together disambiguate; empty disables the button.
+  // Captured out of `order` so the narrowing survives into the onPress closure.
+  const dropoff = order?.checkpoint ?? null;
+
   const destination = useMemo(
     () => [origin.name, origin.locationText].filter(Boolean).join(", "),
     [origin.name, origin.locationText],
@@ -206,6 +209,22 @@ export function ActiveDeliveryScreen() {
                     <PhoneIcon size={18} color={colors.ink} strokeWidth={1.8} />
                   </IconCircle>
                 }
+              />
+            ) : null}
+            {/* The drop-off had no navigation at all — the rider could open the
+                shop in maps but not the checkpoint they were carrying to
+                (review 11-campus, H3). Uses the recorded coordinates when an
+                admin has entered them, and falls back to a name search when not,
+                which is still most checkpoints today. */}
+            {dropoff ? (
+              <Row
+                title={dropoff.name}
+                meta={
+                  dropoff.latitude && dropoff.longitude
+                    ? "Drop-off — tap for directions"
+                    : "Drop-off — tap to search the map"
+                }
+                onPress={() => openCheckpointInMaps(dropoff)}
               />
             ) : null}
           </RowGroup>

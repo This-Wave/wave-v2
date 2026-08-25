@@ -18,3 +18,14 @@ export const AccessibilityInfo = {
     remove: () => undefined,
   }),
 };
+
+/**
+ * `Linking`, for the maps helpers. Same requirement as `AccessibilityInfo`:
+ * real properties on a real object, or `vi.spyOn` has nothing to attach to.
+ * The defaults never actually open anything.
+ */
+export const Linking = {
+  canOpenURL: async (_url: string): Promise<boolean> => false,
+  openURL: async (_url: string): Promise<void> => undefined,
+};
+

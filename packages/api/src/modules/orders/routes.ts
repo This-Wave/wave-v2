@@ -9,6 +9,7 @@ import {
   DEFAULT_LOYALTY_DISCOUNT_PCT,
   DEFAULT_LOYALTY_THRESHOLD,
   DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
+  DEFAULT_GOODS_COST_MAX_GHS,
 } from "@wave/shared";
 import { calculateDiscount, calculateOrderTotal, isStandardDeliveryDay } from "./discount";
 import {
@@ -456,6 +457,25 @@ export async function orderRoutes(fastify: FastifyInstance) {
           0,
         ),
       );
+
+      // Whatever the rider types here is charged to the student automatically,
+      // and the only prior guard was a GHS 10,000 *per-unit* cap in the schema —
+      // which across a 20-line basket permits a charge in the millions
+      // (review 11-campus, M2). One slipped decimal point is a real debit from a
+      // student's MoMo wallet.
+      //
+      // A hard stop rather than a flag-for-review: the rider is standing at the
+      // till holding the receipt, which is the cheapest possible moment to
+      // re-check an amount. Flagging would mean charging first and looking later.
+      const maxGoodsConfig = await fastify.prisma.platformConfig.findUnique({
+        where: { key: "goods_cost_max_ghs" },
+      });
+      const maxGoodsGhs = Number(maxGoodsConfig?.value ?? DEFAULT_GOODS_COST_MAX_GHS);
+      if (itemsTotal > maxGoodsGhs) {
+        return reply.code(400).send({
+          error: `That total (GH₵${itemsTotal.toFixed(2)}) looks too high for a campus run. Check the amount, or call Wave.`,
+        });
+      }
 
       // The delivery fee was charged at order time. Recomputing the total the
       // same way as creation keeps one definition of what an order costs, and

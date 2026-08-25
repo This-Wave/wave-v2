@@ -49,7 +49,16 @@ const shopSelect = {
   select: { id: true, name: true, locationText: true, category: true, logoUrl: true },
 } as const;
 
-const checkpointSelect = { select: { id: true, name: true, description: true } } as const;
+// `latitude`/`longitude` are included so a rider can be navigated to an exact
+// pin rather than a name search (review 11-campus, H3). Admins have been able to
+// record coordinates since the checkpoint model was written, but they were never
+// selected here — so the data could be entered and was silently never used.
+//
+// A checkpoint is a public campus location, not personal information, which is
+// why this is also safe to carry into the unclaimed rider feed.
+const checkpointSelect = {
+  select: { id: true, name: true, description: true, latitude: true, longitude: true },
+} as const;
 
 /**
  * The basket. Safe for every audience — it describes goods, never a person.
