@@ -65,6 +65,7 @@ Thumbs.db
 !docs/supabase-dashboard-config.md
 !docs/data-retention-and-deletion.md
 !docs/mobile-release.md
+!docs/accessibility-device-checks.md
 devlogs/
 
 # Compiled workspace output (packages/*/dist) — built at deploy time

@@ -19,7 +19,7 @@ import { PaymentReturnListener } from "./src/components/PaymentReturnListener";
 import { AuthProvider } from "./src/providers/AuthProvider";
 import { NotificationProvider } from "./src/providers/NotificationProvider";
 import { queryClient } from "./src/lib/queryClient";
-import { clearSkipTransition, markHistoryNavigation } from "./src/lib/navigationMotion";
+import { clearSkipTransition, initReducedMotionPreference, markHistoryNavigation } from "./src/lib/navigationMotion";
 import { ToastHost } from "./src/components/v6";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import { initMobileSentry, wrapWithSentry } from "./src/lib/sentry";
@@ -53,6 +53,10 @@ function App() {
     window.addEventListener("popstate", markHistoryNavigation);
     return () => window.removeEventListener("popstate", markHistoryNavigation);
   }, []);
+
+  // Primes the cached "reduce motion" preference that `stackScreenOptions`
+  // reads when React Navigation resolves screen options (review 10-a11y, M2).
+  useEffect(() => initReducedMotionPreference(), []);
 
   if (!fontsLoaded) {
     return null;
