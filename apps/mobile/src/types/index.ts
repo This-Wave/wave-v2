@@ -10,7 +10,10 @@ export interface Profile {
   role: ProfileRole;
   avatarUrl: string | null;
   pushToken: string | null;
+  /** Account ban flag, admin-controlled. False means the API 403s everything. */
   isActive: boolean;
+  /** Rider's own online/offline toggle. Meaningless on other roles. */
+  isAvailable: boolean;
   isVerified: boolean;
   createdAt: string;
   updatedAt: string;

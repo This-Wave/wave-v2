@@ -102,9 +102,13 @@ export async function riderRoutes(fastify: FastifyInstance) {
       if (!parsed.success) {
         return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
       }
+      // `isAvailable`, never `isActive`. Writing the ban flag here is what
+      // locked a rider out of their own account the moment they went offline:
+      // `plugins/auth.ts` 403s every authenticated request when `isActive` is
+      // false, including the one that would turn the toggle back on.
       const profile = await fastify.prisma.profile.update({
         where: { id: request.user!.id },
-        data: { isActive: parsed.data.isActive },
+        data: { isAvailable: parsed.data.isAvailable },
       });
       return reply.send({ profile });
     },

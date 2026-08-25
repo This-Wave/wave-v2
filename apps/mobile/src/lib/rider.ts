@@ -80,8 +80,8 @@ export function useRiderEarnings() {
 export function useSetAvailability() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (isActive: boolean) => {
-      const { data } = await api.patch<{ profile: unknown }>("/riders/availability", { isActive });
+    mutationFn: async (isAvailable: boolean) => {
+      const { data } = await api.patch<{ profile: unknown }>("/riders/availability", { isAvailable });
       return data.profile;
     },
     onSuccess: () => {

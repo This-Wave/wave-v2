@@ -21,8 +21,19 @@ export async function confirmDeliveryFeePaid(args: {
   fastify: FastifyInstance;
   log: FastifyBaseLogger;
   orderId: string;
+  /**
+   * The reference Paystack actually charged, when it is known.
+   *
+   * Every `POST /payments/initiate` mints a fresh reference and overwrites
+   * `paystackRef`, so the reference that gets paid is not always the one on the
+   * row — a student who backs out of checkout and taps Pay again can still
+   * complete the *first* Paystack page. Recording the paid one matters beyond
+   * bookkeeping: `endOrderWithRefund` refunds `order.paystackRef`, and refunding
+   * a reference that was never charged fails.
+   */
+  reference?: string;
 }): Promise<{ confirmed: boolean; alreadyProcessed: boolean }> {
-  const { fastify, log, orderId } = args;
+  const { fastify, log, orderId, reference } = args;
 
   const order = await fastify.prisma.order.findUnique({
     where: { id: orderId },
@@ -45,9 +56,22 @@ export async function confirmDeliveryFeePaid(args: {
   // afterwards would still let two racers both generate and both text.
   const claimed = await fastify.prisma.order.updateMany({
     where: { id: order.id, paidAt: null },
-    data: { status: "confirmed", paidAt: new Date() },
+    data: {
+      status: "confirmed",
+      paidAt: new Date(),
+      ...(reference && reference !== order.paystackRef ? { paystackRef: reference } : {}),
+    },
   });
   if (claimed.count === 0) {
+    // A second *successful* charge on the same order, not a retry of the first.
+    // Both are real money and only one can be refunded from the order row, so
+    // this has to be loud — it is a student owed a refund nobody knows about.
+    if (reference && order.paidAt && order.paystackRef && reference !== order.paystackRef) {
+      log.error(
+        { orderId: order.id, paidReference: order.paystackRef, duplicateReference: reference },
+        "Order was already paid under a different Paystack reference — possible double charge, refund the duplicate by hand",
+      );
+    }
     // Deliberately *not* widened to `OR: [{ paidAt: null }, { deliveryPinHash:
     // null }]` to also re-issue a missing PIN. Postgres re-evaluates the
     // predicate on the locked row after the winner commits, and the winner sets
@@ -114,19 +138,32 @@ export async function confirmGoodsPaid(args: {
   fastify: FastifyInstance;
   log: FastifyBaseLogger;
   orderId: string;
+  /** See `confirmDeliveryFeePaid` — the goods reference is overwritten the same way. */
+  reference?: string;
 }): Promise<{ confirmed: boolean; alreadyProcessed: boolean }> {
-  const { fastify, log, orderId } = args;
+  const { fastify, log, orderId, reference } = args;
 
   const order = await fastify.prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true, goodsPaidAt: true },
+    select: { id: true, goodsPaidAt: true, goodsPaystackRef: true },
   });
   if (!order) return { confirmed: false, alreadyProcessed: false };
-  if (order.goodsPaidAt) return { confirmed: true, alreadyProcessed: true };
+  if (order.goodsPaidAt) {
+    if (reference && order.goodsPaystackRef && reference !== order.goodsPaystackRef) {
+      log.error(
+        { orderId: order.id, paidReference: order.goodsPaystackRef, duplicateReference: reference },
+        "Goods were already paid under a different Paystack reference — possible double charge, refund the duplicate by hand",
+      );
+    }
+    return { confirmed: true, alreadyProcessed: true };
+  }
 
   await fastify.prisma.order.update({
     where: { id: order.id },
-    data: { goodsPaidAt: new Date() },
+    data: {
+      goodsPaidAt: new Date(),
+      ...(reference && reference !== order.goodsPaystackRef ? { goodsPaystackRef: reference } : {}),
+    },
   });
   await notifyGoodsPaid({ fastify, log, orderId: order.id });
 

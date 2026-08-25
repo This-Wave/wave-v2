@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import type { OrderStatus } from "@wave/shared";
 import {
   cancelOrderSchema,
@@ -10,6 +10,7 @@ import {
   DEFAULT_LOYALTY_THRESHOLD,
   DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
   DEFAULT_GOODS_COST_MAX_GHS,
+  DEFAULT_RIDER_EARNING_PCT,
 } from "@wave/shared";
 import { calculateDiscount, calculateOrderTotal, isStandardDeliveryDay } from "./discount";
 import {
@@ -583,6 +584,14 @@ export async function orderRoutes(fastify: FastifyInstance) {
       update: { totalDeliveries: { increment: 1 } },
     });
 
+    await recordRiderEarning({
+      fastify,
+      log: request.log,
+      orderId: id,
+      riderId: request.user!.id,
+      deliveryFee: Number(order.deliveryFee),
+    });
+
     await notifyOrderStatus({ fastify, log: request.log, orderId: id, status: "delivered" });
     return reply.send({ order: updated });
   });
@@ -865,4 +874,58 @@ export async function orderRoutes(fastify: FastifyInstance) {
 
     return reply.send({ order: result.order, refundIssued: result.refundIssued });
   });
+}
+
+
+/**
+ * Credits the rider for a completed delivery.
+ *
+ * `rider_earnings` existed in the schema, had a route reading it, and had a
+ * screen rendering it — and **nothing ever wrote a row**, so every rider's
+ * Earnings tab was permanently empty. For the people the pilot most needs to
+ * trust it, the screen that says what they are owed showed nothing at all.
+ *
+ * Written as `pending`; `paidAt` is stamped when the MoMo payout actually goes
+ * out. That is still a manual process, so this is the ledger it will be
+ * reconciled against, not a promise the money has moved.
+ *
+ * Best-effort, and deliberately after the delivery itself: `order_id` is unique,
+ * so a retry cannot double-credit, and a failure here must never turn a
+ * completed handover into an error the rider sees at a checkpoint. A missing
+ * row is recoverable from the order; a delivery the rider could not close is not.
+ */
+async function recordRiderEarning(args: {
+  fastify: FastifyInstance;
+  log: FastifyBaseLogger;
+  orderId: string;
+  riderId: string;
+  deliveryFee: number;
+}): Promise<void> {
+  const { fastify, log, orderId, riderId, deliveryFee } = args;
+  try {
+    const pctConfig = await fastify.prisma.platformConfig.findUnique({
+      where: { key: "rider_earning_pct" },
+    });
+    const parsed = Number(pctConfig?.value);
+    // A missing row is expected (the constant is the default); an unparseable
+    // one is an admin typo, and silently paying 0 would be worse than saying so.
+    if (pctConfig && !Number.isFinite(parsed)) {
+      log.error(
+        { value: pctConfig.value },
+        "platform_config.rider_earning_pct is not a number — falling back to the default",
+      );
+    }
+    const pct = Number.isFinite(parsed) ? parsed : DEFAULT_RIDER_EARNING_PCT;
+    const amount = round2((deliveryFee * pct) / 100);
+
+    await fastify.prisma.riderEarning.create({
+      data: { orderId, riderId, amount, status: "pending" },
+    });
+    log.info({ orderId, riderId, amount, pct }, "Rider earning recorded");
+  } catch (err) {
+    log.error(
+      { orderId, riderId, err: err instanceof Error ? err.message : "unknown" },
+      "Could not record the rider earning for a delivered order — the delivery stands, the ledger row is missing",
+    );
+  }
 }

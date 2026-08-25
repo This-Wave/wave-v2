@@ -6,13 +6,19 @@ import type { FastifyInstance } from "fastify";
 // can reference these without a temporal-dead-zone error. The alternative,
 // top-level `await import(...)`, is not valid under this package's CommonJS
 // target and fails `npm run type-check`.
-const { notifyOrderStatus, announceNewOrderToRiders, notifyGoodsPaid, issueDeliveryPin } =
-  vi.hoisted(() => ({
-    notifyOrderStatus: vi.fn(),
-    announceNewOrderToRiders: vi.fn(),
-    notifyGoodsPaid: vi.fn(),
-    issueDeliveryPin: vi.fn(),
-  }));
+const {
+  notifyOrderStatus,
+  announceNewOrderToRiders,
+  notifyGoodsPaid,
+  issueDeliveryPin,
+  capturePaymentIssue,
+} = vi.hoisted(() => ({
+  notifyOrderStatus: vi.fn(),
+  announceNewOrderToRiders: vi.fn(),
+  notifyGoodsPaid: vi.fn(),
+  issueDeliveryPin: vi.fn(),
+  capturePaymentIssue: vi.fn(),
+}));
 
 vi.mock("../../notifications/dispatch", () => ({
   notifyOrderStatus,
@@ -20,6 +26,10 @@ vi.mock("../../notifications/dispatch", () => ({
   notifyGoodsPaid,
 }));
 vi.mock("../../orders/issuePin", () => ({ issueDeliveryPin }));
+vi.mock("../../../lib/sentry", () => ({
+  capturePaymentError: vi.fn(),
+  capturePaymentIssue,
+}));
 
 import { paymentRoutes } from "../routes";
 import { buildTestApp, TEST_PAYSTACK_SECRET } from "../../../test/harness";
@@ -89,6 +99,7 @@ beforeEach(() => {
   notifyOrderStatus.mockReset().mockResolvedValue(undefined);
   announceNewOrderToRiders.mockReset().mockResolvedValue(undefined);
   issueDeliveryPin.mockReset().mockResolvedValue({ smsSent: true });
+  capturePaymentIssue.mockReset();
 });
 
 afterEach(() => {
@@ -156,14 +167,27 @@ describe("POST /payments/webhook — event handling", () => {
     expect(issueDeliveryPin).not.toHaveBeenCalled();
   });
 
-  test("404s when no order matches the reference", async () => {
+  /**
+   * 200, not 404, when nothing matches.
+   *
+   * A non-2xx makes Paystack retry a payload that will never match, and after
+   * the final retry the event is gone — a real charge with no record anywhere
+   * that it went unclaimed. Acknowledging plus a Sentry issue is the only
+   * version where a human finds out.
+   */
+  test("acknowledges an unmatched charge instead of making Paystack retry it", async () => {
     const prisma = makePrisma(null);
     const app = await buildTestApp(paymentRoutes, { prisma });
 
     const res = await post(app, PAID_EVENT, sign(JSON.stringify(PAID_EVENT)));
 
-    expect(res.statusCode).toBe(404);
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ received: true, matched: false });
     expect(issueDeliveryPin).not.toHaveBeenCalled();
+    expect(capturePaymentIssue).toHaveBeenCalledWith(
+      "Paystack webhook matched no order",
+      expect.objectContaining({ phase: "webhook_unmatched", reference: PAID_EVENT.data.reference }),
+    );
   });
 
   test("rejects a webhook whose amount does not match the order total", async () => {
@@ -279,5 +303,109 @@ describe("POST /payments/webhook — event handling", () => {
     expect(res.json()).toEqual({ received: true, alreadyProcessed: true });
     expect(issueDeliveryPin).not.toHaveBeenCalled();
     expect(prisma.order.update).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `POST /payments/initiate` mints a new reference and overwrites `paystackRef`
+ * every time it is called. A student who opens checkout, backs out, and taps
+ * Pay again still has the FIRST Paystack page live — and paying on it produces
+ * a webhook whose reference is on no row at all.
+ *
+ * Before the metadata fallback that was a 404: Paystack retried, gave up, and
+ * the order sat `payment_pending` with the card charged.
+ */
+describe("POST /payments/webhook — a charge paid on a superseded reference", () => {
+  const STALE_REF = "WAVE-order-1-111";
+  const CURRENT_REF = "WAVE-order-1-999";
+
+  const staleEvent = {
+    event: "charge.success",
+    data: {
+      reference: STALE_REF,
+      status: "success",
+      amount: 4000,
+      currency: "GHS",
+      metadata: { order_id: "order-1", student_id: "student-1" },
+    },
+  };
+
+  /** Nothing matches by reference; only `id` resolves — the real shape of this bug. */
+  function makeOrphanedPrisma() {
+    const order = { ...makeOrder(), paystackRef: CURRENT_REF };
+    return {
+      order: {
+        findUnique: vi.fn(async (args: { where: Record<string, unknown> }) => {
+          if ("goodsPaystackRef" in args.where) return null;
+          if ("paystackRef" in args.where) return null;
+          if ("id" in args.where) return order;
+          return null;
+        }),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+    };
+  }
+
+  test("confirms the order via metadata.order_id when the reference no longer matches", async () => {
+    const prisma = makeOrphanedPrisma();
+    const app = await buildTestApp(paymentRoutes, { prisma });
+
+    const res = await post(app, staleEvent, sign(JSON.stringify(staleEvent)));
+
+    expect(res.statusCode).toBe(200);
+    expect(issueDeliveryPin).toHaveBeenCalledTimes(1);
+  });
+
+  test("records the reference that actually paid, so a later refund targets it", async () => {
+    const prisma = makeOrphanedPrisma();
+    const app = await buildTestApp(paymentRoutes, { prisma });
+
+    await post(app, staleEvent, sign(JSON.stringify(staleEvent)));
+
+    // `endOrderWithRefund` refunds `order.paystackRef`. Leaving the superseded
+    // reference on the row would send Paystack a transaction it never charged.
+    expect(prisma.order.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ paystackRef: STALE_REF, status: "confirmed" }),
+      }),
+    );
+  });
+
+  test("raises an alert — a second checkout was opened and may also have been paid", async () => {
+    const prisma = makeOrphanedPrisma();
+    const app = await buildTestApp(paymentRoutes, { prisma });
+
+    await post(app, staleEvent, sign(JSON.stringify(staleEvent)));
+
+    expect(capturePaymentIssue).toHaveBeenCalledWith(
+      "Paystack charge paid on a superseded reference",
+      expect.objectContaining({ orderId: "order-1", reference: STALE_REF }),
+    );
+  });
+
+  test("still asserts the amount — metadata is not a way around reconciliation", async () => {
+    const prisma = makeOrphanedPrisma();
+    const app = await buildTestApp(paymentRoutes, { prisma });
+    const tampered = { ...staleEvent, data: { ...staleEvent.data, amount: 100 } };
+
+    const res = await post(app, tampered, sign(JSON.stringify(tampered)));
+
+    expect(res.statusCode).toBe(400);
+    expect(issueDeliveryPin).not.toHaveBeenCalled();
+  });
+
+  test("accepts metadata delivered as a JSON string", async () => {
+    const prisma = makeOrphanedPrisma();
+    const app = await buildTestApp(paymentRoutes, { prisma });
+    const stringified = {
+      ...staleEvent,
+      data: { ...staleEvent.data, metadata: JSON.stringify(staleEvent.data.metadata) },
+    };
+
+    const res = await post(app, stringified, sign(JSON.stringify(stringified)));
+
+    expect(res.statusCode).toBe(200);
+    expect(issueDeliveryPin).toHaveBeenCalledTimes(1);
   });
 });

@@ -20,6 +20,24 @@ export const DEFAULT_SPECIAL_ORDER_LEAD_HOURS = 24;
  */
 export const DEFAULT_GOODS_COST_MAX_GHS = 1000;
 
+/**
+ * The rider's share of the delivery fee on a completed delivery, as a percent.
+ *
+ * Wave's revenue is the delivery fee (`Wave_Technical_Document.md` §"Paystack
+ * revenue from delivery fees covers all scaling costs"), so the rest of this is
+ * the margin. 80% of the GHS 20 base fee is GHS 16 to the rider, GHS 4 to Wave,
+ * which roughly covers the Paystack cut and leaves a little over. Set on
+ * 2026-08-25 by the owner; change it in admin → Config (`rider_earning_pct`),
+ * no deploy needed.
+ *
+ * Applied to `order.deliveryFee` — the standard fee — and deliberately not to
+ * the adjusted total: a student's loyalty discount is Wave's cost to bear, not
+ * a pay cut for the rider who ran the same errand, and the special-order
+ * surcharge is Wave's charge for scheduling outside a Wave day. Both are
+ * revisitable, but only by changing this on purpose.
+ */
+export const DEFAULT_RIDER_EARNING_PCT = 80;
+
 export const STANDARD_DELIVERY_DAYS = ["sunday", "wednesday"] as const;
 
 export const PROFILE_ROLES = ["student", "rider", "shop_owner", "admin"] as const;

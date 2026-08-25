@@ -111,7 +111,14 @@ model Profile {
   role         ProfileRole
   avatarUrl    String?     @map("avatar_url")
   pushToken    String?     @map("push_token")
+  // Two different questions, deliberately two columns. `isActive` is the ban
+  // flag: `plugins/auth.ts` rejects every authenticated request when it is
+  // false. `isAvailable` is the rider's own online/offline toggle. They were
+  // the same column, so a rider tapping "Offline" locked themselves out of the
+  // app and could not tap it back on — only an admin could. Nothing but a
+  // rider ever reads `isAvailable`.
   isActive     Boolean     @default(true) @map("is_active")
+  isAvailable  Boolean     @default(true) @map("is_available")
   isVerified   Boolean     @default(false) @map("is_verified")
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
