@@ -1,4 +1,5 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyBaseLogger, FastifyInstance } from "fastify";
+import type { OrderStatus } from "@wave/shared";
 import {
   cancelOrderSchema,
   createOrderSchema,
@@ -8,6 +9,8 @@ import {
   DEFAULT_LOYALTY_DISCOUNT_PCT,
   DEFAULT_LOYALTY_THRESHOLD,
   DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
+  DEFAULT_GOODS_COST_MAX_GHS,
+  DEFAULT_RIDER_EARNING_PCT,
 } from "@wave/shared";
 import { calculateDiscount, calculateOrderTotal, isStandardDeliveryDay } from "./discount";
 import {
@@ -19,11 +22,12 @@ import {
 import { verifyDeliveryPin } from "./pin";
 import { issueDeliveryPin } from "./issuePin";
 import { decryptDeliveryPin } from "./pinCrypto";
-import { findOrderForUser } from "./access";
+import { findOrderForUser, redactStudentContactForShop } from "./access";
+import { allowedPredecessors } from "./transitions";
 import { clientSafeOrder, feedOrder } from "./select";
 import { endOrderWithRefund } from "../payments/refund";
 import { notifyGoodsCostRecorded, notifyOrderStatus } from "../notifications/dispatch";
-import { PIN_RESEND_RATE_LIMIT } from "../../plugins/rateLimit";
+import { PIN_RESEND_RATE_LIMIT, PIN_VERIFY_RATE_LIMIT } from "../../plugins/rateLimit";
 
 export async function orderRoutes(fastify: FastifyInstance) {
   // POST /orders — student places a "Buy For Me" order.
@@ -39,6 +43,23 @@ export async function orderRoutes(fastify: FastifyInstance) {
       }
       const input = parsed.data;
       const scheduledDate = new Date(input.scheduledDate);
+
+      // A date in the past is not a delivery anyone can run. `scheduledDate` was
+      // only ever checked for its day of the week, so "last Sunday" passed —
+      // and the rider feed filters on status and campus, not on date, so the
+      // order went live immediately for a Wave that had already happened.
+      //
+      // Compared as a UTC calendar day because `z.string().date()` is date-only
+      // and Ghana is UTC+0: no timezone arithmetic to get wrong.
+      const today = new Date();
+      const todayUtcDay = Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth(),
+        today.getUTCDate(),
+      );
+      if (scheduledDate.getTime() < todayUtcDay) {
+        return reply.code(400).send({ error: "That delivery date has already passed" });
+      }
 
       if (!input.isSpecialOrder && !isStandardDeliveryDay(scheduledDate)) {
         return reply.code(400).send({
@@ -264,7 +285,12 @@ export async function orderRoutes(fastify: FastifyInstance) {
       select: clientSafeOrder,
       orderBy: { createdAt: "desc" },
     });
-    return reply.send({ orders });
+    // The larger of the two exposures: this returns every order the shop has
+    // ever had in one response, so an unredacted version is a standing export
+    // of the contact details of every student who has ordered from them.
+    return reply.send({
+      orders: orders.map((o) => redactStudentContactForShop(o, request.user!)),
+    });
   });
 
   fastify.get("/:id", { preHandler: fastify.authenticate }, async (request, reply) => {
@@ -336,15 +362,39 @@ export async function orderRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: `status must be one of: ${RIDER_SETTABLE_STATUSES.join(", ")}` });
       }
 
+      // The current status belongs in the predicate, not in a prior read: two
+      // requests would both pass a read-then-check. Same reasoning as the rider
+      // claim lock above.
+      //
+      // Without this the predicate was `{ id, riderId }` alone — and a
+      // delivered order still has a `riderId`, so a finished, cancelled or
+      // refunded order could be pushed back to `en_route`
+      // (review 09-architecture, C2).
+      const target = body.status as OrderStatus;
       let order;
       try {
         order = await fastify.prisma.order.update({
-          where: { id, riderId: request.user!.id },
-          data: { status: body.status as never },
+          where: {
+            id,
+            riderId: request.user!.id,
+            status: { in: allowedPredecessors(target) },
+          },
+          data: { status: target as never },
           select: clientSafeOrder,
         });
       } catch {
-        return reply.code(404).send({ error: "Order not found or not assigned to you" });
+        // Three ways to land here — not yours, not found, or the wrong state —
+        // and they need different answers. Re-read to say which.
+        const existing = await fastify.prisma.order.findFirst({
+          where: { id, riderId: request.user!.id },
+          select: { status: true },
+        });
+        if (!existing) {
+          return reply.code(404).send({ error: "Order not found or not assigned to you" });
+        }
+        return reply.code(409).send({
+          error: `This order is ${existing.status} — it can't be marked ${target}`,
+        });
       }
 
       await fastify.prisma.orderStatusHistory.create({
@@ -426,6 +476,25 @@ export async function orderRoutes(fastify: FastifyInstance) {
         ),
       );
 
+      // Whatever the rider types here is charged to the student automatically,
+      // and the only prior guard was a GHS 10,000 *per-unit* cap in the schema —
+      // which across a 20-line basket permits a charge in the millions
+      // (review 11-campus, M2). One slipped decimal point is a real debit from a
+      // student's MoMo wallet.
+      //
+      // A hard stop rather than a flag-for-review: the rider is standing at the
+      // till holding the receipt, which is the cheapest possible moment to
+      // re-check an amount. Flagging would mean charging first and looking later.
+      const maxGoodsConfig = await fastify.prisma.platformConfig.findUnique({
+        where: { key: "goods_cost_max_ghs" },
+      });
+      const maxGoodsGhs = Number(maxGoodsConfig?.value ?? DEFAULT_GOODS_COST_MAX_GHS);
+      if (itemsTotal > maxGoodsGhs) {
+        return reply.code(400).send({
+          error: `That total (GH₵${itemsTotal.toFixed(2)}) looks too high for a campus run. Check the amount, or call Wave.`,
+        });
+      }
+
       // The delivery fee was charged at order time. Recomputing the total the
       // same way as creation keeps one definition of what an order costs, and
       // the difference between the two is exactly what is still owed.
@@ -472,8 +541,30 @@ export async function orderRoutes(fastify: FastifyInstance) {
     },
   );
 
+  /**
+   * How many wrong PINs an order tolerates before it stops answering.
+   *
+   * Five is enough for a rider mistyping on a phone at dusk and nowhere near
+   * enough to search a 6-digit space. Recovery is the student tapping "Resend
+   * PIN", which issues a new code and zeroes the counter — and crucially the
+   * rider cannot do that themselves, so the lockout means something.
+   */
+  const MAX_PIN_ATTEMPTS = 5;
+
   // Rider marks delivered — requires the correct PIN, verified against the bcrypt hash.
-  fastify.patch("/:id/deliver", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {
+  fastify.patch(
+    "/:id/deliver",
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole("rider")],
+      config: {
+        rateLimit: {
+          ...PIN_VERIFY_RATE_LIMIT,
+          keyGenerator: (request) =>
+            `${request.user?.id ?? request.ip}:${(request.params as { id?: string }).id ?? ""}:pin-verify`,
+        },
+      },
+    },
+    async (request, reply) => {
     const { id } = request.params as { id: string };
     const parsed = deliverOrderSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -500,12 +591,60 @@ export async function orderRoutes(fastify: FastifyInstance) {
       });
     }
 
-    const valid = await verifyDeliveryPin(parsed.data.pin, order.deliveryPinHash);
-    if (!valid) return reply.code(403).send({ error: "Incorrect PIN" });
+    // Checked before the comparison, so a locked order costs no bcrypt at all.
+    if (order.deliveryPinAttempts >= MAX_PIN_ATTEMPTS) {
+      return reply.code(429).send({
+        error:
+          "Too many incorrect PINs on this order. Ask the student to tap \u201cResend PIN\u201d in their app, then try the new code.",
+      });
+    }
 
-    const updated = await fastify.prisma.order.update({
+    const valid = await verifyDeliveryPin(parsed.data.pin, order.deliveryPinHash);
+    if (!valid) {
+      // Incremented in the database, not counted in this process: the count has
+      // to survive a restart and be shared across instances, or it caps nothing.
+      const { deliveryPinAttempts } = await fastify.prisma.order.update({
+        where: { id },
+        data: { deliveryPinAttempts: { increment: 1 } },
+        select: { deliveryPinAttempts: true },
+      });
+      const remaining = Math.max(0, MAX_PIN_ATTEMPTS - deliveryPinAttempts);
+      if (remaining === 0) {
+        request.log.warn(
+          { orderId: id, riderId: request.user!.id },
+          "Delivery PIN locked after repeated incorrect entries",
+        );
+      }
+      return reply.code(403).send({
+        error: remaining
+          ? `Incorrect PIN — ${remaining} ${remaining === 1 ? "try" : "tries"} left before this order locks.`
+          : "Incorrect PIN. This order is now locked — ask the student to resend their PIN.",
+        attemptsRemaining: remaining,
+      });
+    }
+
+    // Delivering is not idempotent — it increments
+    // `studentDeliveryStats.totalDeliveries`, which is what earns the 20%
+    // loyalty discount. Without a status predicate this route would happily
+    // deliver an already-delivered order again and move the student closer to a
+    // discount they did not earn, or mark a refunded order delivered
+    // (review 09-architecture, C2).
+    //
+    // In the predicate rather than an `if` above, so two riders holding the
+    // same PIN cannot both pass the check before either writes.
+    const deliverable = await fastify.prisma.order.updateMany({
+      where: { id, status: { in: allowedPredecessors("delivered") } },
+      // The counter is zeroed on the way through: the PIN was right, so whatever
+      // fumbling preceded it was a rider on a phone, not an attack.
+      data: { status: "delivered", deliveredAt: new Date(), deliveryPinAttempts: 0 },
+    });
+    if (deliverable.count === 0) {
+      return reply.code(409).send({
+        error: `This order is ${order.status} — it can't be marked delivered`,
+      });
+    }
+    const updated = await fastify.prisma.order.findUnique({
       where: { id },
-      data: { status: "delivered", deliveredAt: new Date() },
       select: clientSafeOrder,
     });
 
@@ -513,6 +652,14 @@ export async function orderRoutes(fastify: FastifyInstance) {
       where: { studentId: order.studentId },
       create: { studentId: order.studentId, totalDeliveries: 1 },
       update: { totalDeliveries: { increment: 1 } },
+    });
+
+    await recordRiderEarning({
+      fastify,
+      log: request.log,
+      orderId: id,
+      riderId: request.user!.id,
+      deliveryFee: Number(order.deliveryFee),
     });
 
     await notifyOrderStatus({ fastify, log: request.log, orderId: id, status: "delivered" });
@@ -541,7 +688,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
 
       const order = await fastify.prisma.order.findUnique({
         where: { id },
-        select: { studentId: true, status: true },
+        select: { studentId: true, status: true, orderType: true, itemPrice: true },
       });
       if (!order || order.studentId !== request.user!.id) {
         return reply.code(404).send({ error: "Order not found" });
@@ -549,6 +696,20 @@ export async function orderRoutes(fastify: FastifyInstance) {
       if (!STUDENT_CANCELLABLE_STATUSES.includes(order.status as never)) {
         return reply.code(409).send({
           error: `An order that is ${order.status} can no longer be cancelled here — contact support`,
+        });
+      }
+
+      // On a suggested-shop order the rider pays cash at the till, and recording
+      // that cost does NOT move the status — the rider sets `en_route` by hand,
+      // separately, and may not have yet. So the cancellable window stayed open
+      // over a basket someone had already bought, and the student could
+      // self-serve a full refund with the rider out of pocket.
+      //
+      // Status is the wrong thing to test here; money spent is the right one.
+      if (order.orderType === "shop_pickup" && Number(order.itemPrice ?? 0) > 0) {
+        return reply.code(409).send({
+          error:
+            "Your runner has already bought these items, so this can't be cancelled in the app — message Wave support and we'll sort it out.",
         });
       }
 
@@ -614,7 +775,13 @@ export async function orderRoutes(fastify: FastifyInstance) {
           fastify.prisma.order
             .update({
               where: { id: order.id },
-              data: { deliveryPinHash: hash, deliveryPinCiphertext: ciphertext },
+              // A new PIN gets a clean slate — otherwise a locked order stays
+              // locked through the very resend that is supposed to recover it.
+              data: {
+                deliveryPinHash: hash,
+                deliveryPinCiphertext: ciphertext,
+                deliveryPinAttempts: 0,
+              },
             })
             .then(() => undefined),
       });
@@ -688,7 +855,13 @@ export async function orderRoutes(fastify: FastifyInstance) {
           fastify.prisma.order
             .update({
               where: { id: order.id },
-              data: { deliveryPinHash: hash, deliveryPinCiphertext: ciphertext },
+              // A new PIN gets a clean slate — otherwise a locked order stays
+              // locked through the very resend that is supposed to recover it.
+              data: {
+                deliveryPinHash: hash,
+                deliveryPinCiphertext: ciphertext,
+                deliveryPinAttempts: 0,
+              },
             })
             .then(() => undefined),
       });
@@ -764,11 +937,24 @@ export async function orderRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
 
-    const shop = await fastify.prisma.shop.findFirst({ where: { ownerId: request.user!.id } });
-    const order = shop
-      ? await fastify.prisma.order.findUnique({ where: { id }, select: { shopId: true } })
-      : null;
-    if (!order || order.shopId !== shop!.id) {
+    // Scope by ownership *in the predicate*, matching `/:id/shop-accept` above.
+    //
+    // This used to resolve one shop with `findFirst({ where: { ownerId } })` and
+    // compare it to `order.shopId` (review 09-architecture, H2). An owner may
+    // hold several shops, and that `findFirst` carried no `orderBy` — so it
+    // returned an arbitrary shop, and rejecting an order belonging to any other
+    // one 404'd. Non-deterministically, too: with no ordering, Postgres is free
+    // to return a different row between requests, so the same call could work
+    // once and fail the next time.
+    //
+    // The listing route above hit the identical bug and was fixed there; this
+    // path was missed. One query now, and ownership cannot drift from what
+    // `/shops/my` returns.
+    const order = await fastify.prisma.order.findFirst({
+      where: { id, shop: { ownerId: request.user!.id } },
+      select: { id: true },
+    });
+    if (!order) {
       return reply.code(404).send({ error: "Order not found" });
     }
 
@@ -784,4 +970,58 @@ export async function orderRoutes(fastify: FastifyInstance) {
 
     return reply.send({ order: result.order, refundIssued: result.refundIssued });
   });
+}
+
+
+/**
+ * Credits the rider for a completed delivery.
+ *
+ * `rider_earnings` existed in the schema, had a route reading it, and had a
+ * screen rendering it — and **nothing ever wrote a row**, so every rider's
+ * Earnings tab was permanently empty. For the people the pilot most needs to
+ * trust it, the screen that says what they are owed showed nothing at all.
+ *
+ * Written as `pending`; `paidAt` is stamped when the MoMo payout actually goes
+ * out. That is still a manual process, so this is the ledger it will be
+ * reconciled against, not a promise the money has moved.
+ *
+ * Best-effort, and deliberately after the delivery itself: `order_id` is unique,
+ * so a retry cannot double-credit, and a failure here must never turn a
+ * completed handover into an error the rider sees at a checkpoint. A missing
+ * row is recoverable from the order; a delivery the rider could not close is not.
+ */
+async function recordRiderEarning(args: {
+  fastify: FastifyInstance;
+  log: FastifyBaseLogger;
+  orderId: string;
+  riderId: string;
+  deliveryFee: number;
+}): Promise<void> {
+  const { fastify, log, orderId, riderId, deliveryFee } = args;
+  try {
+    const pctConfig = await fastify.prisma.platformConfig.findUnique({
+      where: { key: "rider_earning_pct" },
+    });
+    const parsed = Number(pctConfig?.value);
+    // A missing row is expected (the constant is the default); an unparseable
+    // one is an admin typo, and silently paying 0 would be worse than saying so.
+    if (pctConfig && !Number.isFinite(parsed)) {
+      log.error(
+        { value: pctConfig.value },
+        "platform_config.rider_earning_pct is not a number — falling back to the default",
+      );
+    }
+    const pct = Number.isFinite(parsed) ? parsed : DEFAULT_RIDER_EARNING_PCT;
+    const amount = round2((deliveryFee * pct) / 100);
+
+    await fastify.prisma.riderEarning.create({
+      data: { orderId, riderId, amount, status: "pending" },
+    });
+    log.info({ orderId, riderId, amount, pct }, "Rider earning recorded");
+  } catch (err) {
+    log.error(
+      { orderId, riderId, err: err instanceof Error ? err.message : "unknown" },
+      "Could not record the rider earning for a delivered order — the delivery stands, the ledger row is missing",
+    );
+  }
 }

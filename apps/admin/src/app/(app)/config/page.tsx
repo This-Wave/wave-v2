@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAdminAuth } from "../../../providers/AdminAuthProvider";
-import { apiFetch } from "../../../lib/api";
+import { apiFetch, errorMessage } from "../../../lib/api";
 import { PageHeader } from "../../../components/ui/PageHeader";
 import { Button } from "../../../components/ui/Button";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
@@ -53,6 +53,28 @@ const GROUPS: { title: string; keys: { key: string; label: string; suffix?: stri
     ],
   },
   {
+    title: "Safety limits",
+    keys: [
+      {
+        key: "goods_cost_max_ghs",
+        label: "Max goods total",
+        suffix: "GH₵",
+        hint: "Largest till total a rider may record on a suggested-shop order. Above this they are asked to re-check rather than charging the student.",
+      },
+    ],
+  },
+  {
+    title: "Payouts",
+    keys: [
+      {
+        key: "rider_earning_pct",
+        label: "Rider share of the delivery fee",
+        suffix: "%",
+        hint: "Credited to the rider when a delivery is closed with the student's PIN. Applied to the standard fee, so a student's loyalty discount does not reduce what the rider earns.",
+      },
+    ],
+  },
+  {
     title: "Scheduling",
     keys: [
       {
@@ -74,6 +96,7 @@ export default function ConfigPage() {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!accessToken) return;
@@ -100,6 +123,7 @@ export default function ConfigPage() {
   async function handleSave() {
     if (!accessToken || dirtyKeys.length === 0) return;
     setSaving(true);
+    setSaveError(null);
     try {
       // PUT /config upserts a single key, so a multi-field save is one call per
       // changed key. Only changed keys are sent.
@@ -111,6 +135,13 @@ export default function ConfigPage() {
       }
       setSavedAt(new Date().toLocaleString());
       load();
+    } catch (err) {
+      // The API validates these now — a mistyped fee is a 400 naming the field.
+      // Swallowing it would leave the admin looking at their own bad value with
+      // no indication it was refused, which is worse than the old behaviour of
+      // accepting it. `load()` is deliberately not called: the draft is kept so
+      // the number can be corrected rather than silently reverted.
+      setSaveError(errorMessage(err, "Could not save. Check the values and try again."));
     } finally {
       setSaving(false);
     }
@@ -139,6 +170,14 @@ export default function ConfigPage() {
       </div>
 
       {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
+      {saveError ? (
+        <p
+          role="alert"
+          className="mb-5 max-w-[720px] rounded-control border border-border bg-surface px-4 py-3 text-[13px] text-ink"
+        >
+          {saveError}
+        </p>
+      ) : null}
 
       {rows === null ? (
         <p className="text-[13.5px] text-muted">Loading…</p>

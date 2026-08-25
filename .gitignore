@@ -62,6 +62,10 @@ Thumbs.db
 !docs/neon-backup-restore-runbook.md
 !docs/staging-environment.md
 !docs/design-surfaces.md
+!docs/supabase-dashboard-config.md
+!docs/data-retention-and-deletion.md
+!docs/mobile-release.md
+!docs/accessibility-device-checks.md
 devlogs/
 
 # Compiled workspace output (packages/*/dist) — built at deploy time

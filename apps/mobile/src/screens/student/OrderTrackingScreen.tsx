@@ -26,6 +26,7 @@ import { useCancelOrder, useOrder } from "../../lib/orders";
 import { buildOrderLedger } from "../../lib/ledger";
 import { resetStudentTabs } from "../../lib/navigationFlows";
 import { showToast } from "../../store/toastStore";
+import { apiErrorMessage } from "../../lib/apiError";
 import { currentStepIndex, orderSteps, shortOrderRef, statusPill } from "./orderPresenters";
 
 type Route = RouteProp<StudentStackParamList, "OrderTracking">;
@@ -59,8 +60,7 @@ export function OrderTrackingScreen() {
       );
       resetStudentTabs(navigation, "Orders");
     } catch (err) {
-      const message = (err as { response?: { data?: { error?: string } } }).response?.data?.error;
-      showToast(message ?? "Could not cancel right now.", "danger");
+      showToast(apiErrorMessage(err, "Could not cancel right now."), "danger");
       setConfirmCancel(false);
     }
   }

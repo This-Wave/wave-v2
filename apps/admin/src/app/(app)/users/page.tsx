@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../lib/api";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
@@ -42,39 +42,55 @@ const NEXT_ROLE: Partial<Record<Role, Role>> = {
   rider: "student",
 };
 
+const PAGE_SIZE = 25;
+
 export default function UsersPage() {
   const { accessToken, profile } = useAdminAuth();
   const [role, setRole] = useState<RoleFilter>("all");
   const [search, setSearch] = useState("");
+  // Debounced copy of `search`. The list is paged server-side now, so filtering
+  // in the browser would only ever search the page you happen to be looking at.
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [users, setUsers] = useState<User[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setQuery(search.trim()), 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Any change to what is being asked for starts again at page one — otherwise
+  // a filter applied on page 4 lands on an empty page.
+  useEffect(() => {
+    setPage(1);
+  }, [role, query]);
 
   const load = useCallback(() => {
     if (!accessToken) return;
     setUsers(null);
     setError(null);
-    const query = role === "all" ? "" : `?role=${role}`;
-    apiFetch<{ users: User[] }>(`/admin/users${query}`, accessToken)
-      .then((res) => setUsers(res.users))
+    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
+    if (role !== "all") params.set("role", role);
+    if (query) params.set("search", query);
+    apiFetch<{ users: User[]; total: number }>(`/admin/users?${params}`, accessToken)
+      .then((res) => {
+        setUsers(res.users);
+        setTotal(res.total);
+      })
       .catch(() => {
         setUsers([]);
         setError("Could not load users. Check your connection and try again.");
       });
-  }, [accessToken, role]);
+  }, [accessToken, role, page, query]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const visible = useMemo(() => {
-    if (!users) return null;
-    const q = search.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter(
-      (u) => u.fullName.toLowerCase().includes(q) || u.phone.replace(/\s/g, "").includes(q),
-    );
-  }, [users, search]);
+  const totalPages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
 
   async function patchUser(id: string, path: "role" | "status", body: object) {
     if (!accessToken) return;
@@ -165,10 +181,34 @@ export default function UsersPage() {
 
       <DataTable
         columns={columns}
-        rows={visible}
+        rows={users}
         rowKey={(u) => u.id}
-        emptyMessage={search ? "No users match that search." : "No users yet."}
+        emptyMessage={query ? "No users match that search." : "No users yet."}
       />
+
+      {total > PAGE_SIZE ? (
+        <div className="mt-4 flex items-center justify-between">
+          <p className="text-[12px] text-muted">
+            Page {page} of {totalPages} · {total} total
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(p - 1, 1))}
+              disabled={page <= 1}
+              className="rounded-tile border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+              disabled={page >= totalPages}
+              className="rounded-tile border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

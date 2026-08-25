@@ -29,6 +29,13 @@ services:
     name: wave-api
     runtime: node
     region: frankfurt
+    # ⚠ GO-LIVE BLOCKER (checklist C11 / reviews 05-C3, 06-C4).
+    # `free` spins down when idle. This is the service Paystack posts the
+    # payment webhook to, and a cold start can drop it — the student is charged
+    # and the app never learns. The verify-poll recovers it only while the app
+    # stays open. Move to a paid always-on plan BEFORE switching to live
+    # Paystack keys. Changing this line costs money, so it is left as a
+    # deliberate decision rather than a default.
     plan: free
     branch: main
     # Build from the repo root: this is an npm-workspaces monorepo, and the API

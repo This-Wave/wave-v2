@@ -299,14 +299,16 @@ export async function announceNewOrderToRiders(args: {
   const { fastify, log, orderId, universityId, shopName } = args;
 
   try {
-    // `isActive` is what the rider app's online/offline toggle writes
+    // `isAvailable` is what the rider app's online/offline toggle writes
     // (PATCH /riders/availability), so going offline really does stop these.
-    // `isVerified` keeps un-approved riders out of the announcements the same
-    // way `GET /orders/available` would refuse them the orders.
+    // `isActive` is the separate ban flag — a deactivated account gets nothing
+    // either. `isVerified` keeps un-approved riders out of the announcements
+    // the same way `GET /orders/available` would refuse them the orders.
     const riders = await fastify.prisma.profile.findMany({
       where: {
         role: "rider",
         isActive: true,
+        isAvailable: true,
         isVerified: true,
         universityId,
         pushToken: { not: null },

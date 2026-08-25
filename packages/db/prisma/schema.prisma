@@ -111,7 +111,14 @@ model Profile {
   role         ProfileRole
   avatarUrl    String?     @map("avatar_url")
   pushToken    String?     @map("push_token")
+  // Two different questions, deliberately two columns. `isActive` is the ban
+  // flag: `plugins/auth.ts` rejects every authenticated request when it is
+  // false. `isAvailable` is the rider's own online/offline toggle. They were
+  // the same column, so a rider tapping "Offline" locked themselves out of the
+  // app and could not tap it back on — only an admin could. Nothing but a
+  // rider ever reads `isAvailable`.
   isActive     Boolean     @default(true) @map("is_active")
+  isAvailable  Boolean     @default(true) @map("is_available")
   isVerified   Boolean     @default(false) @map("is_verified")
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
@@ -308,6 +315,11 @@ model Order {
   // read the code in the app — never selected on general order queries.
   deliveryPinHash       String?   @map("delivery_pin_hash")
   deliveryPinCiphertext String?   @map("delivery_pin_ciphertext")
+  // Failed PIN entries since the current PIN was issued. The rider assigned to
+  // an order could otherwise grind the 6-digit space against it and close a
+  // delivery they never handed over — nothing capped the guesses. Reset to 0
+  // every time a PIN is issued or re-issued, and on a correct entry.
+  deliveryPinAttempts   Int       @default(0) @map("delivery_pin_attempts")
   deliveredAt           DateTime? @map("delivered_at")
 
   // Cross-instance locks. Both used to be in-process (a Set and a Map in the

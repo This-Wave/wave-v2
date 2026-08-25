@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
 import { useDeliveryPin, useOrder, useResendPin } from "../../lib/orders";
+import { apiErrorMessage } from "../../lib/apiError";
 import { shortOrderRef } from "./orderPresenters";
 
 type Route = RouteProp<StudentStackParamList, "PickupPin">;
@@ -33,7 +34,7 @@ export function PickupPinScreen() {
           : "Updated the code above. SMS could not send; use the digits here.",
       );
     } catch (err) {
-      setNote(errorMessage(err) ?? "Could not send right now. Try again shortly.");
+      setNote(apiErrorMessage(err, "Could not send right now. Try again shortly."));
     }
   }
 
@@ -92,9 +93,4 @@ export function PickupPinScreen() {
       </ActionBar>
     </Screen>
   );
-}
-
-function errorMessage(err: unknown): string | null {
-  const maybe = err as { response?: { data?: { error?: string } } };
-  return maybe?.response?.data?.error ?? null;
 }
