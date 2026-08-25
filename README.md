@@ -196,7 +196,7 @@ Key variables:
 |---|---|---|
 | `DATABASE_URL` | `packages/db`, `packages/api` | **Must** point at Neon.tech (`ep-xxx.neon.tech`), never Supabase's DB |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_ANON_KEY` | `packages/api`, `apps/admin`, `apps/mobile` | Auth + Storage + Realtime only |
-| `PAYSTACK_SECRET_KEY` / `PAYSTACK_WEBHOOK_SECRET` | `packages/api` | Use Paystack **test** keys in development |
+| `PAYSTACK_SECRET_KEY` | `packages/api` | Use Paystack **test** keys in development. Also verifies webhook signatures — Paystack signs with the secret key, so there is **no** separate `PAYSTACK_WEBHOOK_SECRET` |
 | `JWT_SECRET` | `packages/api` | AES key for delivery-PIN ciphertext (`orders/pinCrypto.ts`), **not** for signing JWTs — Supabase issues those. Any long random string in dev. **Rotating it makes every undelivered PIN undecryptable**, so orders in flight must be drained first; the bcrypt hash still verifies, only in-app PIN display breaks. |
 | `EXPO_PUBLIC_*` | `apps/mobile` | Must be prefixed `EXPO_PUBLIC_` to be readable client-side |
 | `NEXT_PUBLIC_*` | `apps/admin` | Must be prefixed `NEXT_PUBLIC_` to be readable client-side |

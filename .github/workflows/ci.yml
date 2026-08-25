@@ -21,8 +21,11 @@ jobs:
       # type-check with TS2307 "Cannot find module '@wave/shared'" — which is
       # exactly what PR #22's CI run hit while passing on developer machines
       # that happened to have a stale `dist/` lying around.
-      # `db generate` is the same problem for `@prisma/client`.
-      - run: npm run generate --workspace=@wave/db
+      # `@wave/db` has the same shape (`types: dist/src/index.d.ts`) AND has to
+      # run `prisma generate` for `@prisma/client`, so it needs a full build,
+      # not just generate — otherwise every Prisma callback in the API degrades
+      # to implicit `any` and trips `noImplicitAny`.
+      - run: npm run build --workspace=@wave/db
       - run: npm run build --workspace=@wave/shared
       - run: npm run type-check
       - run: npm run lint
@@ -49,7 +52,7 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci
-      - run: npm run generate --workspace=@wave/db
+      - run: npm run build --workspace=@wave/db
       - run: npm run build --workspace=@wave/shared
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e --workspace=@wave/admin

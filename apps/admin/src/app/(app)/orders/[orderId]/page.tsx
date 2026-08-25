@@ -169,8 +169,20 @@ export default function OrderDetailPage() {
           </div>
           {order.paystackRef ? (
             <div className="col-span-2">
-              <dt className="text-muted">Paystack ref</dt>
+              <dt className="text-muted">
+                {order.goodsPaystackRef ? "Paystack ref — delivery fee" : "Paystack ref"}
+              </dt>
               <dd className="font-mono text-[11px] text-ink">{order.paystackRef}</dd>
+            </div>
+          ) : null}
+          {/* A shop_pickup is two separate Paystack transactions, and this one
+              was fetched and typed but never rendered — so the goods charge was
+              invisible here and could not be matched against a Paystack
+              statement from the admin UI at all (review 05-payments, M2). */}
+          {order.goodsPaystackRef ? (
+            <div className="col-span-2">
+              <dt className="text-muted">Paystack ref — goods</dt>
+              <dd className="font-mono text-[11px] text-ink">{order.goodsPaystackRef}</dd>
             </div>
           ) : null}
         </dl>
