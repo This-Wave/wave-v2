@@ -9,6 +9,8 @@ import {
 import { paystackMatchesGhs } from "./amounts";
 import { confirmDeliveryFeePaid, confirmGoodsPaid } from "./confirm";
 import { capturePaymentError, capturePaymentIssue } from "../../lib/sentry";
+import { parseCorsOrigins } from "../../config/cors";
+import type { Env } from "../../config/env";
 
 const PAYABLE_DELIVERY_STATUSES = ["pending", "payment_pending"] as const;
 
@@ -121,7 +123,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
 
     const profile = await fastify.prisma.profile.findUnique({ where: { id: order.studentId } });
     const reference = `WAVE-${order.id}-${Date.now()}`;
-    const callbackUrl = paystackCallbackUrl(fastify.config.APP_URL, body.returnOrigin);
+    const callbackUrl = paystackCallbackUrl(fastify.config, body.returnOrigin);
 
     let authorization_url: string;
     try {
@@ -204,7 +206,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
 
     const profile = await fastify.prisma.profile.findUnique({ where: { id: order.studentId } });
     const reference = `WAVEGOODS-${order.id}-${Date.now()}`;
-    const callbackUrl = paystackCallbackUrl(fastify.config.APP_URL, body.returnOrigin);
+    const callbackUrl = paystackCallbackUrl(fastify.config, body.returnOrigin);
 
     let authorization_url: string;
     try {
@@ -578,21 +580,45 @@ export async function paymentRoutes(fastify: FastifyInstance) {
  *
  * Web same-tab checkout passes the Expo origin so the student lands back in the
  * app (with `?wave_payment=1`); native WebView keeps the API HTML landing page.
+ *
+ * `returnOrigin` comes from the client, so this is an open-redirect surface: the
+ * URL is handed to Paystack, which sends a student's browser to it moments after
+ * they have typed a MoMo PIN. The previous condition ended in
+ * `origin.startsWith("https://")`, which accepts every host on the internet —
+ * directly beneath a comment promising it accepted none. It now matches against
+ * `CORS_ORIGINS`, the same allowlist that decides who may call this API, so
+ * there is one list to keep current instead of two.
+ *
+ * The Expo dev hosts stay, but only outside production, where `CORS_ORIGINS` is
+ * required and a `.exp.direct` tunnel has no business appearing.
  */
-function paystackCallbackUrl(appUrl: string, returnOrigin?: string): string {
-  const fallback = `${appUrl.replace(/\/$/, "")}/v1/payments/callback`;
+function paystackCallbackUrl(env: Env, returnOrigin?: string): string {
+  const fallback = `${env.APP_URL.replace(/\/$/, "")}/v1/payments/callback`;
   if (!returnOrigin) return fallback;
   try {
     const origin = new URL(returnOrigin).origin;
-    // Local Expo + https production only — never accept arbitrary hosts.
     const host = new URL(origin).hostname;
-    const ok =
-      host === "localhost" ||
-      host === "127.0.0.1" ||
-      host.endsWith(".exp.direct") ||
-      host.endsWith(".expo.dev") ||
-      origin.startsWith("https://");
-    if (!ok) return fallback;
+
+    const allowed = parseCorsOrigins(env);
+    const inAllowlist =
+      allowed === true ||
+      (Array.isArray(allowed) &&
+        allowed.some((entry) => {
+          try {
+            return new URL(entry).origin === origin;
+          } catch {
+            return false;
+          }
+        }));
+
+    const isDevHost =
+      env.NODE_ENV !== "production" &&
+      (host === "localhost" ||
+        host === "127.0.0.1" ||
+        host.endsWith(".exp.direct") ||
+        host.endsWith(".expo.dev"));
+
+    if (!inAllowlist && !isDevHost) return fallback;
     return `${origin}/?wave_payment=1`;
   } catch {
     return fallback;

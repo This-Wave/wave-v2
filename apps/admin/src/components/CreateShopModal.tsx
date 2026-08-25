@@ -61,7 +61,9 @@ export function CreateShopModal({
         setUniversities([]);
         setLoadError("Could not load universities.");
       });
-    apiFetch<{ users: Owner[] }>("/admin/users?role=shop_owner", accessToken)
+    // pageSize is explicit because /admin/users pages by default now, and a
+    // truncated dropdown would silently hide owners from this form.
+    apiFetch<{ users: Owner[] }>("/admin/users?role=shop_owner&pageSize=100", accessToken)
       .then((res) => setOwners(res.users))
       .catch(() => {
         setOwners([]);

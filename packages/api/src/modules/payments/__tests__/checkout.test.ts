@@ -222,3 +222,65 @@ describe("POST /payments/initiate — re-initiating an order that already has a 
     expect(initiatePaystackPayment).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * `returnOrigin` is client-supplied and ends up as Paystack's `callback_url` —
+ * the address a student's browser is sent to seconds after they type a MoMo
+ * PIN. The old guard ended in `origin.startsWith("https://")`, which accepts
+ * every host on the internet, immediately under a comment promising it accepted
+ * none. It is now the `CORS_ORIGINS` allowlist: one list, already maintained.
+ */
+describe("POST /payments/initiate — where Paystack sends the student back", () => {
+  const CORS_ORIGINS = "https://wave-admin.onrender.com,https://wave.vercel.app";
+
+  async function callbackFor(returnOrigin: string | undefined, env: Record<string, unknown> = {}) {
+    const app = await buildTestApp(paymentRoutes, {
+      prisma: makePrisma(ownOrder),
+      user: STUDENT,
+      env: { CORS_ORIGINS, NODE_ENV: "production", ...env } as never,
+    });
+    await app.inject({
+      method: "POST",
+      url: "/initiate",
+      payload: { orderId: "order-1", ...(returnOrigin ? { returnOrigin } : {}) },
+    });
+    await app.close();
+    return (initiatePaystackPayment.mock.calls[0]?.[1] as { callbackUrl: string }).callbackUrl;
+  }
+
+  test("an allowlisted origin is honoured", async () => {
+    expect(await callbackFor("https://wave.vercel.app/checkout")).toBe(
+      "https://wave.vercel.app/?wave_payment=1",
+    );
+  });
+
+  test("an arbitrary https host falls back to Wave's own landing page", async () => {
+    // The whole finding in one assertion.
+    expect(await callbackFor("https://attacker.example/steal")).toBe(
+      "http://localhost:4000/v1/payments/callback",
+    );
+  });
+
+  test("a lookalike host is not a prefix match", async () => {
+    expect(await callbackFor("https://wave.vercel.app.attacker.example")).toBe(
+      "http://localhost:4000/v1/payments/callback",
+    );
+  });
+
+  test("localhost is refused in production", async () => {
+    expect(await callbackFor("http://localhost:8081")).toBe(
+      "http://localhost:4000/v1/payments/callback",
+    );
+  });
+
+  test("localhost still works in development, where the tunnel is the point", async () => {
+    expect(await callbackFor("http://localhost:8081", { NODE_ENV: "development" })).toBe(
+      "http://localhost:8081/?wave_payment=1",
+    );
+  });
+
+  test("no returnOrigin means the API's own landing page", async () => {
+    expect(await callbackFor(undefined)).toBe("http://localhost:4000/v1/payments/callback");
+  });
+});
+

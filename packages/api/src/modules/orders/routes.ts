@@ -27,7 +27,7 @@ import { allowedPredecessors } from "./transitions";
 import { clientSafeOrder, feedOrder } from "./select";
 import { endOrderWithRefund } from "../payments/refund";
 import { notifyGoodsCostRecorded, notifyOrderStatus } from "../notifications/dispatch";
-import { PIN_RESEND_RATE_LIMIT } from "../../plugins/rateLimit";
+import { PIN_RESEND_RATE_LIMIT, PIN_VERIFY_RATE_LIMIT } from "../../plugins/rateLimit";
 
 export async function orderRoutes(fastify: FastifyInstance) {
   // POST /orders — student places a "Buy For Me" order.
@@ -43,6 +43,23 @@ export async function orderRoutes(fastify: FastifyInstance) {
       }
       const input = parsed.data;
       const scheduledDate = new Date(input.scheduledDate);
+
+      // A date in the past is not a delivery anyone can run. `scheduledDate` was
+      // only ever checked for its day of the week, so "last Sunday" passed —
+      // and the rider feed filters on status and campus, not on date, so the
+      // order went live immediately for a Wave that had already happened.
+      //
+      // Compared as a UTC calendar day because `z.string().date()` is date-only
+      // and Ghana is UTC+0: no timezone arithmetic to get wrong.
+      const today = new Date();
+      const todayUtcDay = Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth(),
+        today.getUTCDate(),
+      );
+      if (scheduledDate.getTime() < todayUtcDay) {
+        return reply.code(400).send({ error: "That delivery date has already passed" });
+      }
 
       if (!input.isSpecialOrder && !isStandardDeliveryDay(scheduledDate)) {
         return reply.code(400).send({
@@ -524,8 +541,30 @@ export async function orderRoutes(fastify: FastifyInstance) {
     },
   );
 
+  /**
+   * How many wrong PINs an order tolerates before it stops answering.
+   *
+   * Five is enough for a rider mistyping on a phone at dusk and nowhere near
+   * enough to search a 6-digit space. Recovery is the student tapping "Resend
+   * PIN", which issues a new code and zeroes the counter — and crucially the
+   * rider cannot do that themselves, so the lockout means something.
+   */
+  const MAX_PIN_ATTEMPTS = 5;
+
   // Rider marks delivered — requires the correct PIN, verified against the bcrypt hash.
-  fastify.patch("/:id/deliver", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {
+  fastify.patch(
+    "/:id/deliver",
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole("rider")],
+      config: {
+        rateLimit: {
+          ...PIN_VERIFY_RATE_LIMIT,
+          keyGenerator: (request) =>
+            `${request.user?.id ?? request.ip}:${(request.params as { id?: string }).id ?? ""}:pin-verify`,
+        },
+      },
+    },
+    async (request, reply) => {
     const { id } = request.params as { id: string };
     const parsed = deliverOrderSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -552,8 +591,37 @@ export async function orderRoutes(fastify: FastifyInstance) {
       });
     }
 
+    // Checked before the comparison, so a locked order costs no bcrypt at all.
+    if (order.deliveryPinAttempts >= MAX_PIN_ATTEMPTS) {
+      return reply.code(429).send({
+        error:
+          "Too many incorrect PINs on this order. Ask the student to tap \u201cResend PIN\u201d in their app, then try the new code.",
+      });
+    }
+
     const valid = await verifyDeliveryPin(parsed.data.pin, order.deliveryPinHash);
-    if (!valid) return reply.code(403).send({ error: "Incorrect PIN" });
+    if (!valid) {
+      // Incremented in the database, not counted in this process: the count has
+      // to survive a restart and be shared across instances, or it caps nothing.
+      const { deliveryPinAttempts } = await fastify.prisma.order.update({
+        where: { id },
+        data: { deliveryPinAttempts: { increment: 1 } },
+        select: { deliveryPinAttempts: true },
+      });
+      const remaining = Math.max(0, MAX_PIN_ATTEMPTS - deliveryPinAttempts);
+      if (remaining === 0) {
+        request.log.warn(
+          { orderId: id, riderId: request.user!.id },
+          "Delivery PIN locked after repeated incorrect entries",
+        );
+      }
+      return reply.code(403).send({
+        error: remaining
+          ? `Incorrect PIN — ${remaining} ${remaining === 1 ? "try" : "tries"} left before this order locks.`
+          : "Incorrect PIN. This order is now locked — ask the student to resend their PIN.",
+        attemptsRemaining: remaining,
+      });
+    }
 
     // Delivering is not idempotent — it increments
     // `studentDeliveryStats.totalDeliveries`, which is what earns the 20%
@@ -566,7 +634,9 @@ export async function orderRoutes(fastify: FastifyInstance) {
     // same PIN cannot both pass the check before either writes.
     const deliverable = await fastify.prisma.order.updateMany({
       where: { id, status: { in: allowedPredecessors("delivered") } },
-      data: { status: "delivered", deliveredAt: new Date() },
+      // The counter is zeroed on the way through: the PIN was right, so whatever
+      // fumbling preceded it was a rider on a phone, not an attack.
+      data: { status: "delivered", deliveredAt: new Date(), deliveryPinAttempts: 0 },
     });
     if (deliverable.count === 0) {
       return reply.code(409).send({
@@ -618,7 +688,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
 
       const order = await fastify.prisma.order.findUnique({
         where: { id },
-        select: { studentId: true, status: true },
+        select: { studentId: true, status: true, orderType: true, itemPrice: true },
       });
       if (!order || order.studentId !== request.user!.id) {
         return reply.code(404).send({ error: "Order not found" });
@@ -626,6 +696,20 @@ export async function orderRoutes(fastify: FastifyInstance) {
       if (!STUDENT_CANCELLABLE_STATUSES.includes(order.status as never)) {
         return reply.code(409).send({
           error: `An order that is ${order.status} can no longer be cancelled here — contact support`,
+        });
+      }
+
+      // On a suggested-shop order the rider pays cash at the till, and recording
+      // that cost does NOT move the status — the rider sets `en_route` by hand,
+      // separately, and may not have yet. So the cancellable window stayed open
+      // over a basket someone had already bought, and the student could
+      // self-serve a full refund with the rider out of pocket.
+      //
+      // Status is the wrong thing to test here; money spent is the right one.
+      if (order.orderType === "shop_pickup" && Number(order.itemPrice ?? 0) > 0) {
+        return reply.code(409).send({
+          error:
+            "Your runner has already bought these items, so this can't be cancelled in the app — message Wave support and we'll sort it out.",
         });
       }
 
@@ -691,7 +775,13 @@ export async function orderRoutes(fastify: FastifyInstance) {
           fastify.prisma.order
             .update({
               where: { id: order.id },
-              data: { deliveryPinHash: hash, deliveryPinCiphertext: ciphertext },
+              // A new PIN gets a clean slate — otherwise a locked order stays
+              // locked through the very resend that is supposed to recover it.
+              data: {
+                deliveryPinHash: hash,
+                deliveryPinCiphertext: ciphertext,
+                deliveryPinAttempts: 0,
+              },
             })
             .then(() => undefined),
       });
@@ -765,7 +855,13 @@ export async function orderRoutes(fastify: FastifyInstance) {
           fastify.prisma.order
             .update({
               where: { id: order.id },
-              data: { deliveryPinHash: hash, deliveryPinCiphertext: ciphertext },
+              // A new PIN gets a clean slate — otherwise a locked order stays
+              // locked through the very resend that is supposed to recover it.
+              data: {
+                deliveryPinHash: hash,
+                deliveryPinCiphertext: ciphertext,
+                deliveryPinAttempts: 0,
+              },
             })
             .then(() => undefined),
       });

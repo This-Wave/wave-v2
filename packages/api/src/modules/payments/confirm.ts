@@ -100,7 +100,14 @@ export async function confirmDeliveryFeePaid(args: {
       fastify.prisma.order
         .update({
           where: { id: order.id },
-          data: { deliveryPinHash: hash, deliveryPinCiphertext: ciphertext },
+          // `deliveryPinAttempts: 0` is belt and braces on a fresh order, but it
+          // keeps the invariant in one shape everywhere a PIN is written: a new
+          // PIN always arrives with a clean attempt count.
+          data: {
+            deliveryPinHash: hash,
+            deliveryPinCiphertext: ciphertext,
+            deliveryPinAttempts: 0,
+          },
         })
         .then(() => undefined),
   });
