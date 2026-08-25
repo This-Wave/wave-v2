@@ -2,13 +2,14 @@
   "name": "@wave/admin",
   "version": "0.1.0",
   "private": true,
-  "description": "Wave admin dashboard — Next.js 14",
+  "description": "Wave admin dashboard \u2014 Next.js 14",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start -p ${PORT:-3000}",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.70.0",
@@ -26,6 +27,7 @@
     "tailwindcss": "^3.4.10"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "^20.14.15",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",

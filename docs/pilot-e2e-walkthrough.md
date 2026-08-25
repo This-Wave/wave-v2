@@ -100,16 +100,93 @@ Default shop: **Mama Put Kitchen** (Jollof Rice and other items in seed).
 
 ---
 
-## Optional — Suggested-shop goods payment
+## Shop Accept vs rider dispatch — what "Accept" actually does
 
-Only if testing the two-charge flow:
+**QA acceptance criteria (review 02-qa-engineer, M2).** This is the single
+easiest thing to mis-test, because the button reads like a gate and is not one.
 
-1. Place an order via **Suggest a shop** (not catalogue shop).
-2. Pay **delivery fee** first (steps 1–2).
-3. After shop confirms item price, pay **goods** charge via second Paystack checkout.
-4. Confirm `goodsPaidAt` set in admin detail.
+`shopAcceptedAt` is **advisory**. The shop's Accept records an acknowledgement
+the dashboard and riders can see. It does **not** gate dispatch: the rider feed
+is filtered by `status: "confirmed"`, campus, and rider verification — never by
+`shopAcceptedAt`. Verified in `orders/routes.ts` (written on accept, read
+nowhere as a precondition).
+
+| Scenario | Expected |
+|----------|----------|
+| Order paid, shop has **not** accepted | Rider **can** see and accept it |
+| Order paid, shop **has** accepted | Rider can see and accept it; timeline shows the acknowledgement |
+| Shop taps Accept twice | Second tap succeeds (idempotent) — not an error |
+| Shop A tries to accept Shop B's order | 404 — scoped by ownership in the query predicate |
+
+**Do not** file "rider saw an unaccepted order" as a bug. If Accept should gate
+dispatch, that is a product change, not a defect.
 
 ---
+
+## Dual-payment (`shop_pickup`) scripted regression
+
+**Review 02-qa-engineer, M3.** A suggested-shop order is charged **twice** —
+the delivery fee at order time, the goods after the rider reports the till
+total. Two Paystack transactions, two references, two webhooks. Run the whole
+script; a partial run proves nothing, because the failure mode is the second
+charge interacting with the first.
+
+| # | Step | Pass criteria |
+|---|------|---------------|
+| 1 | Student: **Suggest a shop**, add ≥2 manual items, place order | Order created, `orderType: shop_pickup`, `suggestionId` set, `shopId` null |
+| 2 | Check the order before paying | Total = delivery fee only. No item price yet — nobody knows it |
+| 3 | Pay the delivery fee (test card) | `paidAt` set, `paystackRef` set, status `confirmed` |
+| 4 | Confirm the PIN arrived | SMS received **once**; in-app PIN matches |
+| 5 | Rider accepts, goes to the shop | Order appears in the rider feed after step 3, not before |
+| 6 | Rider records goods cost (per-unit prices) | Server multiplies by quantity — check the arithmetic, not the rider's |
+| 7 | Student is notified goods are payable | Second checkout offered; amount = sum of recorded lines |
+| 8 | Pay the goods charge | `goodsPaidAt` set, `goodsPaystackRef` set and **different** from `paystackRef` |
+| 9 | Rider delivers with the PIN | Delivery succeeds; the PIN from step 4 still works |
+| 10 | Admin order detail | Both references shown; amounts reconcile against Paystack |
+
+**Negatives to run in the same session:**
+
+- Re-submit the delivery-fee checkout after step 3 → refused; `paystackRef` unchanged.
+- Replay the step-3 webhook → no second PIN SMS, no PIN change.
+- Cancel after step 3 but before step 8 → **only** the delivery fee is refunded.
+- Cancel after step 8 → **both** references refunded.
+
+---
+
+## Negative tests
+
+Run these every pass. They are the cases where a silent success is worse than
+a visible failure.
+
+| Test | Expected |
+|------|----------|
+| Deliver with a wrong PIN | Rejected; cooldown applies after repeated attempts |
+| Rider A delivers Rider B's order with a valid PIN | Rejected — the PIN is not the only check |
+| Open another student's order by ID | 404, not a redacted order |
+| Initiate payment on an already-paid order | Refused; the settled reference is never overwritten |
+| Resend the PIN twice inside a minute | Second is throttled (429) |
+| Shop owner edits another shop's product | 404 |
+| Unverified rider tries to accept a job | Refused |
+| Open a deactivated shop by direct URL | 404, identical to a shop that never existed |
+
+---
+
+## Visual / design drift checklist
+
+**Review 02-qa-engineer, L2.** Capture these on every release and diff against
+the previous set. v6 rules from `CLAUDE.md`: no gradients, no colored shadows,
+no emoji, three radii only (card 12px, input 8px, pill 9999px), DM Sans.
+
+| Surface | Screens to capture |
+|---------|--------------------|
+| Mobile — student | Home, shop detail, basket, calendar, checkout, order tracking, PIN |
+| Mobile — rider | Feed, job detail, deliver/PIN entry, earnings |
+| Mobile — shop | Incoming orders, menu list, product edit |
+| Admin | Login, dashboard, orders list, order detail, riders, suggestions |
+
+Check on each: lime (`#87ea5c`) appears as fill only and never as text; every
+lime CTA carries an ink (`#083400`) label; cards have no border and no shadow;
+shadow appears only on the search capsule and sheets.
 
 ## Sign-off checklist
 
@@ -121,6 +198,9 @@ Copy into your release notes when complete:
 - [ ] Admin order detail matches Paystack reference and GHS amounts
 - [ ] No unexpected 401/403/502 in browser network tab during flow
 - [ ] Sentry (if `SENTRY_DSN` set) shows no unhandled payment errors during run
+- [ ] Dual-payment (`shop_pickup`) script completed end to end, both refs distinct
+- [ ] Negative tests all refused as expected
+- [ ] Visual checklist captured; no v6 drift (no gradients/colored shadows/emoji)
 
 **Signed:** _______________ **Date:** _______________
 

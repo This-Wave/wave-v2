@@ -36,3 +36,30 @@ export const completeProfileSchema = z.object({
   email: z.string().email().max(160).optional(),
 });
 export type CompleteProfileInput = z.infer<typeof completeProfileSchema>;
+
+// Self-service edits to an existing profile (PUT /profiles/me). Deliberately
+// narrow: `role`, `universityId`, `isVerified` and `isActive` are all
+// privilege-bearing and must never be settable by the account holder, so
+// `.strict()` rejects them outright rather than letting them be silently
+// dropped. Every field is optional — the route applies only what is present.
+export const updateProfileSchema = z
+  .object({
+    fullName: z.string().min(2).max(120).optional(),
+    // `.url()` alone is not enough: Zod accepts any WHATWG-parseable URL, so
+    // `javascript:alert(1)` passes it. That string is then stored and rendered
+    // as an avatar `src`/`href` by the admin dashboard — stored XSS. Restrict
+    // to the two schemes an image can actually be served over.
+    avatarUrl: z
+      .string()
+      .url()
+      .max(500)
+      .refine(
+        (v) => /^https?:\/\//i.test(v),
+        "avatarUrl must be an http(s) URL",
+      )
+      .optional(),
+    // Nullable, unlike register/complete: clearing an email is a legitimate edit.
+    email: z.string().email().max(160).nullable().optional(),
+  })
+  .strict();
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

@@ -1,5 +1,4 @@
 import type { FastifyInstance } from "fastify";
-import axios from "axios";
 import {
   fetchPaystackTransaction,
   initiatePaystackPayment,

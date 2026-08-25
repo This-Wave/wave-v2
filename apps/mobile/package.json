@@ -2,7 +2,7 @@
   "name": "@wave/mobile",
   "version": "0.1.0",
   "private": true,
-  "description": "Wave student/rider/shop mobile app — React Native (Expo)",
+  "description": "Wave student/rider/shop mobile app \u2014 React Native (Expo)",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -11,7 +11,8 @@
     "web": "expo start --web",
     "build:web": "expo export --platform web",
     "lint": "eslint src --ext .ts,.tsx",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test:unit": "vitest run src"
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
@@ -63,6 +64,7 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "postcss": "8.4.31",
     "tailwindcss": "3.3.2",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
   }
 }

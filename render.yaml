@@ -81,6 +81,15 @@ services:
         sync: false
       - key: SENTRY_DSN
         sync: false
+      # Shop-live alert emails. `sendEmailQuietly` deliberately no-ops rather
+      # than throwing when this is unset, so a missing key produces NO error —
+      # suggestions get onboarded and the student who asked for the shop is
+      # simply never told. Declared here so the gap is visible in the Render
+      # dashboard rather than silent in production.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        value: Wave <notifications@wave.app>
 
   # ---------------------------------------------------------------------------
   # Admin — Next.js 14. Safe to leave on free: a cold start only ever makes an

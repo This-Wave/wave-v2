@@ -23,7 +23,6 @@ import { findOrderForUser } from "./access";
 import { clientSafeOrder, feedOrder } from "./select";
 import { endOrderWithRefund } from "../payments/refund";
 import { notifyGoodsCostRecorded, notifyOrderStatus } from "../notifications/dispatch";
-import rateLimit from "@fastify/rate-limit";
 import { PIN_RESEND_RATE_LIMIT } from "../../plugins/rateLimit";
 
 export async function orderRoutes(fastify: FastifyInstance) {
@@ -626,7 +625,6 @@ export async function orderRoutes(fastify: FastifyInstance) {
   // Re-issues a delivery PIN, texts it, and returns the digits so the app can
   // refresh what it shows without a second round-trip.
   const PIN_RESEND_COOLDOWN_MS = 60_000;
-  const lastPinResend = new Map<string, number>();
 
   fastify.post(
     "/:id/resend-pin",
@@ -644,7 +642,13 @@ export async function orderRoutes(fastify: FastifyInstance) {
 
       const order = await fastify.prisma.order.findUnique({
         where: { id },
-        select: { id: true, studentId: true, status: true, student: { select: { phone: true } } },
+        select: {
+          id: true,
+          studentId: true,
+          status: true,
+          lastPinResendAt: true,
+          student: { select: { phone: true } },
+        },
       });
       if (!order || order.studentId !== request.user!.id) {
         return reply.code(404).send({ error: "Order not found" });
@@ -653,15 +657,28 @@ export async function orderRoutes(fastify: FastifyInstance) {
         return reply.code(409).send({ error: "This order has no active delivery PIN" });
       }
 
-      // Each send costs money, so throttle. Per-process, which is enough at
-      // pilot scale on a single Railway instance.
-      const since = Date.now() - (lastPinResend.get(order.id) ?? 0);
-      if (since < PIN_RESEND_COOLDOWN_MS) {
+      // Each send costs money, so throttle. The cooldown is claimed with a
+      // conditional UPDATE rather than tracked in a per-process Map: the Map
+      // held only while the API ran as a single instance, and two of them would
+      // each keep their own and let a student resend twice per window.
+      //
+      // `count === 0` means someone else claimed inside the window — including
+      // the student's own double-tap racing itself.
+      const cutoff = new Date(Date.now() - PIN_RESEND_COOLDOWN_MS);
+      const claimed = await fastify.prisma.order.updateMany({
+        where: {
+          id: order.id,
+          OR: [{ lastPinResendAt: null }, { lastPinResendAt: { lt: cutoff } }],
+        },
+        data: { lastPinResendAt: new Date() },
+      });
+      if (claimed.count === 0) {
+        const last = order.lastPinResendAt?.getTime() ?? Date.now();
+        const waitMs = Math.max(0, PIN_RESEND_COOLDOWN_MS - (Date.now() - last));
         return reply.code(429).send({
-          error: `Please wait ${Math.ceil((PIN_RESEND_COOLDOWN_MS - since) / 1000)}s before requesting another PIN`,
+          error: `Please wait ${Math.ceil(waitMs / 1000)}s before requesting another PIN`,
         });
       }
-      lastPinResend.set(order.id, Date.now());
 
       const { smsSent, pin } = await issueDeliveryPin({
         fastify,

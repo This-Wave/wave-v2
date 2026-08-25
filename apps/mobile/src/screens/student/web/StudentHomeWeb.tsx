@@ -95,9 +95,9 @@ export function StudentHomeWeb() {
         <Gutter className="mb-8">
           <SearchCapsule
             waveLabel={wave?.dateLabel ?? "Next Wave"}
-            onPressQuery={() => navigation.navigate("ShopSelection", waveDate)}
+            onPressQuery={() => navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })}
             onPressWave={() => openWaveCalendar(navigation)}
-            onSubmit={() => navigation.navigate("ShopSelection", waveDate)}
+            onSubmit={() => navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })}
           />
           <Pressable
             onPress={() => navigation.navigate("PickupRequest", waveDate)}

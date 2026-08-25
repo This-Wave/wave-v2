@@ -1,4 +1,4 @@
-import type { CompleteProfileInput } from "@wave/shared";
+import type { CompleteProfileInput, UpdateProfileInput } from "@wave/shared";
 import { api } from "./api";
 import type { Profile } from "../types";
 
@@ -12,11 +12,9 @@ export async function completeProfile(input: CompleteProfileInput): Promise<Prof
   return data.profile;
 }
 
-export async function updateProfile(input: {
-  fullName?: string;
-  avatarUrl?: string;
-  email?: string | null;
-}): Promise<Profile> {
+// Typed from the server's Zod schema rather than a hand-copied shape: the
+// schema is `.strict()`, so any field that drifts in here is a 400 at runtime.
+export async function updateProfile(input: UpdateProfileInput): Promise<Profile> {
   const { data } = await api.put<{ profile: Profile }>("/profile/me", input);
   return data.profile;
 }

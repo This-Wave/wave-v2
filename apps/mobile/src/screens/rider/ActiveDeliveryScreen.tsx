@@ -166,6 +166,11 @@ export function ActiveDeliveryScreen() {
             </View>
           ) : null}
 
+          {/* Wave stores a free-text `locationText`, never coordinates, so
+              tapping this runs a map *search* rather than dropping a pin
+              (see lib/maps.ts). Said plainly here so a rider expecting
+              turn-by-turn to an exact spot isn't misled into trusting it
+              (review 04-ux-design, M3). */}
           <RowGroup>
             <Row
               title={origin.name ?? "Shop"}
@@ -192,6 +197,13 @@ export function ActiveDeliveryScreen() {
               />
             ) : null}
           </RowGroup>
+
+          {destination ? (
+            <Text className="mt-3 font-sans text-meta text-muted">
+              Tapping the shop searches your map app for that area — Wave has no exact pin.
+              Ask around when you get close.
+            </Text>
+          ) : null}
         </Gutter>
       </ScreenBody>
 

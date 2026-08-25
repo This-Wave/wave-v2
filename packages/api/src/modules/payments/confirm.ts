@@ -30,7 +30,41 @@ export async function confirmDeliveryFeePaid(args: {
   });
   if (!order) return { confirmed: false, alreadyProcessed: false };
 
-  if (order.paidAt && order.deliveryPinHash) {
+  // The claim, and the whole of the idempotency guarantee. `updateMany` with
+  // `paidAt: null` in the predicate compiles to a single conditional UPDATE, so
+  // the database — not this process — decides which caller wins: exactly one
+  // gets `count === 1`, every other concurrent caller gets 0 and returns.
+  //
+  // Read-then-write was the bug. Webhook and verify-poll routinely land at the
+  // same instant, and both could read `paidAt: null` before either wrote, so
+  // both proceeded to issue a PIN. The second write clobbered the first's
+  // bcrypt hash while the first's plaintext was already in the student's SMS
+  // inbox — a PIN that looks right to the student and fails at the door.
+  //
+  // The claim has to precede PIN generation for the same reason: claiming
+  // afterwards would still let two racers both generate and both text.
+  const claimed = await fastify.prisma.order.updateMany({
+    where: { id: order.id, paidAt: null },
+    data: { status: "confirmed", paidAt: new Date() },
+  });
+  if (claimed.count === 0) {
+    // Deliberately *not* widened to `OR: [{ paidAt: null }, { deliveryPinHash:
+    // null }]` to also re-issue a missing PIN. Postgres re-evaluates the
+    // predicate on the locked row after the winner commits, and the winner sets
+    // `paidAt` in the claim but the hash in a later statement — so a loser would
+    // still see `deliveryPinHash: null`, match, and text a second PIN. The race
+    // would be back.
+    //
+    // That leaves one stranded state: claim committed, PIN write then failed.
+    // It is unreachable by ordinary means (the same DB served the claim a
+    // moment earlier) and `POST /orders/:id/resend-pin` recovers it, but it is
+    // silent, so say so loudly enough to be alertable.
+    if (order.paidAt && !order.deliveryPinHash) {
+      log.error(
+        { orderId: order.id },
+        "Order is paid but has no delivery PIN hash — stranded, student must request a resend",
+      );
+    }
     return { confirmed: true, alreadyProcessed: true };
   }
 
@@ -42,12 +76,7 @@ export async function confirmDeliveryFeePaid(args: {
       fastify.prisma.order
         .update({
           where: { id: order.id },
-          data: {
-            status: "confirmed",
-            paidAt: new Date(),
-            deliveryPinHash: hash,
-            deliveryPinCiphertext: ciphertext,
-          },
+          data: { deliveryPinHash: hash, deliveryPinCiphertext: ciphertext },
         })
         .then(() => undefined),
   });

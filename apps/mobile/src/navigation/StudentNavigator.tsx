@@ -53,7 +53,9 @@ export type StudentStackParamList = {
   ChooseService: WaveParams;
   // Undefined when entered from Home's "Buy for me" tile, which books the next
   // open Wave — the calendar is the deliberate path, not the only one.
-  ShopSelection: WaveParams | undefined;
+  // `focusSearch` is set when arriving from Home's search capsule, whose
+  // placeholder promises typing — see ShopSelectionScreen.
+  ShopSelection: (WaveParams & { focusSearch?: boolean }) | undefined;
   ShopMenu: { shopId: string; shopName: string } & WaveParams;
   SuggestShop: { initialQuery?: string } & WaveParams;
   SuggestOrderSummary: {

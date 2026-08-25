@@ -21,6 +21,14 @@ const envSchema = z.object({
     .min(1)
     .refine((v) => v.startsWith("sk_"), "PAYSTACK_SECRET_KEY must be a Paystack secret key (sk_test_… or sk_live_…), not the public pk_… key"),
 
+  // Misnamed for historical reasons: this signs nothing. Supabase Auth issues
+  // and verifies every JWT Wave uses. This is the symmetric key that encrypts
+  // the delivery-PIN ciphertext in `orders/pinCrypto.ts`, so the owner can
+  // re-read their PIN in-app without us storing it in plaintext.
+  //
+  // Rotation is not free: existing `deliveryPinCiphertext` rows become
+  // undecryptable. The bcrypt hash is unaffected, so PINs already texted still
+  // work at the door — only in-app display breaks, and `resend-pin` reissues.
   JWT_SECRET: z.string().min(1),
 
   // Real phone OTP delivery: Supabase Auth generates/verifies the code, but

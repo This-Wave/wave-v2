@@ -1,26 +1,23 @@
 import type { FastifyInstance } from "fastify";
-import { completeProfileSchema } from "@wave/shared";
-import { createServerSupabaseClient } from "../../lib/supabaseServer";
+import { completeProfileSchema, updateProfileSchema } from "@wave/shared";
+import { resolveSupabaseUser } from "../../lib/authUser";
 
+/**
+ * `resolveSupabaseUser` plus the 401 these routes answer with. The resolution
+ * itself is shared with `POST /auth/register`, which needs the same
+ * profile-less token check.
+ */
 async function resolveAuthUser(
   fastify: FastifyInstance,
   authHeader: string | undefined,
   reply: { code: (status: number) => { send: (body: unknown) => unknown } },
 ) {
-  if (!authHeader?.startsWith("Bearer ")) {
-    reply.code(401).send({ error: "Missing bearer token" });
-    return null;
-  }
-
-  const supabase = createServerSupabaseClient(fastify.config.SUPABASE_URL, fastify.config.SUPABASE_SERVICE_ROLE_KEY);
-  const token = authHeader.slice("Bearer ".length);
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user) {
+  const user = await resolveSupabaseUser(fastify, authHeader);
+  if (!user) {
     reply.code(401).send({ error: "Invalid or expired token" });
     return null;
   }
-
-  return data.user;
+  return user;
 }
 
 export async function profileRoutes(fastify: FastifyInstance) {
@@ -71,20 +68,20 @@ export async function profileRoutes(fastify: FastifyInstance) {
   });
 
   fastify.put("/me", { preHandler: fastify.authenticate }, async (request, reply) => {
-    const body = request.body as {
-      fullName?: string;
-      avatarUrl?: string;
-      email?: string | null;
-    };
+    const parsed = updateProfileSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    const body = parsed.data;
+
+    // Built key-by-key rather than spread: `exactOptionalPropertyTypes` aside,
+    // handing Prisma the parse result wholesale would write `undefined` keys
+    // and makes the set of updatable columns implicit. The schema is `.strict()`,
+    // so `role` / `isVerified` / `isActive` are rejected before reaching here.
     const data: { fullName?: string; avatarUrl?: string; email?: string | null } = {};
     if (body.fullName !== undefined) data.fullName = body.fullName;
     if (body.avatarUrl !== undefined) data.avatarUrl = body.avatarUrl;
-    if (body.email !== undefined) {
-      if (body.email !== null && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
-        return reply.code(400).send({ error: "Invalid email address" });
-      }
-      data.email = body.email;
-    }
+    if (body.email !== undefined) data.email = body.email;
     const profile = await fastify.prisma.profile.update({
       where: { id: request.user!.id },
       data,

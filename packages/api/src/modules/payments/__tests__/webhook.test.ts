@@ -58,6 +58,15 @@ function makePrisma(order: unknown) {
         if ("id" in args.where) return order === null ? null : fullOrder;
         return order;
       }),
+      // Stands in for the conditional `UPDATE … WHERE paid_at IS NULL` that is
+      // the real idempotency guard: matches only while the row is unpaid, so
+      // `count` is what tells confirm.ts whether it won the claim.
+      updateMany: vi.fn(async (args: { where: Record<string, unknown> }) => {
+        if ("paidAt" in args.where && args.where.paidAt === null && fullOrder.paidAt) {
+          return { count: 0 };
+        }
+        return { count: 1 };
+      }),
       update: vi.fn().mockResolvedValue({}),
     },
   };
@@ -229,12 +238,46 @@ describe("POST /payments/webhook — event handling", () => {
 
     await post(app, PAID_EVENT, sign(JSON.stringify(PAID_EVENT)));
 
+    // `status` / `paidAt` now ride on the claim, not this write.
+    expect(prisma.order.updateMany.mock.calls[0]?.[0]).toMatchObject({
+      where: { id: "order-1", paidAt: null },
+      data: { status: "confirmed" },
+    });
+
     const written = prisma.order.update.mock.calls[0]?.[0]?.data;
     expect(written).toMatchObject({
-      status: "confirmed",
       deliveryPinHash: "$2b$10$hashedvalue",
       deliveryPinCiphertext: "cipher-blob",
     });
     expect(JSON.stringify(written)).not.toMatch(/\b\d{6}\b/);
+  });
+
+  test("the claim precedes PIN generation, so a loser never texts a PIN", async () => {
+    // The ordering is the fix. Claiming after issuing would still let two
+    // concurrent callers both generate and both send.
+    const prisma = makePrisma(makeOrder());
+    const app = await buildTestApp(paymentRoutes, { prisma });
+
+    await post(app, PAID_EVENT, sign(JSON.stringify(PAID_EVENT)));
+
+    expect(prisma.order.updateMany).toHaveBeenCalled();
+    const claimOrder = prisma.order.updateMany.mock.invocationCallOrder[0]!;
+    const issueOrder = issueDeliveryPin.mock.invocationCallOrder[0]!;
+    expect(claimOrder).toBeLessThan(issueOrder);
+  });
+
+  test("a caller that loses the claim issues no PIN, even with the hash unwritten", async () => {
+    // The concurrent case the old read-then-write guard missed: both callers
+    // read `paidAt: null`, both issued, and the second clobbered the first's
+    // hash after the first had already texted its PIN.
+    const prisma = makePrisma(makeOrder({ paidAt: new Date(), deliveryPinHash: null }));
+    const app = await buildTestApp(paymentRoutes, { prisma });
+
+    const res = await post(app, PAID_EVENT, sign(JSON.stringify(PAID_EVENT)));
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ received: true, alreadyProcessed: true });
+    expect(issueDeliveryPin).not.toHaveBeenCalled();
+    expect(prisma.order.update).not.toHaveBeenCalled();
   });
 });
