@@ -104,7 +104,16 @@ export default function ConfigPage() {
     apiFetch<{ config: ConfigRow[] }>("/admin/config", accessToken)
       .then((res) => {
         setRows(res.config);
-        setDraft(Object.fromEntries(res.config.map((r) => [r.key, r.value])));
+        // Seed the form only when it is untouched. This effect re-runs whenever
+        // `accessToken` changes identity, and Supabase mints a new token on its
+        // hourly refresh (and on tab focus) — which used to overwrite whatever
+        // the admin had typed, revert the field and re-disable Save with no
+        // indication at all that their edit had been thrown away.
+        setDraft((current) =>
+          Object.keys(current).length === 0
+            ? Object.fromEntries(res.config.map((r) => [r.key, r.value]))
+            : current,
+        );
       })
       .catch(() => {
         setRows([]);
@@ -134,6 +143,11 @@ export default function ConfigPage() {
         });
       }
       setSavedAt(new Date().toLocaleString());
+      // Clear the draft so the reload below re-seeds it: `load` now refuses to
+      // overwrite a non-empty draft, and the server may normalise what it
+      // stored ("20" -> "20.00"), which would otherwise leave the form showing
+      // unsaved changes forever.
+      setDraft({});
       load();
     } catch (err) {
       // The API validates these now — a mistyped fee is a 400 naming the field.
