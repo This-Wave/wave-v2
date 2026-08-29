@@ -9,6 +9,7 @@ import { useOrder } from "../../lib/orders";
 import { useDeliverOrder } from "../../lib/rider";
 import { resetRiderTabs } from "../../lib/navigationFlows";
 import { showToast } from "../../store/toastStore";
+import { apiErrorMessage } from "../../lib/apiError";
 
 type Route = RouteProp<RiderStackParamList, "PinEntry">;
 
@@ -34,8 +35,14 @@ export function PinEntryScreen() {
       await deliverOrder.mutateAsync({ orderId: params.orderId, pin });
       showToast("Delivery complete.", "success");
       resetRiderTabs(navigation, "MyOrders");
-    } catch {
-      setError("That code doesn't match. Ask the student to read it again.");
+    } catch (err) {
+      // Use the API's own words. It now counts down the remaining tries and
+      // explains the lockout ("ask the student to tap Resend PIN"), and a
+      // hardcoded "that code doesn't match" would hide both — leaving a rider
+      // retyping the same code against an order that has stopped answering.
+      setError(
+        apiErrorMessage(err, "That code doesn't match. Ask the student to read it again."),
+      );
       setPin("");
     }
   }

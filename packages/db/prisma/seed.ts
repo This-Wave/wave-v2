@@ -21,6 +21,8 @@ async function main() {
       { key: "loyalty_discount_pct", value: "20", description: "Discount % after 6 deliveries" },
       { key: "loyalty_threshold", value: "6", description: "Deliveries needed for discount" },
       { key: "special_order_lead_hours", value: "24", description: "Minimum lead time for special orders" },
+      { key: "goods_cost_max_ghs", value: "1000.00", description: "Max goods total a rider may record for a suggested-shop order" },
+      { key: "rider_earning_pct", value: "80", description: "Rider's share of the delivery fee on a completed delivery, %" },
     ],
     skipDuplicates: true,
   });

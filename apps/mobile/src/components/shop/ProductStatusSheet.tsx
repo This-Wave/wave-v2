@@ -34,6 +34,7 @@ export function ProductStatusSheet({
             title={opt.label}
             meta={opt.hint}
             chevron={false}
+            accessibilityLabel={`Set ${productName} to ${opt.label}`}
             trailing={
               current === opt.status ? (
                 <CheckIcon size={18} color={colors.ink} strokeWidth={2.2} />

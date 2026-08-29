@@ -41,21 +41,25 @@ export function Modal({ open, title, description, onClose, children, footer }: M
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-6 py-10"
       onMouseDown={(event) => {
-        // Only a click that both starts and ends on the backdrop closes it —
-        // otherwise a drag that ends outside a text field dismisses the form.
         if (event.target === event.currentTarget) onClose();
       }}
+      role="presentation"
     >
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby="modal-title"
+        aria-describedby={description ? "modal-description" : undefined}
         className="max-h-full w-full max-w-[520px] overflow-y-auto rounded-card border border-border bg-surface shadow-card"
       >
         <div className="border-b border-border px-6 py-5">
-          <h2 className="text-[17px] font-semibold tracking-tight text-ink">{title}</h2>
-          {description ? <p className="mt-1 text-[12.5px] leading-5 text-muted">{description}</p> : null}
+          <h2 id="modal-title" className="text-[17px] font-semibold tracking-tight text-ink">{title}</h2>
+          {description ? (
+            <p id="modal-description" className="mt-1 text-[12.5px] leading-5 text-muted">
+              {description}
+            </p>
+          ) : null}
         </div>
         <div className="px-6 py-5">{children}</div>
         {footer ? <div className="border-t border-border px-6 py-4">{footer}</div> : null}

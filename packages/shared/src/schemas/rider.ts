@@ -26,8 +26,15 @@ export const reviewVerificationSchema = z.object({
 });
 export type ReviewVerificationInput = z.infer<typeof reviewVerificationSchema>;
 
+/**
+ * The rider's own online/offline toggle.
+ *
+ * `isAvailable`, NOT `isActive`. This used to write `isActive`, which is the
+ * account ban flag the API authenticates against — so a rider going offline
+ * got a 403 on their next request and could not turn the toggle back on.
+ */
 export const setAvailabilitySchema = z.object({
-  isActive: z.boolean(),
+  isAvailable: z.boolean(),
 });
 export type SetAvailabilityInput = z.infer<typeof setAvailabilitySchema>;
 

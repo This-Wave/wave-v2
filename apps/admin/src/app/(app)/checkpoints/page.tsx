@@ -8,6 +8,7 @@ import { DataTable, type Column } from "../../../components/ui/DataTable";
 import { StatusPill } from "../../../components/ui/StatusPill";
 import { Button, RowAction } from "../../../components/ui/Button";
 import { CreateCheckpointModal } from "../../../components/CreateCheckpointModal";
+import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 
 interface Checkpoint {
   id: string;
@@ -20,14 +21,19 @@ interface Checkpoint {
 export default function CheckpointsPage() {
   const { accessToken } = useAdminAuth();
   const [checkpoints, setCheckpoints] = useState<Checkpoint[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   const load = useCallback(() => {
     if (!accessToken) return;
+    setError(null);
     apiFetch<{ checkpoints: Checkpoint[] }>("/admin/checkpoints", accessToken)
       .then((res) => setCheckpoints(res.checkpoints))
-      .catch(() => setCheckpoints([]));
+      .catch(() => {
+        setCheckpoints([]);
+        setError("Could not load checkpoints. Check your connection and try again.");
+      });
   }, [accessToken]);
 
   useEffect(() => {
@@ -92,6 +98,8 @@ export default function CheckpointsPage() {
         subtitle="Campus drop-off points"
         action={<Button label="Add checkpoint" onClick={() => setCreating(true)} />}
       />
+
+      {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
 
       <CreateCheckpointModal
         open={creating}

@@ -31,7 +31,7 @@ export async function ensureAndroidChannel(): Promise<void> {
     name: "Order updates",
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: "#009933",
+    lightColor: "#87ea5c",
   });
 }
 

@@ -35,7 +35,9 @@ import type { Order } from "../../types";
 export function OrderFeedScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RiderStackParamList>>();
   const profile = useAuthStore((s) => s.profile);
-  const [online, setOnline] = useState(profile?.isActive ?? true);
+  // `isAvailable`, not `isActive` — the latter is the ban flag, and reading it
+  // here would show a banned rider as "Online" while every request 403s.
+  const [online, setOnline] = useState(profile?.isAvailable ?? true);
   const { data: orders, isLoading, isError, refetch, isRefetching } = useAvailableOrders();
   const setAvailability = useSetAvailability();
   const wave = useWave();
@@ -74,7 +76,11 @@ export function OrderFeedScreen() {
             )}
           </View>
           <View className="items-end gap-1.5">
-            <ToggleSwitch value={online} onValueChange={handleToggle} />
+            <ToggleSwitch
+              value={online}
+              onValueChange={handleToggle}
+              accessibilityLabel={online ? "Available for deliveries" : "Not available for deliveries"}
+            />
             <Text className="font-sans text-meta text-muted">{online ? "Online" : "Offline"}</Text>
           </View>
         </Gutter>

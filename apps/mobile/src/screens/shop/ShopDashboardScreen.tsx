@@ -67,7 +67,7 @@ export function ShopDashboardScreen() {
                   </Text>
                   <Text className="mt-1 font-sans text-ui text-muted">
                     {wave
-                      ? `${wave.name} · closes in ${wave.countdown}. Accept what you can fulfil.`
+                      ? `${wave.name} · closes in ${wave.countdown}. Flag anything you can’t fulfil.`
                       : "Today’s Wave and what needs a decision."}
                   </Text>
                 </>

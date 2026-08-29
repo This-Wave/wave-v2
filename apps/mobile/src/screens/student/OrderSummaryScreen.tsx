@@ -16,6 +16,7 @@ import {
   WaveContextBanner,
 } from "../../components/v6";
 import { useCompletedDeliveryCount, useCreateOrder } from "../../lib/orders";
+import { apiErrorMessage } from "../../lib/apiError";
 import {
   deliveryDayFor,
   estimateOrderTotal,
@@ -86,8 +87,7 @@ export function OrderSummaryScreen() {
       // The server refuses a basket whose items went out of stock between the
       // menu and here. That is worth saying in its own words rather than as
       // "something went wrong" — it tells the student what to change.
-      const message = (err as { response?: { data?: { error?: string } } }).response?.data?.error;
-      setError(message ?? "Couldn't create your order. Please try again.");
+      setError(apiErrorMessage(err, "Couldn't create your order. Please try again."));
     }
   }
 

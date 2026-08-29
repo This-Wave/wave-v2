@@ -1,5 +1,4 @@
 import type { FastifyInstance } from "fastify";
-import axios from "axios";
 import {
   fetchPaystackTransaction,
   initiatePaystackPayment,
@@ -9,8 +8,63 @@ import {
 } from "./paystack";
 import { paystackMatchesGhs } from "./amounts";
 import { confirmDeliveryFeePaid, confirmGoodsPaid } from "./confirm";
+import { capturePaymentError, capturePaymentIssue } from "../../lib/sentry";
+import { parseCorsOrigins } from "../../config/cors";
+import type { Env } from "../../config/env";
 
 const PAYABLE_DELIVERY_STATUSES = ["pending", "payment_pending"] as const;
+
+/** What both initiate routes attach, and Paystack echoes back on the webhook. */
+interface PaystackMetadata {
+  order_id?: string;
+  student_id?: string;
+  kind?: string;
+}
+
+/**
+ * Paystack returns `metadata` as an object on some events and as a JSON string
+ * on others, and as an empty string when there was none. Anything unparseable
+ * is treated as absent — this is a fallback path, so a bad value must degrade
+ * to "no metadata", never throw inside the webhook.
+ */
+function parsePaystackMetadata(raw: PaystackMetadata | string | undefined): PaystackMetadata | undefined {
+  if (!raw) return undefined;
+  if (typeof raw !== "string") return raw;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as PaystackMetadata) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * A charge that matched its order by metadata rather than by reference — i.e.
+ * the student paid on a checkout page whose reference has since been
+ * overwritten by another `/initiate`.
+ *
+ * Recoverable, and recovered: the order is confirmed and the paid reference is
+ * written back so a later refund targets the transaction that actually took
+ * money. Still worth an alert, because it means a second checkout was opened
+ * and may also have been paid.
+ */
+function reportStaleReference(args: {
+  log: { warn: (obj: unknown, msg: string) => void };
+  phase: string;
+  orderId: string;
+  reference: string;
+  storedReference: string | null;
+}): void {
+  args.log.warn(
+    { orderId: args.orderId, paidReference: args.reference, storedReference: args.storedReference },
+    "Paystack charge matched by metadata — the order carried a newer reference from a re-initiated checkout",
+  );
+  capturePaymentIssue("Paystack charge paid on a superseded reference", {
+    phase: args.phase,
+    orderId: args.orderId,
+    reference: args.reference,
+  });
+}
 
 export async function paymentRoutes(fastify: FastifyInstance) {
   fastify.post("/initiate", { preHandler: fastify.authenticate }, async (request, reply) => {
@@ -45,9 +99,31 @@ export async function paymentRoutes(fastify: FastifyInstance) {
       return reply.code(409).send({ error: "This order has nothing to pay yet" });
     }
 
+    // Never abandon a reference without asking whether it was paid.
+    //
+    // The row holds at most one reference, so minting a new one orphans the old
+    // — and the old checkout page is still live in the student's browser or
+    // WebView. Checking first turns the dangerous case (they pay on the old
+    // page after we stopped watching it) into an ordinary "already paid", and
+    // stops a student being charged twice for one order.
+    if (order.paystackRef) {
+      const settled = await confirmIfAlreadyPaid({
+        reference: order.paystackRef,
+        isGoods: false,
+        orderId: order.id,
+        expectedGhs: amountGhs,
+        log: request.log,
+      });
+      if (settled) {
+        return reply.code(409).send({
+          error: "This order has already been paid — pull down to refresh.",
+        });
+      }
+    }
+
     const profile = await fastify.prisma.profile.findUnique({ where: { id: order.studentId } });
     const reference = `WAVE-${order.id}-${Date.now()}`;
-    const callbackUrl = paystackCallbackUrl(fastify.config.APP_URL, body.returnOrigin);
+    const callbackUrl = paystackCallbackUrl(fastify.config, body.returnOrigin);
 
     let authorization_url: string;
     try {
@@ -62,6 +138,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     } catch (err) {
       const message = paystackErrorMessage(err);
       request.log.error(err, "Paystack initiate failed");
+      capturePaymentError(err, { phase: "initiate", orderId: order.id, reference });
       return reply.code(502).send({ error: message ?? "Payment provider error, please try again" });
     }
 
@@ -112,9 +189,24 @@ export async function paymentRoutes(fastify: FastifyInstance) {
         .send({ error: "Your runner hasn't recorded what the items cost yet" });
     }
 
+    if (order.goodsPaystackRef) {
+      const settled = await confirmIfAlreadyPaid({
+        reference: order.goodsPaystackRef,
+        isGoods: true,
+        orderId: order.id,
+        expectedGhs: goodsAmount,
+        log: request.log,
+      });
+      if (settled) {
+        return reply.code(409).send({
+          error: "You've already paid for the goods on this order — pull down to refresh.",
+        });
+      }
+    }
+
     const profile = await fastify.prisma.profile.findUnique({ where: { id: order.studentId } });
     const reference = `WAVEGOODS-${order.id}-${Date.now()}`;
-    const callbackUrl = paystackCallbackUrl(fastify.config.APP_URL, body.returnOrigin);
+    const callbackUrl = paystackCallbackUrl(fastify.config, body.returnOrigin);
 
     let authorization_url: string;
     try {
@@ -129,6 +221,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     } catch (err) {
       const message = paystackErrorMessage(err);
       request.log.error(err, "Paystack goods initiate failed");
+      capturePaymentError(err, { phase: "initiate_goods", orderId: order.id, reference });
       return reply.code(502).send({ error: message ?? "Payment provider error, please try again" });
     }
 
@@ -154,59 +247,144 @@ export async function paymentRoutes(fastify: FastifyInstance) {
 
       const event = request.body as {
         event: string;
-        data: { reference: string; status: string; amount: number; currency: string };
+        data: {
+          reference: string;
+          status: string;
+          amount: number;
+          currency: string;
+          metadata?: PaystackMetadata | string;
+        };
       };
       if (event.event !== "charge.success") {
         return reply.send({ received: true });
       }
 
+      // Which order this charge belongs to, when the reference alone cannot say.
+      //
+      // `/initiate` overwrites `paystackRef` on every call, so a student who
+      // opens checkout, backs out, and taps Pay again leaves the FIRST Paystack
+      // page live with a reference no longer on any row. Paying on it used to
+      // land here, miss both lookups, and get a 404 — Paystack then retries and
+      // eventually gives up, leaving a charged card and an order stuck at
+      // `payment_pending` with nothing in Sentry to say so.
+      //
+      // `metadata.order_id` is set by both initiate routes and echoed back by
+      // Paystack, so it survives the overwrite. It is safe to trust: this
+      // payload's HMAC has already been verified, and the amount is asserted
+      // against the order below either way.
+      const meta = parsePaystackMetadata(event.data.metadata);
+
       // A goods charge is the second payment on a suggested-shop order and has
       // its own reference column. It is handled and returned here, before the
       // delivery-fee path below — that path issues a PIN and announces the order
       // to riders, neither of which must happen twice.
-      const goodsOrder = await fastify.prisma.order.findUnique({
+      const goodsSelect = {
+        id: true,
+        goodsPaidAt: true,
+        studentId: true,
+        goodsPaystackRef: true,
+        itemPrice: true,
+      } as const;
+      let goodsOrder = await fastify.prisma.order.findUnique({
         where: { goodsPaystackRef: event.data.reference },
-        select: {
-          id: true,
-          goodsPaidAt: true,
-          studentId: true,
-          goodsPaystackRef: true,
-          itemPrice: true,
-        },
+        select: goodsSelect,
       });
+      let goodsByMetadata = false;
+      if (!goodsOrder && meta?.kind === "goods" && meta.order_id) {
+        goodsOrder = await fastify.prisma.order.findUnique({
+          where: { id: meta.order_id },
+          select: goodsSelect,
+        });
+        goodsByMetadata = !!goodsOrder;
+      }
       // Re-check the reference on the row rather than trusting the lookup to
       // have been the only filter. Belt and braces on the money path: if this
       // branch ever claimed a delivery-fee webhook it would swallow the PIN
       // issue and the rider announcement, and the order would sit paid but
       // unconfirmed with nothing in the logs to say why.
-      if (goodsOrder && goodsOrder.goodsPaystackRef === event.data.reference) {
+      if (goodsOrder && (goodsByMetadata || goodsOrder.goodsPaystackRef === event.data.reference)) {
+        if (goodsByMetadata) {
+          reportStaleReference({
+            log: request.log,
+            phase: "webhook_goods",
+            orderId: goodsOrder.id,
+            reference: event.data.reference,
+            storedReference: goodsOrder.goodsPaystackRef,
+          });
+        }
         const expectedGoods = Number(goodsOrder.itemPrice ?? 0);
         if (!paystackMatchesGhs(event.data, expectedGoods)) {
           request.log.error(
             { orderId: goodsOrder.id, reference: event.data.reference, expectedGhs: expectedGoods },
             "Paystack goods webhook amount mismatch — refusing to confirm",
           );
+          capturePaymentIssue("Paystack goods webhook amount mismatch", {
+            phase: "webhook_goods",
+            orderId: goodsOrder.id,
+            reference: event.data.reference,
+            expectedGhs: expectedGoods,
+          });
           return reply.code(400).send({ error: "Payment amount mismatch" });
         }
         const { alreadyProcessed } = await confirmGoodsPaid({
           fastify,
           log: request.log,
           orderId: goodsOrder.id,
+          reference: event.data.reference,
         });
         return reply.send({ received: true, ...(alreadyProcessed ? { alreadyProcessed } : {}) });
       }
 
-      const order = await fastify.prisma.order.findUnique({
+      const deliverySelect = { id: true, totalAmount: true, paystackRef: true } as const;
+      let order = await fastify.prisma.order.findUnique({
         where: { paystackRef: event.data.reference },
-        select: { id: true, totalAmount: true },
+        select: deliverySelect,
       });
-      if (!order) return reply.code(404).send({ error: "Order not found for reference" });
+      let deliveryByMetadata = false;
+      if (!order && meta?.kind !== "goods" && meta?.order_id) {
+        order = await fastify.prisma.order.findUnique({
+          where: { id: meta.order_id },
+          select: deliverySelect,
+        });
+        deliveryByMetadata = !!order;
+      }
+      if (!order) {
+        // 200, not 404. A non-2xx makes Paystack retry a payload nothing here
+        // will ever match, and after the last retry the event is simply gone.
+        // Acknowledging it and raising an alert is the only version of this
+        // where a human finds out a charge went unclaimed.
+        request.log.error(
+          { reference: event.data.reference, metadataOrderId: meta?.order_id },
+          "Paystack charge.success matched no order — money taken with nothing to apply it to",
+        );
+        capturePaymentIssue("Paystack webhook matched no order", {
+          phase: "webhook_unmatched",
+          reference: event.data.reference,
+          ...(meta?.order_id ? { orderId: meta.order_id } : {}),
+        });
+        return reply.send({ received: true, matched: false });
+      }
+      if (deliveryByMetadata) {
+        reportStaleReference({
+          log: request.log,
+          phase: "webhook_delivery",
+          orderId: order.id,
+          reference: event.data.reference,
+          storedReference: order.paystackRef,
+        });
+      }
 
       if (!paystackMatchesGhs(event.data, Number(order.totalAmount))) {
         request.log.error(
           { orderId: order.id, reference: event.data.reference, expectedGhs: Number(order.totalAmount) },
           "Paystack delivery webhook amount mismatch — refusing to confirm",
         );
+        capturePaymentIssue("Paystack delivery webhook amount mismatch", {
+          phase: "webhook_delivery",
+          orderId: order.id,
+          reference: event.data.reference,
+          expectedGhs: Number(order.totalAmount),
+        });
         return reply.code(400).send({ error: "Payment amount mismatch" });
       }
 
@@ -217,6 +395,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
         fastify,
         log: request.log,
         orderId: order.id,
+        reference: event.data.reference,
       });
 
       return reply.send({ received: true, ...(alreadyProcessed ? { alreadyProcessed } : {}) });
@@ -251,22 +430,47 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     expectedGhs: number;
     log: typeof fastify.log;
   }): Promise<void> {
+    await confirmIfAlreadyPaid(args);
+  }
+
+  /**
+   * Asks Paystack whether one reference was actually paid, and confirms the
+   * order if it was. Returns whether the charge is settled.
+   *
+   * Two callers, same question: the verify poll (which ignores the answer and
+   * re-reads the order) and the initiate routes, which must not abandon a
+   * reference that already took money.
+   */
+  async function confirmIfAlreadyPaid(args: {
+    reference: string;
+    isGoods: boolean;
+    orderId: string;
+    expectedGhs: number;
+    log: typeof fastify.log;
+  }): Promise<boolean> {
     let transaction;
     try {
       transaction = await fetchPaystackTransaction(fastify.config.PAYSTACK_SECRET_KEY, args.reference);
     } catch (err) {
       // Never fail the poll on a provider blip — the next one may succeed, and
-      // the webhook may land in the meantime.
+      // the webhook may land in the meantime. On the initiate path this means
+      // checkout proceeds; the webhook's metadata fallback is the net under it.
       args.log.warn({ err: (err as Error).message }, "Paystack verify lookup failed");
-      return;
+      return false;
     }
-    if (transaction?.status !== "success") return;
+    if (transaction?.status !== "success") return false;
     if (!paystackMatchesGhs(transaction, args.expectedGhs)) {
       args.log.error(
         { orderId: args.orderId, reference: args.reference, expectedGhs: args.expectedGhs },
         "Paystack verify amount mismatch — refusing to confirm",
       );
-      return;
+      capturePaymentIssue("Paystack verify amount mismatch", {
+        phase: args.isGoods ? "verify_goods" : "verify_delivery",
+        orderId: args.orderId,
+        reference: args.reference,
+        expectedGhs: args.expectedGhs,
+      });
+      return false;
     }
 
     args.log.info(
@@ -274,10 +478,21 @@ export async function paymentRoutes(fastify: FastifyInstance) {
       "Payment confirmed by polling Paystack — webhook had not arrived",
     );
     if (args.isGoods) {
-      await confirmGoodsPaid({ fastify, log: args.log, orderId: args.orderId });
+      await confirmGoodsPaid({
+        fastify,
+        log: args.log,
+        orderId: args.orderId,
+        reference: args.reference,
+      });
     } else {
-      await confirmDeliveryFeePaid({ fastify, log: args.log, orderId: args.orderId });
+      await confirmDeliveryFeePaid({
+        fastify,
+        log: args.log,
+        orderId: args.orderId,
+        reference: args.reference,
+      });
     }
+    return true;
   }
 
   fastify.get("/verify/:ref", { preHandler: fastify.authenticate }, async (request, reply) => {
@@ -365,21 +580,45 @@ export async function paymentRoutes(fastify: FastifyInstance) {
  *
  * Web same-tab checkout passes the Expo origin so the student lands back in the
  * app (with `?wave_payment=1`); native WebView keeps the API HTML landing page.
+ *
+ * `returnOrigin` comes from the client, so this is an open-redirect surface: the
+ * URL is handed to Paystack, which sends a student's browser to it moments after
+ * they have typed a MoMo PIN. The previous condition ended in
+ * `origin.startsWith("https://")`, which accepts every host on the internet —
+ * directly beneath a comment promising it accepted none. It now matches against
+ * `CORS_ORIGINS`, the same allowlist that decides who may call this API, so
+ * there is one list to keep current instead of two.
+ *
+ * The Expo dev hosts stay, but only outside production, where `CORS_ORIGINS` is
+ * required and a `.exp.direct` tunnel has no business appearing.
  */
-function paystackCallbackUrl(appUrl: string, returnOrigin?: string): string {
-  const fallback = `${appUrl.replace(/\/$/, "")}/v1/payments/callback`;
+function paystackCallbackUrl(env: Env, returnOrigin?: string): string {
+  const fallback = `${env.APP_URL.replace(/\/$/, "")}/v1/payments/callback`;
   if (!returnOrigin) return fallback;
   try {
     const origin = new URL(returnOrigin).origin;
-    // Local Expo + https production only — never accept arbitrary hosts.
     const host = new URL(origin).hostname;
-    const ok =
-      host === "localhost" ||
-      host === "127.0.0.1" ||
-      host.endsWith(".exp.direct") ||
-      host.endsWith(".expo.dev") ||
-      origin.startsWith("https://");
-    if (!ok) return fallback;
+
+    const allowed = parseCorsOrigins(env);
+    const inAllowlist =
+      allowed === true ||
+      (Array.isArray(allowed) &&
+        allowed.some((entry) => {
+          try {
+            return new URL(entry).origin === origin;
+          } catch {
+            return false;
+          }
+        }));
+
+    const isDevHost =
+      env.NODE_ENV !== "production" &&
+      (host === "localhost" ||
+        host === "127.0.0.1" ||
+        host.endsWith(".exp.direct") ||
+        host.endsWith(".expo.dev"));
+
+    if (!inAllowlist && !isDevHost) return fallback;
     return `${origin}/?wave_payment=1`;
   } catch {
     return fallback;

@@ -13,6 +13,7 @@ interface ButtonProps {
   /** Optional leading glyph, rendered at the label's ink colour. */
   icon?: ReactNode;
   full?: boolean;
+  accessibilityLabel?: string;
 }
 
 /**
@@ -37,6 +38,7 @@ export function Button({
   loading,
   icon,
   full = true,
+  accessibilityLabel,
 }: ButtonProps) {
   const inert = disabled || loading;
 
@@ -60,6 +62,7 @@ export function Button({
     <Pressable
       onPress={inert ? undefined : onPress}
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: !!inert }}
       className={`h-[52px] flex-row items-center justify-center gap-2 rounded-pill px-6 ${surface} ${
         full ? "w-full" : ""

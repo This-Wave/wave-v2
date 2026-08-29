@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
   Confirm,
+  Field,
   Gutter,
   PageTitle,
   Row,
@@ -15,10 +16,17 @@ import {
 import { useAuthStore } from "../../store/authStore";
 import { useMyOrders } from "../../lib/orders";
 import { signOut } from "../../lib/auth";
+import { updateProfile } from "../../lib/profile";
 import { formatGhs } from "../../lib/pricing";
 import { DEFAULT_LOYALTY_DISCOUNT_PCT, DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
 import { useLayout } from "../../hooks/useLayout";
 import { StudentProfileWeb } from "./web/StudentProfileWeb";
+import {
+  hasSupportContact,
+  openSupportContact,
+  supportContactLabel,
+} from "../../lib/support";
+import { LegalLinksRow } from "../../components/LegalNotice";
 
 /**
  * Profile. Web uses a two-panel account page; native keeps the phone layout.
@@ -32,8 +40,12 @@ export function ProfileScreen() {
 function ProfileMobile() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const profile = useAuthStore((s) => s.profile);
+  const setProfile = useAuthStore((s) => s.setProfile);
   const { data: orders } = useMyOrders();
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [email, setEmail] = useState(profile?.email ?? "");
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const completed = (orders ?? []).filter((o) => o.status === "delivered").length;
 
@@ -78,6 +90,36 @@ function ProfileMobile() {
         </Gutter>
 
         <Gutter>
+          <View className="mb-6">
+            <Field
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@ashesi.edu.gh"
+              hint="Optional — shop-live alerts when you suggest a place."
+              keyboardType="email-address"
+              error={emailError}
+            />
+            {email !== (profile?.email ?? "") ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setEmailSaving(true);
+                  setEmailError(null);
+                  void updateProfile({ email: email.trim() || null })
+                    .then((next) => setProfile(next))
+                    .catch(() => setEmailError("Couldn't save email."))
+                    .finally(() => setEmailSaving(false));
+                }}
+                className="mt-3 self-start rounded-pill bg-lime px-4 py-2"
+              >
+                <Text className="font-sans-semibold text-ui text-ink">
+                  {emailSaving ? "Saving…" : "Save email"}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+
           <RowGroup>
             <Row
               title="Delivery checkpoints"
@@ -89,7 +131,18 @@ function ProfileMobile() {
               meta="How you pay for deliveries"
               onPress={() => navigation.navigate("PaymentMethods")}
             />
+            {hasSupportContact() ? (
+              <Row
+                title="Help & support"
+                meta={supportContactLabel()}
+                onPress={() => void openSupportContact()}
+              />
+            ) : null}
           </RowGroup>
+
+          <View className="mt-6 px-1">
+            <LegalLinksRow />
+          </View>
 
           <View className="mt-8">
             <Row title="Log out" onPress={() => setConfirmLogout(true)} chevron={false} />

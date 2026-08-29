@@ -147,3 +147,34 @@ export function useUpdateProductStatus(shopId: string | undefined) {
     },
   });
 }
+
+export function useUpdateProduct(shopId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      productId,
+      input,
+    }: {
+      productId: string;
+      input: Partial<CreateProductInput>;
+    }) => {
+      const { data } = await api.put<{ product: Product }>(`/products/${productId}`, input);
+      return data.product;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products", shopId] });
+    },
+  });
+}
+
+export function useDeleteProduct(shopId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (productId: string) => {
+      await api.delete(`/products/${productId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products", shopId] });
+    },
+  });
+}

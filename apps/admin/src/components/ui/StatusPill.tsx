@@ -1,7 +1,7 @@
 export type PillTone = "good" | "neutral" | "warn" | "bad";
 
 const TONE: Record<PillTone, string> = {
-  good: "bg-wave-lime border-transparent text-wave-500",
+  good: "bg-lime border-transparent text-ink",
   neutral: "bg-canvas border-border text-muted",
   warn: "bg-warning-bg border-warning-border text-warning-text",
   bad: "bg-danger-bg border-danger-border text-danger-text",

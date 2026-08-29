@@ -20,7 +20,9 @@ import { PhoneIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useOrder } from "../../lib/orders";
 import { useUpdateOrderStatus } from "../../lib/rider";
-import { openMapsSearch } from "../../lib/maps";
+import { openCheckpointInMaps, openMapsSearch } from "../../lib/maps";
+import { apiErrorMessage } from "../../lib/apiError";
+import { showToast } from "../../store/toastStore";
 import { formatGhs } from "../../lib/pricing";
 
 type Route = RouteProp<RiderStackParamList, "ActiveDelivery">;
@@ -52,6 +54,9 @@ export function ActiveDeliveryScreen() {
 
   // Shops have no coordinates, only free text — so the map opens on a search.
   // Name and location together disambiguate; empty disables the button.
+  // Captured out of `order` so the narrowing survives into the onPress closure.
+  const dropoff = order?.checkpoint ?? null;
+
   const destination = useMemo(
     () => [origin.name, origin.locationText].filter(Boolean).join(", "),
     [origin.name, origin.locationText],
@@ -95,21 +100,31 @@ export function ActiveDeliveryScreen() {
       navigation.navigate("RecordGoodsCost", { orderId: params.orderId });
       return;
     }
-    if (step === "at_shop") {
+    // Both transitions advance local state or navigate on success. Without a
+    // catch, a failed call left `step` unchanged and no message shown — so a
+    // rider on a patchy campus connection taps "I've picked it up", sees
+    // nothing move, and has no way to tell whether it worked (review
+    // 08-mobile, H4). `setStep` stays *after* the await deliberately: local
+    // state must not claim a transition the server rejected.
+    try {
+      if (step === "at_shop") {
+        await updateStatus.mutateAsync({
+          orderId: params.orderId,
+          status: "en_route",
+          note: "Picked up from shop",
+        });
+        setStep("en_route");
+        return;
+      }
       await updateStatus.mutateAsync({
         orderId: params.orderId,
-        status: "en_route",
-        note: "Picked up from shop",
+        status: "at_checkpoint",
+        note: "Arrived at checkpoint",
       });
-      setStep("en_route");
-      return;
+      navigation.navigate("PinEntry", { orderId: params.orderId });
+    } catch (err) {
+      showToast(apiErrorMessage(err, "Couldn't update — check your connection."), "danger");
     }
-    await updateStatus.mutateAsync({
-      orderId: params.orderId,
-      status: "at_checkpoint",
-      note: "Arrived at checkpoint",
-    });
-    navigation.navigate("PinEntry", { orderId: params.orderId });
   }
 
   return (
@@ -166,6 +181,11 @@ export function ActiveDeliveryScreen() {
             </View>
           ) : null}
 
+          {/* Wave stores a free-text `locationText`, never coordinates, so
+              tapping this runs a map *search* rather than dropping a pin
+              (see lib/maps.ts). Said plainly here so a rider expecting
+              turn-by-turn to an exact spot isn't misled into trusting it
+              (review 04-ux-design, M3). */}
           <RowGroup>
             <Row
               title={origin.name ?? "Shop"}
@@ -191,7 +211,30 @@ export function ActiveDeliveryScreen() {
                 }
               />
             ) : null}
+            {/* The drop-off had no navigation at all — the rider could open the
+                shop in maps but not the checkpoint they were carrying to
+                (review 11-campus, H3). Uses the recorded coordinates when an
+                admin has entered them, and falls back to a name search when not,
+                which is still most checkpoints today. */}
+            {dropoff ? (
+              <Row
+                title={dropoff.name}
+                meta={
+                  dropoff.latitude && dropoff.longitude
+                    ? "Drop-off — tap for directions"
+                    : "Drop-off — tap to search the map"
+                }
+                onPress={() => openCheckpointInMaps(dropoff)}
+              />
+            ) : null}
           </RowGroup>
+
+          {destination ? (
+            <Text className="mt-3 font-sans text-meta text-muted">
+              Tapping the shop searches your map app for that area — Wave has no exact pin.
+              Ask around when you get close.
+            </Text>
+          ) : null}
         </Gutter>
       </ScreenBody>
 

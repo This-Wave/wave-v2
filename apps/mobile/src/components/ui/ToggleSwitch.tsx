@@ -5,12 +5,19 @@ interface ToggleSwitchProps {
   onValueChange: (value: boolean) => void;
   /** Blocks input while a change is in flight, so a double-tap cannot race itself. */
   disabled?: boolean;
+  accessibilityLabel?: string;
 }
 
-export function ToggleSwitch({ value, onValueChange, disabled = false }: ToggleSwitchProps) {
+export function ToggleSwitch({
+  value,
+  onValueChange,
+  disabled = false,
+  accessibilityLabel,
+}: ToggleSwitchProps) {
   return (
     <Pressable
       accessibilityRole="switch"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: value, disabled }}
       disabled={disabled}
       onPress={() => onValueChange(!value)}

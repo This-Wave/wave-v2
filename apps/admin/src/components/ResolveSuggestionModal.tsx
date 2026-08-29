@@ -38,15 +38,20 @@ export function ResolveSuggestionModal({
   const [shops, setShops] = useState<Shop[] | null>(null);
   const [shopId, setShopId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!suggestion || !accessToken) return;
     setShopId("");
     setError(null);
+    setLoadError(null);
     apiFetch<{ shops: Shop[] }>("/admin/shops", accessToken)
       .then((res) => setShops(res.shops.filter((s) => s.universityId === suggestion.universityId)))
-      .catch(() => setShops([]));
+      .catch(() => {
+        setShops([]);
+        setLoadError("Could not load shops for this campus.");
+      });
   }, [suggestion, accessToken]);
 
   async function handleResolve() {
@@ -114,7 +119,7 @@ export function ResolveSuggestionModal({
           }
         />
 
-        <FormError message={error} />
+        <FormError message={loadError ?? error} />
       </div>
     </Modal>
   );

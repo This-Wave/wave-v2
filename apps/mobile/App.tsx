@@ -19,12 +19,16 @@ import { PaymentReturnListener } from "./src/components/PaymentReturnListener";
 import { AuthProvider } from "./src/providers/AuthProvider";
 import { NotificationProvider } from "./src/providers/NotificationProvider";
 import { queryClient } from "./src/lib/queryClient";
-import { clearSkipTransition, markHistoryNavigation } from "./src/lib/navigationMotion";
+import { clearSkipTransition, initReducedMotionPreference, markHistoryNavigation } from "./src/lib/navigationMotion";
 import { ToastHost } from "./src/components/v6";
+import { ErrorBoundary } from "./src/components/ErrorBoundary";
+import { initMobileSentry, wrapWithSentry } from "./src/lib/sentry";
+
+initMobileSentry();
 
 SplashScreen.preventAutoHideAsync();
 
-export default function App() {
+function App() {
   // Wave v6 runs on DM Sans alone — the reference's named substitute for
   // Airbnb Cereal. No mono face; order refs and PINs set in DM Sans medium.
   const [fontsLoaded] = useFonts({
@@ -50,29 +54,37 @@ export default function App() {
     return () => window.removeEventListener("popstate", markHistoryNavigation);
   }, []);
 
+  // Primes the cached "reduce motion" preference that `stackScreenOptions`
+  // reads when React Navigation resolves screen options (review 10-a11y, M2).
+  useEffect(() => initReducedMotionPreference(), []);
+
   if (!fontsLoaded) {
     return null;
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider>
-        <AuthProvider>
-          <NotificationProvider>
-            <NavigationContainer
-              ref={navigationRef}
-              onStateChange={() => {
-                requestAnimationFrame(() => clearSkipTransition());
-              }}
-            >
-              <RootNavigator />
-              <PaymentReturnListener />
-              <ToastHost />
-              <StatusBar style="dark" />
-            </NavigationContainer>
-          </NotificationProvider>
-        </AuthProvider>
-      </SafeAreaProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <SafeAreaProvider>
+          <AuthProvider>
+            <NotificationProvider>
+              <NavigationContainer
+                ref={navigationRef}
+                onStateChange={() => {
+                  requestAnimationFrame(() => clearSkipTransition());
+                }}
+              >
+                <RootNavigator />
+                <PaymentReturnListener />
+                <ToastHost />
+                <StatusBar style="dark" />
+              </NavigationContainer>
+            </NotificationProvider>
+          </AuthProvider>
+        </SafeAreaProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
+
+export default wrapWithSentry(App);

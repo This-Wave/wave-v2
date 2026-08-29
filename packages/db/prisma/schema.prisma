@@ -89,88 +89,95 @@ model University {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  profiles    Profile[]
-  checkpoints Checkpoint[]
-  shops       Shop[]
-  orders      Order[]
+  profiles        Profile[]
+  checkpoints     Checkpoint[]
+  shops           Shop[]
+  orders          Order[]
   shopSuggestions ShopSuggestion[]
 
   @@map("universities")
 }
 
 model Profile {
-  id            String      @id @default(uuid())
-  universityId  String?     @map("university_id")
-  fullName      String      @map("full_name")
-  phone         String      @unique
+  id           String      @id @default(uuid())
+  universityId String?     @map("university_id")
+  fullName     String      @map("full_name")
+  phone        String      @unique
   // Optional forever: auth is phone-based, so a student who never gives an
   // email must still be able to order. Used for the "the shop you suggested is
   // now on Wave" notification, which also goes out by push and SMS.
-  email         String?
-  studentId     String?     @map("student_id")
-  role          ProfileRole
-  avatarUrl     String?     @map("avatar_url")
-  pushToken     String?     @map("push_token")
-  isActive      Boolean     @default(true) @map("is_active")
-  isVerified    Boolean     @default(false) @map("is_verified")
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
+  email        String?
+  studentId    String?     @map("student_id")
+  role         ProfileRole
+  avatarUrl    String?     @map("avatar_url")
+  pushToken    String?     @map("push_token")
+  // Two different questions, deliberately two columns. `isActive` is the ban
+  // flag: `plugins/auth.ts` rejects every authenticated request when it is
+  // false. `isAvailable` is the rider's own online/offline toggle. They were
+  // the same column, so a rider tapping "Offline" locked themselves out of the
+  // app and could not tap it back on — only an admin could. Nothing but a
+  // rider ever reads `isAvailable`.
+  isActive     Boolean     @default(true) @map("is_active")
+  isAvailable  Boolean     @default(true) @map("is_available")
+  isVerified   Boolean     @default(false) @map("is_verified")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
 
   university University? @relation(fields: [universityId], references: [id])
 
-  shops                    Shop[]
-  studentOrders             Order[]                @relation("StudentOrders")
-  riderOrders                Order[]                @relation("RiderOrders")
-  orderStatusChanges        OrderStatusHistory[]
-  riderVerification          RiderVerification[]    @relation("RiderVerifications")
-  reviewedVerifications       RiderVerification[]    @relation("ReviewedVerifications")
-  studentDeliveryStats        StudentDeliveryStats?
-  riderEarnings                RiderEarning[]
-  shopSuggestions              ShopSuggestion[]
+  shops                 Shop[]
+  studentOrders         Order[]               @relation("StudentOrders")
+  riderOrders           Order[]               @relation("RiderOrders")
+  orderStatusChanges    OrderStatusHistory[]
+  riderVerification     RiderVerification[]   @relation("RiderVerifications")
+  reviewedVerifications RiderVerification[]   @relation("ReviewedVerifications")
+  studentDeliveryStats  StudentDeliveryStats?
+  riderEarnings         RiderEarning[]
+  shopSuggestions       ShopSuggestion[]
 
   @@map("profiles")
 }
 
 model Checkpoint {
-  id            String   @id @default(uuid())
-  universityId  String   @map("university_id")
-  name          String
-  description   String?
-  latitude      Decimal? @db.Decimal(9, 6)
-  longitude     Decimal? @db.Decimal(9, 6)
-  isActive      Boolean  @default(true) @map("is_active")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(uuid())
+  universityId String   @map("university_id")
+  name         String
+  description  String?
+  latitude     Decimal? @db.Decimal(9, 6)
+  longitude    Decimal? @db.Decimal(9, 6)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  university University @relation(fields: [universityId], references: [id])
+  university   University @relation(fields: [universityId], references: [id])
   // Two relations because a pickup order references a checkpoint twice.
-  orders        Order[] @relation("OrderDropoff")
-  pickupOrders  Order[] @relation("OrderPickup")
+  orders       Order[]    @relation("OrderDropoff")
+  pickupOrders Order[]    @relation("OrderPickup")
 
   @@map("checkpoints")
 }
 
 model Shop {
-  id            String   @id @default(uuid())
-  ownerId       String   @map("owner_id")
-  universityId  String   @map("university_id")
-  name          String
-  description   String?
-  category      String
-  logoUrl       String?  @map("logo_url")
-  phone         String?
-  locationText  String?  @map("location_text")
-  openingTime   DateTime? @db.Time @map("opening_time")
-  closingTime   DateTime? @db.Time @map("closing_time")
-  isActive      Boolean  @default(true) @map("is_active")
-  isVerified    Boolean  @default(false) @map("is_verified")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id           String    @id @default(uuid())
+  ownerId      String    @map("owner_id")
+  universityId String    @map("university_id")
+  name         String
+  description  String?
+  category     String
+  logoUrl      String?   @map("logo_url")
+  phone        String?
+  locationText String?   @map("location_text")
+  openingTime  DateTime? @map("opening_time") @db.Time
+  closingTime  DateTime? @map("closing_time") @db.Time
+  isActive     Boolean   @default(true) @map("is_active")
+  isVerified   Boolean   @default(false) @map("is_verified")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  owner      Profile    @relation(fields: [ownerId], references: [id])
-  university University @relation(fields: [universityId], references: [id])
-  products   Product[]
-  orders     Order[]
+  owner               Profile          @relation(fields: [ownerId], references: [id])
+  university          University       @relation(fields: [universityId], references: [id])
+  products            Product[]
+  orders              Order[]
   resolvedSuggestions ShopSuggestion[] @relation("ResolvedSuggestions")
 
   @@map("shops")
@@ -188,8 +195,8 @@ model Product {
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
-  shop   Shop    @relation(fields: [shopId], references: [id])
-  orders Order[]
+  shop       Shop        @relation(fields: [shopId], references: [id])
+  orders     Order[]
   orderItems OrderItem[]
 
   @@map("products")
@@ -203,18 +210,18 @@ model Product {
 // because a manual list has no product, and because the product may be gone by
 // the time the order is read back.
 model OrderItem {
-  id        String   @id @default(uuid())
-  orderId   String   @map("order_id")
-  productId String?  @map("product_id")
-  name      String
+  id              String   @id @default(uuid())
+  orderId         String   @map("order_id")
+  productId       String?  @map("product_id")
+  name            String
   /// The catalogue price at the moment of ordering. Null on a manual list,
   /// where nobody knows the price until the runner reaches the till.
-  unitPrice Decimal? @db.Decimal(10, 2) @map("unit_price")
-  quantity  Int      @default(1)
+  unitPrice       Decimal? @map("unit_price") @db.Decimal(10, 2)
+  quantity        Int      @default(1)
   /// What the rider actually paid. Only ever set on a `shop_pickup`, and only
   /// once they are standing in the shop.
-  actualUnitPrice Decimal? @db.Decimal(10, 2) @map("actual_unit_price")
-  createdAt DateTime @default(now()) @map("created_at")
+  actualUnitPrice Decimal? @map("actual_unit_price") @db.Decimal(10, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
 
   order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product? @relation(fields: [productId], references: [id])
@@ -258,35 +265,35 @@ model ShopSuggestion {
 }
 
 model Order {
-  id            String   @id @default(uuid())
-  studentId     String   @map("student_id")
-  riderId       String?  @map("rider_id")
+  id                 String  @id @default(uuid())
+  studentId          String  @map("student_id")
+  riderId            String? @map("rider_id")
   // Null for a package pickup: there is no shop involved, the student already
   // has the thing and just needs it carried.
-  shopId        String?  @map("shop_id")
+  shopId             String? @map("shop_id")
   // Where a package is collected FROM. Null for a Buy For Me order, whose
   // origin is the shop.
   originCheckpointId String? @map("origin_checkpoint_id")
   // The suggested, not-yet-onboarded shop this run buys from. Set only on a
   // `shop_pickup`, where it stands in for `shopId`.
-  suggestionId  String?  @map("suggestion_id")
+  suggestionId       String? @map("suggestion_id")
   // Where the order is handed to the student. Always set, for both kinds.
-  checkpointId  String   @map("checkpoint_id")
-  universityId  String   @map("university_id")
+  checkpointId       String  @map("checkpoint_id")
+  universityId       String  @map("university_id")
 
-  orderType     OrderType @default(buy_for_me) @map("order_type")
+  orderType OrderType @default(buy_for_me) @map("order_type")
 
-  itemDescription String   @map("item_description")
-  productId       String?  @map("product_id")
-  itemPrice       Decimal? @db.Decimal(10, 2) @map("item_price")
-  deliveryFee     Decimal  @db.Decimal(10, 2) @map("delivery_fee")
-  discountApplied Decimal  @default(0) @db.Decimal(5, 2) @map("discount_applied")
-  surchargeApplied Decimal @default(0) @db.Decimal(5, 2) @map("surcharge_applied")
-  totalAmount     Decimal  @db.Decimal(10, 2) @map("total_amount")
+  itemDescription  String   @map("item_description")
+  productId        String?  @map("product_id")
+  itemPrice        Decimal? @map("item_price") @db.Decimal(10, 2)
+  deliveryFee      Decimal  @map("delivery_fee") @db.Decimal(10, 2)
+  discountApplied  Decimal  @default(0) @map("discount_applied") @db.Decimal(5, 2)
+  surchargeApplied Decimal  @default(0) @map("surcharge_applied") @db.Decimal(5, 2)
+  totalAmount      Decimal  @map("total_amount") @db.Decimal(10, 2)
 
-  deliveryDay     DeliveryDay @map("delivery_day")
-  scheduledDate   DateTime    @db.Date @map("scheduled_date")
-  isSpecialOrder  Boolean     @default(false) @map("is_special_order")
+  deliveryDay    DeliveryDay @map("delivery_day")
+  scheduledDate  DateTime    @map("scheduled_date") @db.Date
+  isSpecialOrder Boolean     @default(false) @map("is_special_order")
 
   status OrderStatus @default(pending)
 
@@ -306,24 +313,40 @@ model Order {
 
   // bcrypt for rider verify. Ciphertext (AES-GCM) so the owning student can
   // read the code in the app — never selected on general order queries.
-  deliveryPinHash       String? @map("delivery_pin_hash")
-  deliveryPinCiphertext String? @map("delivery_pin_ciphertext")
-  deliveredAt     DateTime? @map("delivered_at")
+  deliveryPinHash       String?   @map("delivery_pin_hash")
+  deliveryPinCiphertext String?   @map("delivery_pin_ciphertext")
+  // Failed PIN entries since the current PIN was issued. The rider assigned to
+  // an order could otherwise grind the 6-digit space against it and close a
+  // delivery they never handed over — nothing capped the guesses. Reset to 0
+  // every time a PIN is issued or re-issued, and on a correct entry.
+  deliveryPinAttempts   Int       @default(0) @map("delivery_pin_attempts")
+  deliveredAt           DateTime? @map("delivered_at")
 
-  notes               String?
-  cancellationReason   String? @map("cancellation_reason")
+  // Cross-instance locks. Both used to be in-process (a Set and a Map in the
+  // route modules), which held only while the API ran as a single instance —
+  // two Render instances would each keep their own and enforce nothing.
+  //
+  // `refundStartedAt` is claimed with a conditional UPDATE before Paystack is
+  // called, so exactly one caller can be refunding an order at a time. It is
+  // cleared on failure so a retry is possible.
+  refundStartedAt DateTime? @map("refund_started_at")
+  // Last delivery-PIN resend, for the per-order cooldown. Each send costs money.
+  lastPinResendAt DateTime? @map("last_pin_resend_at")
+
+  notes              String?
+  cancellationReason String? @map("cancellation_reason")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  student    Profile    @relation("StudentOrders", fields: [studentId], references: [id])
-  rider      Profile?   @relation("RiderOrders", fields: [riderId], references: [id])
-  shop       Shop?      @relation(fields: [shopId], references: [id])
-  checkpoint Checkpoint @relation("OrderDropoff", fields: [checkpointId], references: [id])
-  originCheckpoint Checkpoint? @relation("OrderPickup", fields: [originCheckpointId], references: [id])
-  university University @relation(fields: [universityId], references: [id])
-  product    Product?   @relation(fields: [productId], references: [id])
-  suggestion ShopSuggestion? @relation(fields: [suggestionId], references: [id])
+  student          Profile         @relation("StudentOrders", fields: [studentId], references: [id])
+  rider            Profile?        @relation("RiderOrders", fields: [riderId], references: [id])
+  shop             Shop?           @relation(fields: [shopId], references: [id])
+  checkpoint       Checkpoint      @relation("OrderDropoff", fields: [checkpointId], references: [id])
+  originCheckpoint Checkpoint?     @relation("OrderPickup", fields: [originCheckpointId], references: [id])
+  university       University      @relation(fields: [universityId], references: [id])
+  product          Product?        @relation(fields: [productId], references: [id])
+  suggestion       ShopSuggestion? @relation(fields: [suggestionId], references: [id])
 
   items         OrderItem[]
   statusHistory OrderStatusHistory[]
@@ -347,20 +370,20 @@ model OrderStatusHistory {
 }
 
 model RiderVerification {
-  id               String              @id @default(uuid())
-  riderId          String              @map("rider_id")
-  idType           RiderIdType         @map("id_type")
-  idNumber         String              @map("id_number")
+  id              String             @id @default(uuid())
+  riderId         String             @map("rider_id")
+  idType          RiderIdType        @map("id_type")
+  idNumber        String             @map("id_number")
   // Storage paths inside the private "verifications" bucket, never URLs. A
   // signed URL expires, so persisting one meant admin review broke a week
   // after submission; the API signs these fresh on every read instead.
-  idImagePath      String              @map("id_image_path")
-  selfiePath       String              @map("selfie_path")
-  status           VerificationStatus  @default(pending)
-  reviewedBy       String?             @map("reviewed_by")
-  rejectionReason  String?             @map("rejection_reason")
-  reviewedAt       DateTime?           @map("reviewed_at")
-  createdAt        DateTime            @default(now()) @map("created_at")
+  idImagePath     String             @map("id_image_path")
+  selfiePath      String             @map("selfie_path")
+  status          VerificationStatus @default(pending)
+  reviewedBy      String?            @map("reviewed_by")
+  rejectionReason String?            @map("rejection_reason")
+  reviewedAt      DateTime?          @map("reviewed_at")
+  createdAt       DateTime           @default(now()) @map("created_at")
 
   rider    Profile  @relation("RiderVerifications", fields: [riderId], references: [id])
   reviewer Profile? @relation("ReviewedVerifications", fields: [reviewedBy], references: [id])

@@ -16,15 +16,24 @@ import { useOrder } from "../../lib/orders";
 import { useShopAcceptOrder, useShopCancelOrder } from "../../lib/shopOwner";
 import { formatGhs } from "../../lib/pricing";
 import { showToast } from "../../store/toastStore";
+import { apiErrorMessage } from "../../lib/apiError";
 
 type Route = RouteProp<ShopStackParamList, "IncomingOrderDetail">;
 
 /**
- * Accept or reject one paid order.
+ * Acknowledge or reject one paid order.
  *
  * The refund consequence is stated as plain body text rather than in a green
  * panel: it is the most important sentence on the screen and v5's success-green
  * treatment made it read as reassurance rather than a warning.
+ *
+ * The primary action used to read "Accept order", which described a gate that
+ * does not exist (review 03-product-manager, H2). `shopAcceptedAt` is advisory:
+ * the rider feed filters on paid status, campus and rider verification, never on
+ * it, so a runner can be on their way before a shop has opened the app at all. A
+ * shop reading "Accept" reasonably assumes nothing moves until they tap — and
+ * then a rider arrives for an order they thought they were still considering.
+ * The label now describes what the tap actually does.
  */
 export function IncomingOrderDetailScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ShopStackParamList>>();
@@ -34,18 +43,37 @@ export function IncomingOrderDetailScreen() {
   const cancelOrder = useShopCancelOrder();
 
   async function handleAccept() {
-    await acceptOrder.mutateAsync(params.orderId);
-    showToast("Order accepted.", "success");
-    navigation.goBack();
+    try {
+      await acceptOrder.mutateAsync(params.orderId);
+      showToast("Thanks — the runner knows you're on it.", "success");
+      navigation.goBack();
+    } catch (err) {
+      showToast(apiErrorMessage(err, "Couldn't save that — try again."), "danger");
+    }
   }
 
   async function handleCancel() {
-    await cancelOrder.mutateAsync({
-      orderId: params.orderId,
-      reason: "Unable to fulfill this order",
-    });
-    showToast("Order rejected. Student will be refunded.", "success");
-    navigation.goBack();
+    // The one that matters. This triggers a refund, and `endOrderWithRefund`
+    // calls Paystack *before* touching the order — so a Paystack failure
+    // answers 502 with "the order was left unchanged" and nothing has moved.
+    // Unhandled, that showed the shop nothing at all: no toast, no navigation.
+    // They would reasonably conclude either that it worked or that the button
+    // is broken, and both readings are wrong (review 08-mobile, H4).
+    try {
+      await cancelOrder.mutateAsync({
+        orderId: params.orderId,
+        reason: "Unable to fulfill this order",
+      });
+      showToast("Order rejected. Student will be refunded.", "success");
+      navigation.goBack();
+    } catch (err) {
+      // Stay on the screen: the order is still live and still theirs to deal
+      // with, so navigating away would hide the problem.
+      showToast(
+        apiErrorMessage(err, "Couldn't reject this order. Nothing was changed."),
+        "danger",
+      );
+    }
   }
 
   return (
@@ -115,15 +143,21 @@ export function IncomingOrderDetailScreen() {
           </View>
 
           <Text className="mt-7 font-sans text-body text-muted">
-            If you reject this, the student is refunded in full automatically. That cannot be
-            undone from here.
+            A runner may arrive before you tap below — this order is already paid and in the
+            queue. Letting us know you&apos;ve seen it just tells the runner you&apos;re on it.
+          </Text>
+
+          <Text className="mt-3 font-sans text-body text-muted">
+            If you can&apos;t fulfil this, the student is refunded in full automatically. That
+            cannot be undone from here, and there is no way to supply only part of the order —
+            it is all of it or none.
           </Text>
         </Gutter>
       </ScreenBody>
 
       <ActionBar>
         <View className="gap-2">
-          <Button label="Accept order" onPress={handleAccept} loading={acceptOrder.isPending} />
+          <Button label="We'll start prep" onPress={handleAccept} loading={acceptOrder.isPending} />
           <Button
             label="Can't fulfil this"
             variant="ghost"

@@ -110,9 +110,9 @@ function HomeScreenMobile() {
         <Gutter className="pb-4">
           <SearchCapsule
             waveLabel={wave?.dateLabel ?? "Next Wave"}
-            onPressQuery={() => navigation.navigate("ShopSelection", waveDate)}
+            onPressQuery={() => navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })}
             onPressWave={() => navigation.navigate("WaveCalendar")}
-            onSubmit={() => navigation.navigate("ShopSelection", waveDate)}
+            onSubmit={() => navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })}
           />
           <Pressable
             onPress={() => navigation.navigate("PickupRequest", waveDate)}

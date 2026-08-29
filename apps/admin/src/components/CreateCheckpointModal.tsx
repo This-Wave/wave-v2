@@ -29,18 +29,21 @@ export function CreateCheckpointModal({
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open || !accessToken) return;
+    setLoadError(null);
     apiFetch<{ universities: University[] }>("/universities", accessToken)
       .then((res) => {
         setUniversities(res.universities);
-        // Wave pilots at a single university, so pre-selecting the only option
-        // removes a field the admin would otherwise have to fill every time.
         if (res.universities.length === 1) setUniversityId(res.universities[0]!.id);
       })
-      .catch(() => setUniversities([]));
+      .catch(() => {
+        setUniversities([]);
+        setLoadError("Could not load universities.");
+      });
   }, [open, accessToken]);
 
   function reset() {
@@ -114,7 +117,7 @@ export function CreateCheckpointModal({
       }
     >
       <div className="flex flex-col gap-4">
-        <FormError message={error} />
+        <FormError message={loadError ?? error} />
         <SelectField
           label="University"
           required

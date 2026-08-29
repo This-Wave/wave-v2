@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../lib/api";
+import { useApiQuery } from "../../../hooks/useApiQuery";
+import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 
 interface Stats {
   ordersToday: number;
@@ -39,16 +41,34 @@ function formatGhs(amount: number): string {
 
 export default function DashboardPage() {
   const { accessToken } = useAdminAuth();
-  const [stats, setStats] = useState<Stats | null>(null);
   const [orders, setOrders] = useState<RecentOrder[] | null>(null);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [ordersLoading, setOrdersLoading] = useState(true);
 
-  useEffect(() => {
+  const statsQuery = useApiQuery(
+    () => (accessToken ? apiFetch<Stats>("/admin/stats", accessToken) : null),
+    [accessToken],
+    "Could not load dashboard stats.",
+  );
+
+  const loadOrders = () => {
     if (!accessToken) return;
-    apiFetch<Stats>("/admin/stats", accessToken).then(setStats).catch(() => {});
+    setOrdersLoading(true);
+    setOrdersError(null);
     apiFetch<{ orders: RecentOrder[] }>("/admin/orders?limit=10", accessToken)
       .then((res) => setOrders(res.orders))
-      .catch(() => {});
+      .catch(() => {
+        setOrders(null);
+        setOrdersError("Could not load recent orders.");
+      })
+      .finally(() => setOrdersLoading(false));
+  };
+
+  useEffect(() => {
+    loadOrders();
   }, [accessToken]);
+
+  const stats = statsQuery.data;
 
   return (
     <div className="px-10 py-8">
@@ -61,6 +81,11 @@ export default function DashboardPage() {
           Run Day Active
         </span>
       </div>
+
+      {statsQuery.error ? (
+        <FetchErrorBanner message={statsQuery.error} onRetry={statsQuery.retry} />
+      ) : null}
+      {ordersError ? <FetchErrorBanner message={ordersError} onRetry={loadOrders} /> : null}
 
       <div className="mb-8 grid grid-cols-4 gap-4">
         <StatTile label="Total Orders Today" value={stats ? String(stats.ordersToday) : "—"} />
@@ -86,13 +111,19 @@ export default function DashboardPage() {
             </tr>
           </thead>
           <tbody>
-            {!orders ? (
+            {ordersLoading ? (
               <tr>
                 <td className="px-4 py-6 text-muted" colSpan={5}>
                   Loading…
                 </td>
               </tr>
-            ) : orders.length === 0 ? (
+            ) : ordersError ? (
+              <tr>
+                <td className="px-4 py-6 text-danger-text" colSpan={5}>
+                  {ordersError}
+                </td>
+              </tr>
+            ) : !orders || orders.length === 0 ? (
               <tr>
                 <td className="px-4 py-6 text-muted" colSpan={5}>
                   No orders yet.

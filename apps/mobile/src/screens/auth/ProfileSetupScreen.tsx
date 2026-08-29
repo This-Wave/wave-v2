@@ -18,6 +18,7 @@ import { colors } from "../../theme/tokens";
 import { useUniversities } from "../../lib/checkpoints";
 import { completeProfile } from "../../lib/profile";
 import { useAuthStore } from "../../store/authStore";
+import { LegalNotice } from "../../components/LegalNotice";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "ProfileSetup">;
 
@@ -32,6 +33,7 @@ export function ProfileSetupScreen(_props: Props) {
   const { data: universities } = useUniversities();
   const [fullName, setFullName] = useState("");
   const [studentId, setStudentId] = useState("");
+  const [email, setEmail] = useState("");
   const [universityId, setUniversityId] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -53,6 +55,7 @@ export function ProfileSetupScreen(_props: Props) {
         role: "student",
         universityId: university.id,
         studentId: studentId || undefined,
+        email: email.trim() || undefined,
       });
       setProfile(profile);
     } catch {
@@ -90,6 +93,17 @@ export function ProfileSetupScreen(_props: Props) {
             />
           </View>
 
+          <View className="mb-6">
+            <Field
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@ashesi.edu.gh"
+              hint="Optional — we'll email you when a shop you suggested goes live."
+              keyboardType="email-address"
+            />
+          </View>
+
           <Text className="mb-2 font-sans-medium text-body text-ink">Campus</Text>
           <RowGroup>
             <Row
@@ -100,6 +114,7 @@ export function ProfileSetupScreen(_props: Props) {
           </RowGroup>
 
           {error ? <Text className="mt-4 font-sans text-body text-danger">{error}</Text> : null}
+          <LegalNotice />
         </Gutter>
       </ScreenBody>
 

@@ -3,12 +3,19 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 // vi.hoisted so the mock factory below (lifted above the imports) can reference
 // these; top-level `await import(...)` is invalid for this package's CommonJS
 // target and fails `npm run type-check`.
-const { initiatePaystackPayment } = vi.hoisted(() => ({ initiatePaystackPayment: vi.fn() }));
+const { initiatePaystackPayment, fetchPaystackTransaction } = vi.hoisted(() => ({
+  initiatePaystackPayment: vi.fn(),
+  fetchPaystackTransaction: vi.fn(),
+}));
 
 vi.mock("../paystack", async () => {
   const actual = await vi.importActual<typeof import("../paystack")>("../paystack");
-  return { ...actual, initiatePaystackPayment };
+  return { ...actual, initiatePaystackPayment, fetchPaystackTransaction };
 });
+vi.mock("../confirm", () => ({
+  confirmDeliveryFeePaid: vi.fn().mockResolvedValue({ confirmed: true, alreadyProcessed: false }),
+  confirmGoodsPaid: vi.fn().mockResolvedValue({ confirmed: true, alreadyProcessed: false }),
+}));
 
 import { paymentRoutes } from "../routes";
 import { buildTestApp } from "../../../test/harness";
@@ -45,6 +52,7 @@ beforeEach(() => {
   initiatePaystackPayment
     .mockReset()
     .mockResolvedValue({ authorization_url: "https://checkout.paystack.com/x", reference: "r" });
+  fetchPaystackTransaction.mockReset().mockResolvedValue(null);
 });
 
 describe("POST /payments/initiate — channel selection", () => {
@@ -158,3 +166,121 @@ describe("GET /payments/callback", () => {
     expect(prisma.order.update).not.toHaveBeenCalled();
   });
 });
+
+
+/**
+ * Re-initiating checkout orphans the previous Paystack reference — the row
+ * holds only one — while the previous checkout page is still open in the
+ * student's browser or WebView.
+ *
+ * So before abandoning a reference, ask Paystack whether it was paid. This is
+ * what stops a student paying twice for one order, and it is the reason the
+ * webhook's metadata fallback is a net rather than the primary defence.
+ */
+describe("POST /payments/initiate — re-initiating an order that already has a reference", () => {
+  const retriedOrder = { ...ownOrder, paystackRef: "WAVE-order-1-111" };
+
+  test("checks the existing reference with Paystack before overwriting it", async () => {
+    const app = await buildTestApp(paymentRoutes, { prisma: makePrisma(retriedOrder), user: STUDENT });
+    await app.inject({ method: "POST", url: "/initiate", payload: { orderId: "order-1" } });
+
+    expect(fetchPaystackTransaction.mock.calls[0]?.[1]).toBe("WAVE-order-1-111");
+  });
+
+  test("refuses a second checkout when the first reference was already paid", async () => {
+    fetchPaystackTransaction.mockResolvedValue({
+      status: "success",
+      reference: "WAVE-order-1-111",
+      amount: 4000,
+      currency: "GHS",
+      paid_at: "2026-08-25T10:00:00Z",
+    });
+    const app = await buildTestApp(paymentRoutes, { prisma: makePrisma(retriedOrder), user: STUDENT });
+
+    const res = await app.inject({ method: "POST", url: "/initiate", payload: { orderId: "order-1" } });
+
+    expect(res.statusCode).toBe(409);
+    expect(initiatePaystackPayment).not.toHaveBeenCalled();
+  });
+
+  test("proceeds normally when the old reference was never paid", async () => {
+    const app = await buildTestApp(paymentRoutes, { prisma: makePrisma(retriedOrder), user: STUDENT });
+
+    const res = await app.inject({ method: "POST", url: "/initiate", payload: { orderId: "order-1" } });
+
+    expect(res.statusCode).toBe(200);
+    expect(initiatePaystackPayment).toHaveBeenCalledTimes(1);
+  });
+
+  test("a Paystack outage does not block checkout — the webhook fallback covers it", async () => {
+    fetchPaystackTransaction.mockRejectedValue(new Error("gateway timeout"));
+    const app = await buildTestApp(paymentRoutes, { prisma: makePrisma(retriedOrder), user: STUDENT });
+
+    const res = await app.inject({ method: "POST", url: "/initiate", payload: { orderId: "order-1" } });
+
+    expect(res.statusCode).toBe(200);
+    expect(initiatePaystackPayment).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * `returnOrigin` is client-supplied and ends up as Paystack's `callback_url` —
+ * the address a student's browser is sent to seconds after they type a MoMo
+ * PIN. The old guard ended in `origin.startsWith("https://")`, which accepts
+ * every host on the internet, immediately under a comment promising it accepted
+ * none. It is now the `CORS_ORIGINS` allowlist: one list, already maintained.
+ */
+describe("POST /payments/initiate — where Paystack sends the student back", () => {
+  const CORS_ORIGINS = "https://wave-admin.onrender.com,https://wave.vercel.app";
+
+  async function callbackFor(returnOrigin: string | undefined, env: Record<string, unknown> = {}) {
+    const app = await buildTestApp(paymentRoutes, {
+      prisma: makePrisma(ownOrder),
+      user: STUDENT,
+      env: { CORS_ORIGINS, NODE_ENV: "production", ...env } as never,
+    });
+    await app.inject({
+      method: "POST",
+      url: "/initiate",
+      payload: { orderId: "order-1", ...(returnOrigin ? { returnOrigin } : {}) },
+    });
+    await app.close();
+    return (initiatePaystackPayment.mock.calls[0]?.[1] as { callbackUrl: string }).callbackUrl;
+  }
+
+  test("an allowlisted origin is honoured", async () => {
+    expect(await callbackFor("https://wave.vercel.app/checkout")).toBe(
+      "https://wave.vercel.app/?wave_payment=1",
+    );
+  });
+
+  test("an arbitrary https host falls back to Wave's own landing page", async () => {
+    // The whole finding in one assertion.
+    expect(await callbackFor("https://attacker.example/steal")).toBe(
+      "http://localhost:4000/v1/payments/callback",
+    );
+  });
+
+  test("a lookalike host is not a prefix match", async () => {
+    expect(await callbackFor("https://wave.vercel.app.attacker.example")).toBe(
+      "http://localhost:4000/v1/payments/callback",
+    );
+  });
+
+  test("localhost is refused in production", async () => {
+    expect(await callbackFor("http://localhost:8081")).toBe(
+      "http://localhost:4000/v1/payments/callback",
+    );
+  });
+
+  test("localhost still works in development, where the tunnel is the point", async () => {
+    expect(await callbackFor("http://localhost:8081", { NODE_ENV: "development" })).toBe(
+      "http://localhost:8081/?wave_payment=1",
+    );
+  });
+
+  test("no returnOrigin means the API's own landing page", async () => {
+    expect(await callbackFor(undefined)).toBe("http://localhost:4000/v1/payments/callback");
+  });
+});
+

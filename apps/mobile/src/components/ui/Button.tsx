@@ -17,24 +17,24 @@ interface ButtonProps {
 
 // v5 buttons: 52px tall (50px for the secondary/ghost pair), 18px radius.
 const VARIANT_BG: Record<Variant, string> = {
-  primary: "bg-wave-500",
+  primary: "bg-lime",
   secondary: "border border-border bg-surface",
   danger: "bg-danger-text",
-  lime: "bg-wave-lime",
+  lime: "bg-lime",
 };
 
 const VARIANT_TEXT: Record<Variant, string> = {
-  primary: "text-white",
+  primary: "text-ink",
   secondary: "text-ink",
   danger: "text-white",
-  lime: "text-wave-500",
+  lime: "text-ink",
 };
 
 const SPINNER_COLOR: Record<Variant, string> = {
-  primary: "#ffffff",
-  secondary: "#10210B",
+  primary: "#083400",
+  secondary: "#083400",
   danger: "#ffffff",
-  lime: "#009933",
+  lime: "#083400",
 };
 
 export function Button({

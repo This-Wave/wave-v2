@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAdminAuth } from "../../../providers/AdminAuthProvider";
-import { apiFetch } from "../../../lib/api";
+import { apiFetch, errorMessage } from "../../../lib/api";
 import { PageHeader } from "../../../components/ui/PageHeader";
 import { Button } from "../../../components/ui/Button";
+import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 
 interface ConfigRow {
   key: string;
@@ -52,6 +53,28 @@ const GROUPS: { title: string; keys: { key: string; label: string; suffix?: stri
     ],
   },
   {
+    title: "Safety limits",
+    keys: [
+      {
+        key: "goods_cost_max_ghs",
+        label: "Max goods total",
+        suffix: "GH₵",
+        hint: "Largest till total a rider may record on a suggested-shop order. Above this they are asked to re-check rather than charging the student.",
+      },
+    ],
+  },
+  {
+    title: "Payouts",
+    keys: [
+      {
+        key: "rider_earning_pct",
+        label: "Rider share of the delivery fee",
+        suffix: "%",
+        hint: "Credited to the rider when a delivery is closed with the student's PIN. Applied to the standard fee, so a student's loyalty discount does not reduce what the rider earns.",
+      },
+    ],
+  },
+  {
     title: "Scheduling",
     keys: [
       {
@@ -69,18 +92,33 @@ const KNOWN_KEYS = GROUPS.flatMap((g) => g.keys.map((k) => k.key));
 export default function ConfigPage() {
   const { accessToken } = useAdminAuth();
   const [rows, setRows] = useState<ConfigRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!accessToken) return;
+    setError(null);
     apiFetch<{ config: ConfigRow[] }>("/admin/config", accessToken)
       .then((res) => {
         setRows(res.config);
-        setDraft(Object.fromEntries(res.config.map((r) => [r.key, r.value])));
+        // Seed the form only when it is untouched. This effect re-runs whenever
+        // `accessToken` changes identity, and Supabase mints a new token on its
+        // hourly refresh (and on tab focus) — which used to overwrite whatever
+        // the admin had typed, revert the field and re-disable Save with no
+        // indication at all that their edit had been thrown away.
+        setDraft((current) =>
+          Object.keys(current).length === 0
+            ? Object.fromEntries(res.config.map((r) => [r.key, r.value]))
+            : current,
+        );
       })
-      .catch(() => setRows([]));
+      .catch(() => {
+        setRows([]);
+        setError("Could not load platform config. Check your connection and try again.");
+      });
   }, [accessToken]);
 
   useEffect(() => {
@@ -94,6 +132,7 @@ export default function ConfigPage() {
   async function handleSave() {
     if (!accessToken || dirtyKeys.length === 0) return;
     setSaving(true);
+    setSaveError(null);
     try {
       // PUT /config upserts a single key, so a multi-field save is one call per
       // changed key. Only changed keys are sent.
@@ -104,7 +143,19 @@ export default function ConfigPage() {
         });
       }
       setSavedAt(new Date().toLocaleString());
+      // Clear the draft so the reload below re-seeds it: `load` now refuses to
+      // overwrite a non-empty draft, and the server may normalise what it
+      // stored ("20" -> "20.00"), which would otherwise leave the form showing
+      // unsaved changes forever.
+      setDraft({});
       load();
+    } catch (err) {
+      // The API validates these now — a mistyped fee is a 400 naming the field.
+      // Swallowing it would leave the admin looking at their own bad value with
+      // no indication it was refused, which is worse than the old behaviour of
+      // accepting it. `load()` is deliberately not called: the draft is kept so
+      // the number can be corrected rather than silently reverted.
+      setSaveError(errorMessage(err, "Could not save. Check the values and try again."));
     } finally {
       setSaving(false);
     }
@@ -123,14 +174,24 @@ export default function ConfigPage() {
 
       <div className="mb-7 flex max-w-[720px] gap-3 rounded-control bg-wave-lime p-4">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0">
-          <circle cx="12" cy="12" r="9" stroke="#009933" strokeWidth="1.7" />
-          <path d="M12 11v5.5M12 7.8v.4" stroke="#009933" strokeWidth="1.9" strokeLinecap="round" />
+          <circle cx="12" cy="12" r="9" stroke="#083400" strokeWidth="1.7" />
+          <path d="M12 11v5.5M12 7.8v.4" stroke="#083400" strokeWidth="1.9" strokeLinecap="round" />
         </svg>
-        <p className="text-[12.5px] leading-5 text-wave-500">
+        <p className="text-[12.5px] leading-5 text-ink">
           Changes apply to <strong className="font-semibold">new orders only</strong>. Orders already
           placed keep the fee, discount and surcharge they were created with.
         </p>
       </div>
+
+      {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
+      {saveError ? (
+        <p
+          role="alert"
+          className="mb-5 max-w-[720px] rounded-control border border-border bg-surface px-4 py-3 text-[13px] text-ink"
+        >
+          {saveError}
+        </p>
+      ) : null}
 
       {rows === null ? (
         <p className="text-[13.5px] text-muted">Loading…</p>

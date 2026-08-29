@@ -6,7 +6,12 @@ import {
   uploadVerificationImageSchema,
 } from "@wave/shared";
 import { createServerSupabaseClient } from "../../lib/supabaseServer";
-import { VERIFICATION_BUCKET, ownsVerificationPath, signVerificationImages } from "./images";
+import {
+  VERIFICATION_BUCKET,
+  deleteVerificationImages,
+  ownsVerificationPath,
+  signVerificationImages,
+} from "./images";
 
 export async function riderRoutes(fastify: FastifyInstance) {
   fastify.post(
@@ -97,9 +102,13 @@ export async function riderRoutes(fastify: FastifyInstance) {
       if (!parsed.success) {
         return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
       }
+      // `isAvailable`, never `isActive`. Writing the ban flag here is what
+      // locked a rider out of their own account the moment they went offline:
+      // `plugins/auth.ts` 403s every authenticated request when `isActive` is
+      // false, including the one that would turn the toggle back on.
       const profile = await fastify.prisma.profile.update({
         where: { id: request.user!.id },
-        data: { isActive: parsed.data.isActive },
+        data: { isAvailable: parsed.data.isAvailable },
       });
       return reply.send({ profile });
     },
@@ -141,6 +150,20 @@ export async function riderRoutes(fastify: FastifyInstance) {
       });
       if (parsed.data.status === "approved") {
         await fastify.prisma.profile.update({ where: { id: verification.riderId }, data: { isVerified: true } });
+      }
+
+      // Rejection is the one unambiguous deletion trigger Wave has for the most
+      // sensitive data it holds, so the photographs go now rather than waiting
+      // for a manual purge (review 07-privacy, H1/H2). The row itself stays —
+      // it records that a decision was made and why, without the images.
+      if (parsed.data.status === "rejected") {
+        const { deleted } = await deleteVerificationImages(fastify.config, verification, request.log);
+        request.log.info(
+          { verificationId: verification.id, deleted },
+          deleted
+            ? "Deleted ID photographs for rejected verification"
+            : "Rejected verification had no deletable image paths, or storage delete failed",
+        );
       }
       return reply.send({ verification });
     },

@@ -10,6 +10,7 @@ import {
   updateUserStatusSchema,
 } from "@wave/shared";
 import { endOrderWithRefund } from "../payments/refund";
+import { sweepAbandonedCheckouts } from "../payments/sweepAbandoned";
 import { announceShopIsLive } from "../suggestions/announce";
 
 export async function adminRoutes(fastify: FastifyInstance) {
@@ -97,10 +98,104 @@ export async function adminRoutes(fastify: FastifyInstance) {
     return reply.send({ orders, total, page: currentPage, pageSize: take });
   });
 
+  fastify.get("/orders/:orderId", async (request, reply) => {
+    const { orderId } = request.params as { orderId: string };
+    const order = await fastify.prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        status: true,
+        orderType: true,
+        totalAmount: true,
+        deliveryFee: true,
+        itemPrice: true,
+        paidAt: true,
+        goodsPaidAt: true,
+        paystackRef: true,
+        goodsPaystackRef: true,
+        scheduledDate: true,
+        isSpecialOrder: true,
+        itemDescription: true,
+        cancellationReason: true,
+        createdAt: true,
+        updatedAt: true,
+        student: { select: { id: true, fullName: true, phone: true, studentId: true } },
+        shop: { select: { id: true, name: true } },
+        checkpoint: { select: { name: true } },
+        rider: { select: { id: true, fullName: true, phone: true } },
+        items: { select: { name: true, quantity: true, unitPrice: true, actualUnitPrice: true } },
+        statusHistory: {
+          orderBy: { createdAt: "desc" },
+          take: 8,
+          select: { status: true, note: true, createdAt: true, changer: { select: { fullName: true } } },
+        },
+      },
+    });
+    if (!order) return reply.code(404).send({ error: "Order not found" });
+    return reply.send({ order });
+  });
+
+  /**
+   * The user list behind admin → Users.
+   *
+   * Two things were wrong with the previous one-line version. It returned every
+   * profile in the database in a single unpaginated response — fine at pilot
+   * scale, a standing export of the whole user base later. And it selected the
+   * entire row, so every request shipped `email`, `studentId`, `avatarUrl` and
+   * `pushToken` to a page that renders none of them.
+   *
+   * Search is server-side for the same reason: the page used to filter the full
+   * list in the browser, which only works while the full list is what arrives.
+   */
+  const ADMIN_USER_SELECT = {
+    id: true,
+    fullName: true,
+    phone: true,
+    role: true,
+    isActive: true,
+    isVerified: true,
+    createdAt: true,
+  } as const;
+
   fastify.get("/users", async (request, reply) => {
-    const { role } = request.query as { role?: string };
-    const users = await fastify.prisma.profile.findMany({ where: role ? { role: role as never } : undefined });
-    return reply.send({ users });
+    const { role, page, pageSize, search } = request.query as {
+      role?: string;
+      page?: string;
+      pageSize?: string;
+      search?: string;
+    };
+
+    const take = Math.min(Math.max(Number(pageSize) || 25, 1), 100);
+    const currentPage = Math.max(Number(page) || 1, 1);
+    const term = search?.trim();
+
+    const where = {
+      ...(role ? { role: role as never } : {}),
+      // Phone is stored E.164; someone searching "0241234567" or "241234567"
+      // should still find "+233241234567", so match on a contains rather than
+      // an exact equality.
+      ...(term
+        ? {
+            OR: [
+              { fullName: { contains: term, mode: "insensitive" as const } },
+              { phone: { contains: term.replace(/[\s()-]/g, "") } },
+            ],
+          }
+        : {}),
+    };
+
+    const [users, total] = await Promise.all([
+      fastify.prisma.profile.findMany({
+        where,
+        take,
+        skip: (currentPage - 1) * take,
+        orderBy: { createdAt: "desc" },
+        select: ADMIN_USER_SELECT,
+      }),
+      fastify.prisma.profile.count({ where }),
+    ]);
+
+    return reply.send({ users, total, page: currentPage, pageSize: take });
   });
 
   fastify.get("/config", async (_request, reply) => {
@@ -111,7 +206,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
   fastify.put("/config", async (request, reply) => {
     const parsed = updateConfigSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+      // Lead with the specific message rather than "Invalid payload": these are
+      // typed into a form by a person, and "Base delivery fee (GH₵) must be a
+      // number" is the whole difference between a fixable mistake and a
+      // mysterious one.
+      const first = parsed.error.issues[0]?.message ?? "Invalid payload";
+      return reply.code(400).send({ error: first, details: parsed.error.flatten() });
     }
     const config = await fastify.prisma.platformConfig.upsert({
       where: { key: parsed.data.key },
@@ -139,6 +239,22 @@ export async function adminRoutes(fastify: FastifyInstance) {
     if (!result.ok) return reply.code(result.code).send({ error: result.error });
 
     return reply.send({ order: result.order, refundIssued: result.refundIssued });
+  });
+
+  /**
+   * Runs the abandoned-checkout sweep now, instead of waiting for the timer.
+   *
+   * Two uses. An admin who can see a stranded `payment_pending` order in the
+   * dashboard can settle it on the spot rather than waiting up to ten minutes;
+   * and if the API is ever moved to a plan with a cron service, this is the
+   * endpoint that service calls, with `SWEEP_ENABLED=false` to retire the timer.
+   *
+   * Safe to hammer: everything the sweep does is idempotent, and an order
+   * younger than the TTL is never touched however often this is called.
+   */
+  fastify.post("/payments/sweep-abandoned", async (request, reply) => {
+    const result = await sweepAbandonedCheckouts({ fastify, log: request.log });
+    return reply.send(result);
   });
 
   // --- Users -------------------------------------------------------------

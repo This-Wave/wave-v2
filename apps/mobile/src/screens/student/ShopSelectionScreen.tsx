@@ -95,10 +95,19 @@ export function ShopSelectionScreen() {
 
         <Gutter className="mb-5">
           <View style={isDesktop ? { maxWidth: 480 } : undefined}>
+            {/* Auto-focused only when arriving from Home's search capsule.
+                That capsule reads as a text field and its placeholder names
+                things to type ("Jollof, printing, airtime…"), but it is a
+                Pressable that routes here — so without this the promise breaks:
+                you tap a search box and land on a list with no keyboard
+                (review 04-ux-design). Not focused on the other entry points,
+                where the student came to browse and an unrequested keyboard
+                covering half the grid is the wrong default. */}
             <Field
               label=""
               value={query}
               onChangeText={setQuery}
+              autoFocus={params?.focusSearch === true}
               placeholder="Search shops, places, categories"
             />
           </View>
