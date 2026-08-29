@@ -36,6 +36,8 @@ export function testEnv(overrides: Partial<Env> = {}): Env {
     PAYSTACK_SECRET_KEY: TEST_PAYSTACK_SECRET,
     JWT_SECRET: "jwt-secret",
     MNOTIFY_SENDER_ID: "Wave",
+    // The sweep timer has no place in a route test — see plugins/sweeper.ts.
+    SWEEP_ENABLED: false,
     ...overrides,
   } as Env;
 }

@@ -19,7 +19,15 @@
 # dropped is recovered the next time the student's app polls. That makes a cold
 # start survivable rather than order-losing — but only while the student has the
 # app open. Someone who pays and immediately closes it still depends on the
-# webhook landing. Keep-warm options in `PLAN.md` Phase 9 still apply.
+# webhook landing.
+#
+# UPDATE 2026-08-29: `SWEEP_ENABLED` (below) closes most of what was left. Every
+# ~10 minutes the API asks Paystack about every order that has sat unpaid for 45
+# minutes, confirms the ones that really were charged, and cancels the ones that
+# were not — so the student who pays and closes the app is recovered without
+# their app ever polling. It is not a full substitute for an always-on plan: a
+# sleeping service runs no timers, so the sweep advances only while the API is
+# awake. Keep-warm options in `PLAN.md` Phase 9 still apply.
 
 services:
   # ---------------------------------------------------------------------------
@@ -97,6 +105,15 @@ services:
         sync: false
       - key: RESEND_FROM
         value: Wave <notifications@wave.app>
+      # Abandoned-checkout sweep. Leave on. It is what closes out orders nobody
+      # ever paid for, and — more to the point on this plan — it is the last net
+      # under a webhook dropped during a cold start: it asks Paystack about every
+      # stale reference and confirms the ones that really did take money. The
+      # verify poll only covers a student who keeps the app open; this covers the
+      # one who pays and closes it. Note it only advances while the service is
+      # awake, so it narrows the free-plan risk above rather than removing it.
+      - key: SWEEP_ENABLED
+        value: "true"
 
   # ---------------------------------------------------------------------------
   # Admin — Next.js 14. Safe to leave on free: a cold start only ever makes an

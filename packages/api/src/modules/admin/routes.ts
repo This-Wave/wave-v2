@@ -10,6 +10,7 @@ import {
   updateUserStatusSchema,
 } from "@wave/shared";
 import { endOrderWithRefund } from "../payments/refund";
+import { sweepAbandonedCheckouts } from "../payments/sweepAbandoned";
 import { announceShopIsLive } from "../suggestions/announce";
 
 export async function adminRoutes(fastify: FastifyInstance) {
@@ -238,6 +239,22 @@ export async function adminRoutes(fastify: FastifyInstance) {
     if (!result.ok) return reply.code(result.code).send({ error: result.error });
 
     return reply.send({ order: result.order, refundIssued: result.refundIssued });
+  });
+
+  /**
+   * Runs the abandoned-checkout sweep now, instead of waiting for the timer.
+   *
+   * Two uses. An admin who can see a stranded `payment_pending` order in the
+   * dashboard can settle it on the spot rather than waiting up to ten minutes;
+   * and if the API is ever moved to a plan with a cron service, this is the
+   * endpoint that service calls, with `SWEEP_ENABLED=false` to retire the timer.
+   *
+   * Safe to hammer: everything the sweep does is idempotent, and an order
+   * younger than the TTL is never touched however often this is called.
+   */
+  fastify.post("/payments/sweep-abandoned", async (request, reply) => {
+    const result = await sweepAbandonedCheckouts({ fastify, log: request.log });
+    return reply.send(result);
   });
 
   // --- Users -------------------------------------------------------------
