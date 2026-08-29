@@ -8,6 +8,7 @@ import { parseCorsOrigins } from "./config/cors";
 import prismaPlugin from "./plugins/prisma";
 import authPlugin from "./plugins/auth";
 import rateLimitPlugin from "./plugins/rateLimit";
+import sweeperPlugin from "./plugins/sweeper";
 import { authRoutes } from "./modules/auth/routes";
 import { profileRoutes } from "./modules/profiles/routes";
 import { universityRoutes } from "./modules/checkpoints/routes";
@@ -46,6 +47,8 @@ export function buildApp(): FastifyInstance {
   app.register(prismaPlugin);
   app.register(rateLimitPlugin);
   app.register(authPlugin);
+  // After prisma: the sweep's first tick needs `fastify.prisma` decorated.
+  app.register(sweeperPlugin);
 
   app.get("/health", async (request, reply) => {
     try {

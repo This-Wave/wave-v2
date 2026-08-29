@@ -47,6 +47,16 @@ const envSchema = z.object({
 
   /** Optional error monitoring — unset means Sentry stays disabled. */
   SENTRY_DSN: z.string().url().optional(),
+
+  // Runs the abandoned-checkout sweep on an in-process timer (plugins/sweeper.ts).
+  // Default on: an order that strands `payment_pending` forever is the failure
+  // this closes, and it is worse than the sweep's cost. Set `false` only when
+  // something external drives POST /v1/admin/payments/sweep-abandoned instead,
+  // or the timer would duplicate that work for no benefit.
+  SWEEP_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
 });
 
 export type Env = z.infer<typeof envSchema>;
