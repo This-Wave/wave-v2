@@ -37,14 +37,21 @@ services:
     name: wave-api
     runtime: node
     region: frankfurt
-    # ⚠ GO-LIVE BLOCKER (checklist C11 / reviews 05-C3, 06-C4).
-    # `free` spins down when idle. This is the service Paystack posts the
-    # payment webhook to, and a cold start can drop it — the student is charged
-    # and the app never learns. The verify-poll recovers it only while the app
-    # stays open. Move to a paid always-on plan BEFORE switching to live
-    # Paystack keys. Changing this line costs money, so it is left as a
-    # deliberate decision rather than a default.
-    plan: free
+    # Always-on, and it has to stay that way (checklist C11 / reviews 05-C3, 06-C4).
+    #
+    # This is the service Paystack posts the payment webhook to. On `free`, Render
+    # spins the service down when idle and the next request pays the full cold
+    # start — measured against production on 2026-09-02 at **45 seconds**, and 53s
+    # for the admin service. Paystack does not wait that long, so the webhook is
+    # dropped: the student is charged and the app never learns.
+    #
+    # The abandoned-checkout sweep does not save you here. It runs on a timer
+    # inside this process, and a sleeping service runs no timers — it only
+    # advances while the API happens to be awake for some other reason.
+    #
+    # `starter` is the cheapest plan that does not sleep. Do not put this back to
+    # `free` while live Paystack keys are in use.
+    plan: starter
     branch: main
     # Build from the repo root: this is an npm-workspaces monorepo, and the API
     # imports @wave/shared and @wave/db, which must be compiled to JS first.
@@ -123,7 +130,10 @@ services:
     name: wave-admin
     runtime: node
     region: frankfurt
-    plan: free
+    # Also always-on, for a smaller but real reason: this app serves /legal/terms
+    # and /legal/privacy, which the mobile app links to at signup and which an app
+    # store reviewer fetches on a timeout. A 53s cold start fails both.
+    plan: starter
     branch: main
     buildCommand: npm ci --include=dev && npm run build --workspace apps/admin
     startCommand: npm start --workspace apps/admin
@@ -154,6 +164,8 @@ services:
     name: wave-api-staging
     runtime: node
     region: frankfurt
+    # Deliberately still free. Staging takes no real money and no real webhook,
+    # so a cold start costs a slow first click and nothing else.
     plan: free
     branch: develop
     buildCommand: npm ci --include=dev && npm run build --workspace packages/api && npm run migrate:deploy --workspace @wave/db
