@@ -1,5 +1,7 @@
+import type { OrderStatus } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import {
+  forceDeliverSchema,
   setRiderTypeSchema,
   adminCreateShopSchema,
   adminUpdateShopSchema,
@@ -13,6 +15,16 @@ import {
 import { endOrderWithRefund } from "../payments/refund";
 import { sweepAbandonedCheckouts } from "../payments/sweepAbandoned";
 import { announceShopIsLive } from "../suggestions/announce";
+
+/**
+ * Where a stuck delivery may be forced from.
+ *
+ * Only the states in which a rider is actually holding the goods. Forcing from
+ * `confirmed` would close an order nobody has collected, and from `cancelled` or
+ * `refunded` would mark delivered something the student has already been paid
+ * back for.
+ */
+const FORCE_DELIVERABLE_FROM: OrderStatus[] = ["rider_assigned", "en_route", "at_checkpoint"];
 
 export async function adminRoutes(fastify: FastifyInstance) {
   fastify.addHook("preHandler", fastify.authenticate);
@@ -326,6 +338,69 @@ export async function adminRoutes(fastify: FastifyInstance) {
       "Rider type changed",
     );
     return reply.send({ profile });
+  });
+
+  /**
+   * Close a delivery an admin has confirmed happened, without a PIN.
+   *
+   * The delivery PIN arrives by SMS, and SMS on Ghanaian networks is not 100%.
+   * The student confirming receipt in their own app covers most of the gap, but
+   * not a dead phone or a number that has stopped receiving anything — and in
+   * those cases a rider who genuinely handed over the goods cannot close the job
+   * or be paid for it.
+   *
+   * Deliberately admin-only and deliberately noisy. It marks goods handed over on
+   * nothing but a person's word, so it demands a written reason, records who did
+   * it, and logs at warn level. A rider-side version of this button would be the
+   * end of the PIN meaning anything at all.
+   */
+  fastify.post("/orders/:orderId/force-deliver", async (request, reply) => {
+    const { orderId } = request.params as { orderId: string };
+    const parsed = forceDeliverSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+
+    const order = await fastify.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) return reply.code(404).send({ error: "Order not found" });
+    if (!order.riderId) {
+      return reply.code(409).send({ error: "No rider has picked this order up" });
+    }
+    if (order.status === "delivered") {
+      return reply.code(409).send({ error: "This order is already delivered" });
+    }
+
+    const deliverable = await fastify.prisma.order.updateMany({
+      where: { id: orderId, status: { in: FORCE_DELIVERABLE_FROM } },
+      data: { status: "delivered", deliveredAt: new Date(), deliveryPinAttempts: 0 },
+    });
+    if (deliverable.count === 0) {
+      return reply
+        .code(409)
+        .send({ error: `This order is ${order.status} — it can't be marked delivered` });
+    }
+
+    await fastify.prisma.orderStatusHistory.create({
+      data: {
+        orderId,
+        status: "delivered",
+        changedBy: request.user!.id,
+        note: `Closed by admin without a PIN: ${parsed.data.reason}`,
+      },
+    });
+    await fastify.prisma.studentDeliveryStats.upsert({
+      where: { studentId: order.studentId },
+      create: { studentId: order.studentId, totalDeliveries: 1 },
+      update: { totalDeliveries: { increment: 1 } },
+    });
+
+    request.log.warn(
+      { orderId, adminId: request.user!.id, reason: parsed.data.reason },
+      "Delivery closed by an admin without a PIN",
+    );
+
+    const updated = await fastify.prisma.order.findUnique({ where: { id: orderId } });
+    return reply.send({ order: updated });
   });
 
   // --- Users -------------------------------------------------------------

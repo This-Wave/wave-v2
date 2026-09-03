@@ -49,6 +49,8 @@ function makePrisma(attempts = 0, update?: Mock) {
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     studentDeliveryStats: { upsert: vi.fn().mockResolvedValue({}) },
+    // settleDelivery records how every delivery was closed, on every path.
+    orderStatusHistory: { create: vi.fn().mockResolvedValue({}) },
     platformConfig: { findUnique: vi.fn().mockResolvedValue({ value: "80" }) },
     riderEarning: { create: vi.fn().mockResolvedValue({}) },
   };

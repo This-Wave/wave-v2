@@ -49,6 +49,8 @@ function makePrisma(
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     studentDeliveryStats: { upsert: vi.fn().mockResolvedValue({}) },
+    // settleDelivery records how every delivery was closed, on every path.
+    orderStatusHistory: { create: vi.fn().mockResolvedValue({}) },
     // The rate depends on which kind of rider this is, so the payout path reads
     // the profile before it reads the config.
     profile: {

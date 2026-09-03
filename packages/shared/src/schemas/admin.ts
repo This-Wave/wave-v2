@@ -135,3 +135,17 @@ export const setRiderTypeSchema = z.object({
   riderType: z.enum(RIDER_TYPES),
 });
 export type SetRiderTypeInput = z.infer<typeof setRiderTypeSchema>;
+
+/**
+ * An admin closing a delivery that cannot be closed any other way.
+ *
+ * The last resort when the PIN never arrived and the student cannot confirm —
+ * a lost phone, a dead battery, a number that stopped receiving SMS. The reason
+ * is required and deliberately long enough to be a sentence: this is the one
+ * route that marks goods handed over on nothing but an admin's word, so the
+ * record of why has to be worth reading months later.
+ */
+export const forceDeliverSchema = z.object({
+  reason: z.string().min(10).max(500),
+});
+export type ForceDeliverInput = z.infer<typeof forceDeliverSchema>;
