@@ -24,8 +24,11 @@ function makePrisma() {
       aggregate: vi.fn().mockResolvedValue({ _sum: { totalAmount: 0 } }),
     },
     profile: { count: vi.fn().mockResolvedValue(0) },
-    shop: { count: vi.fn() },
-    riderVerification: { count: vi.fn().mockResolvedValue(0) },
+    shop: { count: vi.fn(), findFirst: vi.fn().mockResolvedValue(null) },
+    riderVerification: {
+      count: vi.fn().mockResolvedValue(0),
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
   };
 }
 
@@ -70,5 +73,51 @@ describe("GET /admin/stats", () => {
     await app.close();
 
     expect(res.json().pendingShops).toBe(0);
+  });
+});
+
+describe("how long the queues have been waiting", () => {
+  test("reports when the oldest pending item arrived", async () => {
+    // A count alone reads the same on day one and day nine. The dashboard needs
+    // the age to tell an admin the queue is stuck rather than merely non-empty.
+    const prisma = makePrisma();
+    const submitted = new Date("2026-09-01T09:00:00Z");
+    prisma.shop.count.mockResolvedValue(1);
+    prisma.riderVerification.findFirst.mockResolvedValue({ createdAt: submitted });
+    prisma.shop.findFirst.mockResolvedValue({ createdAt: submitted });
+
+    const app = await buildTestApp(adminRoutes, { prisma, user: ADMIN });
+    const res = await app.inject({ method: "GET", url: "/stats" });
+    await app.close();
+
+    expect(res.json().oldestPendingRiderAt).toBe(submitted.toISOString());
+    expect(res.json().oldestPendingShopAt).toBe(submitted.toISOString());
+  });
+
+  test("an empty queue reports null, not a date", async () => {
+    const prisma = makePrisma();
+    prisma.shop.count.mockResolvedValue(0);
+
+    const app = await buildTestApp(adminRoutes, { prisma, user: ADMIN });
+    const res = await app.inject({ method: "GET", url: "/stats" });
+    await app.close();
+
+    expect(res.json().oldestPendingRiderAt).toBeNull();
+    expect(res.json().oldestPendingShopAt).toBeNull();
+  });
+
+  test("asks for the oldest, not an arbitrary row", async () => {
+    const prisma = makePrisma();
+    prisma.shop.count.mockResolvedValue(0);
+
+    const app = await buildTestApp(adminRoutes, { prisma, user: ADMIN });
+    await app.inject({ method: "GET", url: "/stats" });
+    await app.close();
+
+    // Without the ordering this reports whichever row the database felt like,
+    // and the "oldest waiting" line on the dashboard becomes decorative.
+    expect(prisma.riderVerification.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { createdAt: "asc" } }),
+    );
   });
 });

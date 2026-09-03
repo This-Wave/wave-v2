@@ -9,6 +9,7 @@ import { StatusPill } from "../../../components/ui/StatusPill";
 import { Button, RowAction } from "../../../components/ui/Button";
 import { CreateShopModal } from "../../../components/CreateShopModal";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
+import { approvalWait } from "@wave/shared";
 
 interface Shop {
   id: string;
@@ -17,6 +18,7 @@ interface Shop {
   locationText: string | null;
   isActive: boolean;
   isVerified: boolean;
+  createdAt: string;
   owner: { id: string; fullName: string; phone: string };
   _count: { products: number; orders: number };
 }
@@ -116,13 +118,16 @@ export default function ShopsPage() {
     },
     {
       header: "Status",
-      width: "w-[150px]",
+      width: "w-[210px]",
       // Verification outranks the active flag: an unverified shop is invisible
       // to students whatever `isActive` says, so showing it as "Active" would
       // tell an admin the storefront is live when it is not.
       render: (s) =>
         !s.isVerified ? (
-          <StatusPill label="Awaiting approval" tone="warn" />
+          <StatusPill
+            label={`Awaiting approval · ${approvalWait(s.createdAt).label}`}
+            tone={approvalWait(s.createdAt).overdue ? "bad" : "warn"}
+          />
         ) : (
           <StatusPill label={s.isActive ? "Active" : "Suspended"} tone={s.isActive ? "good" : "bad"} />
         ),

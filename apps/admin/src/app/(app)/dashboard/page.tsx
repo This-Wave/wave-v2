@@ -5,6 +5,18 @@ import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../lib/api";
 import { useApiQuery } from "../../../hooks/useApiQuery";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
+import { approvalWait } from "@wave/shared";
+
+/** "oldest 3 days", or nothing when the queue is empty. */
+function waitHint(oldestAt: string | null | undefined): string | undefined {
+  if (!oldestAt) return undefined;
+  const wait = approvalWait(oldestAt);
+  return `oldest ${wait.label}${wait.overdue ? " — overdue" : ""}`;
+}
+
+function isOverdue(oldestAt: string | null | undefined): boolean {
+  return !!oldestAt && approvalWait(oldestAt).overdue;
+}
 
 interface Stats {
   ordersToday: number;
@@ -12,6 +24,8 @@ interface Stats {
   revenueToday: number;
   pendingRiders: number;
   pendingShops: number;
+  oldestPendingRiderAt: string | null;
+  oldestPendingShopAt: string | null;
 }
 
 interface RecentOrder {
@@ -92,17 +106,22 @@ export default function DashboardPage() {
         <StatTile label="Total Orders Today" value={stats ? String(stats.ordersToday) : "—"} />
         <StatTile label="Active Riders" value={stats ? String(stats.activeRiders) : "—"} />
         <StatTile label="Platform Revenue" value={stats ? formatGhs(Number(stats.revenueToday)) : "—"} />
+        {/* A count alone reads the same on day one and day nine, so the tile
+            carries the oldest wait and turns red once it passes the day the app
+            promises the rider. */}
         <StatTile
           label="Pending Verifications"
           value={stats ? String(stats.pendingRiders) : "—"}
-          attention={!!stats && stats.pendingRiders > 0}
+          hint={waitHint(stats?.oldestPendingRiderAt)}
+          attention={!!stats && (stats.pendingRiders > 0 || isOverdue(stats.oldestPendingRiderAt))}
         />
         {/* A shop waiting here is invisible to every student, and its owner has
             no way to tell that from Wave simply having no orders. */}
         <StatTile
           label="Shops Awaiting Approval"
           value={stats ? String(stats.pendingShops) : "—"}
-          attention={!!stats && stats.pendingShops > 0}
+          hint={waitHint(stats?.oldestPendingShopAt)}
+          attention={!!stats && (stats.pendingShops > 0 || isOverdue(stats.oldestPendingShopAt))}
         />
       </div>
 
@@ -163,7 +182,18 @@ export default function DashboardPage() {
   );
 }
 
-function StatTile({ label, value, attention }: { label: string; value: string; attention?: boolean }) {
+function StatTile({
+  label,
+  value,
+  attention,
+  hint,
+}: {
+  label: string;
+  value: string;
+  attention?: boolean;
+  /** Small line under the number — used for how long the oldest item has waited. */
+  hint?: string;
+}) {
   return (
     <div
       className={`rounded-card border p-4 ${
@@ -174,6 +204,9 @@ function StatTile({ label, value, attention }: { label: string; value: string; a
       <p className={`text-[24px] font-semibold tracking-tight ${attention ? "text-danger-text" : "text-ink"}`}>
         {value}
       </p>
+      {hint ? (
+        <p className={`mt-1 text-[11px] ${attention ? "text-danger-text" : "text-muted"}`}>{hint}</p>
+      ) : null}
     </div>
   );
 }
