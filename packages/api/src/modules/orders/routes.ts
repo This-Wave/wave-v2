@@ -24,6 +24,7 @@ import {
 import { verifyDeliveryPin } from "./pin";
 import { issueDeliveryPin } from "./issuePin";
 import { decryptDeliveryPin } from "./pinCrypto";
+import { redactClosedOrderContacts, redactClosedOrderContactsAll } from "./redact";
 import { findOrderForUser, redactStudentContactForShop } from "./access";
 import { allowedPredecessors } from "./transitions";
 import { clientSafeOrder, feedOrder } from "./select";
@@ -236,7 +237,10 @@ export async function orderRoutes(fastify: FastifyInstance) {
       select: clientSafeOrder,
       orderBy: { createdAt: "desc" },
     });
-    return reply.send({ orders });
+    // A student's history is mostly closed orders, so without this it is a
+    // standing list of the phone number of every rider who has ever delivered
+    // to them.
+    return reply.send({ orders: redactClosedOrderContactsAll(orders, request.user!.role) });
   });
 
   fastify.get("/available", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {
@@ -284,7 +288,9 @@ export async function orderRoutes(fastify: FastifyInstance) {
       select: clientSafeOrder,
       orderBy: { createdAt: "desc" },
     });
-    return reply.send({ orders });
+    // The larger exposure of the two: a busy rider's delivery list would
+    // otherwise hold the number of every student they have ever served.
+    return reply.send({ orders: redactClosedOrderContactsAll(orders, request.user!.role) });
   });
 
   // Every order across every shop this owner holds.
@@ -316,7 +322,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
     const { id } = request.params as { id: string };
     const order = await findOrderForUser(fastify.prisma, id, request.user!);
     if (!order) return reply.code(404).send({ error: "Order not found" });
-    return reply.send({ order });
+    return reply.send({ order: redactClosedOrderContacts(order, request.user!.role) });
   });
 
   fastify.patch("/:id/accept", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {
