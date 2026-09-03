@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import type { SelfServeProfileRole } from "@wave/shared";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
 import {
   ActionBar,
@@ -28,8 +29,45 @@ type Props = NativeStackScreenProps<AuthStackParamList, "ProfileSetup">;
  * University was a field that *cycled* to the next one on each tap in v5 —
  * the same pattern the checkpoint pickers had — with no way to see the list.
  * It is a real picker now.
+ *
+ * The role arrives from `RoleSelectScreen` rather than being hardcoded to
+ * "student", which is what it was until onboarding existed. What the server
+ * does with it differs sharply by role: `auth/routes.ts` sets
+ * `isVerified: role === "student"`, so a rider or shop owner created here is
+ * deliberately inert until an admin approves them. Each role's navigator is
+ * responsible for saying so; this screen only states it up front so the wait
+ * is not a surprise.
  */
-export function ProfileSetupScreen(_props: Props) {
+const COPY: Record<
+  SelfServeProfileRole,
+  { title: string; blurb: string; cta: string; askStudentId: boolean; emailHint: string }
+> = {
+  student: {
+    title: "Who are you?",
+    blurb: "Your runner needs a name to look for at the checkpoint.",
+    cta: "Start using Wave",
+    askStudentId: true,
+    emailHint: "Optional — we'll email you when a shop you suggested goes live.",
+  },
+  rider: {
+    title: "Who are you?",
+    blurb: "Students see this name when you take their order. Next you'll verify your ID.",
+    cta: "Continue to verification",
+    askStudentId: true,
+    emailHint: "Optional — how we reach you about your account.",
+  },
+  shop_owner: {
+    title: "Who runs the shop?",
+    blurb: "Your name, not the shop's — you'll add the shop next.",
+    cta: "Continue to shop details",
+    askStudentId: false,
+    emailHint: "Optional — how we reach you about your shop.",
+  },
+};
+
+export function ProfileSetupScreen({ route }: Props) {
+  const role = route.params.role;
+  const copy = COPY[role];
   const { data: universities } = useUniversities();
   const [fullName, setFullName] = useState("");
   const [studentId, setStudentId] = useState("");
@@ -52,11 +90,14 @@ export function ProfileSetupScreen(_props: Props) {
     try {
       const profile = await completeProfile({
         fullName,
-        role: "student",
+        role,
         universityId: university.id,
-        studentId: studentId || undefined,
+        studentId: copy.askStudentId && studentId ? studentId : undefined,
         email: email.trim() || undefined,
       });
+      // Setting the profile is what hands control to RootNavigator, which routes
+      // on `profile.role`. A rider lands in the verification gate and a shop
+      // owner in the shop gate, so there is nothing to navigate to from here.
       setProfile(profile);
     } catch {
       setError("Couldn't save your profile. Please try again.");
@@ -69,10 +110,8 @@ export function ProfileSetupScreen(_props: Props) {
     <Screen>
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-12">
-          <Text className="mb-2 font-sans-bold text-heading text-ink">Who are you?</Text>
-          <Text className="mb-10 font-sans text-body text-muted">
-            Your runner needs a name to look for at the checkpoint.
-          </Text>
+          <Text className="mb-2 font-sans-bold text-heading text-ink">{copy.title}</Text>
+          <Text className="mb-10 font-sans text-body text-muted">{copy.blurb}</Text>
 
           <View className="mb-6">
             <Field
@@ -83,15 +122,21 @@ export function ProfileSetupScreen(_props: Props) {
             />
           </View>
 
-          <View className="mb-6">
-            <Field
-              label="Student ID"
-              value={studentId}
-              onChangeText={setStudentId}
-              placeholder="AUC/CS/21/0042"
-              hint="Optional — helps your runner find you."
-            />
-          </View>
+          {copy.askStudentId ? (
+            <View className="mb-6">
+              <Field
+                label="Student ID"
+                value={studentId}
+                onChangeText={setStudentId}
+                placeholder="AUC/CS/21/0042"
+                hint={
+                  role === "rider"
+                    ? "Optional — speeds up verification if you're a student rider."
+                    : "Optional — helps your runner find you."
+                }
+              />
+            </View>
+          ) : null}
 
           <View className="mb-6">
             <Field
@@ -99,7 +144,7 @@ export function ProfileSetupScreen(_props: Props) {
               value={email}
               onChangeText={setEmail}
               placeholder="you@ashesi.edu.gh"
-              hint="Optional — we'll email you when a shop you suggested goes live."
+              hint={copy.emailHint}
               keyboardType="email-address"
             />
           </View>
@@ -120,7 +165,7 @@ export function ProfileSetupScreen(_props: Props) {
 
       <ActionBar>
         <Button
-          label="Start using Wave"
+          label={copy.cta}
           onPress={handleContinue}
           loading={loading}
           disabled={fullName.trim().length < 2}

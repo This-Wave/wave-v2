@@ -16,5 +16,8 @@ export function loadEnv(): void {
     const value = match[2].trim().replace(/^["'](.*)["']$/, "$1");
     if (match[1] === "SUPABASE_URL") process.env.E2E_SUPABASE_URL ??= value;
     if (match[1] === "SUPABASE_ANON_KEY") process.env.E2E_SUPABASE_ANON_KEY ??= value;
+    // Needed only by the onboarding specs, which create and then delete real
+    // throwaway auth users — the one thing the anon key cannot do.
+    if (match[1] === "SUPABASE_SERVICE_ROLE_KEY") process.env.E2E_SUPABASE_SERVICE_ROLE_KEY ??= value;
   }
 }

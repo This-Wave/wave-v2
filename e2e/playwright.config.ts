@@ -49,7 +49,7 @@ export default defineConfig({
     },
     {
       name: "mobile",
-      testMatch: /(student|rider|shop)\.spec\.ts/,
+      testMatch: /(student|rider|shop)(-onboarding)?\.spec\.ts/,
       // A phone-shaped viewport, because every one of these screens is a
       // phone screen and the web build is only a proxy for the device.
       use: {

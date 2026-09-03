@@ -21,28 +21,42 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
-    const [totalOrders, totalUsers, totalShops, pendingRiders, ordersToday, activeRiders, revenueTodayResult] =
-      await Promise.all([
-        fastify.prisma.order.count(),
-        fastify.prisma.profile.count(),
-        fastify.prisma.shop.count(),
-        fastify.prisma.riderVerification.count({ where: { status: "pending" } }),
-        fastify.prisma.order.count({ where: { createdAt: { gte: startOfToday } } }),
-        fastify.prisma.profile.count({ where: { role: "rider", isActive: true } }),
-        fastify.prisma.order.aggregate({
-          where: {
-            createdAt: { gte: startOfToday },
-            status: { notIn: ["cancelled", "refunded", "payment_pending", "pending"] },
-          },
-          _sum: { totalAmount: true },
-        }),
-      ]);
+    const [
+      totalOrders,
+      totalUsers,
+      totalShops,
+      pendingRiders,
+      pendingShops,
+      ordersToday,
+      activeRiders,
+      revenueTodayResult,
+    ] = await Promise.all([
+      fastify.prisma.order.count(),
+      fastify.prisma.profile.count(),
+      fastify.prisma.shop.count(),
+      fastify.prisma.riderVerification.count({ where: { status: "pending" } }),
+      // Shops a shop owner registered in the app that no admin has approved.
+      // Without a count here the only way to notice one is to scan the Shops
+      // table, and an unapproved shop is invisible to students — so a missed
+      // one looks to its owner like Wave simply never opened.
+      fastify.prisma.shop.count({ where: { isVerified: false } }),
+      fastify.prisma.order.count({ where: { createdAt: { gte: startOfToday } } }),
+      fastify.prisma.profile.count({ where: { role: "rider", isActive: true } }),
+      fastify.prisma.order.aggregate({
+        where: {
+          createdAt: { gte: startOfToday },
+          status: { notIn: ["cancelled", "refunded", "payment_pending", "pending"] },
+        },
+        _sum: { totalAmount: true },
+      }),
+    ]);
 
     return reply.send({
       totalOrders,
       totalUsers,
       totalShops,
       pendingRiders,
+      pendingShops,
       ordersToday,
       activeRiders,
       revenueToday: revenueTodayResult._sum.totalAmount ?? 0,

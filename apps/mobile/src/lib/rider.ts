@@ -164,3 +164,31 @@ export function useRecordGoodsCost() {
     },
   });
 }
+
+/** Where an unverified rider starts. Pure so it can be tested without a renderer. */
+export type RiderOnboardingRoute = "SubmitVerification" | "VerificationPending";
+
+/**
+ * Decide which screen the rider onboarding stack opens on.
+ *
+ * Extracted from `RiderNavigator` because getting it wrong is silent and
+ * expensive in both directions: sending a rider whose documents are already in
+ * back to the submit form invites a duplicate submission, and sending one who
+ * has never submitted to a "we're reviewing your ID" screen leaves them waiting
+ * forever on a review that will never happen.
+ *
+ * `null` while loading resolves to the waiting screen rather than the form, on
+ * the same reasoning — a brief wait is recoverable, an accidental duplicate is
+ * not.
+ */
+export function initialRiderOnboardingRoute(
+  verification: Pick<RiderVerification, "status"> | null | undefined,
+  isLoading: boolean,
+): RiderOnboardingRoute {
+  if (isLoading) return "VerificationPending";
+  // Only a rider who has never submitted opens on the form. Every other state —
+  // including `rejected` — opens on the status screen, because a rejected rider
+  // needs to read *why* before resubmitting; dropping them straight into a blank
+  // form is how someone sends back the same unusable photo twice.
+  return verification ? "VerificationPending" : "SubmitVerification";
+}

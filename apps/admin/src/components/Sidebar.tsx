@@ -21,7 +21,13 @@ interface NavItem {
   badge?: number;
 }
 
-export function Sidebar({ pendingVerifications = 0 }: { pendingVerifications?: number }) {
+export function Sidebar({
+  pendingVerifications = 0,
+  pendingShops = 0,
+}: {
+  pendingVerifications?: number;
+  pendingShops?: number;
+}) {
   const pathname = usePathname();
   const { profile, signOut } = useAdminAuth();
 
@@ -29,7 +35,7 @@ export function Sidebar({ pendingVerifications = 0 }: { pendingVerifications?: n
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/orders", label: "Orders", icon: Package },
     { href: "/riders", label: "Riders", icon: Bike, badge: pendingVerifications },
-    { href: "/shops", label: "Shops", icon: Store },
+    { href: "/shops", label: "Shops", icon: Store, badge: pendingShops },
     { href: "/suggestions", label: "Suggested", icon: Lightbulb },
     { href: "/users", label: "Users", icon: Users },
     { href: "/checkpoints", label: "Checkpoints", icon: MapPin },
