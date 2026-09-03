@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PROFILE_ROLES } from "../constants/platform";
+import { PROFILE_ROLES, RIDER_TYPES } from "../constants/platform";
 
 /**
  * Every `platform_config` key the platform actually reads, with the range its
@@ -23,7 +23,11 @@ export const PLATFORM_CONFIG_KEYS = {
   loyalty_threshold: { min: 1, max: 1000, integer: true, label: "Deliveries before the discount" },
   special_order_lead_hours: { min: 0, max: 720, integer: true, label: "Special order lead time (hours)" },
   goods_cost_max_ghs: { min: 0, max: 100000, integer: false, label: "Max goods total (GH₵)" },
-  rider_earning_pct: { min: 0, max: 100, integer: false, label: "Rider share of the delivery fee (%)" },
+  // Kept so an existing row and any old client stay valid, but nothing reads it
+  // for a payout any more — `rider_earning_pct_student` / `_external` do.
+  rider_earning_pct: { min: 0, max: 100, integer: false, label: "Rider share — legacy, unused (%)" },
+  rider_earning_pct_student: { min: 0, max: 100, integer: false, label: "Student rider share of the delivery fee (%)" },
+  rider_earning_pct_external: { min: 0, max: 100, integer: false, label: "External rider share of the delivery fee (%)" },
 } as const;
 
 export type PlatformConfigKey = keyof typeof PLATFORM_CONFIG_KEYS;
@@ -118,3 +122,16 @@ export const adminUpdateShopSchema = z
   })
   .partial();
 export type AdminUpdateShopInput = z.infer<typeof adminUpdateShopSchema>;
+
+/**
+ * An admin moving a rider between student and external.
+ *
+ * The rider cannot do this themselves — `updateProfileSchema` is `.strict()`
+ * and omits `riderType`, the same treatment `role` and `isVerified` get. Someone
+ * able to set their own type could pick whichever one pays better or asks for
+ * the weaker document. The case this exists for is a student graduating.
+ */
+export const setRiderTypeSchema = z.object({
+  riderType: z.enum(RIDER_TYPES),
+});
+export type SetRiderTypeInput = z.infer<typeof setRiderTypeSchema>;

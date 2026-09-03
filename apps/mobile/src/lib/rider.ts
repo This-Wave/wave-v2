@@ -120,7 +120,9 @@ export function useUploadVerificationImage() {
       base64,
       contentType,
     }: {
-      kind: "id" | "selfie";
+      // Widened for the external rider's extra documents; the API's
+      // `uploadVerificationImageSchema` is the authority on the set.
+      kind: "id" | "selfie" | "second_id" | "proof_of_address";
       base64: string;
       contentType: "image/jpeg" | "image/png" | "image/webp";
     }) => {
