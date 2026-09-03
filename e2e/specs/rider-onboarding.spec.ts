@@ -1,5 +1,6 @@
 import { test, expect, bootMobile, onScreen } from "../fixtures/harness";
 import { API_URL, tokenFor } from "../fixtures/session";
+import { step, aside } from "../fixtures/narrate";
 import { createNewAccount, useAccount, deleteCreatedAccounts, type NewAccount } from "../fixtures/newAccount";
 
 /**
@@ -16,9 +17,8 @@ import { createNewAccount, useAccount, deleteCreatedAccounts, type NewAccount } 
  * deliberate:
  *
  * 1. The ID photo and selfie. `expo-image-picker` opens the native picker;
- *    on web that is a file input, but the upload path encodes base64 through
- *    the app's own uploader, and driving it through the DOM tests the browser's
- *    file dialog rather than Wave. The images are posted straight to
+ *    on web that is a file input, and driving it through the DOM tests the
+ *    browser's file dialog rather than Wave. The images are posted straight to
  *    `/riders/verification/upload` instead.
  * 2. The approval itself, which is an admin action in a different app. The
  *    admin dashboard's own approval UI is covered in `admin.spec.ts`.
@@ -40,22 +40,41 @@ test.afterAll(async () => {
 test("a new rider signs up, is held at the gate, and is let through on approval", async ({ page }) => {
   const token = account.session.access_token as string;
 
-  // --- Onboarding -------------------------------------------------------
   await bootMobile(page, /How will you use Wave/i);
 
+  await step(
+    page,
+    "A brand-new rider",
+    "Riders handle other people's money and shopping, so this journey is mostly about a check the app used to enforce silently.",
+  );
+
+  // --- Choosing a role --------------------------------------------------
+  await step(
+    page,
+    "Step 1 — Choosing to deliver",
+    "The wait is stated before the choice is made, not after. Someone signing up expecting to earn today has been misled.",
+  );
+
   await page.getByText("Deliver orders", { exact: true }).click();
-  // The role picker must warn about verification before it is chosen, not
-  // after — a rider who signs up expecting to work today has been misled.
   await expect(onScreen(page, /Needs ID verification/i)).toBeVisible();
   await page.getByText("Continue", { exact: true }).click();
+
+  // --- Profile ----------------------------------------------------------
+  await step(page, "Step 2 — Their name", "Students see this when the rider takes their order.");
 
   await expect(onScreen(page, /Who are you/i)).toBeVisible();
   await page.getByPlaceholder("Kwame Mensah").fill("Yaw Darko");
   await page.getByText("Continue to verification", { exact: true }).click();
 
   // --- The gate ---------------------------------------------------------
-  // No verification row yet, so the stack opens on the submit form.
   await expect(onScreen(page, /verification|ID|Ghana Card/i)).toBeVisible({ timeout: 30_000 });
+
+  await step(
+    page,
+    "Step 3 — Held at the gate",
+    "This is the whole app for an unverified rider. Before today they saw the live order feed instead — real students' names, orders and checkpoints — and got an unexplained error on every attempt to take one.",
+    3200,
+  );
 
   // The feed must be unreachable. This is the whole point of the gate: an
   // unvetted person must not be shown real customers' orders.
@@ -74,46 +93,76 @@ test("a new rider signs up, is held at the gate, and is let through on approval"
     return body.path as string;
   };
 
-  const [idImagePath, selfiePath] = [await upload("id"), await upload("selfie")];
-  const submitted = await fetch(`${API_URL}/riders/verification`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ idType: "ghana_card", idNumber: "GHA-000000000-0", idImagePath, selfiePath }),
-  });
-  expect(submitted.status, "verification submitted").toBeLessThan(400);
+  await aside(
+    page,
+    "Step 4 — Sending ID and a selfie",
+    "Done through the API here, because the photo picker is the phone's own, not Wave's. The images land in private storage an admin can read only through short-lived links.",
+    async () => {
+      const [idImagePath, selfiePath] = [await upload("id"), await upload("selfie")];
+      const submitted = await fetch(`${API_URL}/riders/verification`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ idType: "ghana_card", idNumber: "GHA-000000000-0", idImagePath, selfiePath }),
+      });
+      expect(submitted.status, "verification submitted").toBeLessThan(400);
+    },
+  );
 
   // --- Waiting ----------------------------------------------------------
   await page.reload();
   await expect(onScreen(page, /Verification submitted|reviewing your ID/i)).toBeVisible({ timeout: 60_000 });
-  // Still no feed while pending.
+
+  await step(
+    page,
+    "Step 5 — Waiting, and told so",
+    "Documents in, review pending. Still no feed. If an admin rejects them, this same screen shows the reason they gave.",
+  );
+
   await expect(page.getByText("Feed", { exact: true })).toHaveCount(0);
 
   // --- An admin approves ------------------------------------------------
   const adminToken = await tokenFor("admin");
-  const pending = await (
-    await fetch(`${API_URL}/riders/admin/riders?status=pending`, {
-      headers: { Authorization: `Bearer ${adminToken}` },
-    })
-  ).json();
-  const mine = (pending.verifications ?? pending).find(
-    (v: { riderId: string }) => v.riderId === account.id,
-  );
-  expect(mine, "the new rider's verification is queued for review").toBeTruthy();
 
-  const approved = await fetch(`${API_URL}/riders/admin/riders/${mine.id}/verify`, {
-    method: "PATCH",
-    headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ status: "approved" }),
-  });
-  expect(approved.status, "admin approval").toBeLessThan(400);
+  await aside(
+    page,
+    "Step 6 — An admin approves",
+    "Happening in the dashboard, not on this phone. Approval writes the flag the app actually reads.",
+    async () => {
+      const pending = await (
+        await fetch(`${API_URL}/riders/admin/riders?status=pending`, {
+          headers: { Authorization: `Bearer ${adminToken}` },
+        })
+      ).json();
+      const mine = (pending.verifications ?? pending).find(
+        (v: { riderId: string }) => v.riderId === account.id,
+      );
+      expect(mine, "the new rider's verification is queued for review").toBeTruthy();
+
+      const approved = await fetch(`${API_URL}/riders/admin/riders/${mine.id}/verify`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "approved" }),
+      });
+      expect(approved.status, "admin approval").toBeLessThan(400);
+    },
+  );
 
   // --- Through the gate -------------------------------------------------
-  // "Check status" refetches the profile, which is where `isVerified` lives —
-  // polling only the verification row would say approved while the app still
-  // refused to let them in.
+  await step(
+    page,
+    "Step 7 — Checking back",
+    "This button refetches the rider's whole profile, not just the review. Approval is recorded on the profile, and that is the flag the gate reads.",
+  );
+
   await page.getByText("Check status", { exact: true }).click();
 
   await expect(onScreen(page, /Feed|Available/i)).toBeVisible({ timeout: 60_000 });
-  // A real job, with a fee and a destination, is what "let through" means.
   await expect(onScreen(page, /GH₵/)).toBeVisible({ timeout: 30_000 });
+
+  await step(
+    page,
+    "Through the gate — real work",
+    "The feed, with real jobs, a fee on each and a checkpoint to carry them to. Same screen as before; the difference is that now they are allowed to be here.",
+    3000,
+  );
 });

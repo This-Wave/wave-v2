@@ -18,7 +18,9 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0,
-  timeout: 180_000,
+  // The walkthrough run is deliberately slow and narrated, so a journey that
+  // takes ~15s at test pace takes minutes. WALKTHROUGH=1 buys it the room.
+  timeout: process.env.WALKTHROUGH ? 900_000 : 180_000,
   expect: { timeout: 20_000 },
   reporter: [
     ["list"],
@@ -34,7 +36,10 @@ export default defineConfig({
     screenshot: "on",
     actionTimeout: 25_000,
     // Slow the machine down to something a person could follow on the video.
-    launchOptions: { slowMo: 320 },
+    // 320ms is watchable-if-you-know-the-app; WALKTHROUGH pace is for someone
+    // seeing it for the first time, who needs to read each screen before it
+    // changes.
+    launchOptions: { slowMo: process.env.WALKTHROUGH ? 850 : 320 },
   },
   projects: [
     {
