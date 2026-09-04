@@ -1,5 +1,7 @@
 export * from "./constants/platform";
 export * from "./approval/waiting";
+export * from "./legal/content";
+export * from "./legal/html";
 export * from "./phone/ghana";
 export * from "./schemas/auth";
 export * from "./schemas/order";
