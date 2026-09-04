@@ -75,9 +75,14 @@ export function ShopDashboardScreen() {
                 <PageTitle>{shop?.name ?? "Your shop"}</PageTitle>
               )}
             </View>
+            {/* An unverified shop is invisible to students regardless of
+                `isActive`, so showing "Serving" here would be a lie the owner
+                acts on — they would sit waiting for orders that cannot arrive. */}
             <StatusPill
-              label={shop?.isActive ? "Serving" : "Closed"}
-              tone={shop?.isActive ? "done" : "neutral"}
+              label={
+                shop && !shop.isVerified ? "Awaiting approval" : shop?.isActive ? "Serving" : "Closed"
+              }
+              tone={shop && !shop.isVerified ? "neutral" : shop?.isActive ? "done" : "neutral"}
             />
           </View>
           {!isDesktop ? (
@@ -86,6 +91,20 @@ export function ShopDashboardScreen() {
             </Text>
           ) : null}
         </Gutter>
+
+        {shop && !shop.isVerified ? (
+          <Gutter className="pb-4">
+            <View className="rounded-card bg-surface px-4 py-3.5">
+              <Text className="mb-1 font-sans-medium text-body text-ink">
+                Waiting for approval
+              </Text>
+              <Text className="font-sans text-body text-muted">
+                Students can&apos;t see your shop yet. An admin is checking it — usually within a
+                day. Add your menu now and it will be ready the moment you&apos;re approved.
+              </Text>
+            </View>
+          </Gutter>
+        ) : null}
 
         {shops && shops.length > 1 ? (
           <Gutter className="mb-6">

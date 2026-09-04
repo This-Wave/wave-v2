@@ -1,5 +1,8 @@
+import type { OrderStatus } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import {
+  forceDeliverSchema,
+  setRiderTypeSchema,
   adminCreateShopSchema,
   adminUpdateShopSchema,
   refundOrderSchema,
@@ -13,6 +16,16 @@ import { endOrderWithRefund } from "../payments/refund";
 import { sweepAbandonedCheckouts } from "../payments/sweepAbandoned";
 import { announceShopIsLive } from "../suggestions/announce";
 
+/**
+ * Where a stuck delivery may be forced from.
+ *
+ * Only the states in which a rider is actually holding the goods. Forcing from
+ * `confirmed` would close an order nobody has collected, and from `cancelled` or
+ * `refunded` would mark delivered something the student has already been paid
+ * back for.
+ */
+const FORCE_DELIVERABLE_FROM: OrderStatus[] = ["rider_assigned", "en_route", "at_checkpoint"];
+
 export async function adminRoutes(fastify: FastifyInstance) {
   fastify.addHook("preHandler", fastify.authenticate);
   fastify.addHook("preHandler", fastify.requireRole("admin"));
@@ -21,28 +34,59 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
-    const [totalOrders, totalUsers, totalShops, pendingRiders, ordersToday, activeRiders, revenueTodayResult] =
-      await Promise.all([
-        fastify.prisma.order.count(),
-        fastify.prisma.profile.count(),
-        fastify.prisma.shop.count(),
-        fastify.prisma.riderVerification.count({ where: { status: "pending" } }),
-        fastify.prisma.order.count({ where: { createdAt: { gte: startOfToday } } }),
-        fastify.prisma.profile.count({ where: { role: "rider", isActive: true } }),
-        fastify.prisma.order.aggregate({
-          where: {
-            createdAt: { gte: startOfToday },
-            status: { notIn: ["cancelled", "refunded", "payment_pending", "pending"] },
-          },
-          _sum: { totalAmount: true },
-        }),
-      ]);
+    const [
+      totalOrders,
+      totalUsers,
+      totalShops,
+      pendingRiders,
+      pendingShops,
+      oldestPendingRider,
+      oldestPendingShop,
+      ordersToday,
+      activeRiders,
+      revenueTodayResult,
+    ] = await Promise.all([
+      fastify.prisma.order.count(),
+      fastify.prisma.profile.count(),
+      fastify.prisma.shop.count(),
+      fastify.prisma.riderVerification.count({ where: { status: "pending" } }),
+      // Shops a shop owner registered in the app that no admin has approved.
+      // Without a count here the only way to notice one is to scan the Shops
+      // table, and an unapproved shop is invisible to students — so a missed
+      // one looks to its owner like Wave simply never opened.
+      fastify.prisma.shop.count({ where: { isVerified: false } }),
+      // The oldest thing in each queue, so the dashboard can say how long
+      // somebody has actually been stuck rather than only how many are stuck.
+      // A count of 3 looks the same on day one and on day nine.
+      fastify.prisma.riderVerification.findFirst({
+        where: { status: "pending" },
+        orderBy: { createdAt: "asc" },
+        select: { createdAt: true },
+      }),
+      fastify.prisma.shop.findFirst({
+        where: { isVerified: false },
+        orderBy: { createdAt: "asc" },
+        select: { createdAt: true },
+      }),
+      fastify.prisma.order.count({ where: { createdAt: { gte: startOfToday } } }),
+      fastify.prisma.profile.count({ where: { role: "rider", isActive: true } }),
+      fastify.prisma.order.aggregate({
+        where: {
+          createdAt: { gte: startOfToday },
+          status: { notIn: ["cancelled", "refunded", "payment_pending", "pending"] },
+        },
+        _sum: { totalAmount: true },
+      }),
+    ]);
 
     return reply.send({
       totalOrders,
       totalUsers,
       totalShops,
       pendingRiders,
+      pendingShops,
+      oldestPendingRiderAt: oldestPendingRider?.createdAt ?? null,
+      oldestPendingShopAt: oldestPendingShop?.createdAt ?? null,
       ordersToday,
       activeRiders,
       revenueToday: revenueTodayResult._sum.totalAmount ?? 0,
@@ -255,6 +299,108 @@ export async function adminRoutes(fastify: FastifyInstance) {
   fastify.post("/payments/sweep-abandoned", async (request, reply) => {
     const result = await sweepAbandonedCheckouts({ fastify, log: request.log });
     return reply.send(result);
+  });
+
+  /**
+   * Move a rider between student and external.
+   *
+   * The case this exists for is a student graduating: their tie to the campus
+   * ends, but their account does not. Kept off the rider's own profile update
+   * for the same reason `role` is — a rider able to set this could choose
+   * whichever type pays better or asks for the weaker document.
+   *
+   * Deliberately does not re-open verification. The documents on file may well
+   * no longer satisfy the new type (a graduate verified with a student ID is
+   * now an external rider holding an unacceptable document), so an admin
+   * changing the type should look at whether to require a fresh submission.
+   * Forcing it here would silently take a working rider offline mid-shift.
+   */
+  fastify.patch("/riders/:id/type", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = setRiderTypeSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    const target = await fastify.prisma.profile.findUnique({
+      where: { id },
+      select: { role: true },
+    });
+    if (!target) return reply.code(404).send({ error: "Profile not found" });
+    if (target.role !== "rider") {
+      return reply.code(400).send({ error: "Only a rider has a rider type" });
+    }
+    const profile = await fastify.prisma.profile.update({
+      where: { id },
+      data: { riderType: parsed.data.riderType },
+    });
+    request.log.info(
+      { riderId: id, riderType: parsed.data.riderType, by: request.user!.id },
+      "Rider type changed",
+    );
+    return reply.send({ profile });
+  });
+
+  /**
+   * Close a delivery an admin has confirmed happened, without a PIN.
+   *
+   * The delivery PIN arrives by SMS, and SMS on Ghanaian networks is not 100%.
+   * The student confirming receipt in their own app covers most of the gap, but
+   * not a dead phone or a number that has stopped receiving anything — and in
+   * those cases a rider who genuinely handed over the goods cannot close the job
+   * or be paid for it.
+   *
+   * Deliberately admin-only and deliberately noisy. It marks goods handed over on
+   * nothing but a person's word, so it demands a written reason, records who did
+   * it, and logs at warn level. A rider-side version of this button would be the
+   * end of the PIN meaning anything at all.
+   */
+  fastify.post("/orders/:orderId/force-deliver", async (request, reply) => {
+    const { orderId } = request.params as { orderId: string };
+    const parsed = forceDeliverSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+
+    const order = await fastify.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) return reply.code(404).send({ error: "Order not found" });
+    if (!order.riderId) {
+      return reply.code(409).send({ error: "No rider has picked this order up" });
+    }
+    if (order.status === "delivered") {
+      return reply.code(409).send({ error: "This order is already delivered" });
+    }
+
+    const deliverable = await fastify.prisma.order.updateMany({
+      where: { id: orderId, status: { in: FORCE_DELIVERABLE_FROM } },
+      data: { status: "delivered", deliveredAt: new Date(), deliveryPinAttempts: 0 },
+    });
+    if (deliverable.count === 0) {
+      return reply
+        .code(409)
+        .send({ error: `This order is ${order.status} — it can't be marked delivered` });
+    }
+
+    await fastify.prisma.orderStatusHistory.create({
+      data: {
+        orderId,
+        status: "delivered",
+        changedBy: request.user!.id,
+        note: `Closed by admin without a PIN: ${parsed.data.reason}`,
+      },
+    });
+    await fastify.prisma.studentDeliveryStats.upsert({
+      where: { studentId: order.studentId },
+      create: { studentId: order.studentId, totalDeliveries: 1 },
+      update: { totalDeliveries: { increment: 1 } },
+    });
+
+    request.log.warn(
+      { orderId, adminId: request.user!.id, reason: parsed.data.reason },
+      "Delivery closed by an admin without a PIN",
+    );
+
+    const updated = await fastify.prisma.order.findUnique({ where: { id: orderId } });
+    return reply.send({ order: updated });
   });
 
   // --- Users -------------------------------------------------------------

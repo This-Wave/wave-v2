@@ -96,6 +96,30 @@ export function useResendPin() {
 }
 
 /**
+ * Close the delivery from the student's side.
+ *
+ * The delivery PIN arrives by SMS, and SMS on Ghanaian networks is not 100% —
+ * which made a text message a single point of failure on every order. A student
+ * pressing this is at least as strong a proof as reading six digits aloud: same
+ * person, same phone, and one fewer thing for a stranger to overhear.
+ *
+ * There is deliberately no rider-side equivalent.
+ */
+export function useConfirmReceipt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      const { data } = await api.post<{ order: Order }>(`/orders/${orderId}/confirm-receipt`);
+      return data.order;
+    },
+    onSuccess: (_order, orderId) => {
+      void queryClient.invalidateQueries({ queryKey: ["orders", orderId] });
+      void queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+  });
+}
+
+/**
  * How many deliveries this student has completed — the number the loyalty
  * discount is keyed on.
  *

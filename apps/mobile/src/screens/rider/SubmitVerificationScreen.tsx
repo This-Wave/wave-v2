@@ -3,7 +3,7 @@ import { Image, Pressable, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { RIDER_ID_TYPES } from "@wave/shared";
+import { ALLOWED_ID_TYPES_BY_RIDER_TYPE, type RIDER_ID_TYPES } from "@wave/shared";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
 import {
   ActionBar,
@@ -17,6 +17,7 @@ import {
 } from "../../components/v6";
 import { CameraIcon, CheckIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
+import { useAuthStore } from "../../store/authStore";
 import {
   useSubmitVerification,
   useUploadVerificationImage,
@@ -43,7 +44,23 @@ export function SubmitVerificationScreen() {
   const uploadImage = useUploadVerificationImage();
   const submitVerification = useSubmitVerification();
 
-  const [idType, setIdType] = useState<IdType>("ghana_card");
+  // The rider's type decides which documents are acceptable — a student rider
+  // proves the claim with a student ID, and an external rider may not use one,
+  // since a student ID from a non-student identifies nobody. The API enforces
+  // this; the form simply stops offering choices that would be rejected.
+  const riderType = useAuthStore((state) => state.profile?.riderType) ?? "student";
+  const allowedIdTypes = ALLOWED_ID_TYPES_BY_RIDER_TYPE[riderType] as readonly IdType[];
+  const isExternal = riderType === "external";
+
+  const [idType, setIdType] = useState<IdType>(allowedIdTypes[0] ?? "ghana_card");
+  const [secondIdType, setSecondIdType] = useState<IdType>("passport");
+  const [secondIdNumber, setSecondIdNumber] = useState("");
+  const [secondIdPhoto, setSecondIdPhoto] = useState<{ uri: string; base64: string } | null>(null);
+  const [addressPhoto, setAddressPhoto] = useState<{ uri: string; base64: string } | null>(null);
+  const [guarantorName, setGuarantorName] = useState("");
+  const [guarantorPhone, setGuarantorPhone] = useState("");
+  const [referenceName, setReferenceName] = useState("");
+  const [referenceContact, setReferenceContact] = useState("");
   const [idNumber, setIdNumber] = useState("");
   const [idPhoto, setIdPhoto] = useState<{ uri: string; base64: string } | null>(null);
   const [selfie, setSelfie] = useState<{ uri: string; base64: string } | null>(null);
@@ -76,6 +93,19 @@ export function SubmitVerificationScreen() {
     }
   }
 
+  async function pickInto(setter: (v: { uri: string; base64: string }) => void) {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.6,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0]?.base64) {
+      setter({ uri: result.assets[0].uri, base64: result.assets[0].base64 });
+    }
+  }
+
   async function handleSubmit() {
     if (!idPhoto || !selfie || !idNumber.trim()) return;
     setError(null);
@@ -92,11 +122,36 @@ export function SubmitVerificationScreen() {
           contentType: contentTypeFor(selfie.uri),
         }),
       ]);
+      // Uploaded only for an external rider; the API rejects a student's
+      // submission that carries them rather than storing evidence nobody asked
+      // for and nobody will check.
+      const extras = isExternal
+        ? {
+            guarantorName: guarantorName.trim(),
+            guarantorPhone: guarantorPhone.trim(),
+            secondIdType,
+            secondIdNumber: secondIdNumber.trim(),
+            secondIdImagePath: await uploadImage.mutateAsync({
+              kind: "second_id",
+              base64: secondIdPhoto!.base64,
+              contentType: contentTypeFor(secondIdPhoto!.uri),
+            }),
+            proofOfAddressPath: await uploadImage.mutateAsync({
+              kind: "proof_of_address",
+              base64: addressPhoto!.base64,
+              contentType: contentTypeFor(addressPhoto!.uri),
+            }),
+            referenceName: referenceName.trim(),
+            referenceContact: referenceContact.trim(),
+          }
+        : {};
+
       await submitVerification.mutateAsync({
         idType,
         idNumber: idNumber.trim(),
         idImagePath,
         selfiePath,
+        ...extras,
       });
       setSubmitted(true);
     } catch {
@@ -105,7 +160,17 @@ export function SubmitVerificationScreen() {
   }
 
   const isSubmitting = uploadImage.isPending || submitVerification.isPending;
-  const canSubmit = !!idPhoto && !!selfie && idNumber.trim().length > 0 && !isSubmitting;
+  const externalComplete =
+    !isExternal ||
+    (!!secondIdPhoto &&
+      !!addressPhoto &&
+      secondIdNumber.trim().length > 0 &&
+      guarantorName.trim().length > 1 &&
+      guarantorPhone.trim().length > 8 &&
+      referenceName.trim().length > 1 &&
+      referenceContact.trim().length > 4);
+  const canSubmit =
+    !!idPhoto && !!selfie && idNumber.trim().length > 0 && externalComplete && !isSubmitting;
 
   if (submitted) {
     return (
@@ -152,7 +217,7 @@ export function SubmitVerificationScreen() {
 
           <Text className="mb-2 font-sans-medium text-body text-ink">Which ID?</Text>
           <View className="mb-7 flex-row flex-wrap gap-2">
-            {(Object.keys(ID_TYPE_LABELS) as IdType[]).map((type) => (
+            {allowedIdTypes.map((type) => (
               <Chip
                 key={type}
                 label={ID_TYPE_LABELS[type]}
@@ -180,6 +245,86 @@ export function SubmitVerificationScreen() {
 
           <Text className="mb-2 mt-7 font-sans-medium text-body text-ink">A selfie</Text>
           <PhotoSlot uri={selfie?.uri} hint="Tap to take a selfie" onPress={takeSelfie} />
+
+          {isExternal ? (
+            <>
+              <View className="mt-9 mb-2">
+                <Text className="font-sans-bold text-heading-sm text-ink">A few more things</Text>
+                <Text className="mt-1 font-sans text-body text-muted">
+                  Riders who aren't students of the university are asked for more, because there's
+                  no campus record of you to check against.
+                </Text>
+              </View>
+
+              <Text className="mb-2 mt-5 font-sans-medium text-body text-ink">A second ID</Text>
+              <View className="mb-4 flex-row flex-wrap gap-2">
+                {(Object.keys(ID_TYPE_LABELS) as IdType[])
+                  .filter((type) => type !== idType && type !== "student_id")
+                  .map((type) => (
+                    <Chip
+                      key={type}
+                      label={ID_TYPE_LABELS[type]}
+                      selected={secondIdType === type}
+                      onPress={() => setSecondIdType(type)}
+                    />
+                  ))}
+              </View>
+              <View className="mb-4">
+                <Field
+                  label="Second ID number"
+                  value={secondIdNumber}
+                  onChangeText={setSecondIdNumber}
+                  placeholder="G0123456"
+                />
+              </View>
+              <PhotoSlot
+                uri={secondIdPhoto?.uri}
+                hint="Tap to choose a photo of your second ID"
+                onPress={() => pickInto(setSecondIdPhoto)}
+              />
+
+              <Text className="mb-2 mt-7 font-sans-medium text-body text-ink">Proof of address</Text>
+              <PhotoSlot
+                uri={addressPhoto?.uri}
+                hint="A bill, tenancy note or letter showing where you live"
+                onPress={() => pickInto(setAddressPhoto)}
+              />
+
+              <View className="mt-7 mb-4">
+                <Field
+                  label="Guarantor's name"
+                  value={guarantorName}
+                  onChangeText={setGuarantorName}
+                  placeholder="Someone who vouches for you"
+                />
+              </View>
+              <View className="mb-4">
+                <Field
+                  label="Guarantor's phone"
+                  value={guarantorPhone}
+                  onChangeText={setGuarantorPhone}
+                  placeholder="0201234567"
+                  keyboardType="phone-pad"
+                />
+              </View>
+              <View className="mb-4">
+                <Field
+                  label="Reference on campus"
+                  value={referenceName}
+                  onChangeText={setReferenceName}
+                  placeholder="A staff member or student who knows you"
+                />
+              </View>
+              <View className="mb-2">
+                <Field
+                  label="How to reach them"
+                  value={referenceContact}
+                  onChangeText={setReferenceContact}
+                  placeholder="Phone or email"
+                />
+              </View>
+            </>
+          ) : null}
 
           {error ? <Text className="mt-4 font-sans text-body text-danger">{error}</Text> : null}
         </Gutter>

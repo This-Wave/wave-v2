@@ -7,6 +7,7 @@ import { PageHeader } from "../../../components/ui/PageHeader";
 import { DataTable, type Column } from "../../../components/ui/DataTable";
 import { StatusPill } from "../../../components/ui/StatusPill";
 import { Button, RowAction } from "../../../components/ui/Button";
+import { SetCheckpointLocationModal } from "../../../components/SetCheckpointLocationModal";
 import { CreateCheckpointModal } from "../../../components/CreateCheckpointModal";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 
@@ -15,6 +16,9 @@ interface Checkpoint {
   name: string;
   description: string | null;
   isActive: boolean;
+  externalRidersAllowed: boolean;
+  latitude: number | string | null;
+  longitude: number | string | null;
   _count: { orders: number };
 }
 
@@ -23,6 +27,7 @@ export default function CheckpointsPage() {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
+  const [locating, setLocating] = useState<Checkpoint | null>(null);
   const [creating, setCreating] = useState(false);
 
   const load = useCallback(() => {
@@ -54,6 +59,28 @@ export default function CheckpointsPage() {
     }
   }
 
+  /**
+   * Open or close a checkpoint to riders from outside the university.
+   *
+   * Defaults to closed in the database, and deliberately so — an access rule
+   * that defaults to "allowed" is only a rule once somebody remembers to turn
+   * it on. The cost is that external riders see nothing until this is used, so
+   * the column below states it plainly rather than leaving a silent empty feed.
+   */
+  async function toggleExternal(cp: Checkpoint) {
+    if (!accessToken) return;
+    setActioning(cp.id);
+    try {
+      await apiFetch(`/checkpoints/${cp.id}`, accessToken, {
+        method: "PUT",
+        body: JSON.stringify({ externalRidersAllowed: !cp.externalRidersAllowed }),
+      });
+      load();
+    } finally {
+      setActioning(null);
+    }
+  }
+
   const columns: Column<Checkpoint>[] = [
     {
       header: "Checkpoint",
@@ -65,28 +92,63 @@ export default function CheckpointsPage() {
       render: (cp) => <span className="text-muted">{cp.description ?? "—"}</span>,
     },
     {
+      header: "Directions",
+      width: "w-[140px]",
+      // Riders already navigate to a pin when one exists and fall back to a name
+      // search when it doesn't. Showing which is which is what turns "record the
+      // coordinates" from a vague task into a visible list of what's left.
+      render: (cp) =>
+        cp.latitude != null && cp.longitude != null ? (
+          <StatusPill label="Pinned" tone="good" />
+        ) : (
+          <StatusPill label="Name search" tone="warn" />
+        ),
+    },
+    {
       header: "Orders routed",
       width: "w-[140px]",
       render: (cp) => cp._count.orders.toLocaleString(),
     },
     {
       header: "Status",
-      width: "w-[130px]",
+      width: "w-[120px]",
       render: (cp) => (
         <StatusPill label={cp.isActive ? "Active" : "Inactive"} tone={cp.isActive ? "good" : "neutral"} />
       ),
     },
     {
+      header: "Outside riders",
+      width: "w-[150px]",
+      render: (cp) => (
+        <StatusPill
+          label={cp.externalRidersAllowed ? "Allowed" : "Students only"}
+          tone={cp.externalRidersAllowed ? "good" : "neutral"}
+        />
+      ),
+    },
+    {
       header: "",
-      width: "w-[130px]",
+      width: "w-[230px]",
       align: "right",
       render: (cp) => (
-        <RowAction
-          label={cp.isActive ? "Deactivate" : "Reactivate"}
-          tone={cp.isActive ? "danger" : "default"}
-          disabled={actioning === cp.id}
-          onClick={() => toggleActive(cp)}
-        />
+        <div className="flex justify-end gap-2">
+          <RowAction
+            label={cp.latitude != null ? "Location" : "Set location"}
+            disabled={actioning === cp.id}
+            onClick={() => setLocating(cp)}
+          />
+          <RowAction
+            label={cp.externalRidersAllowed ? "Close to outsiders" : "Open to outsiders"}
+            disabled={actioning === cp.id}
+            onClick={() => toggleExternal(cp)}
+          />
+          <RowAction
+            label={cp.isActive ? "Deactivate" : "Reactivate"}
+            tone={cp.isActive ? "danger" : "default"}
+            disabled={actioning === cp.id}
+            onClick={() => toggleActive(cp)}
+          />
+        </div>
       ),
     },
   ];

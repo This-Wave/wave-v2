@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch, errorMessage } from "../lib/api";
+import { UseMyLocationButton } from "./UseMyLocationButton";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import { TextField, SelectField, FormError } from "./ui/Field";
@@ -160,6 +161,14 @@ export function CreateCheckpointModal({
             />
           </div>
         </div>
+        <UseMyLocationButton
+          onCapture={(lat, lng) => {
+            // Six decimal places is roughly 0.1m — well past what a phone can
+            // actually resolve, and it matches the Decimal(9,6) the column holds.
+            setLatitude(lat.toFixed(6));
+            setLongitude(lng.toFixed(6));
+          }}
+        />
         {coordsPartlyFilled ? (
           <p className="text-[12px] text-warning-text">
             Enter both coordinates or neither — one on its own cannot place a pin.
