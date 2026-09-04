@@ -661,28 +661,70 @@ export async function orderRoutes(fastify: FastifyInstance) {
         error: `This order is ${order.status} — it can't be marked delivered`,
       });
     }
-    const updated = await fastify.prisma.order.findUnique({
-      where: { id },
-      select: clientSafeOrder,
-    });
-
-    await fastify.prisma.studentDeliveryStats.upsert({
-      where: { studentId: order.studentId },
-      create: { studentId: order.studentId, totalDeliveries: 1 },
-      update: { totalDeliveries: { increment: 1 } },
-    });
-
-    await recordRiderEarning({
+    const updated = await settleDelivery({
       fastify,
       log: request.log,
-      orderId: id,
-      riderId: request.user!.id,
-      deliveryFee: Number(order.deliveryFee),
+      order,
+      closedBy: request.user!.id,
+      note: "PIN entered by the rider",
     });
-
-    await notifyOrderStatus({ fastify, log: request.log, orderId: id, status: "delivered" });
     return reply.send({ order: updated });
   });
+
+  /**
+   * The student closes their own delivery.
+   *
+   * The delivery PIN is the only way an order can be completed, and it arrives
+   * by SMS. SMS on Ghanaian networks is not 100%, which makes a text message a
+   * single point of failure on every single order — a rider standing in front of
+   * the right student holding the right goods simply cannot finish the job.
+   *
+   * A student pressing "I have my order" in their own account is at least as
+   * strong a proof as reading six digits aloud: it is the same person, the same
+   * phone, and one fewer step for anyone to overhear. It deliberately does NOT
+   * exist for the rider — a rider-side bypass is exactly the thing that would let
+   * someone close a delivery they never made.
+   */
+  fastify.post(
+    "/:id/confirm-receipt",
+    { preHandler: [fastify.authenticate, fastify.requireRole("student")] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const order = await fastify.prisma.order.findUnique({ where: { id } });
+      if (!order) return reply.code(404).send({ error: "Order not found" });
+      if (order.studentId !== request.user!.id) {
+        return reply.code(403).send({ error: "Not your order" });
+      }
+      if (!order.riderId) {
+        // Nobody has collected it, so there is nothing to have received. Without
+        // this a student could close an order that no rider ever touched, and
+        // still be counted a delivery towards their loyalty discount.
+        return reply.code(409).send({ error: "No rider has picked this order up yet" });
+      }
+      if (order.orderType === "shop_pickup" && !order.goodsPaidAt) {
+        return reply.code(409).send({ error: "Pay for the items first" });
+      }
+
+      const deliverable = await fastify.prisma.order.updateMany({
+        where: { id, status: { in: allowedPredecessors("delivered") } },
+        data: { status: "delivered", deliveredAt: new Date(), deliveryPinAttempts: 0 },
+      });
+      if (deliverable.count === 0) {
+        return reply.code(409).send({
+          error: `This order is ${order.status} — it can't be marked delivered`,
+        });
+      }
+
+      const updated = await settleDelivery({
+        fastify,
+        log: request.log,
+        order,
+        closedBy: request.user!.id,
+        note: "Confirmed received by the student",
+      });
+      return reply.send({ order: updated });
+    },
+  );
 
   // The window in which a student may cancel their own order. Once a rider is
   // en route the order is physically in motion, so cancellation (and with it a
@@ -1008,6 +1050,60 @@ export async function orderRoutes(fastify: FastifyInstance) {
  * completed handover into an error the rider sees at a checkpoint. A missing
  * row is recoverable from the order; a delivery the rider could not close is not.
  */
+/**
+ * Everything that happens once a delivery is genuinely complete.
+ *
+ * Three routes can close a delivery now — the rider with a PIN, the student
+ * confirming receipt when the SMS never arrived, and an admin overriding — and
+ * all three must have identical consequences. Duplicating this was how the
+ * loyalty counter and the rider's earnings would quietly diverge depending on
+ * which door the delivery went out of.
+ *
+ * The status row is written for every path including the ordinary one, so "how
+ * was this closed?" always has an answer. That question only gets asked when
+ * something has gone wrong, which is exactly when a missing record costs the most.
+ */
+async function settleDelivery(args: {
+  fastify: FastifyInstance;
+  log: FastifyBaseLogger;
+  order: { id: string; studentId: string; riderId: string | null; deliveryFee: unknown };
+  closedBy: string;
+  note: string;
+}) {
+  const { fastify, log, order, closedBy, note } = args;
+
+  const updated = await fastify.prisma.order.findUnique({
+    where: { id: order.id },
+    select: clientSafeOrder,
+  });
+
+  await fastify.prisma.orderStatusHistory.create({
+    data: { orderId: order.id, status: "delivered", changedBy: closedBy, note },
+  });
+
+  await fastify.prisma.studentDeliveryStats.upsert({
+    where: { studentId: order.studentId },
+    create: { studentId: order.studentId, totalDeliveries: 1 },
+    update: { totalDeliveries: { increment: 1 } },
+  });
+
+  // The rider is paid for the run whichever way it was closed. A delivery that
+  // finished because the student confirmed it, or because an admin unstuck it,
+  // is still a delivery the rider made.
+  if (order.riderId) {
+    await recordRiderEarning({
+      fastify,
+      log,
+      orderId: order.id,
+      riderId: order.riderId,
+      deliveryFee: Number(order.deliveryFee),
+    });
+  }
+
+  await notifyOrderStatus({ fastify, log, orderId: order.id, status: "delivered" });
+  return updated;
+}
+
 async function recordRiderEarning(args: {
   fastify: FastifyInstance;
   log: FastifyBaseLogger;
