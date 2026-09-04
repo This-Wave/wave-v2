@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    Android adaptive-icon FOREGROUND: transparent, mark only. The ink ground is
+    supplied by `android.adaptiveIcon.backgroundColor` in app.json, which is why
+    that value is #083400 and not white — the two halves are one icon.
+
+    Scaled to 62% for the same reason as the maskable variant: Android crops the
+    outer third and the mark must survive it.
+  -->
+  <g transform="translate(512 512) scale(0.62) translate(-512 -512)">
+    <g fill="none" stroke="#87ea5c" stroke-width="76" stroke-linecap="round">
+      <path d="M 192 412 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"/>
+      <path d="M 192 612 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"/>
+    </g>
+  </g>
+</svg>

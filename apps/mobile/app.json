@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#f7f7f7"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -21,7 +21,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#083400"
       },
       "package": "app.wave.mobile"
     },
@@ -40,6 +40,19 @@
       "eas": {
         "projectId": ""
       }
+    },
+    "description": "Campus delivery for Ashesi. Order from off-campus shops and collect at a checkpoint.",
+    "web": {
+      "favicon": "./public/favicon.png",
+      "bundler": "metro",
+      "name": "Wave",
+      "shortName": "Wave",
+      "themeColor": "#f7f7f7",
+      "backgroundColor": "#f7f7f7",
+      "display": "standalone",
+      "orientation": "portrait",
+      "lang": "en-GH",
+      "startUrl": "/?source=pwa"
     }
   }
 }

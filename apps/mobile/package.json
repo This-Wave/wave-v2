@@ -10,10 +10,12 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "build:legal": "node scripts/build-legal-html.cjs",
-    "build:web": "npm run build:legal && expo export --platform web",
+    "build:web": "npm run build:legal && expo export --platform web && npm run build:pwa",
     "lint": "eslint src --ext .ts,.tsx",
     "type-check": "tsc --noEmit",
-    "test:unit": "vitest run src"
+    "test:unit": "vitest run src",
+    "build:icons": "node scripts/build-icons.cjs",
+    "build:pwa": "node scripts/build-pwa.cjs"
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
