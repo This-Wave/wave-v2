@@ -7,6 +7,7 @@ import { PageHeader } from "../../../components/ui/PageHeader";
 import { DataTable, type Column } from "../../../components/ui/DataTable";
 import { StatusPill } from "../../../components/ui/StatusPill";
 import { Button, RowAction } from "../../../components/ui/Button";
+import { SetCheckpointLocationModal } from "../../../components/SetCheckpointLocationModal";
 import { CreateCheckpointModal } from "../../../components/CreateCheckpointModal";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 
@@ -16,6 +17,8 @@ interface Checkpoint {
   description: string | null;
   isActive: boolean;
   externalRidersAllowed: boolean;
+  latitude: number | string | null;
+  longitude: number | string | null;
   _count: { orders: number };
 }
 
@@ -24,6 +27,7 @@ export default function CheckpointsPage() {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
+  const [locating, setLocating] = useState<Checkpoint | null>(null);
   const [creating, setCreating] = useState(false);
 
   const load = useCallback(() => {
@@ -88,6 +92,19 @@ export default function CheckpointsPage() {
       render: (cp) => <span className="text-muted">{cp.description ?? "—"}</span>,
     },
     {
+      header: "Directions",
+      width: "w-[140px]",
+      // Riders already navigate to a pin when one exists and fall back to a name
+      // search when it doesn't. Showing which is which is what turns "record the
+      // coordinates" from a vague task into a visible list of what's left.
+      render: (cp) =>
+        cp.latitude != null && cp.longitude != null ? (
+          <StatusPill label="Pinned" tone="good" />
+        ) : (
+          <StatusPill label="Name search" tone="warn" />
+        ),
+    },
+    {
       header: "Orders routed",
       width: "w-[140px]",
       render: (cp) => cp._count.orders.toLocaleString(),
@@ -115,6 +132,11 @@ export default function CheckpointsPage() {
       align: "right",
       render: (cp) => (
         <div className="flex justify-end gap-2">
+          <RowAction
+            label={cp.latitude != null ? "Location" : "Set location"}
+            disabled={actioning === cp.id}
+            onClick={() => setLocating(cp)}
+          />
           <RowAction
             label={cp.externalRidersAllowed ? "Close to outsiders" : "Open to outsiders"}
             disabled={actioning === cp.id}
