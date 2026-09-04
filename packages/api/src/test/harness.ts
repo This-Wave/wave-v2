@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import rateLimit from "@fastify/rate-limit";
 import rawBody from "fastify-raw-body";
 import type { Env } from "../config/env";
 import type { Role } from "../plugins/auth";
@@ -20,6 +21,15 @@ export interface HarnessOptions {
   user?: { id: string; role: Role } | null;
   env?: Partial<Env>;
   prefix?: string;
+  /**
+   * Registers `@fastify/rate-limit` the way `plugins/rateLimit.ts` does, so a
+   * route's `config.rateLimit` actually engages.
+   *
+   * Off by default: a limiter shared across a file's tests makes them
+   * order-dependent, since one test's requests count against the next's. Opt in
+   * only where the limit itself is what is being asserted.
+   */
+  rateLimit?: boolean;
 }
 
 export const TEST_PAYSTACK_SECRET = "sk_test_wave_harness";
@@ -74,6 +84,22 @@ export async function buildTestApp(
   // The webhook opts in per-route via `config: { rawBody: true }`, so the
   // signature it verifies is over the exact bytes sent — the whole point of
   // the test below.
+  if (options.rateLimit) {
+    // Mirrors plugins/rateLimit.ts exactly, `addHeaders` included — otherwise a
+    // test asserting on `retry-after` would be asserting on the library's
+    // defaults rather than on what Wave actually sends.
+    await app.register(rateLimit, {
+      global: false,
+      hook: "preHandler",
+      addHeaders: {
+        "x-ratelimit-limit": true,
+        "x-ratelimit-remaining": true,
+        "x-ratelimit-reset": true,
+        "retry-after": true,
+      },
+    });
+  }
+
   await app.register(rawBody, { field: "rawBody", global: false, runFirst: true });
   await app.register(routes, { prefix: options.prefix ?? "" });
   await app.ready();

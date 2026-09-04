@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { SUGGESTION_RATE_LIMIT, perAccount } from "../../plugins/rateLimit";
 import { createShopSuggestionSchema, normalizeShopName } from "@wave/shared";
 
 /**
@@ -21,7 +22,10 @@ export async function suggestionRoutes(fastify: FastifyInstance) {
    */
   fastify.post(
     "/",
-    { preHandler: [fastify.authenticate, fastify.requireRole("student")] },
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole("student")],
+      config: { rateLimit: { ...SUGGESTION_RATE_LIMIT, keyGenerator: perAccount("suggestion") } },
+    },
     async (request, reply) => {
       const parsed = createShopSuggestionSchema.safeParse(request.body);
       if (!parsed.success) {

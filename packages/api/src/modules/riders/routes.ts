@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { VERIFICATION_UPLOAD_RATE_LIMIT, perAccount } from "../../plugins/rateLimit";
 import {
   ALLOWED_ID_TYPES_BY_RIDER_TYPE,
   EXTERNAL_RIDER_REQUIRED_FIELDS,
@@ -101,7 +102,10 @@ export async function riderRoutes(fastify: FastifyInstance) {
   // days. Read routes sign on demand instead.
   fastify.post(
     "/verification/upload",
-    { preHandler: [fastify.authenticate, fastify.requireRole("rider")] },
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole("rider")],
+      config: { rateLimit: { ...VERIFICATION_UPLOAD_RATE_LIMIT, keyGenerator: perAccount("verification-upload") } },
+    },
     async (request, reply) => {
       const parsed = uploadVerificationImageSchema.safeParse(request.body);
       if (!parsed.success) {
