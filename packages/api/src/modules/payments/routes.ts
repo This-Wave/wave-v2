@@ -10,6 +10,7 @@ import { paystackMatchesGhs } from "./amounts";
 import { confirmDeliveryFeePaid, confirmGoodsPaid } from "./confirm";
 import { capturePaymentError, capturePaymentIssue } from "../../lib/sentry";
 import { parseCorsOrigins } from "../../config/cors";
+import { PAYMENT_INITIATE_RATE_LIMIT, perAccount } from "../../plugins/rateLimit";
 import type { Env } from "../../config/env";
 
 const PAYABLE_DELIVERY_STATUSES = ["pending", "payment_pending"] as const;
@@ -67,7 +68,13 @@ function reportStaleReference(args: {
 }
 
 export async function paymentRoutes(fastify: FastifyInstance) {
-  fastify.post("/initiate", { preHandler: fastify.authenticate }, async (request, reply) => {
+  fastify.post(
+    "/initiate",
+    {
+      preHandler: fastify.authenticate,
+      config: { rateLimit: { ...PAYMENT_INITIATE_RATE_LIMIT, keyGenerator: perAccount("pay-initiate") } },
+    },
+    async (request, reply) => {
     const body = request.body as {
       orderId?: string;
       method?: "momo" | "card";
@@ -158,7 +165,13 @@ export async function paymentRoutes(fastify: FastifyInstance) {
    * The amount is `totalAmount - deliveryFee-and-adjustments already paid`,
    * computed here from the order rather than sent by the client.
    */
-  fastify.post("/initiate-goods", { preHandler: fastify.authenticate }, async (request, reply) => {
+  fastify.post(
+    "/initiate-goods",
+    {
+      preHandler: fastify.authenticate,
+      config: { rateLimit: { ...PAYMENT_INITIATE_RATE_LIMIT, keyGenerator: perAccount("pay-initiate-goods") } },
+    },
+    async (request, reply) => {
     const body = request.body as {
       orderId?: string;
       method?: "momo" | "card";

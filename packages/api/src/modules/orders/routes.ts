@@ -29,7 +29,12 @@ import { allowedPredecessors } from "./transitions";
 import { clientSafeOrder, feedOrder } from "./select";
 import { endOrderWithRefund } from "../payments/refund";
 import { notifyGoodsCostRecorded, notifyOrderStatus } from "../notifications/dispatch";
-import { PIN_RESEND_RATE_LIMIT, PIN_VERIFY_RATE_LIMIT } from "../../plugins/rateLimit";
+import {
+  ORDER_CREATE_RATE_LIMIT,
+  PIN_RESEND_RATE_LIMIT,
+  PIN_VERIFY_RATE_LIMIT,
+  perAccount,
+} from "../../plugins/rateLimit";
 
 export async function orderRoutes(fastify: FastifyInstance) {
   // POST /orders — student places a "Buy For Me" order.
@@ -37,7 +42,10 @@ export async function orderRoutes(fastify: FastifyInstance) {
   // in the Paystack webhook handler (see modules/payments/routes.ts).
   fastify.post(
     "/",
-    { preHandler: [fastify.authenticate, fastify.requireRole("student")] },
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole("student")],
+      config: { rateLimit: { ...ORDER_CREATE_RATE_LIMIT, keyGenerator: perAccount("order-create") } },
+    },
     async (request, reply) => {
       const parsed = createOrderSchema.safeParse(request.body);
       if (!parsed.success) {
