@@ -30,7 +30,9 @@ import { buildTestApp } from "../../../test/harness";
  */
 const RIDER = { id: "rider-1", role: "rider" as Role };
 
-function makePrisma(overrides: { pct?: string | null; earning?: Mock } = {}) {
+function makePrisma(
+  overrides: { pct?: string | null; earning?: Mock; riderType?: "student" | "external" | null } = {},
+) {
   return {
     order: {
       findUnique: vi.fn().mockResolvedValue({
@@ -47,6 +49,15 @@ function makePrisma(overrides: { pct?: string | null; earning?: Mock } = {}) {
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     studentDeliveryStats: { upsert: vi.fn().mockResolvedValue({}) },
+    // settleDelivery records how every delivery was closed, on every path.
+    orderStatusHistory: { create: vi.fn().mockResolvedValue({}) },
+    // The rate depends on which kind of rider this is, so the payout path reads
+    // the profile before it reads the config.
+    profile: {
+      findUnique: vi.fn().mockResolvedValue(
+        overrides.riderType === null ? {} : { riderType: overrides.riderType ?? "student" },
+      ),
+    },
     platformConfig: {
       findUnique: vi
         .fn()
@@ -81,7 +92,7 @@ describe("rider earnings on delivery", () => {
 
     expect(res.statusCode).toBe(200);
     expect(prisma.riderEarning.create).toHaveBeenCalledWith({
-      data: { orderId: "order-1", riderId: "rider-1", amount: 16, status: "pending" },
+      data: { orderId: "order-1", riderId: "rider-1", amount: 16, ratePct: 80, status: "pending" },
     });
   });
 
@@ -142,5 +153,57 @@ describe("rider earnings on delivery", () => {
 
     expect(res.statusCode).toBe(409);
     expect(prisma.riderEarning.create).not.toHaveBeenCalled();
+  });
+});
+
+/** The data of the one `riderEarning.create` a delivery makes. */
+function earningData(prisma: ReturnType<typeof makePrisma>): Record<string, unknown> {
+  const call = (prisma.riderEarning.create as Mock).mock.calls[0];
+  if (!call) throw new Error("no rider earning was written");
+  return call[0].data as Record<string, unknown>;
+}
+
+describe("student and external riders are paid separately", () => {
+  test("an external rider is paid from the external key, not the student one", async () => {
+    const prisma = makePrisma({ riderType: "external", pct: "50" });
+
+    await deliver(prisma);
+
+    expect(prisma.platformConfig.findUnique).toHaveBeenCalledWith({
+      where: { key: "rider_earning_pct_external" },
+    });
+    expect(earningData(prisma).amount).toBe(10);
+  });
+
+  test("a student rider is paid from the student key", async () => {
+    const prisma = makePrisma({ riderType: "student", pct: "50" });
+
+    await deliver(prisma);
+
+    expect(prisma.platformConfig.findUnique).toHaveBeenCalledWith({
+      where: { key: "rider_earning_pct_student" },
+    });
+  });
+
+  test("the rate used is recorded on the row", async () => {
+    // Without this, editing a rate later silently rewrites the apparent basis of
+    // every delivery already made, and a rider disputing an old payment cannot
+    // be answered.
+    const prisma = makePrisma({ pct: "70" });
+
+    await deliver(prisma);
+
+    expect(earningData(prisma).ratePct).toBe(70);
+  });
+
+  test("a rider with no type set is still paid, at the student rate", async () => {
+    // Refusing to write the row would cost a real person a real delivery over a
+    // data gap, and the two defaults are identical anyway.
+    const prisma = makePrisma({ riderType: null, pct: "80" });
+
+    await deliver(prisma);
+
+    expect(prisma.riderEarning.create).toHaveBeenCalled();
+    expect(earningData(prisma).amount).toBe(16);
   });
 });

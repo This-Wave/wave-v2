@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SELF_SERVE_PROFILE_ROLES } from "../constants/platform";
+import { RIDER_TYPES, SELF_SERVE_PROFILE_ROLES } from "../constants/platform";
 
 export const registerSchema = z.object({
   fullName: z.string().min(2).max(120),
@@ -28,13 +28,42 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 // Used to create the Prisma profile row after a Supabase phone-OTP signup —
 // the auth user already exists at this point, only the app-level profile is missing.
-export const completeProfileSchema = z.object({
-  fullName: z.string().min(2).max(120),
-  role: z.enum(SELF_SERVE_PROFILE_ROLES),
-  universityId: z.string().uuid().optional(),
-  studentId: z.string().optional(),
-  email: z.string().email().max(160).optional(),
-});
+export const completeProfileSchema = z
+  .object({
+    fullName: z.string().min(2).max(120),
+    role: z.enum(SELF_SERVE_PROFILE_ROLES),
+    universityId: z.string().uuid().optional(),
+    studentId: z.string().optional(),
+    email: z.string().email().max(160).optional(),
+    /**
+     * Riders only. Decides which documents they must verify with, what share of
+     * the delivery fee they earn, and which checkpoints they may deliver to —
+     * so it is asked at signup rather than inferred from `studentId`, which is
+     * optional and would read an ID-less student as an outside hire.
+     *
+     * Set once here and never again by the account holder: `updateProfileSchema`
+     * is `.strict()` and omits it, for the same reason it omits `role`.
+     */
+    riderType: z.enum(RIDER_TYPES).optional(),
+  })
+  .superRefine((input, ctx) => {
+    if (input.role === "rider" && !input.riderType) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["riderType"],
+        message: "riderType is required for riders",
+      });
+    }
+    if (input.role !== "rider" && input.riderType) {
+      // Not merely untidy: a shop owner carrying a rider type would be picked up
+      // by anything that later reads the column to decide pay or access.
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["riderType"],
+        message: "riderType only applies to riders",
+      });
+    }
+  });
 export type CompleteProfileInput = z.infer<typeof completeProfileSchema>;
 
 // Self-service edits to an existing profile (PUT /profiles/me). Deliberately

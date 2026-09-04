@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../lib/api";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
+import { approvalWait } from "@wave/shared";
 
 type VerificationStatus = "pending" | "approved" | "rejected";
 
@@ -96,7 +97,7 @@ export default function RidersPage() {
             <tr className="border-b border-border bg-canvas text-[11px] uppercase tracking-wide text-muted">
               <th className="px-4 py-3 font-semibold">Rider</th>
               <th className="px-4 py-3 font-semibold">Phone</th>
-              <th className="px-4 py-3 font-semibold">Submitted</th>
+              <th className="px-4 py-3 font-semibold">{tab === "pending" ? "Waiting" : "Submitted"}</th>
               <th className="px-4 py-3 font-semibold">ID</th>
               <th className="px-4 py-3 font-semibold">Selfie</th>
               <th className="px-4 py-3 font-semibold">Status</th>
@@ -128,7 +129,32 @@ export default function RidersPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 font-mono text-[12px] text-muted">{v.rider.phone}</td>
-                  <td className="px-4 py-3 text-muted">{new Date(v.createdAt).toLocaleDateString()}</td>
+                  <td className="px-4 py-3">
+                    {/* How long this person has been unable to work, not just the
+                        date they applied. A queue that shows dates lets a rider
+                        sit for a week without anything looking wrong. */}
+                    {(() => {
+                      const wait = approvalWait(v.createdAt);
+                      if (v.status !== "pending") {
+                        return (
+                          <span className="text-muted">
+                            {new Date(v.createdAt).toLocaleDateString()}
+                          </span>
+                        );
+                      }
+                      return (
+                        <span
+                          className={
+                            wait.overdue ? "font-semibold text-danger-text" : "text-muted"
+                          }
+                          title={new Date(v.createdAt).toLocaleString()}
+                        >
+                          waiting {wait.label}
+                          {wait.overdue ? " — overdue" : ""}
+                        </span>
+                      );
+                    })()}
+                  </td>
                   <td className="px-4 py-3">
                     {v.idImageUrl ? (
                       <a href={v.idImageUrl} target="_blank" rel="noreferrer" title={v.idNumber}>

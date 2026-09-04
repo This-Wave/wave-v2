@@ -37,7 +37,11 @@ export function OtpVerifyScreen({ navigation, route }: Props) {
       setCode("");
       return;
     }
-    navigation.replace("ProfileSetup");
+    // A returning user never lands here with an unfinished profile — AuthProvider
+    // has already put them in their role's navigator by now — so this path is
+    // only ever a brand-new account, and it has to pick a role before there is
+    // anything sensible to ask it for.
+    navigation.replace("RoleSelect");
   }
 
   async function handleResend() {

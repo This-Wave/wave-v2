@@ -10,6 +10,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { accessToken, profile, isLoading } = useAdminAuth();
   const [pendingVerifications, setPendingVerifications] = useState(0);
+  const [pendingShops, setPendingShops] = useState(0);
 
   useEffect(() => {
     if (!isLoading && (!accessToken || !profile)) {
@@ -19,8 +20,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!accessToken || profile?.role !== "admin") return;
-    apiFetch<{ pendingRiders: number }>("/admin/stats", accessToken)
-      .then((stats) => setPendingVerifications(stats.pendingRiders))
+    apiFetch<{ pendingRiders: number; pendingShops: number }>("/admin/stats", accessToken)
+      .then((stats) => {
+        setPendingVerifications(stats.pendingRiders);
+        setPendingShops(stats.pendingShops);
+      })
       .catch(() => {});
   }, [accessToken, profile]);
 
@@ -41,7 +45,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-surface-muted">
-      <Sidebar pendingVerifications={pendingVerifications} />
+      <Sidebar pendingVerifications={pendingVerifications} pendingShops={pendingShops} />
       <main className="flex-1 overflow-y-auto">{children}</main>
     </div>
   );

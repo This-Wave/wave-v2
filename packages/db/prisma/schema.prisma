@@ -68,6 +68,19 @@ enum RiderIdType {
   passport
 }
 
+/// Whether a rider is a student of the campus they serve, or someone hired from
+/// outside it.
+///
+/// Deliberately its own column rather than inferred from `studentId` being
+/// present. That field is optional and always has been, so a student who simply
+/// did not type their ID would be read as external — which would then decide
+/// which documents they must produce and, once a policy exists, what they are
+/// paid. A question with consequences gets asked, not guessed.
+enum RiderType {
+  student
+  external
+}
+
 enum VerificationStatus {
   pending
   approved
@@ -120,6 +133,11 @@ model Profile {
   isActive     Boolean     @default(true) @map("is_active")
   isAvailable  Boolean     @default(true) @map("is_available")
   isVerified   Boolean     @default(false) @map("is_verified")
+  /// Riders only; null for every other role. Set during onboarding and not
+  /// self-editable afterwards — `updateProfileSchema` is `.strict()` and omits
+  /// it, because moving yourself from external to student would change which
+  /// ID you are allowed to verify with.
+  riderType    RiderType?  @map("rider_type")
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
 
@@ -139,15 +157,22 @@ model Profile {
 }
 
 model Checkpoint {
-  id           String   @id @default(uuid())
-  universityId String   @map("university_id")
-  name         String
-  description  String?
-  latitude     Decimal? @db.Decimal(9, 6)
-  longitude    Decimal? @db.Decimal(9, 6)
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id                    String   @id @default(uuid())
+  universityId          String   @map("university_id")
+  name                  String
+  description           String?
+  latitude              Decimal? @db.Decimal(9, 6)
+  longitude             Decimal? @db.Decimal(9, 6)
+  isActive              Boolean  @default(true) @map("is_active")
+  /// Whether a rider from outside the university may deliver here.
+  ///
+  /// Defaults to false — deny. An access rule that defaults to "allowed" is
+  /// only a rule once someone remembers to turn it on, and the cost of the
+  /// safe default is an empty feed, which the rider app explains. Student
+  /// riders ignore this column entirely.
+  externalRidersAllowed Boolean  @default(false) @map("external_riders_allowed")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
   university   University @relation(fields: [universityId], references: [id])
   // Two relations because a pickup order references a checkpoint twice.
@@ -370,15 +395,31 @@ model OrderStatusHistory {
 }
 
 model RiderVerification {
-  id              String             @id @default(uuid())
-  riderId         String             @map("rider_id")
-  idType          RiderIdType        @map("id_type")
-  idNumber        String             @map("id_number")
+  id                 String       @id @default(uuid())
+  riderId            String       @map("rider_id")
+  idType             RiderIdType  @map("id_type")
+  idNumber           String       @map("id_number")
   // Storage paths inside the private "verifications" bucket, never URLs. A
   // signed URL expires, so persisting one meant admin review broke a week
   // after submission; the API signs these fresh on every read instead.
-  idImagePath     String             @map("id_image_path")
-  selfiePath      String             @map("selfie_path")
+  idImagePath        String       @map("id_image_path")
+  selfiePath         String       @map("selfie_path")
+  /// Everything below is required of an EXTERNAL rider and null for a student.
+  ///
+  /// A student rider is already tied to the institution — the campus knows who
+  /// they are and where to find them. Someone hired from outside has no such
+  /// tie, so the evidence has to stand on its own. Nullable columns rather than
+  /// a separate table because a verification either carries them or does not,
+  /// and the review screen reads one row.
+  guarantorName      String?      @map("guarantor_name")
+  guarantorPhone     String?      @map("guarantor_phone")
+  secondIdType       RiderIdType? @map("second_id_type")
+  secondIdNumber     String?      @map("second_id_number")
+  secondIdImagePath  String?      @map("second_id_image_path")
+  proofOfAddressPath String?      @map("proof_of_address_path")
+  referenceName      String?      @map("reference_name")
+  referenceContact   String?      @map("reference_contact")
+
   status          VerificationStatus @default(pending)
   reviewedBy      String?            @map("reviewed_by")
   rejectionReason String?            @map("rejection_reason")
@@ -407,6 +448,13 @@ model RiderEarning {
   riderId   String        @map("rider_id")
   orderId   String        @unique @map("order_id")
   amount    Decimal       @db.Decimal(10, 2)
+  /// The percentage actually applied when this row was written.
+  ///
+  /// Student and external riders are paid at different configurable rates, and
+  /// both are editable in admin with no deploy. Without this column, changing a
+  /// rate would silently rewrite the apparent basis of every past delivery, and
+  /// a rider disputing an old payment could not be answered.
+  ratePct   Decimal?      @map("rate_pct") @db.Decimal(5, 2)
   status    EarningStatus @default(pending)
   paidAt    DateTime?     @map("paid_at")
   createdAt DateTime      @default(now()) @map("created_at")

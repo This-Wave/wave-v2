@@ -21,6 +21,7 @@ import {
   TopBar,
 } from "../../components/v6";
 import { PhoneIcon } from "../../components/icons";
+import { useConfirmReceipt } from "../../lib/orders";
 import { colors } from "../../theme/tokens";
 import { useCancelOrder, useOrder } from "../../lib/orders";
 import { buildOrderLedger } from "../../lib/ledger";
@@ -34,6 +35,8 @@ type Route = RouteProp<StudentStackParamList, "OrderTracking">;
 const STUDENT_CANCELLABLE = ["confirmed", "rider_assigned", "pending", "payment_pending"];
 
 export function OrderTrackingScreen() {
+  const confirmReceipt = useConfirmReceipt();
+  const [confirming, setConfirming] = useState(false);
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
   const { data: order } = useOrder(params.orderId, { poll: true });
@@ -42,6 +45,12 @@ export function OrderTrackingScreen() {
 
   const pill = order ? statusPill(order.status) : null;
   const rider = order?.rider;
+  // Only once a rider is actually carrying it. Offering this earlier would let a
+  // student close an order nobody has collected, and still be counted a delivery
+  // towards their loyalty discount — the server refuses, but the button should
+  // not be there to press.
+  const canConfirmReceipt =
+    !!order?.riderId && ["rider_assigned", "en_route", "at_checkpoint"].includes(order.status);
   const ledger = order ? buildOrderLedger(order) : null;
   const canCancel = order && STUDENT_CANCELLABLE.includes(order.status);
 
@@ -90,6 +99,24 @@ export function OrderTrackingScreen() {
             orderStatus={order?.status}
             onOpenFull={() => navigation.navigate("PickupPin", { orderId: params.orderId })}
           />
+
+          {/* The PIN arrives by SMS, and SMS does not always arrive. Without a
+              second way to close the delivery, a text message is a single point
+              of failure on every order — the rider is standing in front of the
+              right student holding the right goods and cannot finish the job. */}
+          {canConfirmReceipt ? (
+            <View className="mb-6">
+              <Button
+                label="I have my order"
+                variant="quiet"
+                loading={confirmReceipt.isPending}
+                onPress={() => setConfirming(true)}
+              />
+              <Text className="mt-2 text-center font-sans text-body text-muted">
+                Use this if your PIN never arrived.
+              </Text>
+            </View>
+          ) : null}
 
           <View className="mb-6 rounded-card bg-surface p-5">
             {order ? <Steps steps={orderSteps(order)} currentIndex={currentStepIndex(order.status)} /> : null}
@@ -160,6 +187,17 @@ export function OrderTrackingScreen() {
         confirmLabel="Yes, cancel"
         onConfirm={() => void handleCancel()}
         onCancel={() => setConfirmCancel(false)}
+      />
+      <Confirm
+        visible={confirming}
+        title="Do you have your order?"
+        body="This closes the delivery, the same as giving your runner the PIN. Only tap yes once your things are in your hands."
+        confirmLabel="Yes, I have it"
+        onConfirm={() => {
+          setConfirming(false);
+          confirmReceipt.mutate(params.orderId);
+        }}
+        onCancel={() => setConfirming(false)}
       />
     </Screen>
   );

@@ -38,6 +38,51 @@ export const DEFAULT_GOODS_COST_MAX_GHS = 1000;
  */
 export const DEFAULT_RIDER_EARNING_PCT = 80;
 
+/**
+ * Riders who are students of the campus, and riders hired from outside it.
+ *
+ * They are paid at separate rates, verify with different documents, and may
+ * deliver to different checkpoints — so the distinction is a stored fact, never
+ * inferred from whether a rider happened to type a student ID.
+ */
+export const RIDER_TYPES = ["student", "external"] as const;
+export type RiderType = (typeof RIDER_TYPES)[number];
+
+/**
+ * Per-type pay, both starting at the single rate they replace.
+ *
+ * Deliberately identical to `DEFAULT_RIDER_EARNING_PCT` on day one: splitting
+ * the setting is a structural change, and changing what anyone is paid at the
+ * same time would hide one inside the other. Tune them in admin → Config
+ * (`rider_earning_pct_student`, `rider_earning_pct_external`), no deploy.
+ *
+ * The rate actually used is written onto the `rider_earnings` row, so editing
+ * these never rewrites the basis of a delivery that already happened.
+ */
+export const DEFAULT_RIDER_EARNING_PCT_BY_TYPE: Record<RiderType, number> = {
+  student: DEFAULT_RIDER_EARNING_PCT,
+  external: DEFAULT_RIDER_EARNING_PCT,
+};
+
+/** The config key holding each type's rate. */
+export const RIDER_EARNING_PCT_KEY: Record<RiderType, string> = {
+  student: "rider_earning_pct_student",
+  external: "rider_earning_pct_external",
+};
+
+/**
+ * Which identity documents each kind of rider may verify with.
+ *
+ * A student rider must produce a student ID — that document is the proof of the
+ * claim, and without it "I'm a student" decides their pay and their access on
+ * their own say-so. An external rider may not use one: a student ID from a
+ * non-student identifies nobody.
+ */
+export const ALLOWED_ID_TYPES_BY_RIDER_TYPE: Record<RiderType, readonly string[]> = {
+  student: ["student_id"],
+  external: ["ghana_card", "passport"],
+};
+
 export const STANDARD_DELIVERY_DAYS = ["sunday", "wednesday"] as const;
 
 export const PROFILE_ROLES = ["student", "rider", "shop_owner", "admin"] as const;

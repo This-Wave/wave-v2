@@ -10,7 +10,8 @@ import {
   DEFAULT_LOYALTY_THRESHOLD,
   DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
   DEFAULT_GOODS_COST_MAX_GHS,
-  DEFAULT_RIDER_EARNING_PCT,
+  DEFAULT_RIDER_EARNING_PCT_BY_TYPE,
+  RIDER_EARNING_PCT_KEY,
 } from "@wave/shared";
 import { calculateDiscount, calculateOrderTotal, isStandardDeliveryDay } from "./discount";
 import {
@@ -22,6 +23,7 @@ import {
 import { verifyDeliveryPin } from "./pin";
 import { issueDeliveryPin } from "./issuePin";
 import { decryptDeliveryPin } from "./pinCrypto";
+import { redactClosedOrderContacts, redactClosedOrderContactsAll } from "./redact";
 import { findOrderForUser, redactStudentContactForShop } from "./access";
 import { allowedPredecessors } from "./transitions";
 import { clientSafeOrder, feedOrder } from "./select";
@@ -234,13 +236,16 @@ export async function orderRoutes(fastify: FastifyInstance) {
       select: clientSafeOrder,
       orderBy: { createdAt: "desc" },
     });
-    return reply.send({ orders });
+    // A student's history is mostly closed orders, so without this it is a
+    // standing list of the phone number of every rider who has ever delivered
+    // to them.
+    return reply.send({ orders: redactClosedOrderContactsAll(orders, request.user!.role) });
   });
 
   fastify.get("/available", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {
     const rider = await fastify.prisma.profile.findUnique({
       where: { id: request.user!.id },
-      select: { isVerified: true, universityId: true },
+      select: { isVerified: true, universityId: true, riderType: true },
     });
     if (!rider?.isVerified) {
       return reply.code(403).send({ error: "Your rider account is not verified yet" });
@@ -249,14 +254,31 @@ export async function orderRoutes(fastify: FastifyInstance) {
       return reply.send({ orders: [] });
     }
 
+    // A rider from outside the university may only deliver to checkpoints an
+    // admin has opened to them. Filtering the feed rather than blocking the
+    // accept is deliberate: a job they can never complete should not be visible
+    // at all, both because offering it and refusing it is the behaviour this
+    // whole gate exists to stop, and because the feed carries the drop-off
+    // location of orders they have no business knowing about.
+    const externalOnly =
+      rider.riderType === "external"
+        ? { checkpoint: { externalRidersAllowed: true } }
+        : {};
+
     // feedOrder, NOT clientSafeOrder — these orders are unclaimed, so the rider
     // reading them has no relationship to the student yet and must not receive
     // their name, phone or student ID. See select.ts.
     const orders = await fastify.prisma.order.findMany({
-      where: { status: "confirmed", riderId: null, universityId: rider.universityId },
+      where: { status: "confirmed", riderId: null, universityId: rider.universityId, ...externalOnly },
       select: feedOrder,
     });
-    return reply.send({ orders });
+    return reply.send({
+      orders,
+      // The app needs to tell an external rider with an empty feed why it is
+      // empty. "No jobs right now" and "you are not allowed at any checkpoint"
+      // look identical otherwise, and only one of them resolves by waiting.
+      riderType: rider.riderType,
+    });
   });
 
   fastify.get("/my-deliveries", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {
@@ -265,7 +287,9 @@ export async function orderRoutes(fastify: FastifyInstance) {
       select: clientSafeOrder,
       orderBy: { createdAt: "desc" },
     });
-    return reply.send({ orders });
+    // The larger exposure of the two: a busy rider's delivery list would
+    // otherwise hold the number of every student they have ever served.
+    return reply.send({ orders: redactClosedOrderContactsAll(orders, request.user!.role) });
   });
 
   // Every order across every shop this owner holds.
@@ -297,7 +321,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
     const { id } = request.params as { id: string };
     const order = await findOrderForUser(fastify.prisma, id, request.user!);
     if (!order) return reply.code(404).send({ error: "Order not found" });
-    return reply.send({ order });
+    return reply.send({ order: redactClosedOrderContacts(order, request.user!.role) });
   });
 
   fastify.patch("/:id/accept", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {
@@ -643,28 +667,70 @@ export async function orderRoutes(fastify: FastifyInstance) {
         error: `This order is ${order.status} — it can't be marked delivered`,
       });
     }
-    const updated = await fastify.prisma.order.findUnique({
-      where: { id },
-      select: clientSafeOrder,
-    });
-
-    await fastify.prisma.studentDeliveryStats.upsert({
-      where: { studentId: order.studentId },
-      create: { studentId: order.studentId, totalDeliveries: 1 },
-      update: { totalDeliveries: { increment: 1 } },
-    });
-
-    await recordRiderEarning({
+    const updated = await settleDelivery({
       fastify,
       log: request.log,
-      orderId: id,
-      riderId: request.user!.id,
-      deliveryFee: Number(order.deliveryFee),
+      order,
+      closedBy: request.user!.id,
+      note: "PIN entered by the rider",
     });
-
-    await notifyOrderStatus({ fastify, log: request.log, orderId: id, status: "delivered" });
     return reply.send({ order: updated });
   });
+
+  /**
+   * The student closes their own delivery.
+   *
+   * The delivery PIN is the only way an order can be completed, and it arrives
+   * by SMS. SMS on Ghanaian networks is not 100%, which makes a text message a
+   * single point of failure on every single order — a rider standing in front of
+   * the right student holding the right goods simply cannot finish the job.
+   *
+   * A student pressing "I have my order" in their own account is at least as
+   * strong a proof as reading six digits aloud: it is the same person, the same
+   * phone, and one fewer step for anyone to overhear. It deliberately does NOT
+   * exist for the rider — a rider-side bypass is exactly the thing that would let
+   * someone close a delivery they never made.
+   */
+  fastify.post(
+    "/:id/confirm-receipt",
+    { preHandler: [fastify.authenticate, fastify.requireRole("student")] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const order = await fastify.prisma.order.findUnique({ where: { id } });
+      if (!order) return reply.code(404).send({ error: "Order not found" });
+      if (order.studentId !== request.user!.id) {
+        return reply.code(403).send({ error: "Not your order" });
+      }
+      if (!order.riderId) {
+        // Nobody has collected it, so there is nothing to have received. Without
+        // this a student could close an order that no rider ever touched, and
+        // still be counted a delivery towards their loyalty discount.
+        return reply.code(409).send({ error: "No rider has picked this order up yet" });
+      }
+      if (order.orderType === "shop_pickup" && !order.goodsPaidAt) {
+        return reply.code(409).send({ error: "Pay for the items first" });
+      }
+
+      const deliverable = await fastify.prisma.order.updateMany({
+        where: { id, status: { in: allowedPredecessors("delivered") } },
+        data: { status: "delivered", deliveredAt: new Date(), deliveryPinAttempts: 0 },
+      });
+      if (deliverable.count === 0) {
+        return reply.code(409).send({
+          error: `This order is ${order.status} — it can't be marked delivered`,
+        });
+      }
+
+      const updated = await settleDelivery({
+        fastify,
+        log: request.log,
+        order,
+        closedBy: request.user!.id,
+        note: "Confirmed received by the student",
+      });
+      return reply.send({ order: updated });
+    },
+  );
 
   // The window in which a student may cancel their own order. Once a rider is
   // en route the order is physically in motion, so cancellation (and with it a
@@ -990,6 +1056,60 @@ export async function orderRoutes(fastify: FastifyInstance) {
  * completed handover into an error the rider sees at a checkpoint. A missing
  * row is recoverable from the order; a delivery the rider could not close is not.
  */
+/**
+ * Everything that happens once a delivery is genuinely complete.
+ *
+ * Three routes can close a delivery now — the rider with a PIN, the student
+ * confirming receipt when the SMS never arrived, and an admin overriding — and
+ * all three must have identical consequences. Duplicating this was how the
+ * loyalty counter and the rider's earnings would quietly diverge depending on
+ * which door the delivery went out of.
+ *
+ * The status row is written for every path including the ordinary one, so "how
+ * was this closed?" always has an answer. That question only gets asked when
+ * something has gone wrong, which is exactly when a missing record costs the most.
+ */
+async function settleDelivery(args: {
+  fastify: FastifyInstance;
+  log: FastifyBaseLogger;
+  order: { id: string; studentId: string; riderId: string | null; deliveryFee: unknown };
+  closedBy: string;
+  note: string;
+}) {
+  const { fastify, log, order, closedBy, note } = args;
+
+  const updated = await fastify.prisma.order.findUnique({
+    where: { id: order.id },
+    select: clientSafeOrder,
+  });
+
+  await fastify.prisma.orderStatusHistory.create({
+    data: { orderId: order.id, status: "delivered", changedBy: closedBy, note },
+  });
+
+  await fastify.prisma.studentDeliveryStats.upsert({
+    where: { studentId: order.studentId },
+    create: { studentId: order.studentId, totalDeliveries: 1 },
+    update: { totalDeliveries: { increment: 1 } },
+  });
+
+  // The rider is paid for the run whichever way it was closed. A delivery that
+  // finished because the student confirmed it, or because an admin unstuck it,
+  // is still a delivery the rider made.
+  if (order.riderId) {
+    await recordRiderEarning({
+      fastify,
+      log,
+      orderId: order.id,
+      riderId: order.riderId,
+      deliveryFee: Number(order.deliveryFee),
+    });
+  }
+
+  await notifyOrderStatus({ fastify, log, orderId: order.id, status: "delivered" });
+  return updated;
+}
+
 async function recordRiderEarning(args: {
   fastify: FastifyInstance;
   log: FastifyBaseLogger;
@@ -999,25 +1119,37 @@ async function recordRiderEarning(args: {
 }): Promise<void> {
   const { fastify, log, orderId, riderId, deliveryFee } = args;
   try {
-    const pctConfig = await fastify.prisma.platformConfig.findUnique({
-      where: { key: "rider_earning_pct" },
+    // Student and external riders are paid at separate rates, so the rate to
+    // apply depends on this rider. A rider with no type set is paid the student
+    // rate rather than nothing — the two are identical by default, and refusing
+    // to write the row would cost a real person a real delivery over a data gap.
+    const rider = await fastify.prisma.profile.findUnique({
+      where: { id: riderId },
+      select: { riderType: true },
     });
+    const riderType = rider?.riderType ?? "student";
+    if (!rider?.riderType) {
+      log.warn({ riderId }, "Rider has no riderType — paying at the student rate");
+    }
+
+    const key = RIDER_EARNING_PCT_KEY[riderType];
+    const pctConfig = await fastify.prisma.platformConfig.findUnique({ where: { key } });
     const parsed = Number(pctConfig?.value);
     // A missing row is expected (the constant is the default); an unparseable
     // one is an admin typo, and silently paying 0 would be worse than saying so.
     if (pctConfig && !Number.isFinite(parsed)) {
-      log.error(
-        { value: pctConfig.value },
-        "platform_config.rider_earning_pct is not a number — falling back to the default",
-      );
+      log.error({ key, value: pctConfig.value }, `platform_config.${key} is not a number — falling back to the default`);
     }
-    const pct = Number.isFinite(parsed) ? parsed : DEFAULT_RIDER_EARNING_PCT;
+    const pct = Number.isFinite(parsed) ? parsed : DEFAULT_RIDER_EARNING_PCT_BY_TYPE[riderType];
     const amount = round2((deliveryFee * pct) / 100);
 
+    // `ratePct` is written onto the row so editing a rate later never rewrites
+    // the basis of a delivery that already happened, and a rider disputing an
+    // old payment can be answered.
     await fastify.prisma.riderEarning.create({
-      data: { orderId, riderId, amount, status: "pending" },
+      data: { orderId, riderId, amount, ratePct: pct, status: "pending" },
     });
-    log.info({ orderId, riderId, amount, pct }, "Rider earning recorded");
+    log.info({ orderId, riderId, amount, pct, riderType }, "Rider earning recorded");
   } catch (err) {
     log.error(
       { orderId, riderId, err: err instanceof Error ? err.message : "unknown" },

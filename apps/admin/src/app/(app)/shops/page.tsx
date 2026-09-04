@@ -9,6 +9,7 @@ import { StatusPill } from "../../../components/ui/StatusPill";
 import { Button, RowAction } from "../../../components/ui/Button";
 import { CreateShopModal } from "../../../components/CreateShopModal";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
+import { approvalWait } from "@wave/shared";
 
 interface Shop {
   id: string;
@@ -16,6 +17,8 @@ interface Shop {
   category: string;
   locationText: string | null;
   isActive: boolean;
+  isVerified: boolean;
+  createdAt: string;
   owner: { id: string; fullName: string; phone: string };
   _count: { products: number; orders: number };
 }
@@ -41,6 +44,30 @@ export default function ShopsPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  /**
+   * Approve a shop so students can see it.
+   *
+   * This is the whole approval mechanism for a self-registered shop owner. The
+   * public `GET /shops` and `GET /shops/:id` both filter on
+   * `isActive && isVerified`, and `POST /shops` leaves `isVerified` false — so
+   * until this runs, an owner who signed up in the app has a real storefront
+   * that no student can reach. There was no way to set the flag from anywhere
+   * before this button existed.
+   */
+  async function approve(shop: Shop) {
+    if (!accessToken) return;
+    setActioning(shop.id);
+    try {
+      await apiFetch(`/admin/shops/${shop.id}`, accessToken, {
+        method: "PATCH",
+        body: JSON.stringify({ isVerified: true }),
+      });
+      load();
+    } finally {
+      setActioning(null);
+    }
+  }
 
   async function toggleActive(shop: Shop) {
     if (!accessToken) return;
@@ -91,23 +118,35 @@ export default function ShopsPage() {
     },
     {
       header: "Status",
-      width: "w-[130px]",
-      render: (s) => (
-        <StatusPill label={s.isActive ? "Active" : "Suspended"} tone={s.isActive ? "good" : "bad"} />
-      ),
+      width: "w-[210px]",
+      // Verification outranks the active flag: an unverified shop is invisible
+      // to students whatever `isActive` says, so showing it as "Active" would
+      // tell an admin the storefront is live when it is not.
+      render: (s) =>
+        !s.isVerified ? (
+          <StatusPill
+            label={`Awaiting approval · ${approvalWait(s.createdAt).label}`}
+            tone={approvalWait(s.createdAt).overdue ? "bad" : "warn"}
+          />
+        ) : (
+          <StatusPill label={s.isActive ? "Active" : "Suspended"} tone={s.isActive ? "good" : "bad"} />
+        ),
     },
     {
       header: "",
       width: "w-[110px]",
       align: "right",
-      render: (s) => (
-        <RowAction
-          label={s.isActive ? "Suspend" : "Restore"}
-          tone={s.isActive ? "danger" : "default"}
-          disabled={actioning === s.id}
-          onClick={() => toggleActive(s)}
-        />
-      ),
+      render: (s) =>
+        !s.isVerified ? (
+          <RowAction label="Approve" disabled={actioning === s.id} onClick={() => approve(s)} />
+        ) : (
+          <RowAction
+            label={s.isActive ? "Suspend" : "Restore"}
+            tone={s.isActive ? "danger" : "default"}
+            disabled={actioning === s.id}
+            onClick={() => toggleActive(s)}
+          />
+        ),
     },
   ];
 
