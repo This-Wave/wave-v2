@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    Android maskable variant. The launcher may crop this to any shape it likes,
+    and is only guaranteed to keep the centre 80% — so the mark is scaled to
+    ~62% and the ink ground is allowed to take the crop instead.
+  -->
+  <rect width="1024" height="1024" fill="#083400"/>
+  <g transform="translate(512 512) scale(0.62) translate(-512 -512)">
+    <g fill="none" stroke="#87ea5c" stroke-width="76" stroke-linecap="round">
+      <path d="M 192 412 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"/>
+      <path d="M 192 612 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"/>
+    </g>
+  </g>
+</svg>
