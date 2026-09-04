@@ -11,6 +11,7 @@ interface Stats {
   activeRiders: number;
   revenueToday: number;
   pendingRiders: number;
+  pendingShops: number;
 }
 
 interface RecentOrder {
@@ -87,7 +88,7 @@ export default function DashboardPage() {
       ) : null}
       {ordersError ? <FetchErrorBanner message={ordersError} onRetry={loadOrders} /> : null}
 
-      <div className="mb-8 grid grid-cols-4 gap-4">
+      <div className="mb-8 grid grid-cols-5 gap-4">
         <StatTile label="Total Orders Today" value={stats ? String(stats.ordersToday) : "—"} />
         <StatTile label="Active Riders" value={stats ? String(stats.activeRiders) : "—"} />
         <StatTile label="Platform Revenue" value={stats ? formatGhs(Number(stats.revenueToday)) : "—"} />
@@ -95,6 +96,13 @@ export default function DashboardPage() {
           label="Pending Verifications"
           value={stats ? String(stats.pendingRiders) : "—"}
           attention={!!stats && stats.pendingRiders > 0}
+        />
+        {/* A shop waiting here is invisible to every student, and its owner has
+            no way to tell that from Wave simply having no orders. */}
+        <StatTile
+          label="Shops Awaiting Approval"
+          value={stats ? String(stats.pendingShops) : "—"}
+          attention={!!stats && stats.pendingShops > 0}
         />
       </div>
 

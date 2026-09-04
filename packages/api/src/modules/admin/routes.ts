@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import {
+  setRiderTypeSchema,
   adminCreateShopSchema,
   adminUpdateShopSchema,
   refundOrderSchema,
@@ -21,28 +22,42 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
-    const [totalOrders, totalUsers, totalShops, pendingRiders, ordersToday, activeRiders, revenueTodayResult] =
-      await Promise.all([
-        fastify.prisma.order.count(),
-        fastify.prisma.profile.count(),
-        fastify.prisma.shop.count(),
-        fastify.prisma.riderVerification.count({ where: { status: "pending" } }),
-        fastify.prisma.order.count({ where: { createdAt: { gte: startOfToday } } }),
-        fastify.prisma.profile.count({ where: { role: "rider", isActive: true } }),
-        fastify.prisma.order.aggregate({
-          where: {
-            createdAt: { gte: startOfToday },
-            status: { notIn: ["cancelled", "refunded", "payment_pending", "pending"] },
-          },
-          _sum: { totalAmount: true },
-        }),
-      ]);
+    const [
+      totalOrders,
+      totalUsers,
+      totalShops,
+      pendingRiders,
+      pendingShops,
+      ordersToday,
+      activeRiders,
+      revenueTodayResult,
+    ] = await Promise.all([
+      fastify.prisma.order.count(),
+      fastify.prisma.profile.count(),
+      fastify.prisma.shop.count(),
+      fastify.prisma.riderVerification.count({ where: { status: "pending" } }),
+      // Shops a shop owner registered in the app that no admin has approved.
+      // Without a count here the only way to notice one is to scan the Shops
+      // table, and an unapproved shop is invisible to students — so a missed
+      // one looks to its owner like Wave simply never opened.
+      fastify.prisma.shop.count({ where: { isVerified: false } }),
+      fastify.prisma.order.count({ where: { createdAt: { gte: startOfToday } } }),
+      fastify.prisma.profile.count({ where: { role: "rider", isActive: true } }),
+      fastify.prisma.order.aggregate({
+        where: {
+          createdAt: { gte: startOfToday },
+          status: { notIn: ["cancelled", "refunded", "payment_pending", "pending"] },
+        },
+        _sum: { totalAmount: true },
+      }),
+    ]);
 
     return reply.send({
       totalOrders,
       totalUsers,
       totalShops,
       pendingRiders,
+      pendingShops,
       ordersToday,
       activeRiders,
       revenueToday: revenueTodayResult._sum.totalAmount ?? 0,
@@ -255,6 +270,45 @@ export async function adminRoutes(fastify: FastifyInstance) {
   fastify.post("/payments/sweep-abandoned", async (request, reply) => {
     const result = await sweepAbandonedCheckouts({ fastify, log: request.log });
     return reply.send(result);
+  });
+
+  /**
+   * Move a rider between student and external.
+   *
+   * The case this exists for is a student graduating: their tie to the campus
+   * ends, but their account does not. Kept off the rider's own profile update
+   * for the same reason `role` is — a rider able to set this could choose
+   * whichever type pays better or asks for the weaker document.
+   *
+   * Deliberately does not re-open verification. The documents on file may well
+   * no longer satisfy the new type (a graduate verified with a student ID is
+   * now an external rider holding an unacceptable document), so an admin
+   * changing the type should look at whether to require a fresh submission.
+   * Forcing it here would silently take a working rider offline mid-shift.
+   */
+  fastify.patch("/riders/:id/type", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = setRiderTypeSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    const target = await fastify.prisma.profile.findUnique({
+      where: { id },
+      select: { role: true },
+    });
+    if (!target) return reply.code(404).send({ error: "Profile not found" });
+    if (target.role !== "rider") {
+      return reply.code(400).send({ error: "Only a rider has a rider type" });
+    }
+    const profile = await fastify.prisma.profile.update({
+      where: { id },
+      data: { riderType: parsed.data.riderType },
+    });
+    request.log.info(
+      { riderId: id, riderType: parsed.data.riderType, by: request.user!.id },
+      "Rider type changed",
+    );
+    return reply.send({ profile });
   });
 
   // --- Users -------------------------------------------------------------

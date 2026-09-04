@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CreateProductInput, ProductStatus } from "@wave/shared";
+import type { CreateProductInput, CreateShopInput, ProductStatus } from "@wave/shared";
 import { api } from "./api";
 import type { Order, Product, Shop } from "../types";
 import { useShopStore } from "../store/shopStore";
@@ -15,6 +15,31 @@ export function useMyShops() {
     queryFn: async () => {
       const { data } = await api.get<{ shops: Shop[] }>("/shops/my");
       return data.shops;
+    },
+  });
+}
+
+/**
+ * Create this owner's shop during onboarding.
+ *
+ * The server sets `ownerId` and `universityId` itself and leaves `isVerified`
+ * at its `false` default, so a shop created here is real but invisible: the
+ * public `GET /shops` and `GET /shops/:id` both filter on
+ * `isActive && isVerified`. That is the whole approval mechanism — an admin
+ * flipping the flag in the dashboard is what puts a storefront in front of
+ * students.
+ */
+export function useCreateShop() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateShopInput) => {
+      const { data } = await api.post<{ shop: Shop }>("/shops", input);
+      return data.shop;
+    },
+    onSuccess: () => {
+      // The gate in ShopNavigator routes on this list being non-empty, so it has
+      // to be refetched before the new shop's owner can leave the setup screen.
+      void queryClient.invalidateQueries({ queryKey: ["shops", "my"] });
     },
   });
 }

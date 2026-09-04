@@ -10,7 +10,8 @@ import {
   DEFAULT_LOYALTY_THRESHOLD,
   DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
   DEFAULT_GOODS_COST_MAX_GHS,
-  DEFAULT_RIDER_EARNING_PCT,
+  DEFAULT_RIDER_EARNING_PCT_BY_TYPE,
+  RIDER_EARNING_PCT_KEY,
 } from "@wave/shared";
 import { calculateDiscount, calculateOrderTotal, isStandardDeliveryDay } from "./discount";
 import {
@@ -240,7 +241,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
   fastify.get("/available", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {
     const rider = await fastify.prisma.profile.findUnique({
       where: { id: request.user!.id },
-      select: { isVerified: true, universityId: true },
+      select: { isVerified: true, universityId: true, riderType: true },
     });
     if (!rider?.isVerified) {
       return reply.code(403).send({ error: "Your rider account is not verified yet" });
@@ -249,14 +250,31 @@ export async function orderRoutes(fastify: FastifyInstance) {
       return reply.send({ orders: [] });
     }
 
+    // A rider from outside the university may only deliver to checkpoints an
+    // admin has opened to them. Filtering the feed rather than blocking the
+    // accept is deliberate: a job they can never complete should not be visible
+    // at all, both because offering it and refusing it is the behaviour this
+    // whole gate exists to stop, and because the feed carries the drop-off
+    // location of orders they have no business knowing about.
+    const externalOnly =
+      rider.riderType === "external"
+        ? { checkpoint: { externalRidersAllowed: true } }
+        : {};
+
     // feedOrder, NOT clientSafeOrder — these orders are unclaimed, so the rider
     // reading them has no relationship to the student yet and must not receive
     // their name, phone or student ID. See select.ts.
     const orders = await fastify.prisma.order.findMany({
-      where: { status: "confirmed", riderId: null, universityId: rider.universityId },
+      where: { status: "confirmed", riderId: null, universityId: rider.universityId, ...externalOnly },
       select: feedOrder,
     });
-    return reply.send({ orders });
+    return reply.send({
+      orders,
+      // The app needs to tell an external rider with an empty feed why it is
+      // empty. "No jobs right now" and "you are not allowed at any checkpoint"
+      // look identical otherwise, and only one of them resolves by waiting.
+      riderType: rider.riderType,
+    });
   });
 
   fastify.get("/my-deliveries", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {
@@ -999,25 +1017,37 @@ async function recordRiderEarning(args: {
 }): Promise<void> {
   const { fastify, log, orderId, riderId, deliveryFee } = args;
   try {
-    const pctConfig = await fastify.prisma.platformConfig.findUnique({
-      where: { key: "rider_earning_pct" },
+    // Student and external riders are paid at separate rates, so the rate to
+    // apply depends on this rider. A rider with no type set is paid the student
+    // rate rather than nothing — the two are identical by default, and refusing
+    // to write the row would cost a real person a real delivery over a data gap.
+    const rider = await fastify.prisma.profile.findUnique({
+      where: { id: riderId },
+      select: { riderType: true },
     });
+    const riderType = rider?.riderType ?? "student";
+    if (!rider?.riderType) {
+      log.warn({ riderId }, "Rider has no riderType — paying at the student rate");
+    }
+
+    const key = RIDER_EARNING_PCT_KEY[riderType];
+    const pctConfig = await fastify.prisma.platformConfig.findUnique({ where: { key } });
     const parsed = Number(pctConfig?.value);
     // A missing row is expected (the constant is the default); an unparseable
     // one is an admin typo, and silently paying 0 would be worse than saying so.
     if (pctConfig && !Number.isFinite(parsed)) {
-      log.error(
-        { value: pctConfig.value },
-        "platform_config.rider_earning_pct is not a number — falling back to the default",
-      );
+      log.error({ key, value: pctConfig.value }, `platform_config.${key} is not a number — falling back to the default`);
     }
-    const pct = Number.isFinite(parsed) ? parsed : DEFAULT_RIDER_EARNING_PCT;
+    const pct = Number.isFinite(parsed) ? parsed : DEFAULT_RIDER_EARNING_PCT_BY_TYPE[riderType];
     const amount = round2((deliveryFee * pct) / 100);
 
+    // `ratePct` is written onto the row so editing a rate later never rewrites
+    // the basis of a delivery that already happened, and a rider disputing an
+    // old payment can be answered.
     await fastify.prisma.riderEarning.create({
-      data: { orderId, riderId, amount, status: "pending" },
+      data: { orderId, riderId, amount, ratePct: pct, status: "pending" },
     });
-    log.info({ orderId, riderId, amount, pct }, "Rider earning recorded");
+    log.info({ orderId, riderId, amount, pct, riderType }, "Rider earning recorded");
   } catch (err) {
     log.error(
       { orderId, riderId, err: err instanceof Error ? err.message : "unknown" },

@@ -14,6 +14,8 @@ export interface Profile {
   isActive: boolean;
   /** Rider's own online/offline toggle. Meaningless on other roles. */
   isAvailable: boolean;
+  /** Riders only; null for every other role. Decides documents, pay and access. */
+  riderType?: "student" | "external" | null;
   isVerified: boolean;
   createdAt: string;
   updatedAt: string;

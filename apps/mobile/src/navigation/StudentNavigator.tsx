@@ -22,6 +22,7 @@ import { PickupPinScreen } from "../screens/student/PickupPinScreen";
 import { CutoffPassedScreen } from "../screens/student/CutoffPassedScreen";
 import { PaymentFailedScreen } from "../screens/student/PaymentFailedScreen";
 import { PaymentReturnScreen } from "../screens/student/PaymentReturnScreen";
+import { FirstRunTour } from "../components/FirstRunTour";
 
 /**
  * A chosen basket line, as it travels between screens.
@@ -121,6 +122,7 @@ export function StudentNavigator() {
         <Stack.Screen name="CutoffPassed" component={CutoffPassedScreen} />
         <Stack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
       </Stack.Navigator>
+      <FirstRunTour role="student" />
     </AppWebShell>
   );
 }

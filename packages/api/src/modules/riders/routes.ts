@@ -1,5 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import {
+  ALLOWED_ID_TYPES_BY_RIDER_TYPE,
+  EXTERNAL_RIDER_REQUIRED_FIELDS,
   setAvailabilitySchema,
   submitVerificationSchema,
   reviewVerificationSchema,
@@ -23,9 +25,65 @@ export async function riderRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
       }
       const riderId = request.user!.id;
-      const { idImagePath, selfiePath } = parsed.data;
-      if (!ownsVerificationPath(idImagePath, riderId) || !ownsVerificationPath(selfiePath, riderId)) {
+      const { idImagePath, selfiePath, secondIdImagePath, proofOfAddressPath } = parsed.data;
+
+      // Every path has to be one this rider uploaded, including the two that
+      // only an external rider sends. A missed check here lets one rider submit
+      // another's documents as their own.
+      const paths = [idImagePath, selfiePath, secondIdImagePath, proofOfAddressPath].filter(
+        (path): path is string => typeof path === "string",
+      );
+      if (paths.some((path) => !ownsVerificationPath(path, riderId))) {
         return reply.code(403).send({ error: "Image paths must be ones you uploaded" });
+      }
+
+      // The rider's type comes from their profile, never the request body. It
+      // decides which documents are acceptable and what they will be paid, so a
+      // client that could assert it could pick its own pay grade.
+      const rider = await fastify.prisma.profile.findUnique({
+        where: { id: riderId },
+        select: { riderType: true },
+      });
+      const riderType = rider?.riderType;
+      if (!riderType) {
+        return reply
+          .code(409)
+          .send({ error: "Your rider type is not set. Contact support before verifying." });
+      }
+
+      // A student rider must produce a student ID: that document is the proof of
+      // the claim, and without it "I'm a student" sets their own pay and access.
+      // An external rider may not use one — a student ID from a non-student
+      // identifies nobody.
+      const allowed = ALLOWED_ID_TYPES_BY_RIDER_TYPE[riderType];
+      if (!allowed.includes(parsed.data.idType)) {
+        return reply.code(400).send({
+          error:
+            riderType === "student"
+              ? "Student riders must verify with a student ID."
+              : "Riders from outside the university must verify with a Ghana Card or passport.",
+          allowedIdTypes: allowed,
+        });
+      }
+
+      if (riderType === "external") {
+        const missing = EXTERNAL_RIDER_REQUIRED_FIELDS.filter(
+          (field) => !parsed.data[field],
+        );
+        if (missing.length > 0) {
+          return reply
+            .code(400)
+            .send({ error: "Riders from outside the university must complete every field", missing });
+        }
+      } else {
+        // Silently ignoring these would leave a student's row carrying a
+        // guarantor nobody asked for and nobody will check.
+        const unexpected = EXTERNAL_RIDER_REQUIRED_FIELDS.filter((field) => parsed.data[field]);
+        if (unexpected.length > 0) {
+          return reply
+            .code(400)
+            .send({ error: "These are only for riders from outside the university", unexpected });
+        }
       }
       const verification = await fastify.prisma.riderVerification.create({
         data: { ...parsed.data, riderId },

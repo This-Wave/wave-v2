@@ -15,6 +15,7 @@ interface Checkpoint {
   name: string;
   description: string | null;
   isActive: boolean;
+  externalRidersAllowed: boolean;
   _count: { orders: number };
 }
 
@@ -54,6 +55,28 @@ export default function CheckpointsPage() {
     }
   }
 
+  /**
+   * Open or close a checkpoint to riders from outside the university.
+   *
+   * Defaults to closed in the database, and deliberately so — an access rule
+   * that defaults to "allowed" is only a rule once somebody remembers to turn
+   * it on. The cost is that external riders see nothing until this is used, so
+   * the column below states it plainly rather than leaving a silent empty feed.
+   */
+  async function toggleExternal(cp: Checkpoint) {
+    if (!accessToken) return;
+    setActioning(cp.id);
+    try {
+      await apiFetch(`/checkpoints/${cp.id}`, accessToken, {
+        method: "PUT",
+        body: JSON.stringify({ externalRidersAllowed: !cp.externalRidersAllowed }),
+      });
+      load();
+    } finally {
+      setActioning(null);
+    }
+  }
+
   const columns: Column<Checkpoint>[] = [
     {
       header: "Checkpoint",
@@ -71,22 +94,39 @@ export default function CheckpointsPage() {
     },
     {
       header: "Status",
-      width: "w-[130px]",
+      width: "w-[120px]",
       render: (cp) => (
         <StatusPill label={cp.isActive ? "Active" : "Inactive"} tone={cp.isActive ? "good" : "neutral"} />
       ),
     },
     {
+      header: "Outside riders",
+      width: "w-[150px]",
+      render: (cp) => (
+        <StatusPill
+          label={cp.externalRidersAllowed ? "Allowed" : "Students only"}
+          tone={cp.externalRidersAllowed ? "good" : "neutral"}
+        />
+      ),
+    },
+    {
       header: "",
-      width: "w-[130px]",
+      width: "w-[230px]",
       align: "right",
       render: (cp) => (
-        <RowAction
-          label={cp.isActive ? "Deactivate" : "Reactivate"}
-          tone={cp.isActive ? "danger" : "default"}
-          disabled={actioning === cp.id}
-          onClick={() => toggleActive(cp)}
-        />
+        <div className="flex justify-end gap-2">
+          <RowAction
+            label={cp.externalRidersAllowed ? "Close to outsiders" : "Open to outsiders"}
+            disabled={actioning === cp.id}
+            onClick={() => toggleExternal(cp)}
+          />
+          <RowAction
+            label={cp.isActive ? "Deactivate" : "Reactivate"}
+            tone={cp.isActive ? "danger" : "default"}
+            disabled={actioning === cp.id}
+            onClick={() => toggleActive(cp)}
+          />
+        </div>
       ),
     },
   ];

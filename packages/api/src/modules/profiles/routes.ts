@@ -40,7 +40,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
-    const { fullName, role, universityId, studentId, email } = parsed.data;
+    const { fullName, role, universityId, studentId, email, riderType } = parsed.data;
 
     const profile = await fastify.prisma.profile.create({
       data: {
@@ -51,6 +51,8 @@ export async function profileRoutes(fastify: FastifyInstance) {
         universityId,
         studentId,
         email,
+        // Null for every non-rider; the schema rejects it being sent otherwise.
+        riderType: role === "rider" ? riderType : null,
         isVerified: role === "student",
       },
     });
