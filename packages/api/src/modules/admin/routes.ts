@@ -28,6 +28,8 @@ export async function adminRoutes(fastify: FastifyInstance) {
       totalShops,
       pendingRiders,
       pendingShops,
+      oldestPendingRider,
+      oldestPendingShop,
       ordersToday,
       activeRiders,
       revenueTodayResult,
@@ -41,6 +43,19 @@ export async function adminRoutes(fastify: FastifyInstance) {
       // table, and an unapproved shop is invisible to students — so a missed
       // one looks to its owner like Wave simply never opened.
       fastify.prisma.shop.count({ where: { isVerified: false } }),
+      // The oldest thing in each queue, so the dashboard can say how long
+      // somebody has actually been stuck rather than only how many are stuck.
+      // A count of 3 looks the same on day one and on day nine.
+      fastify.prisma.riderVerification.findFirst({
+        where: { status: "pending" },
+        orderBy: { createdAt: "asc" },
+        select: { createdAt: true },
+      }),
+      fastify.prisma.shop.findFirst({
+        where: { isVerified: false },
+        orderBy: { createdAt: "asc" },
+        select: { createdAt: true },
+      }),
       fastify.prisma.order.count({ where: { createdAt: { gte: startOfToday } } }),
       fastify.prisma.profile.count({ where: { role: "rider", isActive: true } }),
       fastify.prisma.order.aggregate({
@@ -58,6 +73,8 @@ export async function adminRoutes(fastify: FastifyInstance) {
       totalShops,
       pendingRiders,
       pendingShops,
+      oldestPendingRiderAt: oldestPendingRider?.createdAt ?? null,
+      oldestPendingShopAt: oldestPendingShop?.createdAt ?? null,
       ordersToday,
       activeRiders,
       revenueToday: revenueTodayResult._sum.totalAmount ?? 0,
