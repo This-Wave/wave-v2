@@ -21,6 +21,8 @@ import { NotificationProvider } from "./src/providers/NotificationProvider";
 import { queryClient } from "./src/lib/queryClient";
 import { clearSkipTransition, initReducedMotionPreference, markHistoryNavigation } from "./src/lib/navigationMotion";
 import { ToastHost } from "./src/components/v6";
+import { InstallHint } from "./src/components/InstallHint";
+import { captureInstallPrompt } from "./src/lib/installPrompt";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import { initMobileSentry, wrapWithSentry } from "./src/lib/sentry";
 
@@ -31,18 +33,24 @@ SplashScreen.preventAutoHideAsync();
 function App() {
   // Wave v6 runs on DM Sans alone — the reference's named substitute for
   // Airbnb Cereal. No mono face; order refs and PINs set in DM Sans medium.
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     DMSans_400Regular,
     DMSans_500Medium,
     DMSans_600SemiBold,
     DMSans_700Bold,
   });
 
+  // `fontError` counts as ready. A font that cannot load — offline, or a CDN
+  // hiccup — used to leave `fontsLoaded` false forever and render `null`, which
+  // is a white screen with no way out. DM Sans falling back to the system sans
+  // is a visible downgrade; a blank app is not recoverable by the student.
+  const fontsSettled = fontsLoaded || !!fontError;
+
   const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded) {
+    if (fontsSettled) {
       await SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [fontsSettled]);
 
   useEffect(() => {
     onLayoutRootView();
@@ -58,7 +66,13 @@ function App() {
   // reads when React Navigation resolves screen options (review 10-a11y, M2).
   useEffect(() => initReducedMotionPreference(), []);
 
-  if (!fontsLoaded) {
+  // Must be armed before the browser fires `beforeinstallprompt`, which happens
+  // shortly after load and exactly once. Missing it means the install button in
+  // `InstallHint` has nothing to open, so this sits at the top of the tree
+  // rather than inside the component that eventually uses it.
+  useEffect(() => captureInstallPrompt(), []);
+
+  if (!fontsSettled) {
     return null;
   }
 
@@ -77,6 +91,7 @@ function App() {
                 <RootNavigator />
                 <PaymentReturnListener />
                 <ToastHost />
+                <InstallHint />
                 <StatusBar style="dark" />
               </NavigationContainer>
             </NotificationProvider>

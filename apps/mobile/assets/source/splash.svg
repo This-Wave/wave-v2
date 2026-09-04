@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    Splash artwork. `app.json` sets resizeMode "contain" on a white ground, so
+    this is the mark on its ink tile at a size that survives being letterboxed
+    into a tall phone screen rather than a full-bleed image.
+  -->
+  <rect width="1024" height="1024" fill="#ffffff"/>
+  <g transform="translate(512 512) scale(0.52) translate(-512 -512)">
+    <rect width="1024" height="1024" rx="180" fill="#083400"/>
+    <g fill="none" stroke="#87ea5c" stroke-width="76" stroke-linecap="round">
+      <path d="M 192 412 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"/>
+      <path d="M 192 612 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"/>
+    </g>
+  </g>
+</svg>
