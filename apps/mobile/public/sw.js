@@ -39,14 +39,25 @@ again as soon as you're back on data or Wi-Fi.</p></main></body></html>`;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) =>
+    (async () => {
+      const cache = await caches.open(CACHE);
+      // Entry by entry rather than `addAll`, which is atomic: one 404 there
+      // discarded the whole precache including `/index.html`, leaving a user who
+      // installed and went offline immediately with no shell at all. Individual
+      // adds degrade per entry instead, and a failure is logged rather than
+      // swallowed — a precache that silently did nothing is the hardest version
+      // of this bug to find.
+      //
       // `reload` bypasses the HTTP cache, so a fresh install never precaches a
-      // stale copy of index.html that the browser happened to be holding.
-      cache.addAll(SHELL.map((url) => new Request(url, { cache: "reload" }))).catch(() => {
-        // A precache miss must not abort the install — the runtime rules below
-        // still work, and a worker that fails to install leaves no worker at all.
-      }),
-    ),
+      // stale copy of index.html the browser happened to be holding.
+      const results = await Promise.allSettled(
+        SHELL.map((url) => cache.add(new Request(url, { cache: "reload" }))),
+      );
+      const failed = SHELL.filter((_, i) => results[i].status === "rejected");
+      if (failed.length) {
+        console.warn("[wave-sw] precache incomplete:", failed.join(", "));
+      }
+    })(),
   );
   // Deliberately NOT skipWaiting(). A new worker takes over on the next launch,
   // once no page is running. Activating underneath a live page would let
@@ -95,6 +106,12 @@ self.addEventListener("fetch", (event) => {
   // Belt and braces for a same-origin API path, if one is ever proxied.
   if (url.pathname.startsWith("/v1/")) return;
 
+  // `/legal/*` are real static documents, not app routes — Vercel serves the
+  // file in preference to the SPA rewrite. They must not go through the
+  // navigation branch below, and they should stay fresh rather than be pinned:
+  // the terms a student is shown are the terms they agreed to.
+  if (url.pathname.startsWith("/legal/")) return;
+
   if (isImmutable(url) || isIcon(url)) {
     event.respondWith(
       caches.match(request).then(
@@ -116,12 +133,14 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       (async () => {
         try {
-          const fresh = await fetch(request);
-          if (fresh.ok) {
-            const copy = fresh.clone();
-            caches.open(CACHE).then((c) => c.put("/index.html", copy));
-          }
-          return fresh;
+          // Deliberately NOT written back to the cache. `/index.html` is
+          // precached at install time, and the cache name carries the bundle
+          // hash, so a deploy already produces a fresh shell. Caching the
+          // navigation response here instead cached whatever HTML the URL
+          // happened to return — visiting /legal/terms.html stored the terms
+          // document as the app shell, and the next offline launch opened the
+          // terms page instead of Wave.
+          return await fetch(request);
         } catch {
           // Offline. The SPA shell can render its own "no connection" states,
           // which is a better landing place than a browser error page.

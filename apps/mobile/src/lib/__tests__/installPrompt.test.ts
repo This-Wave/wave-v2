@@ -29,6 +29,7 @@ import {
   hasDeferredPrompt,
   hasDismissedInstallHint,
   markInstallHintDismissed,
+  onInstallPromptAvailable,
   showInstallPrompt,
   type BeforeInstallPromptEvent,
 } from "../installPrompt";
@@ -138,5 +139,42 @@ describe("the deferred prompt", () => {
     } as unknown as BeforeInstallPromptEvent;
     __setDeferredPrompt(event);
     await expect(showInstallPrompt()).resolves.toBe(false);
+  });
+});
+
+describe("onInstallPromptAvailable", () => {
+  function fakeEvent(): BeforeInstallPromptEvent {
+    return {
+      prompt: vi.fn(async () => {}),
+      userChoice: Promise.resolve({ outcome: "accepted" as const }),
+    } as unknown as BeforeInstallPromptEvent;
+  }
+
+  test("fires immediately when a prompt was already captured", () => {
+    __setDeferredPrompt(fakeEvent());
+    const listener = vi.fn();
+    onInstallPromptAvailable(listener);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  test("fires later when the prompt arrives after subscribing", () => {
+    // The regression this guards: the hint used to sample `hasDeferredPrompt()`
+    // once at a fixed delay. Chrome fires `beforeinstallprompt` only after the
+    // service worker registers, which is deferred to `load`, so on a slow
+    // connection the single sample missed it and the hint never appeared.
+    const listener = vi.fn();
+    onInstallPromptAvailable(listener);
+    expect(listener).not.toHaveBeenCalled();
+
+    __setDeferredPrompt(fakeEvent());
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  test("a torn-down subscriber is not called", () => {
+    const listener = vi.fn();
+    const off = onInstallPromptAvailable(listener);
+    off();
+    __setDeferredPrompt(fakeEvent());
+    expect(listener).not.toHaveBeenCalled();
   });
 });

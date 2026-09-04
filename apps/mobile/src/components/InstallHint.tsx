@@ -5,10 +5,10 @@ import { colors, radii } from "../theme/tokens";
 import { useAuthStore } from "../store/authStore";
 import {
   detectInstallPlatform,
-  hasDeferredPrompt,
   hasDismissedInstallHint,
   isStandalone,
   markInstallHintDismissed,
+  onInstallPromptAvailable,
   showInstallPrompt,
   type InstallPlatform,
 } from "../lib/installPrompt";
@@ -41,25 +41,37 @@ export function InstallHint() {
     const detected = detectInstallPlatform(window.navigator.userAgent);
     if (detected === "none") return;
 
-    // Android only earns the hint once the browser has actually offered an
-    // install — otherwise the button would have nothing to open. iOS has no
-    // such signal, so the instruction stands on its own.
-    //
-    // Delayed rather than immediate: `beforeinstallprompt` lands shortly after
-    // load, and a card that appears the instant a screen paints reads as an ad.
-    const timer = setTimeout(() => {
-      void (async () => {
-        if (await hasDismissedInstallHint()) return;
-        if (cancelled) return;
-        if (detected === "android" && !hasDeferredPrompt()) return;
-        setPlatform(detected);
-        setVisible(true);
-      })();
-    }, 4000);
+    // Delayed rather than immediate: a card that appears the instant a screen
+    // paints reads as an ad.
+    const reveal = async () => {
+      if (cancelled) return;
+      if (await hasDismissedInstallHint()) return;
+      if (cancelled) return;
+      setPlatform(detected);
+      setVisible(true);
+    };
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let unsubscribe = () => {};
+
+    if (detected === "android") {
+      // Android earns the hint only once the browser has actually offered an
+      // install, or the button would have nothing to open. That offer is
+      // *subscribed* to rather than sampled: Chrome fires it only after the
+      // service worker registers, which is itself deferred to `load`, so on a
+      // slow connection it can land long after any fixed delay.
+      unsubscribe = onInstallPromptAvailable(() => {
+        timer = setTimeout(() => void reveal(), 4000);
+      });
+    } else {
+      // iOS has no such signal — the instruction stands on its own.
+      timer = setTimeout(() => void reveal(), 4000);
+    }
 
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      unsubscribe();
+      if (timer) clearTimeout(timer);
     };
   }, [profile]);
 

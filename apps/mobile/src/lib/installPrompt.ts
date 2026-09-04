@@ -28,6 +28,7 @@ export interface BeforeInstallPromptEvent extends Event {
 }
 
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
+let subscribers: Array<() => void> = [];
 
 /**
  * Starts listening for `beforeinstallprompt`.
@@ -40,10 +41,14 @@ export function captureInstallPrompt(): () => void {
   if (Platform.OS !== "web" || typeof window === "undefined") return () => {};
 
   const onBeforeInstall = (event: Event) => {
-    // Suppressing the browser's own mini-infobar is the point: Wave asks in its
-    // own words, at a moment it chooses, using the deferred event below.
-    event.preventDefault();
+    // Deliberately NOT `preventDefault()`. Suppressing the browser's own install
+    // affordance would be safe only if Wave always showed its own, and it does
+    // not: the hint needs a signed-in profile, and it treats unreadable storage
+    // as "already dismissed". Calling preventDefault here left a signed-out
+    // Android visitor with no install path at all — neither Chrome's nor ours.
+    // Stashing the event without cancelling it keeps both.
     deferredPrompt = event as BeforeInstallPromptEvent;
+    for (const notify of subscribers) notify();
   };
   const onInstalled = () => {
     deferredPrompt = null;
@@ -54,6 +59,27 @@ export function captureInstallPrompt(): () => void {
   return () => {
     window.removeEventListener("beforeinstallprompt", onBeforeInstall);
     window.removeEventListener("appinstalled", onInstalled);
+    subscribers = [];
+  };
+}
+
+/**
+ * Calls `listener` when a prompt becomes available — immediately if one already
+ * has been captured. Returns a teardown.
+ *
+ * Polling for this does not work reliably. Chrome fires `beforeinstallprompt`
+ * only after the service worker registers, and registration is deferred to the
+ * `load` event, so on a slow connection the event can land well after any fixed
+ * delay. A single sample would miss it and the hint would never appear.
+ */
+export function onInstallPromptAvailable(listener: () => void): () => void {
+  if (deferredPrompt) {
+    listener();
+    return () => {};
+  }
+  subscribers.push(listener);
+  return () => {
+    subscribers = subscribers.filter((s) => s !== listener);
   };
 }
 
@@ -84,6 +110,7 @@ export async function showInstallPrompt(): Promise<boolean> {
 /** Test seam. Not for production code. */
 export function __setDeferredPrompt(event: BeforeInstallPromptEvent | null): void {
   deferredPrompt = event;
+  if (event) for (const notify of subscribers) notify();
 }
 
 /**
@@ -131,8 +158,10 @@ export async function hasDismissedInstallHint(): Promise<boolean> {
   try {
     return (await AsyncStorage.getItem(DISMISSED_KEY)) === "1";
   } catch {
-    // Storage unavailable — treat as dismissed. Nagging on every launch is far
-    // worse than never asking, and the browser has its own prompt as a backstop.
+    // Storage unavailable — treat as dismissed. Wave cannot tell whether it has
+    // already asked, and nagging on every launch is worse than not asking. This
+    // is only acceptable because `captureInstallPrompt` no longer cancels the
+    // browser's own install affordance, so these users still have a way in.
     return true;
   }
 }

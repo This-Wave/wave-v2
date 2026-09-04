@@ -60,7 +60,15 @@ if (html.includes('rel="manifest"')) {
     '<meta name="apple-mobile-web-app-title" content="Wave" />',
     '<meta name="mobile-web-app-capable" content="yes" />',
   );
+  const before = html;
   html = html.replace("</head>", `    ${parts.join("\n    ")}\n  </head>`);
+  if (html === before) {
+    // `String.replace` with a missing marker is a silent no-op, and this script
+    // used to report success anyway — so an Expo template change could ship a
+    // build with no manifest and no icons while CI stayed green.
+    console.error("build-pwa: no </head> in dist/index.html — cannot inject the manifest.");
+    process.exit(1);
+  }
 }
 
 if (!html.includes("serviceWorker")) {
@@ -76,7 +84,12 @@ if (!html.includes("serviceWorker")) {
       }
     </script>
 `;
+  const before = html;
   html = html.replace("</body>", `${script}  </body>`);
+  if (html === before) {
+    console.error("build-pwa: no </body> in dist/index.html — cannot register the service worker.");
+    process.exit(1);
+  }
 }
 
 fs.writeFileSync(indexPath, html, "utf8");
@@ -87,24 +100,59 @@ if (!fs.existsSync(swPath)) {
   process.exit(1);
 }
 
-// Hash the bundle graph rather than using a timestamp: a rebuild that changed
-// nothing should not invalidate every user's shell cache.
+// Hash the build rather than using a timestamp: a rebuild that changed nothing
+// should not invalidate every user's shell cache.
+//
+// Two things this has to get right. Paths, not bare filenames — two subtrees
+// holding the same names must not collide. And the files the service worker
+// caches cache-first but which are NOT content-hashed: the manifest and the
+// icons. Those are only ever invalidated by the cache name changing, so if they
+// were left out of this hash, a deploy that changed only an icon would leave
+// every installed user on the old one indefinitely, with no way to clear it
+// short of uninstalling.
 const staticDir = path.join(dist, "_expo", "static");
-const hash = crypto.createHash("sha256");
-const walk = (dir) => {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) walk(full);
-    else hash.update(entry.name);
-  }
-};
-if (fs.existsSync(staticDir)) walk(staticDir);
-const version = hash.digest("hex").slice(0, 12);
-
-const sw = fs.readFileSync(swPath, "utf8").replace("__SHELL_VERSION__", version);
-if (sw.includes("__SHELL_VERSION__")) {
-  console.error("build-pwa: failed to stamp SHELL_VERSION into sw.js");
+if (!fs.existsSync(staticDir)) {
+  // Previously skipped silently, which made `version` the hash of the empty
+  // string — the same constant on every deploy, so no cache ever invalidated.
+  console.error(`build-pwa: ${staticDir} not found — the export looks incomplete.`);
   process.exit(1);
 }
-fs.writeFileSync(swPath, sw, "utf8");
-console.log(`build-pwa: stamped shell version ${version} into dist/sw.js`);
+
+const hash = crypto.createHash("sha256");
+const walk = (dir) => {
+  const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) walk(full);
+    // Content-hashed by Expo, so the path alone identifies the bytes.
+    else hash.update(path.relative(dist, full));
+  }
+};
+walk(staticDir);
+
+// Not content-hashed, so these are hashed by their actual bytes.
+for (const rel of ["manifest.webmanifest", "favicon.png"]) {
+  const file = path.join(dist, rel);
+  if (fs.existsSync(file)) hash.update(fs.readFileSync(file));
+}
+const iconDir = path.join(dist, "icons");
+if (fs.existsSync(iconDir)) {
+  for (const name of fs.readdirSync(iconDir).sort()) {
+    hash.update(name);
+    hash.update(fs.readFileSync(path.join(iconDir, name)));
+  }
+}
+
+const version = hash.digest("hex").slice(0, 12);
+
+const rawSw = fs.readFileSync(swPath, "utf8");
+if (!rawSw.includes("__SHELL_VERSION__")) {
+  // Already stamped, so this is a second run over the same dist. Say so rather
+  // than printing the freshly computed version, which is NOT what the file
+  // holds — that mismatch is actively misleading when checking a build.
+  const existing = /const SHELL_VERSION = "([^"]+)"/.exec(rawSw)?.[1] ?? "unknown";
+  console.log(`build-pwa: dist/sw.js is already stamped (${existing}); leaving it alone`);
+} else {
+  fs.writeFileSync(swPath, rawSw.replace("__SHELL_VERSION__", version), "utf8");
+  console.log(`build-pwa: stamped shell version ${version} into dist/sw.js`);
+}
