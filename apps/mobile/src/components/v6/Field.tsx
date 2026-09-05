@@ -47,7 +47,7 @@ export function Field({
         onChangeText={onChangeText}
         placeholder={placeholder}
         // #c1c1c1 measured 1.80:1 on white. Placeholders are text, so they owe
-        // 4.5:1 under 1.4.3 — `muted` is 5.05:1.
+        // 4.5:1 under 1.4.3 — `muted` is 5.41:1 on white, 5.05:1 on canvas.
         placeholderTextColor={colors.muted}
         multiline={multiline}
         keyboardType={keyboardType}
