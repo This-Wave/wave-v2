@@ -13,11 +13,11 @@ import {
   RowGroup,
   Screen,
   ScreenBody,
+  Switch,
   Thumb,
 } from "../../components/v6";
 import { ChevronRightIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
-import { ToggleSwitch } from "../../components/ui/ToggleSwitch";
 import { useAuthStore } from "../../store/authStore";
 import { useAvailableOrders, useSetAvailability } from "../../lib/rider";
 import { useWave } from "../../lib/wave";
@@ -76,10 +76,11 @@ export function OrderFeedScreen() {
             )}
           </View>
           <View className="items-end gap-1.5">
-            <ToggleSwitch
+            <Switch
               value={online}
               onValueChange={handleToggle}
-              accessibilityLabel={online ? "Available for deliveries" : "Not available for deliveries"}
+              accessibilityLabel="Available for deliveries"
+              accessibilityHint="Turn off to stop new orders appearing in your feed"
             />
             <Text className="font-sans text-meta text-muted">{online ? "Online" : "Offline"}</Text>
           </View>

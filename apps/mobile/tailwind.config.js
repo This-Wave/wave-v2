@@ -59,41 +59,6 @@ module.exports = {
           bg: "#fbf3d6",
         },
 
-        // --- v5 legacy aliases ---
-        // Rider and shop-owner screens still use `components/ui/*` and v5 class
-        // names. These remap those names onto v6 values so those flows degrade
-        // to the new neutrals instead of rendering unstyled. Remove once both
-        // roles have had their design pass. Do NOT use in new code.
-        wave: {
-          DEFAULT: "#083400",
-          50: "#f7f7f7",
-          100: "#ebebeb",
-          200: "#87ea5c",
-          500: "#083400",
-          600: "#2c4f26",
-          700: "#083400",
-          lime: "#87ea5c",
-          hover: "#2c4f26",
-        },
-        "text-secondary": "#6a6a6a",
-        "text-tertiary": "#6a6a6a",
-        faint: "#c1c1c1",
-        border: {
-          DEFAULT: "#ebebeb",
-          divider: "#ebebeb",
-        },
-        success: {
-          text: "#083400",
-          bg: "#87ea5c",
-          "bg-faint": "#eafbe3",
-          border: "#87ea5c",
-        },
-        rider: { text: "#083400", bg: "#87ea5c" },
-        admin: { text: "#083400", bg: "#ebebeb" },
-        mtn: "#8a6017",
-        vodafone: "#c1341f",
-        disabled: { bg: "#ebebeb", text: "#c1c1c1" },
-        overlay: "#083400",
       },
       fontFamily: {
         // DM Sans — the reference names it as a substitute for Airbnb Cereal.
@@ -118,12 +83,6 @@ module.exports = {
         card: "12px",
         input: "8px",
         pill: "9999px",
-        // v5 legacy names, remapped onto the three v6 shapes.
-        control: "9999px",
-        well: "12px",
-        tile: "12px",
-        chip: "8px",
-        check: "8px",
       },
       spacing: {
         // 4px base. The reference's compact scale.

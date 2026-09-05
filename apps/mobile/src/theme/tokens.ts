@@ -35,20 +35,6 @@ export const colors = {
 
   white: "#ffffff",
 
-  // --- v5 legacy aliases -----------------------------------------------------
-  // Rider and shop-owner screens still run on `components/ui/*` and will until
-  // their own design pass. These keep them compiling and rendering in v6
-  // neutrals rather than unstyled. Do NOT use them in new code.
-  /** @deprecated v5 accent. Use `ink` for strokes, `lime` for fills. */
-  primary: "#083400",
-  /** @deprecated v5 tertiary text. Use `subtle`. */
-  faint: "#c1c1c1",
-  /** @deprecated v5 card border. Use `hairline`. */
-  border: "#ebebeb",
-  /** @deprecated v5 skeleton. Use `surfaceMuted`. */
-  skeleton: "#dddddd",
-  /** @deprecated v5 scrim. */
-  overlay: "#083400",
 } as const;
 
 export const radii = {
@@ -74,19 +60,6 @@ export const shadowFloating: ViewStyle = {
   shadowRadius: 8,
   shadowOffset: { width: 0, height: 4 },
   elevation: 4,
-};
-
-/**
- * @deprecated v5 card elevation. v6 content cards carry no shadow at all —
- * they separate by sitting white on the canvas. Kept only so `components/ui/*`
- * compiles until the rider and shop-owner passes land.
- */
-export const shadowCard: ViewStyle = {
-  shadowColor: "#000000",
-  shadowOpacity: 0.06,
-  shadowRadius: 3,
-  shadowOffset: { width: 0, height: 1 },
-  elevation: 2,
 };
 
 /** Overlay scrim for sheets and dialogs. */

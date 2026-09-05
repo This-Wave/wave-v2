@@ -3,8 +3,7 @@ import { Text } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
-import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
-import { CodeInput } from "../../components/ui/CodeInput";
+import { ActionBar, Button, CodeInput, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
 import { useOrder } from "../../lib/orders";
 import { useDeliverOrder } from "../../lib/rider";
 import { resetRiderTabs } from "../../lib/navigationFlows";
@@ -59,10 +58,21 @@ export function PinEntryScreen() {
             close this delivery at {order?.checkpoint?.name ?? "the checkpoint"}.
           </Text>
 
-          <CodeInput value={pin} onChangeText={setPin} state={error ? "error" : "default"} />
+          <CodeInput
+            value={pin}
+            onChangeText={setPin}
+            state={error ? "error" : "default"}
+            accessibilityLabel="6-digit delivery PIN"
+          />
 
           {error ? (
-            <Text className="mt-4 text-center font-sans text-body text-danger">{error}</Text>
+            <Text
+              accessibilityLiveRegion="assertive"
+              role="alert"
+              className="mt-4 text-center font-sans text-body text-danger"
+            >
+              {error}
+            </Text>
           ) : null}
         </Gutter>
       </ScreenBody>

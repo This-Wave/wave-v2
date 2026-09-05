@@ -8,8 +8,8 @@ import {
   RowGroup,
   Screen,
   ScreenBody,
+  Switch,
 } from "../../components/v6";
-import { ToggleSwitch } from "../../components/ui/ToggleSwitch";
 import { ShopSwitcher } from "../../components/shop/ShopSwitcher";
 import { useSelectedShop, useSetShopServing } from "../../lib/shopOwner";
 import { useLayout } from "../../hooks/useLayout";
@@ -74,13 +74,12 @@ export function ShopSettingsScreen() {
                       : "Students can order from you right now."}
                 </Text>
               </View>
-              <ToggleSwitch
+              <Switch
                 value={shop?.isActive ?? false}
                 disabled={!shop || setServing.isPending}
                 onValueChange={(next) => setServing.mutate(next)}
-                accessibilityLabel={
-                  shop?.isActive === false ? "Shop is paused" : "Shop is serving orders"
-                }
+                accessibilityLabel="Shop is serving orders"
+                accessibilityHint="Turn off to pause the shop and hide it from students"
               />
             </View>
 
