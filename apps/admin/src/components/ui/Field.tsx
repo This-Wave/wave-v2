@@ -1,8 +1,22 @@
 import type { ReactNode } from "react";
 
+/**
+ * `outline-none` used to strip the browser's focus ring and replace it with a
+ * 1px border-colour change — invisible in practice and short of 1.4.11's 3:1.
+ * The ring is drawn explicitly instead, and only on keyboard focus so mouse
+ * users don't see it.
+ *
+ * min-h rather than a fixed h-[42px]: at a browser zoom or a large default font
+ * the text grew and the box didn't. 1.4.4.
+ */
+export const FOCUS_RING =
+  "outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 " +
+  "focus-visible:ring-offset-surface";
+
 const CONTROL =
-  "h-[42px] w-full rounded-control border border-border bg-surface px-3.5 text-[13.5px] text-ink " +
-  "outline-none placeholder:text-faint focus:border-wave-500 disabled:opacity-50";
+  "min-h-[42px] w-full rounded-control border border-border bg-surface px-3.5 py-2 text-[13.5px] text-ink " +
+  // #a8a8a8 on white is 2.5:1; placeholders are text and owe 4.5:1.
+  `placeholder:text-muted focus:border-ink disabled:opacity-50 ${FOCUS_RING}`;
 
 function Label({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
@@ -122,10 +136,19 @@ export function SelectField({
   );
 }
 
-export function FormError({ message }: { message: string | null }) {
+/**
+ * Form-level error. `role="alert"` because it appears without moving focus —
+ * a keyboard user submits, the request fails, and nothing would otherwise tell
+ * them. 4.1.3.
+ */
+export function FormError({ message, id }: { message: string | null; id?: string }) {
   if (!message) return null;
   return (
-    <div className="rounded-control border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[12.5px] text-danger-text">
+    <div
+      id={id}
+      role="alert"
+      className="rounded-control border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[12.5px] text-danger-text"
+    >
       {message}
     </div>
   );

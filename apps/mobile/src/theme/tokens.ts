@@ -15,6 +15,16 @@ export const colors = {
   surface: "#ffffff",
   surfaceMuted: "#dddddd",
   muted: "#6a6a6a",
+  /**
+   * Icon-only neutral: chevrons, decorative strokes. 3.45:1 on white and
+   * 3.22:1 on canvas, so it clears WCAG 1.4.11's 3:1 for meaningful glyphs.
+   * Not a text colour — text at this size needs 4.5:1, use `muted`.
+   */
+  icon: "#8a8a8a",
+  /**
+   * Disabled fills only. 1.80:1 on white — it is not legible as text or as an
+   * icon, and placeholders that used to sit here moved to `muted`.
+   */
   subtle: "#c1c1c1",
   hairline: "#ebebeb",
 

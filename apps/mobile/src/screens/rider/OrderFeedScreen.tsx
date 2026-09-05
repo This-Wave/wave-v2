@@ -177,7 +177,7 @@ function FeedRow({
       <Text className="w-28 font-sans-semibold text-body text-ink">
         {formatGhs(Number(order.deliveryFee))}
       </Text>
-      <ChevronRightIcon size={18} color={colors.subtle} strokeWidth={2} />
+      <ChevronRightIcon size={18} color={colors.icon} strokeWidth={2} />
     </Pressable>
   );
 }

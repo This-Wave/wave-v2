@@ -38,8 +38,14 @@ module.exports = {
           DEFAULT: "#ffffff", // cards, inputs, sheets (White)
           muted: "#dddddd", // skeletons, disabled cards (Deco)
         },
-        muted: "#6a6a6a", // secondary text, metadata (Foggy)
-        subtle: "#c1c1c1", // placeholder + disabled text (Grey 500)
+        muted: "#6a6a6a", // secondary text, metadata (Foggy). 5.05:1 on canvas.
+        // Icon-only neutral for chevrons and decorative strokes. 3.45:1 on
+        // white, 3.22:1 on canvas — clears 1.4.11's 3:1 for meaningful glyphs.
+        // Never put text in it.
+        icon: "#8a8a8a",
+        // Disabled FILLS only. At 1.80:1 on white this is not a text colour and
+        // not an icon colour; placeholders moved to `muted`. See UX-A11Y-PLAN.md.
+        subtle: "#c1c1c1",
         hairline: "#ebebeb", // dividers, input underlines (Bebe)
 
         // --- semantic ---
