@@ -110,6 +110,14 @@ export function OrderSummaryScreen() {
             {params.itemsPreview.map((line, i) => (
               <View
                 key={i}
+                // Quantity, name and price are three Texts on one line. Grouped,
+                // a screen reader says "2 times Jollof Rice, GH₵24.00"; ungrouped
+                // it says them as three unrelated stops and the price could
+                // belong to any row.
+                accessible
+                accessibilityLabel={`${line.quantity} × ${line.name}, ${formatGhs(
+                  line.unitPrice * line.quantity,
+                )}`}
                 className={`flex-row items-center justify-between py-2.5 ${
                   i > 0 ? "border-t border-hairline" : ""
                 }`}
@@ -156,7 +164,11 @@ export function OrderSummaryScreen() {
               />
             ) : null}
             <View className="mt-1 h-px bg-hairline" />
-            <View className="flex-row items-center justify-between pt-4">
+            <View
+              accessible
+              accessibilityLabel={`Total, ${formatGhs(estimate.total)}`}
+              className="flex-row items-center justify-between pt-4"
+            >
               <Text className="font-sans-medium text-ui text-ink">Total</Text>
               <Text className="font-sans-bold text-heading-sm text-ink">
                 {formatGhsCompact(estimate.total)}
@@ -169,7 +181,15 @@ export function OrderSummaryScreen() {
             in full.
           </Text>
 
-          {error ? <Text className="mt-4 font-sans text-body text-danger">{error}</Text> : null}
+          {error ? (
+            <Text
+              accessibilityLiveRegion="assertive"
+              role="alert"
+              className="mt-4 font-sans text-body text-danger"
+            >
+              {error}
+            </Text>
+          ) : null}
         </Gutter>
       </ScreenBody>
 
@@ -180,9 +200,25 @@ export function OrderSummaryScreen() {
   );
 }
 
+/**
+ * One money line. Grouped for assistive tech: "Delivery" and "GH₵20.00" are
+ * separate Texts, and read apart they are two facts a listener has to pair up
+ * themselves — across five lines that is where a wrong total goes unnoticed.
+ * The minus and plus signs are spelled out because a screen reader skips a
+ * leading "−" glyph entirely, turning a discount into a charge.
+ */
 function Line({ label, value }: { label: string; value: string }) {
+  const spoken = value.startsWith("−")
+    ? `minus ${value.slice(1)}`
+    : value.startsWith("+")
+      ? `plus ${value.slice(1)}`
+      : value;
   return (
-    <View className="flex-row items-center justify-between py-2.5">
+    <View
+      accessible
+      accessibilityLabel={`${label}, ${spoken}`}
+      className="flex-row items-center justify-between py-2.5"
+    >
       <Text className="font-sans text-body text-muted">{label}</Text>
       <Text className="font-sans text-body text-ink">{value}</Text>
     </View>

@@ -8,11 +8,12 @@ import {
   CardGrid,
   CardRail,
   Chip,
+  Gutter,
   PhotoCard,
   ProgressRail,
+  ResumeOrderCard,
   Screen,
   ScreenBody,
-  Gutter,
   SearchCapsule,
   SectionTitle,
   SkeletonCard,
@@ -82,6 +83,13 @@ function HomeScreenMobile() {
     ["confirmed", "rider_assigned", "en_route", "at_checkpoint"].includes(o.status),
   );
 
+  /**
+   * An order built and then abandoned at Paystack. `live` starts at `confirmed`,
+   * so until this card existed a `payment_pending` order showed up nowhere on
+   * Home and the only way back was to rebuild the basket from scratch.
+   */
+  const unpaid = (orders ?? []).find((o) => o.status === "payment_pending");
+
   const orderedBefore = useMemo(() => {
     const ids = new Set(
       (orders ?? [])
@@ -140,6 +148,20 @@ function HomeScreenMobile() {
               />
             ))}
           </ScrollView>
+        ) : null}
+
+        {unpaid ? (
+          <Gutter>
+            <ResumeOrderCard
+              order={unpaid}
+              onPress={() =>
+                navigation.navigate("Payment", {
+                  orderId: unpaid.id,
+                  totalAmount: Number(unpaid.totalAmount),
+                })
+              }
+            />
+          </Gutter>
         ) : null}
 
         {live ? (

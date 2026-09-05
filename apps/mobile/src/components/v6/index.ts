@@ -15,6 +15,7 @@ export { CheckoutProgress } from "./CheckoutProgress";
 export { WaveContextBanner } from "./WaveContextBanner";
 export { DeliveryPinSnippet } from "./DeliveryPinSnippet";
 export { LiveOrderBar } from "./LiveOrderBar";
+export { ResumeOrderCard } from "./ResumeOrderCard";
 export { ActiveDeliveryBar } from "./ActiveDeliveryBar";
 export { ToastHost } from "./ToastHost";
 export { Field, BigNumberField } from "./Field";
