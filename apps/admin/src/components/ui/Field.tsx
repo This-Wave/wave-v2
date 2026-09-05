@@ -23,7 +23,10 @@ function Label({ label, required, children }: { label: string; required?: boolea
     <label className="block">
       <span className="mb-1.5 block text-[12px] font-semibold text-muted">
         {label}
-        {required ? null : <span className="ml-1 font-normal text-faint">optional</span>}
+        {/* `text-faint` is #a8a8a8 — 2.38:1 on white. "optional" is the word
+            that tells someone they may skip a field, so it is exactly the sort
+            of text that must not be the least readable thing on the form. */}
+        {required ? null : <span className="ml-1 font-normal text-muted">optional</span>}
       </span>
       {children}
     </label>

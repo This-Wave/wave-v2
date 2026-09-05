@@ -74,7 +74,19 @@ export function CodeInput({
         );
       })}
       {editable ? (
-        <Pressable className="absolute inset-0" onPress={onPressCapture}>
+        <Pressable
+          className="absolute inset-0"
+          onPress={onPressCapture}
+          // A transparent sheet whose only job is to put the keyboard back up.
+          // The TextInput inside is the real control and carries the name, so
+          // this must not become a second stop of its own.
+          //
+          // `accessible={false}` and NOT `accessibilityElementsHidden`: the
+          // latter hides descendants as well, which would have taken the input
+          // with it and left the code field unreachable by screen reader —
+          // the opposite of what the lint rule was asking for.
+          accessible={false}
+        >
           <TextInput
             value={value}
             onChangeText={(text) => onChangeText?.(text.replace(/[^0-9]/g, "").slice(0, length))}

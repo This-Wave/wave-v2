@@ -60,7 +60,17 @@ export function WaveBanner({ wave, onPress }: { wave: WaveInfo; onPress?: () => 
 /** Shown once the cutoff has passed and the next Wave has not opened. */
 export function WaveClosedBanner({ onPress }: { onPress?: () => void }) {
   return (
-    <Pressable onPress={onPress} className="rounded-card bg-surface p-4">
+    <Pressable
+      onPress={onPress}
+      accessibilityRole={onPress ? "button" : undefined}
+      // Two Texts, and the second carries the only actionable part ("Tap to see
+      // the next one"). Grouped so the banner is one stop that states the
+      // situation and the way out of it.
+      accessible
+      accessibilityLabel="Today's Wave has closed. Orders lock at noon."
+      accessibilityHint={onPress ? "Opens the calendar for the next Wave" : undefined}
+      className="rounded-card bg-surface p-4"
+    >
       <Text className="font-sans-medium text-body text-ink">Today's Wave has closed</Text>
       <Text className="font-sans text-body text-muted">
         Orders lock at noon. Tap to see the next one.

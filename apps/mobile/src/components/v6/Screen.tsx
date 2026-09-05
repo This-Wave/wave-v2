@@ -1,4 +1,4 @@
-import { SafeAreaView, ScrollView, View, RefreshControl } from "react-native";
+import { Platform, SafeAreaView, ScrollView, View, RefreshControl } from "react-native";
 import type { ReactNode } from "react";
 import { useLayout } from "../../hooks/useLayout";
 import { layout } from "../../theme/layout";
@@ -65,6 +65,12 @@ export function ScreenBody({
       className={`flex-1 ${className}`}
       contentContainerStyle={{ paddingBottom: bottomInset, flexGrow: 1 }}
       showsVerticalScrollIndicator={false}
+      // Web only, and it is not cosmetic. React Native Web renders this as a
+      // scrollable div with no tab stop, so on a screen whose only control sits
+      // outside it in the ActionBar — the order summary, for one — a keyboard
+      // user cannot scroll the page at all and simply never sees the total.
+      // On native the platform handles scrolling and a tabIndex means nothing.
+      {...(Platform.OS === "web" ? ({ tabIndex: 0 } as object) : {})}
       refreshControl={
         onRefresh ? (
           <RefreshControl refreshing={refreshing ?? false} onRefresh={onRefresh} />

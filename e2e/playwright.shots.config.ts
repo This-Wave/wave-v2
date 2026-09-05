@@ -16,7 +16,7 @@ loadEnv();
  */
 export default defineConfig({
   testDir: "./specs",
-  testMatch: /screenshots\.spec\.ts/,
+  testMatch: /(screenshots|a11y)\.spec\.ts/,
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -33,7 +33,7 @@ export default defineConfig({
   projects: [
     {
       name: "admin",
-      testMatch: /screenshots\.spec\.ts/,
+      testMatch: /(screenshots|a11y)\.spec\.ts/,
       grep: /@admin/,
       use: {
         ...devices["Desktop Chrome"],
@@ -43,7 +43,7 @@ export default defineConfig({
     },
     {
       name: "mobile",
-      testMatch: /screenshots\.spec\.ts/,
+      testMatch: /(screenshots|a11y)\.spec\.ts/,
       grep: /@mobile/,
       use: {
         // Phone-shaped, because every one of these is a phone screen. Chromium

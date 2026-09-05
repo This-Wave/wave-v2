@@ -125,6 +125,11 @@ export function SectionTitle({
     <Pressable
       onPress={onPress}
       disabled={!onPress}
+      // A heading when it is inert, a button when it leads somewhere. The
+      // chevron is the only visual cue for the difference, and a chevron
+      // announces nothing.
+      accessibilityRole={onPress ? "button" : "header"}
+      accessibilityLabel={onPress ? `${title}, see all` : title}
       className={`flex-row items-center gap-1 ${className}`}
     >
       <Text className="font-sans-medium text-heading-sm text-ink">{title}</Text>

@@ -289,7 +289,11 @@ test("@admin dashboard screens", async ({ page }) => {
   for (const [name, path, anchor] of pages) {
     await shot(page, "admin", name, async () => {
       await page.goto(path);
-      await expect(page.getByText(anchor).first()).toBeVisible();
+      // Wait for the page's own fetches to settle before asserting on content.
+      // Asserting straight after goto made this flaky: the frame that failed
+      // moved between runs, so the manifest and the files on disk disagreed.
+      await page.waitForLoadState("networkidle").catch(() => {});
+      await expect(page.getByText(anchor).first()).toBeVisible({ timeout: 25_000 });
       // Tables paint after their fetch resolves. A fixed timeout caught the
       // literal string "Loading…" in the first run, so wait on the thing that
       // actually signals readiness.
