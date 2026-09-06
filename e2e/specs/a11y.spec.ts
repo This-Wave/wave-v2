@@ -49,11 +49,12 @@ type Violation = { id: string; impact?: string | null; nodes: AxeNode[]; help: s
 
 async function scan(page: Page, name: string, disable: string[] = []): Promise<Violation[]> {
   // Let the navigator's cross-fade finish. Scanning mid-transition reads the
-  // animated opacity as the element's real colour: the first run of this file
-  // reported seven contrast failures at #818181, which is #6a6a6a — a passing
-  // 5.41:1 — rendered at about 85% through a fade. Same class of error as a
-  // screenshot catching two screens at once.
-  await page.waitForTimeout(900);
+  // animated opacity as the element's real colour: runs of this file have
+  // reported ink (#083400, a 15:1 pass) as #a6b6a3 and muted as #c8c8c8, purely
+  // because the screen was still fading in. Same class of error as a screenshot
+  // catching two screens at once. 900ms was not enough for a second sign-in in
+  // the same page, which boots the app again from scratch.
+  await page.waitForTimeout(1600);
 
   const results = await new AxeBuilder({ page })
     .withTags(TAGS)
@@ -161,16 +162,12 @@ test("@mobile student screens are clean under axe", async ({ page }) => {
   // By role, not by text. The text node sits inside the Pressable, and a click
   // on it does not always reach the handler — the run that found this was
   // stranded on step 2 with the button right there in the snapshot.
-  await page.getByRole("button", { name: "Continue" }).click();
+  // Menu leads straight to the merged review now — the checkpoint step it used
+  // to pass through was absorbed into this screen.
+  await page.getByRole("button", { name: /^Continue/ }).click();
   await expect(page.getByText(/STEP 2 OF 3/i)).toBeVisible();
-  // Choose the checkpoint explicitly rather than trusting whatever the screen
-  // defaults to once its list resolves. Clicking "Review order" the instant
-  // step 2 rendered left the run stranded there: the button was present and
-  // pressable, but the selection it depends on had not landed yet.
-  await page.getByRole("button", { name: /Ashesi Quad/ }).first().click();
-  await page.getByRole("button", { name: "Review order" }).click();
   // React Navigation keeps the previous screen mounted, so an unfiltered
-  // getByText can resolve to a stale invisible copy — or, here, to none at all.
+  // getByText can resolve to a stale invisible copy.
   await expect(onScreen(page, "What you pay")).toBeVisible();
   const summary = await scan(page, "mobile-student-summary", RNW_NOISE);
   if (summary.length) failures.push(`── order summary\n${describe(summary)}`);

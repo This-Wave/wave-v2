@@ -1,6 +1,6 @@
 // Wave v6 primitives — Airbnb-derived structure on Wave's two greens.
 // Shared by student, rider, and shop-owner screens (+ desktop AppWebShell).
-export { Screen, ScreenBody, Gutter, ActionBar } from "./Screen";
+export { Screen, ScreenBody, Gutter, ActionBar, FLOATING_NAV_CLEARANCE } from "./Screen";
 export { WebShell, StudentWebShell, AppWebShell, NarrowColumn } from "./WebShell";
 export { SideNav, type AppRole } from "./SideNav";
 export { RightPanel } from "./RightPanel";
@@ -25,6 +25,7 @@ export { Switch } from "./Switch";
 export { Ledger } from "./Ledger";
 export { Steps, ProgressRail, type Step } from "./Progress";
 export { TabBar } from "./TabBar";
+export { ModeTabs, type ServiceMode } from "./ModeTabs";
 export { Sheet, Confirm } from "./Sheet";
 export { WaveBanner, WaveClosedBanner } from "./WaveBanner";
 export { Skeleton, SkeletonCard } from "./Skeleton";

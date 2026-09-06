@@ -79,7 +79,7 @@ export function ShopMenuPanel({
               label="Continue"
               onPress={() => {
                 onClose();
-                navigation.navigate("DescribeOrder", {
+                navigation.navigate("OrderSummary", {
                   shopId,
                   shopName,
                   scheduledDate,

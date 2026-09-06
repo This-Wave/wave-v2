@@ -1,6 +1,8 @@
 import { Pressable, Text, View } from "react-native";
 import type { WaveInfo } from "../../lib/wave";
 import { ProgressRail } from "./Progress";
+import { ChevronRightIcon } from "../icons";
+import { colors } from "../../theme/tokens";
 
 /**
  * The next Wave and how long is left to join it.
@@ -23,6 +25,7 @@ export function WaveBanner({ wave, onPress }: { wave: WaveInfo; onPress?: () => 
       onPress={onPress}
       accessibilityRole={onPress ? "button" : undefined}
       accessibilityLabel={`${wave.name}, ordering closes in ${wave.countdown}`}
+      accessibilityHint={onPress ? "Opens the calendar to pick a different Wave" : undefined}
       className={`rounded-card p-4 ${urgent ? "bg-lime" : "bg-surface"}`}
     >
       <View className="mb-3 flex-row items-end justify-between">
@@ -53,6 +56,24 @@ export function WaveBanner({ wave, onPress }: { wave: WaveInfo; onPress?: () => 
       ) : (
         <ProgressRail ratio={wave.elapsed} />
       )}
+
+      {/*
+        The card was pressable and nothing said so, which left the calendar
+        behind it effectively undiscoverable — students could not change the day
+        because they never learned the countdown was a control. A named row with
+        a chevron, under a rule: the card above still reads as information, the
+        last line unmistakably as something you press.
+      */}
+      {onPress ? (
+        <View
+          className={`mt-3 flex-row items-center justify-between border-t pt-3 ${
+            urgent ? "border-ink/15" : "border-hairline"
+          }`}
+        >
+          <Text className="font-sans-medium text-body text-ink">See all Waves</Text>
+          <ChevronRightIcon size={18} color={colors.ink} strokeWidth={2} />
+        </View>
+      ) : null}
     </Pressable>
   );
 }

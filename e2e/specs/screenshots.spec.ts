@@ -138,9 +138,11 @@ test("@mobile student screens", async ({ page }) => {
     await expect(onScreen(page, "Mama Put Kitchen")).toBeVisible();
   });
 
-  await shot(page, "student", "home-category-filtered", async () => {
-    await page.getByText("Pharmacy", { exact: true }).first().click();
-    await expect(onScreen(page, "Berekuso Community Pharmacy")).toBeVisible();
+  // Category chips came off Home in the redesign — filtering belongs on the
+  // browse screen, not before you have reached a single shop.
+  await shot(page, "student", "home-pickup-tab", async () => {
+    await page.getByRole("tab", { name: "Pickup" }).click();
+    await expect(onScreen(page, /Move a package/i)).toBeVisible();
   });
 
   await shot(page, "student", "wave-calendar", async () => {
@@ -156,9 +158,12 @@ test("@mobile student screens", async ({ page }) => {
   });
 
   await shot(page, "student", "pickup-request", async () => {
+    // Home resets to the Buy tab whenever it remounts, so this has to select
+    // Pickup again rather than assume the earlier step left it there.
     await backToHome(page);
-    await page.getByText(/package pickup/i).first().click();
-    await expect(onScreen(page, /pickup|checkpoint/i)).toBeVisible();
+    await page.getByRole("tab", { name: "Pickup" }).click();
+    await page.getByRole("button", { name: "Start a pickup" }).click();
+    await expect(onScreen(page, /What are we moving|Route/i)).toBeVisible();
   });
 
   await shot(page, "student", "shop-menu", async () => {
@@ -172,14 +177,12 @@ test("@mobile student screens", async ({ page }) => {
     await expect(onScreen(page, /1 item/i)).toBeVisible();
   });
 
-  await shot(page, "student", "checkpoint-and-day", async () => {
-    await page.getByText("Continue", { exact: true }).click();
+  // Menu now leads straight here: the old Details screen asked one question it
+  // had already answered, and this screen repeated its answers back.
+  // Stops at the review. The next control commits a real order.
+  await shot(page, "student", "review-merged", async () => {
+    await page.getByRole("button", { name: /^Continue/ }).click();
     await expect(page.getByText(/STEP 2 OF 3/i)).toBeVisible();
-  });
-
-  // Stops here deliberately. The next control commits a real order.
-  await shot(page, "student", "order-summary", async () => {
-    await page.getByText("Review order", { exact: true }).click();
     await expect(onScreen(page, "What you pay")).toBeVisible();
   });
 

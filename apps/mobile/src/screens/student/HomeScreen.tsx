@@ -1,14 +1,15 @@
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
   BrandBar,
+  Button,
   CardGrid,
   CardRail,
-  Chip,
   Gutter,
+  ModeTabs,
   PhotoCard,
   ProgressRail,
   ResumeOrderCard,
@@ -31,6 +32,7 @@ import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
 import { orderProgress, statusPill } from "./orderPresenters";
 import { StudentHomeWeb } from "./web/StudentHomeWeb";
+import type { ServiceMode } from "../../components/v6";
 import type { Order, Shop } from "../../types";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
@@ -48,23 +50,10 @@ export function HomeScreen() {
 
 function HomeScreenMobile() {
   const navigation = useNavigation<Nav>();
-  const { gutter } = useLayout();
   const { data: shops, isLoading: shopsLoading } = useShops();
   const { data: orders } = useMyOrders();
   const wave = useWave();
-  const [category, setCategory] = useState<string | null>(null);
-
-  // The filter rail is derived from the data, not an enum — `shop.category` is
-  // free text and the seed's distinct values *are* the rail. See PLAN.md.
-  const categories = useMemo(
-    () => Array.from(new Set((shops ?? []).map((s) => s.category).filter(Boolean))).sort(),
-    [shops],
-  );
-
-  const visible = useMemo(
-    () => (category ? (shops ?? []).filter((s) => s.category === category) : (shops ?? [])),
-    [shops, category],
-  );
+  const [mode, setMode] = useState<ServiceMode>("buy");
 
   /**
    * The Wave a Home tap books onto: the next open one. Tapping a shop from Home
@@ -106,49 +95,39 @@ function HomeScreenMobile() {
     <Screen>
       <BrandBar />
 
+      {/* Both services, always visible. Tabs rather than a filled control:
+          Home already carries a shadowed capsule and the Wave card, and a third
+          container was what made the screen feel crowded. */}
+      <Gutter>
+        <ModeTabs mode={mode} onChange={setMode} />
+      </Gutter>
+
       <ScreenBody bottomInset={32}>
-        <Gutter className="pb-4 pt-1">
+        {/* Search leads. The Wave reads as context beneath it rather than
+            competing with it for the top of the screen. */}
+        <Gutter className="pb-4 pt-5">
+          <SearchCapsule
+            mode={mode}
+            onPressQuery={() =>
+              mode === "pickup"
+                ? navigation.navigate("PickupRequest", waveDate)
+                : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
+            }
+            onSubmit={() =>
+              mode === "pickup"
+                ? navigation.navigate("PickupRequest", waveDate)
+                : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
+            }
+          />
+        </Gutter>
+
+        <Gutter className="pb-4">
           {wave && !wave.closed ? (
             <WaveBanner wave={wave} onPress={() => navigation.navigate("WaveCalendar")} />
           ) : (
             <WaveClosedBanner onPress={() => navigation.navigate("WaveCalendar")} />
           )}
         </Gutter>
-
-        <Gutter className="pb-4">
-          <SearchCapsule
-            waveLabel={wave?.dateLabel ?? "Next Wave"}
-            onPressQuery={() => navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })}
-            onPressWave={() => navigation.navigate("WaveCalendar")}
-            onSubmit={() => navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })}
-          />
-          <Pressable
-            onPress={() => navigation.navigate("PickupRequest", waveDate)}
-            accessibilityRole="button"
-            className="mt-3 self-start"
-          >
-            <Text className="font-sans-medium text-body text-ink">Need a package pickup instead?</Text>
-          </Pressable>
-        </Gutter>
-
-        {categories.length > 0 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: gutter, gap: 8 }}
-            className="mb-6 grow-0"
-          >
-            <Chip label="All" selected={category === null} onPress={() => setCategory(null)} />
-            {categories.map((c) => (
-              <Chip
-                key={c}
-                label={titleCase(c)}
-                selected={category === c}
-                onPress={() => setCategory(c)}
-              />
-            ))}
-          </ScrollView>
-        ) : null}
 
         {unpaid ? (
           <Gutter>
@@ -171,24 +150,42 @@ function HomeScreenMobile() {
           />
         ) : null}
 
-        <Section
-          title={wave ? `On ${wave.name}` : "Open now"}
-          loading={shopsLoading}
-          shops={visible}
-          navigation={navigation}
-          waveDate={waveDate}
-          emptyNote={category ? `No ${titleCase(category)} shops on this Wave.` : undefined}
-        />
+        {/* A shop rail is meaningless when nothing is being bought, so Pickup
+            gets the thing it actually needs: the route, again. */}
+        {mode === "pickup" ? (
+          <Gutter>
+            <Text className="mb-3 font-sans-medium text-heading-sm text-ink">Move a package</Text>
+            <Text className="mb-4 font-sans text-body text-muted">
+              We&apos;ll collect it from one campus checkpoint and drop it at another. You pay the
+              delivery fee only — there is nothing for us to buy.
+            </Text>
+            <Button
+              label="Start a pickup"
+              full={false}
+              onPress={() => navigation.navigate("PickupRequest", waveDate)}
+            />
+          </Gutter>
+        ) : (
+          <>
+            <Section
+              title={wave ? `On ${wave.name}` : "Open now"}
+              loading={shopsLoading}
+              shops={shops ?? []}
+              navigation={navigation}
+              waveDate={waveDate}
+            />
 
-        {orderedBefore.length > 0 ? (
-          <Section
-            title="You ordered before"
-            loading={false}
-            shops={orderedBefore}
-            navigation={navigation}
-            waveDate={waveDate}
-          />
-        ) : null}
+            {orderedBefore.length > 0 ? (
+              <Section
+                title="You ordered before"
+                loading={false}
+                shops={orderedBefore}
+                navigation={navigation}
+                waveDate={waveDate}
+              />
+            ) : null}
+          </>
+        )}
       </ScreenBody>
     </Screen>
   );

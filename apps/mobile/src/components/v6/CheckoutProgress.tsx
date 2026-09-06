@@ -1,6 +1,8 @@
 import { Text, View } from "react-native";
 
-const STEPS = ["Menu", "Details", "Pay"] as const;
+// Was Menu / Details / Pay. "Details" and the review screen were the same step
+// — both labelled "step 2 of 3" — and they are now one screen.
+const STEPS = ["Menu", "Review", "Pay"] as const;
 
 /**
  * Checkout step indicator — 1-based step index.

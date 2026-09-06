@@ -44,6 +44,13 @@ export function Switch({
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ checked: value, disabled }}
+      // React Native Web renders role="switch" but does not derive aria-checked
+      // from accessibilityState, so the switch shipped as a role with its
+      // required attribute missing — axe rates that critical, and a screen
+      // reader announces "switch" with no on/off at all. RN 0.71+ accepts these
+      // ARIA props natively too, so this is not a web-only shim.
+      aria-checked={value}
+      aria-disabled={disabled || undefined}
       disabled={disabled}
       onPress={() => onValueChange(!value)}
       hitSlop={{ top: 9, bottom: 9, left: 0, right: 0 }}

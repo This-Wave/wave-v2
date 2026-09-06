@@ -1,6 +1,8 @@
 import { Platform, SafeAreaView, ScrollView, View, RefreshControl } from "react-native";
-import type { ReactNode } from "react";
+import { useContext, type ReactNode } from "react";
+import { BottomTabBarHeightContext } from "@react-navigation/bottom-tabs";
 import { useLayout } from "../../hooks/useLayout";
+import { useNavBarStore, useReportNavBarScroll } from "../../hooks/useNavBarScroll";
 import { layout } from "../../theme/layout";
 
 /**
@@ -45,6 +47,21 @@ export function Screen({
  * Scrolling body with the standard gutter. `bottomInset` clears the tab
  * bar or a docked action bar.
  */
+/**
+ * Height of the floating tab bar plus its bottom offset.
+ *
+ * Only owed by screens that actually sit under it. The checkout screens are
+ * pushed onto the stack as siblings of the tab navigator, so they have no tab
+ * bar at all and adding this to them would open 88px of dead space above their
+ * action bar. Reading the tab-bar height *context* is the safe test: it is
+ * undefined outside a tab navigator, where the `useBottomTabBarHeight` hook
+ * would throw.
+ */
+export const FLOATING_NAV_CLEARANCE = 88;
+
+/** Extra clearance when the live-order card is riding above the nav. */
+export const LIVE_BAR_CLEARANCE = 72;
+
 export function ScreenBody({
   children,
   bottomInset = 24,
@@ -60,10 +77,27 @@ export function ScreenBody({
   /** @deprecated Prefer `<Screen narrow>` so the header stays aligned. */
   narrow?: boolean;
 }) {
+  const onScroll = useReportNavBarScroll();
+  const underFloatingNav = useContext(BottomTabBarHeightContext) !== undefined;
+  // The live-order card floats above the nav, so it owes clearance of its own.
+  const liveBar = useNavBarStore((s) => s.liveBar);
+
   return (
     <ScrollView
+      onScroll={onScroll}
+      // 16 is enough for the direction test in `useNavBarScroll` without
+      // running the handler on every frame.
+      scrollEventThrottle={16}
       className={`flex-1 ${className}`}
-      contentContainerStyle={{ paddingBottom: bottomInset, flexGrow: 1 }}
+      // The tab bar floats over the content now rather than sitting under it,
+      // so every screen owes it clearance or the last row is unreachable.
+      contentContainerStyle={{
+        paddingBottom:
+          bottomInset +
+          (underFloatingNav ? FLOATING_NAV_CLEARANCE : 0) +
+          (underFloatingNav && liveBar ? LIVE_BAR_CLEARANCE : 0),
+        flexGrow: 1,
+      }}
       showsVerticalScrollIndicator={false}
       // Web only, and it is not cosmetic. React Native Web renders this as a
       // scrollable div with no tab stop, so on a screen whose only control sits
