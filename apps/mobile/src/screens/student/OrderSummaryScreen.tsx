@@ -8,6 +8,7 @@ import {
   Button,
   CheckoutProgress,
   Gutter,
+  LoyaltyProgress,
   Row,
   RowGroup,
   Screen,
@@ -212,6 +213,12 @@ export function OrderSummaryScreen() {
                 {formatGhsCompact(estimate.total)}
               </Text>
             </View>
+          </View>
+
+          {/* Beside the fee it is about to affect, which is the only place it
+              can encourage the next order. The profile has a fuller version. */}
+          <View className="mt-4">
+            <LoyaltyProgress compact />
           </View>
 
           <Text className="mt-4 font-sans text-body text-muted">

@@ -16,6 +16,7 @@ export { WaveContextBanner } from "./WaveContextBanner";
 export { DeliveryPinSnippet } from "./DeliveryPinSnippet";
 export { LiveOrderBar } from "./LiveOrderBar";
 export { ResumeOrderCard } from "./ResumeOrderCard";
+export { LoyaltyProgress } from "./LoyaltyProgress";
 export { ActiveDeliveryBar } from "./ActiveDeliveryBar";
 export { ToastHost } from "./ToastHost";
 export { Field, BigNumberField } from "./Field";

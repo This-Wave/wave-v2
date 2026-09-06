@@ -48,7 +48,7 @@ export function IncomingOrderDetailScreen() {
       showToast("Thanks — the runner knows you're on it.", "success");
       navigation.goBack();
     } catch (err) {
-      showToast(apiErrorMessage(err, "Couldn't save that — try again."), "danger");
+      showToast(apiErrorMessage(err, "Couldn't save that. Check your connection and try again."), "danger");
     }
   }
 

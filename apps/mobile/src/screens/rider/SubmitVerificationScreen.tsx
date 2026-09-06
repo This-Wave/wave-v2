@@ -155,7 +155,7 @@ export function SubmitVerificationScreen() {
       });
       setSubmitted(true);
     } catch {
-      setError("Something went wrong submitting your verification. Please try again.");
+      setError("Couldn't submit your verification. Check your connection and try again.");
     }
   }
 
