@@ -10,6 +10,13 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Migrations must not go through Neon's pooler: the migration engine takes
+  // advisory locks that pgbouncer does not carry, and it fails to connect at
+  // all when `channel_binding=require` is on the URL — which reads as "database
+  // unreachable" even while the Prisma Client is querying the same branch
+  // happily. Falls back to DATABASE_URL when DIRECT_URL is unset, so nothing
+  // breaks for anyone who has not added it yet.
+  directUrl = env("DIRECT_URL")
 }
 
 enum ProfileRole {
@@ -107,6 +114,7 @@ model University {
   shops           Shop[]
   orders          Order[]
   shopSuggestions ShopSuggestion[]
+  featureFlags    FeatureFlag[]
 
   @@map("universities")
 }
@@ -377,6 +385,11 @@ model Order {
   statusHistory OrderStatusHistory[]
   earning       RiderEarning?
 
+  /// Added by 20260807150000_package_pickup_orders but never written into this
+  /// schema, so every later `migrate dev` generated a DROP INDEX for it — the
+  /// feature-flag migration did exactly that. Declared here so the schema and
+  /// the database agree and it stops being silently removed.
+  @@index([orderType])
   @@map("orders")
 }
 
@@ -463,6 +476,29 @@ model RiderEarning {
   order Order   @relation(fields: [orderId], references: [id])
 
   @@map("rider_earnings")
+}
+
+/// A feature switch, resolved per university with a global fallback.
+///
+/// Deliberately not a `PlatformConfig` row: that table is a flat key/value
+/// store of numbers the pricing code reads, and giving it booleans plus a
+/// university dimension would make both harder to reason about.
+///
+/// A missing row means OFF. The resolver in `@wave/shared` never invents a
+/// `true`, so a feature nobody has switched on is off on a fresh database, on a
+/// database that has never heard of the key, and on a client whose fetch failed.
+model FeatureFlag {
+  id           String      @id @default(uuid())
+  key          String
+  /// Null is the global default that applies to every university.
+  universityId String?     @map("university_id")
+  university   University? @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  enabled      Boolean     @default(false)
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  @@unique([key, universityId])
+  @@index([key])
+  @@map("feature_flag")
 }
 
 model PlatformConfig {

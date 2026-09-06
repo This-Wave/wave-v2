@@ -20,6 +20,7 @@ import { riderRoutes } from "./modules/riders/routes";
 import { adminRoutes } from "./modules/admin/routes";
 import { notificationRoutes } from "./modules/notifications/routes";
 import { suggestionRoutes } from "./modules/suggestions/routes";
+import { featureRoutes, adminFeatureRoutes } from "./modules/features/routes";
 import { setupSentryFastify } from "./lib/sentry";
 
 declare module "fastify" {
@@ -71,6 +72,8 @@ export function buildApp(): FastifyInstance {
   app.register(adminRoutes, { prefix: "/v1/admin" });
   app.register(notificationRoutes, { prefix: "/v1/notifications" });
   app.register(suggestionRoutes, { prefix: "/v1/shop-suggestions" });
+  app.register(featureRoutes, { prefix: "/v1" });
+  app.register(adminFeatureRoutes, { prefix: "/v1/admin" });
 
   setupSentryFastify(app);
 

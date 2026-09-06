@@ -1,4 +1,5 @@
 export * from "./constants/platform";
+export * from "./constants/features";
 export * from "./approval/waiting";
 export * from "./legal/content";
 export * from "./legal/html";
