@@ -57,6 +57,20 @@ enum SuggestionStatus {
   rejected
 }
 
+/// Why an order ended without a delivery.
+///
+/// Free-text `cancellationReason` is what the student reads; this is what the
+/// business counts. You cannot fix what is not measured, and until now the only
+/// record of *why* orders fail was a sentence written for a different audience.
+enum OrderFailureReason {
+  abandoned_payment
+  student_cancelled
+  shop_rejected
+  admin_refunded
+  out_of_stock
+  no_rider
+}
+
 enum OrderStatus {
   pending
   payment_pending
@@ -368,7 +382,9 @@ model Order {
   lastPinResendAt DateTime? @map("last_pin_resend_at")
 
   notes              String?
-  cancellationReason String? @map("cancellation_reason")
+  cancellationReason String?             @map("cancellation_reason")
+  /// Set alongside `cancellationReason` wherever an order ends unhappily.
+  failureReason      OrderFailureReason?  @map("failure_reason")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

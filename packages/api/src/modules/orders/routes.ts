@@ -10,8 +10,6 @@ import {
   DEFAULT_LOYALTY_THRESHOLD,
   DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
   DEFAULT_GOODS_COST_MAX_GHS,
-  DEFAULT_RIDER_EARNING_PCT_BY_TYPE,
-  RIDER_EARNING_PCT_KEY,
 } from "@wave/shared";
 import { calculateDiscount, calculateOrderTotal, isStandardDeliveryDay } from "./discount";
 import {
@@ -35,6 +33,8 @@ import {
   PIN_VERIFY_RATE_LIMIT,
   perAccount,
 } from "../../plugins/rateLimit";
+import { riderEarningFor, riderEarningPct } from "../riders/earningRate";
+import { resolveFeature } from "@wave/shared";
 
 export async function orderRoutes(fastify: FastifyInstance) {
   // POST /orders — student places a "Buy For Me" order.
@@ -280,8 +280,30 @@ export async function orderRoutes(fastify: FastifyInstance) {
       where: { status: "confirmed", riderId: null, universityId: rider.universityId, ...externalOnly },
       select: feedOrder,
     });
+    // What each job pays, when the flag is on. Rider supply is what limits
+    // delivery days, and a rider deciding between two jobs — or between working
+    // and not — is doing it on a number the app has never shown them. Computed
+    // server-side with the same rate resolution that writes the earning on
+    // delivery, so the preview cannot quote a percentage the payment then
+    // contradicts.
+    const flagRows = await fastify.prisma.featureFlag.findMany({
+      where: { key: "rider_earnings_preview" },
+      select: { key: true, universityId: true, enabled: true },
+    });
+    const showEarnings = resolveFeature("rider_earnings_preview", rider.universityId, flagRows);
+
+    const pct = showEarnings
+      ? await riderEarningPct({ fastify, log: request.log, riderType: rider.riderType })
+      : null;
+
     return reply.send({
-      orders,
+      orders:
+        pct === null
+          ? orders
+          : orders.map((o) => ({
+              ...o,
+              estimatedEarning: riderEarningFor(Number(o.deliveryFee), pct).toFixed(2),
+            })),
       // The app needs to tell an external rider with an empty feed why it is
       // empty. "No jobs right now" and "you are not allowed at any checkpoint"
       // look identical otherwise, and only one of them resolves by waiting.
@@ -794,6 +816,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
         reason: parsed.data.reason,
         actorId: request.user!.id,
         intent: "cancel",
+        failureReason: "student_cancelled",
       });
       if (!result.ok) return reply.code(result.code).send({ error: result.error });
 
@@ -1039,6 +1062,9 @@ export async function orderRoutes(fastify: FastifyInstance) {
       reason: parsed.data.reason,
       actorId: request.user!.id,
       intent: "cancel",
+      // A shop cancelling is nearly always a stock-out; the free-text reason
+      // carries the detail, this carries the category.
+      failureReason: "shop_rejected",
     });
     if (!result.ok) return reply.code(result.code).send({ error: result.error });
 
@@ -1140,16 +1166,9 @@ async function recordRiderEarning(args: {
       log.warn({ riderId }, "Rider has no riderType — paying at the student rate");
     }
 
-    const key = RIDER_EARNING_PCT_KEY[riderType];
-    const pctConfig = await fastify.prisma.platformConfig.findUnique({ where: { key } });
-    const parsed = Number(pctConfig?.value);
-    // A missing row is expected (the constant is the default); an unparseable
-    // one is an admin typo, and silently paying 0 would be worse than saying so.
-    if (pctConfig && !Number.isFinite(parsed)) {
-      log.error({ key, value: pctConfig.value }, `platform_config.${key} is not a number — falling back to the default`);
-    }
-    const pct = Number.isFinite(parsed) ? parsed : DEFAULT_RIDER_EARNING_PCT_BY_TYPE[riderType];
-    const amount = round2((deliveryFee * pct) / 100);
+    // Shared with the feed's earnings preview so the two can never disagree.
+    const pct = await riderEarningPct({ fastify, log, riderType });
+    const amount = riderEarningFor(deliveryFee, pct);
 
     // `ratePct` is written onto the row so editing a rate later never rewrites
     // the basis of a delivery that already happened, and a rider disputing an

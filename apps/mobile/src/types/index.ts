@@ -164,6 +164,8 @@ export interface Order {
   shop?: Shop | null;
   suggestion?: Pick<ShopSuggestion, "id" | "name" | "locationText" | "category" | "status"> | null;
   items?: OrderItem[];
+  /** Only on the rider feed, and only when `rider_earnings_preview` is on. */
+  estimatedEarning?: string;
   checkpoint?: Checkpoint | null;
   student?: Profile | null;
   rider?: Profile | null;
