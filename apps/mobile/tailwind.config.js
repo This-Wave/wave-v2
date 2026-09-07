@@ -38,8 +38,14 @@ module.exports = {
           DEFAULT: "#ffffff", // cards, inputs, sheets (White)
           muted: "#dddddd", // skeletons, disabled cards (Deco)
         },
-        muted: "#6a6a6a", // secondary text, metadata (Foggy)
-        subtle: "#c1c1c1", // placeholder + disabled text (Grey 500)
+        muted: "#6a6a6a", // secondary text, metadata (Foggy). 5.05:1 on canvas.
+        // Icon-only neutral for chevrons and decorative strokes. 3.45:1 on
+        // white, 3.22:1 on canvas — clears 1.4.11's 3:1 for meaningful glyphs.
+        // Never put text in it.
+        icon: "#8a8a8a",
+        // Disabled FILLS only. At 1.80:1 on white this is not a text colour and
+        // not an icon colour; placeholders moved to `muted`. See UX-A11Y-PLAN.md.
+        subtle: "#c1c1c1",
         hairline: "#ebebeb", // dividers, input underlines (Bebe)
 
         // --- semantic ---
@@ -53,41 +59,6 @@ module.exports = {
           bg: "#fbf3d6",
         },
 
-        // --- v5 legacy aliases ---
-        // Rider and shop-owner screens still use `components/ui/*` and v5 class
-        // names. These remap those names onto v6 values so those flows degrade
-        // to the new neutrals instead of rendering unstyled. Remove once both
-        // roles have had their design pass. Do NOT use in new code.
-        wave: {
-          DEFAULT: "#083400",
-          50: "#f7f7f7",
-          100: "#ebebeb",
-          200: "#87ea5c",
-          500: "#083400",
-          600: "#2c4f26",
-          700: "#083400",
-          lime: "#87ea5c",
-          hover: "#2c4f26",
-        },
-        "text-secondary": "#6a6a6a",
-        "text-tertiary": "#6a6a6a",
-        faint: "#c1c1c1",
-        border: {
-          DEFAULT: "#ebebeb",
-          divider: "#ebebeb",
-        },
-        success: {
-          text: "#083400",
-          bg: "#87ea5c",
-          "bg-faint": "#eafbe3",
-          border: "#87ea5c",
-        },
-        rider: { text: "#083400", bg: "#87ea5c" },
-        admin: { text: "#083400", bg: "#ebebeb" },
-        mtn: "#8a6017",
-        vodafone: "#c1341f",
-        disabled: { bg: "#ebebeb", text: "#c1c1c1" },
-        overlay: "#083400",
       },
       fontFamily: {
         // DM Sans — the reference names it as a substitute for Airbnb Cereal.
@@ -98,10 +69,18 @@ module.exports = {
         "sans-bold": ["DMSans_700Bold"],
       },
       fontSize: {
-        // The reference's scale. Line heights are ratios baked to px.
-        caption: ["11px", { lineHeight: "13px" }],
-        meta: ["12px", { lineHeight: "16px" }],
-        body: ["14px", { lineHeight: "20px" }],
+        // The reference's scale, with the bottom three sizes raised once.
+        //
+        // The reference is a desktop site read at arm's length indoors. Wave is
+        // read on a phone, outdoors, in Berekuso sun, often on a cheap Android
+        // whose screen is dimmer than the one this was designed on. 11px
+        // captions and 14px body were the single thing most students would have
+        // felt. WCAG sets no minimum here — this is a usability call, not a
+        // compliance one — and the larger sizes stay put so the hierarchy keeps
+        // its shape.
+        caption: ["12px", { lineHeight: "16px" }],
+        meta: ["13px", { lineHeight: "18px" }],
+        body: ["15px", { lineHeight: "22px" }],
         ui: ["16px", { lineHeight: "20px" }],
         subheading: ["20px", { lineHeight: "24px", letterSpacing: "-0.18px" }],
         "heading-sm": ["22px", { lineHeight: "26px", letterSpacing: "-0.44px" }],
@@ -112,12 +91,6 @@ module.exports = {
         card: "12px",
         input: "8px",
         pill: "9999px",
-        // v5 legacy names, remapped onto the three v6 shapes.
-        control: "9999px",
-        well: "12px",
-        tile: "12px",
-        chip: "8px",
-        check: "8px",
       },
       spacing: {
         // 4px base. The reference's compact scale.

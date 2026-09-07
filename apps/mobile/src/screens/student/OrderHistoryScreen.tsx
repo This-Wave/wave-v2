@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
@@ -27,6 +27,10 @@ import { orderProgress, statusPill } from "./orderPresenters";
 import { StudentOrdersWeb } from "./web/StudentOrdersWeb";
 import { useLayout } from "../../hooks/useLayout";
 import type { Order } from "../../types";
+import { useFeature } from "../../lib/features";
+import { describeWave } from "../../lib/wave";
+import { isStandardRunDay } from "../../lib/pricing";
+import { resetToShopMenu } from "../../lib/navigationFlows";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
 
@@ -42,6 +46,15 @@ function OrderHistoryMobile() {
   const navigation = useNavigation<Nav>();
   const { data: orders, isLoading, isError, refetch, isRefetching } = useMyOrders();
   const [filter, setFilter] = useState<"all" | "delivered" | "cancelled">("all");
+  const canReorder = useFeature("reorder");
+
+  // Reordering books onto the next open Wave; the calendar is how you pick a
+  // different one. Same rule as the order detail screen.
+  const nextWave = useMemo(() => {
+    const next = describeWave();
+    const date = next?.date ?? new Date();
+    return { scheduledDate: date.toISOString(), isSpecialOrder: !isStandardRunDay(date) };
+  }, []);
 
   const live = useMemo(() => (orders ?? []).filter((o) => LIVE.includes(o.status)), [orders]);
   const unpaid = useMemo(
@@ -161,16 +174,71 @@ function OrderHistoryMobile() {
             />
           ) : (
             <RowGroup>
-              {past.map((o) => (
-                <Row
-                  key={o.id}
-                  title={o.shop?.name ?? "Package pickup"}
-                  meta={`${dayOf(o)} · ${formatGhsCompact(Number(o.totalAmount ?? 0))}`}
-                  leading={<Thumb uri={o.shop?.logoUrl} />}
-                  trailing={<StatusPill {...statusPill(o.status)} />}
-                  onPress={() => openOrderDetail(navigation, o.id)}
-                />
-              ))}
+              {past.map((o) =>
+                /* A delivered order from a shop gets its own "Order again" beside
+                   the row. The action already existed on the order detail screen,
+                   which meant opening an order to repeat it — two screens for the
+                   thing most students do most often.
+
+                   It still lands on the shop's menu rather than rebuilding the
+                   basket, for the reason stated on OrderDetailScreen: prices and
+                   stock move between Waves, so a silently rebuilt basket would
+                   quote a total the shop may not honour and fail at checkout
+                   instead of at the menu. */
+                canReorder && o.status === "delivered" && o.shop ? (
+                  <View
+                    key={o.id}
+                    className="flex-row items-center gap-3 rounded-card bg-surface px-4 py-3"
+                  >
+                    <Pressable
+                      onPress={() => openOrderDetail(navigation, o.id)}
+                      accessibilityRole="button"
+                      accessible
+                      accessibilityLabel={`${o.shop.name}, ${dayOf(o)}, ${formatGhsCompact(
+                        Number(o.totalAmount ?? 0),
+                      )}, ${statusPill(o.status).label}`}
+                      className="min-h-[44px] flex-1 flex-row items-center gap-3"
+                    >
+                      <Thumb uri={o.shop.logoUrl} />
+                      <View className="min-w-0 flex-1">
+                        <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
+                          {o.shop.name}
+                        </Text>
+                        <Text className="font-sans text-body text-muted" numberOfLines={1}>
+                          {dayOf(o)} · {formatGhsCompact(Number(o.totalAmount ?? 0))}
+                        </Text>
+                      </View>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() =>
+                        resetToShopMenu(navigation, {
+                          shopId: o.shop!.id,
+                          shopName: o.shop!.name,
+                          scheduledDate: nextWave.scheduledDate,
+                          isSpecialOrder: nextWave.isSpecialOrder,
+                        })
+                      }
+                      accessibilityRole="button"
+                      accessibilityLabel={`Order from ${o.shop.name} again`}
+                      accessibilityHint="Opens the shop's menu for the next Wave"
+                      hitSlop={6}
+                      className="min-h-[44px] justify-center rounded-pill border border-ink px-4"
+                    >
+                      <Text className="font-sans-medium text-body text-ink">Order again</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Row
+                    key={o.id}
+                    title={o.shop?.name ?? "Package pickup"}
+                    meta={`${dayOf(o)} · ${formatGhsCompact(Number(o.totalAmount ?? 0))}`}
+                    leading={<Thumb uri={o.shop?.logoUrl} />}
+                    trailing={<StatusPill {...statusPill(o.status)} />}
+                    onPress={() => openOrderDetail(navigation, o.id)}
+                  />
+                ),
+              )}
             </RowGroup>
           )}
         </Gutter>

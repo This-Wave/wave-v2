@@ -8,8 +8,15 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Migrations must not go through Neon's pooler: the migration engine takes
+  // advisory locks that pgbouncer does not carry, and it fails to connect at
+  // all when `channel_binding=require` is on the URL — which reads as "database
+  // unreachable" even while the Prisma Client is querying the same branch
+  // happily. Falls back to DATABASE_URL when DIRECT_URL is unset, so nothing
+  // breaks for anyone who has not added it yet.
+  directUrl = env("DIRECT_URL")
 }
 
 enum ProfileRole {
@@ -48,6 +55,20 @@ enum SuggestionStatus {
   pending
   onboarded
   rejected
+}
+
+/// Why an order ended without a delivery.
+///
+/// Free-text `cancellationReason` is what the student reads; this is what the
+/// business counts. You cannot fix what is not measured, and until now the only
+/// record of *why* orders fail was a sentence written for a different audience.
+enum OrderFailureReason {
+  abandoned_payment
+  student_cancelled
+  shop_rejected
+  admin_refunded
+  out_of_stock
+  no_rider
 }
 
 enum OrderStatus {
@@ -107,6 +128,8 @@ model University {
   shops           Shop[]
   orders          Order[]
   shopSuggestions ShopSuggestion[]
+  featureFlags    FeatureFlag[]
+  groupBaskets    GroupBasket[]
 
   @@map("universities")
 }
@@ -152,6 +175,9 @@ model Profile {
   studentDeliveryStats  StudentDeliveryStats?
   riderEarnings         RiderEarning[]
   shopSuggestions       ShopSuggestion[]
+  reminderLogs          ReminderLog[]
+  startedBaskets        GroupBasket[]         @relation("StartedBaskets")
+  groupBasketItems      GroupBasketItem[]     @relation("GroupBasketItems")
 
   @@map("profiles")
 }
@@ -204,6 +230,7 @@ model Shop {
   products            Product[]
   orders              Order[]
   resolvedSuggestions ShopSuggestion[] @relation("ResolvedSuggestions")
+  GroupBasket         GroupBasket[]
 
   @@map("shops")
 }
@@ -359,7 +386,9 @@ model Order {
   lastPinResendAt DateTime? @map("last_pin_resend_at")
 
   notes              String?
-  cancellationReason String? @map("cancellation_reason")
+  cancellationReason String?             @map("cancellation_reason")
+  /// Set alongside `cancellationReason` wherever an order ends unhappily.
+  failureReason      OrderFailureReason? @map("failure_reason")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -376,7 +405,13 @@ model Order {
   items         OrderItem[]
   statusHistory OrderStatusHistory[]
   earning       RiderEarning?
+  groupBasket   GroupBasket?
 
+  /// Added by 20260807150000_package_pickup_orders but never written into this
+  /// schema, so every later `migrate dev` generated a DROP INDEX for it — the
+  /// feature-flag migration did exactly that. Declared here so the schema and
+  /// the database agree and it stops being silently removed.
+  @@index([orderType])
   @@map("orders")
 }
 
@@ -463,6 +498,122 @@ model RiderEarning {
   order Order   @relation(fields: [orderId], references: [id])
 
   @@map("rider_earnings")
+}
+
+/// A basket several students fill together, which one of them then pays for.
+///
+/// Deliberately not an `Order` in some draft state. An order carries a
+/// checkpoint, a delivery day, a total and a payment; a basket being assembled
+/// has none of those settled, and giving `Order` a "not really an order yet"
+/// status would put that ambiguity into every query that touches orders.
+///
+/// **One payer.** The starter pays the whole basket and settles with their
+/// friends themselves. Wave sees one order and one Paystack charge. Per-person
+/// charging means several transactions, partial-payment states and a refund
+/// story when somebody never pays — none of which the pilot should carry.
+///
+/// `status` is the concurrency answer: the starter locks the basket before
+/// paying, and a friend adding an item after that is refused with a reason
+/// rather than silently changing a total someone is looking at.
+model GroupBasket {
+  id             String            @id @default(uuid())
+  /// Short, human-readable, shared in a hostel group chat.
+  code           String            @unique
+  starterId      String            @map("starter_id")
+  starter        Profile           @relation("StartedBaskets", fields: [starterId], references: [id], onDelete: Cascade)
+  shopId         String            @map("shop_id")
+  shop           Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  universityId   String            @map("university_id")
+  university     University        @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  scheduledDate  DateTime          @map("scheduled_date") @db.Date
+  isSpecialOrder Boolean           @default(false) @map("is_special_order")
+  status         GroupBasketStatus @default(open)
+  /// Set once the basket becomes a real order.
+  orderId        String?           @unique @map("order_id")
+  order          Order?            @relation(fields: [orderId], references: [id])
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  items GroupBasketItem[]
+
+  @@index([status, scheduledDate])
+  @@map("group_basket")
+}
+
+enum GroupBasketStatus {
+  open
+  /// The starter is paying. No more items.
+  locked
+  converted
+  /// The Wave closed with nobody paying.
+  expired
+}
+
+/// One line in a group basket, and who added it.
+///
+/// `profileId` is what makes the basket legible to the person paying: "who
+/// asked for the waakye" is the first question the starter will have, and it is
+/// also what they need to chase the money afterwards.
+model GroupBasketItem {
+  id        String      @id @default(uuid())
+  basketId  String      @map("basket_id")
+  basket    GroupBasket @relation(fields: [basketId], references: [id], onDelete: Cascade)
+  profileId String      @map("profile_id")
+  profile   Profile     @relation("GroupBasketItems", fields: [profileId], references: [id], onDelete: Cascade)
+  productId String?     @map("product_id")
+  name      String
+  unitPrice Decimal?    @map("unit_price") @db.Decimal(10, 2)
+  quantity  Int         @default(1)
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@index([basketId])
+  @@map("group_basket_item")
+}
+
+/// One reminder push that has been sent, so it is never sent twice.
+///
+/// The unique on (profile, kind, dedupeKey) is what makes the reminder sweep
+/// safe to run on a timer and safe to run twice at once: the insert is the
+/// claim. `dedupeKey` is the Wave date for a cutoff reminder and the order id
+/// for an abandoned nudge — whatever "the same reminder" means for that kind.
+///
+/// Also the record the per-student daily cap counts. A delivery app that pushes
+/// twice a week is useful; one that pushes daily gets its notifications turned
+/// off, and then none of this works.
+model ReminderLog {
+  id        String   @id @default(uuid())
+  profileId String   @map("profile_id")
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  kind      String
+  dedupeKey String   @map("dedupe_key")
+  sentAt    DateTime @default(now()) @map("sent_at")
+
+  @@unique([profileId, kind, dedupeKey])
+  @@index([profileId, sentAt])
+  @@map("reminder_log")
+}
+
+/// A feature switch, resolved per university with a global fallback.
+///
+/// Deliberately not a `PlatformConfig` row: that table is a flat key/value
+/// store of numbers the pricing code reads, and giving it booleans plus a
+/// university dimension would make both harder to reason about.
+///
+/// A missing row means OFF. The resolver in `@wave/shared` never invents a
+/// `true`, so a feature nobody has switched on is off on a fresh database, on a
+/// database that has never heard of the key, and on a client whose fetch failed.
+model FeatureFlag {
+  id           String      @id @default(uuid())
+  key          String
+  /// Null is the global default that applies to every university.
+  universityId String?     @map("university_id")
+  university   University? @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  enabled      Boolean     @default(false)
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  @@unique([key, universityId])
+  @@index([key])
+  @@map("feature_flag")
 }
 
 model PlatformConfig {

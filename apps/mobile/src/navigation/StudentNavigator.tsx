@@ -9,7 +9,6 @@ import { ShopSelectionScreen } from "../screens/student/ShopSelectionScreen";
 import { ShopMenuScreen } from "../screens/student/ShopMenuScreen";
 import { SuggestShopScreen } from "../screens/student/SuggestShopScreen";
 import { SuggestOrderSummaryScreen } from "../screens/student/SuggestOrderSummaryScreen";
-import { DescribeOrderScreen } from "../screens/student/DescribeOrderScreen";
 import { OrderSummaryScreen } from "../screens/student/OrderSummaryScreen";
 import { PaymentScreen } from "../screens/student/PaymentScreen";
 import { PaymentMethodsScreen } from "../screens/student/PaymentMethodsScreen";
@@ -65,20 +64,18 @@ export type StudentStackParamList = {
     locationText?: string;
     manualItems: { name: string; quantity: number }[];
   } & WaveParams;
-  DescribeOrder: {
-    shopId: string;
-    shopName: string;
-    items: BasketLine[];
-    itemsPreview: BasketPreviewLine[];
-    notes?: string;
-  } & WaveParams;
+  /**
+   * Step 2 of 2 before payment. Absorbed the old `DescribeOrder` screen, which
+   * asked which checkpoint and had already answered it — so the checkpoint is
+   * optional here and the screen resolves it the same way that one did.
+   */
   OrderSummary: {
     shopId: string;
     shopName: string;
     items: BasketLine[];
     itemsPreview: BasketPreviewLine[];
-    checkpointId: string;
-    checkpointName: string;
+    checkpointId?: string;
+    checkpointName?: string;
     notes?: string;
   } & WaveParams;
   Payment: { orderId: string; totalAmount: number };
@@ -108,7 +105,6 @@ export function StudentNavigator() {
         <Stack.Screen name="ShopMenu" component={ShopMenuScreen} />
         <Stack.Screen name="SuggestShop" component={SuggestShopScreen} />
         <Stack.Screen name="SuggestOrderSummary" component={SuggestOrderSummaryScreen} />
-        <Stack.Screen name="DescribeOrder" component={DescribeOrderScreen} />
         <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
         <Stack.Screen name="Payment" component={PaymentScreen} />
         <Stack.Screen name="PaymentReturn" component={PaymentReturnScreen} />

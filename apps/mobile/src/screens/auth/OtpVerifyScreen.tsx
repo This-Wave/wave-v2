@@ -2,8 +2,15 @@ import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
-import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
-import { CodeInput } from "../../components/ui/CodeInput";
+import {
+  ActionBar,
+  Button,
+  CodeInput,
+  Gutter,
+  Screen,
+  ScreenBody,
+  TopBar,
+} from "../../components/v6";
 import { supabase } from "../../lib/supabase";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "OtpVerify">;
@@ -64,9 +71,20 @@ export function OtpVerifyScreen({ navigation, route }: Props) {
             We sent six digits to <Text className="font-sans-medium text-ink">{phone}</Text>.
           </Text>
 
-          <CodeInput value={code} onChangeText={setCode} state={error ? "error" : "default"} />
+          <CodeInput
+            value={code}
+            onChangeText={setCode}
+            state={error ? "error" : "default"}
+            accessibilityLabel="6-digit sign-in code"
+          />
           {error ? (
-            <Text className="mt-4 text-center font-sans text-body text-danger">{error}</Text>
+            <Text
+              accessibilityLiveRegion="assertive"
+              role="alert"
+              className="mt-4 text-center font-sans text-body text-danger"
+            >
+              {error}
+            </Text>
           ) : null}
 
           <View className="mt-6 items-center">

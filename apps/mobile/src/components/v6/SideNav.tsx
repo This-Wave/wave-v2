@@ -130,7 +130,7 @@ export function SideNav({ role }: { role: AppRole }) {
         </View>
       </View>
 
-      <Text className="px-2 font-sans text-caption text-subtle">{menu.footer}</Text>
+      <Text className="px-2 font-sans text-caption text-muted">{menu.footer}</Text>
     </View>
   );
 }

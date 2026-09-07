@@ -50,7 +50,7 @@ export function OrderDetailScreen() {
     } catch (err) {
       // The API's own copy names the actual reason ("already accepted by
       // another rider"), which is what tells them to go back to the feed.
-      showToast(apiErrorMessage(err, "Could not accept this order."), "danger");
+      showToast(apiErrorMessage(err, "Couldn't accept this order — another rider may have taken it. Pull down to refresh the feed."), "danger");
       navigation.goBack();
     }
   }

@@ -94,7 +94,7 @@ function ServiceRow({
         <Text className="mb-1 font-sans-medium text-subheading text-ink">{title}</Text>
         <Text className="font-sans text-body text-muted">{body}</Text>
       </View>
-      <ChevronRightIcon size={16} color={colors.subtle} />
+      <ChevronRightIcon size={16} color={colors.icon} />
     </Pressable>
   );
 }

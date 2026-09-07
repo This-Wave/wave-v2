@@ -5,6 +5,7 @@ import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../lib/api";
 import { useApiQuery } from "../../../hooks/useApiQuery";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
+import { OrderFailures } from "../../../components/OrderFailures";
 import { approvalWait } from "@wave/shared";
 
 /** "oldest 3 days", or nothing when the queue is empty. */
@@ -177,6 +178,10 @@ export default function DashboardPage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="mt-8">
+        <OrderFailures />
       </div>
     </div>
   );
