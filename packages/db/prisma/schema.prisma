@@ -160,6 +160,7 @@ model Profile {
   studentDeliveryStats  StudentDeliveryStats?
   riderEarnings         RiderEarning[]
   shopSuggestions       ShopSuggestion[]
+  reminderLogs          ReminderLog[]
 
   @@map("profiles")
 }
@@ -476,6 +477,29 @@ model RiderEarning {
   order Order   @relation(fields: [orderId], references: [id])
 
   @@map("rider_earnings")
+}
+
+/// One reminder push that has been sent, so it is never sent twice.
+///
+/// The unique on (profile, kind, dedupeKey) is what makes the reminder sweep
+/// safe to run on a timer and safe to run twice at once: the insert is the
+/// claim. `dedupeKey` is the Wave date for a cutoff reminder and the order id
+/// for an abandoned nudge — whatever "the same reminder" means for that kind.
+///
+/// Also the record the per-student daily cap counts. A delivery app that pushes
+/// twice a week is useful; one that pushes daily gets its notifications turned
+/// off, and then none of this works.
+model ReminderLog {
+  id        String   @id @default(uuid())
+  profileId String   @map("profile_id")
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  kind      String
+  dedupeKey String   @map("dedupe_key")
+  sentAt    DateTime @default(now()) @map("sent_at")
+
+  @@unique([profileId, kind, dedupeKey])
+  @@index([profileId, sentAt])
+  @@map("reminder_log")
 }
 
 /// A feature switch, resolved per university with a global fallback.
