@@ -172,3 +172,27 @@ export const removeStaffSchema = z
     revertTo: z.enum(SELF_SERVE_PROFILE_ROLES),
   })
   .strict();
+
+// --- Beta programme -----------------------------------------------------------
+
+export const applyForBetaSchema = z
+  .object({
+    reason: z.string().trim().max(500, "Keep it under 500 characters").optional(),
+  })
+  .strict();
+
+export const betaFeedbackSchema = z
+  .object({
+    message: z.string().trim().min(3, "Tell us a little more").max(2000),
+    screen: z.string().trim().max(80).optional(),
+    appVersion: z.string().trim().max(40).optional(),
+  })
+  .strict();
+
+export const reviewBetaSchema = z
+  .object({
+    decision: z.enum(["approve", "reject", "revoke"]),
+    /** Shown to the applicant when rejected or revoked. */
+    note: z.string().trim().max(300).optional(),
+  })
+  .strict();

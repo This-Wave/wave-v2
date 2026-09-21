@@ -193,6 +193,8 @@ model Profile {
   reminderLogs          ReminderLog[]
   startedBaskets        GroupBasket[]         @relation("StartedBaskets")
   groupBasketItems      GroupBasketItem[]     @relation("GroupBasketItems")
+  betaApplication       BetaApplication?      @relation("BetaApplications")
+  betaFeedback          BetaFeedback[]        @relation("BetaFeedback")
 
   @@map("profiles")
 }
@@ -623,12 +625,63 @@ model FeatureFlag {
   /// Null is the global default that applies to every university.
   universityId String?     @map("university_id")
   university   University? @relation(fields: [universityId], references: [id], onDelete: Cascade)
-  enabled      Boolean     @default(false)
+  /// off: nobody. beta: approved beta testers only. on: everyone.
+  state        FlagState   @default(off)
   updatedAt    DateTime    @updatedAt @map("updated_at")
 
   @@unique([key, universityId])
   @@index([key])
   @@map("feature_flag")
+}
+
+enum FlagState {
+  off
+  beta
+  on
+}
+
+enum BetaStatus {
+  pending
+  approved
+  rejected
+  /// Was approved; access withdrawn later.
+  revoked
+}
+
+/// A student's or rider's request to test features before release, and the
+/// decision on it. One per person: re-applying after a rejection reopens the
+/// same row rather than stacking a queue of duplicates.
+model BetaApplication {
+  id           String     @id @default(uuid())
+  profileId    String     @unique @map("profile_id")
+  profile      Profile    @relation("BetaApplications", fields: [profileId], references: [id], onDelete: Cascade)
+  status       BetaStatus @default(pending)
+  /// In their words: why they want in. Shown to the reviewer.
+  reason       String?
+  /// The reviewer's note. Shown to the applicant on rejection.
+  reviewNote   String?    @map("review_note")
+  reviewedById String?    @map("reviewed_by_id")
+  reviewedAt   DateTime?  @map("reviewed_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@map("beta_application")
+}
+
+/// What a beta tester told us. Free text plus where they were.
+model BetaFeedback {
+  id         String   @id @default(uuid())
+  profileId  String   @map("profile_id")
+  profile    Profile  @relation("BetaFeedback", fields: [profileId], references: [id], onDelete: Cascade)
+  message    String
+  /// The screen they sent it from, so "this is broken" has a location.
+  screen     String?
+  appVersion String?  @map("app_version")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("beta_feedback")
 }
 
 model PlatformConfig {

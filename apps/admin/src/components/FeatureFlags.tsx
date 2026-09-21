@@ -6,11 +6,21 @@ import { apiFetch } from "../lib/api";
 import { Card } from "./ui/Card";
 import { FOCUS_RING } from "./ui/Field";
 
+type FlagState = "off" | "beta" | "on";
+
 interface FlagRow {
   key: string;
   universityId: string | null;
-  enabled: boolean;
+  state: FlagState;
 }
+
+const STATE_OPTIONS: { value: FlagState; label: string }[] = [
+  { value: "off", label: "Off" },
+  { value: "beta", label: "Beta testers" },
+  { value: "on", label: "Everyone" },
+];
+
+const STATE_WORD: Record<FlagState, string> = { off: "off", beta: "beta testers only", on: "on for everyone" };
 
 interface Catalogue {
   key: string;
@@ -39,7 +49,8 @@ const GLOBAL = "__global__";
  * database row: they are off, and flipping one creates the row.
  */
 export function FeatureFlags() {
-  const { accessToken } = useAdminAuth();
+  const { accessToken, can } = useAdminAuth();
+  const canManage = can("flags.manage");
   const [data, setData] = useState<Payload | null>(null);
   const [scope, setScope] = useState<string>(GLOBAL);
   const [error, setError] = useState<string | null>(null);
@@ -72,24 +83,23 @@ export function FeatureFlags() {
 
   const universityId = scope === GLOBAL ? null : scope;
 
-  function stateOf(key: string): { on: boolean; overridden: boolean; globalOn: boolean } {
+  function stateOf(key: string): { state: FlagState; overridden: boolean; globalState: FlagState } {
     const rows = data!.rows.filter((r) => r.key === key);
-    const globalRow = rows.find((r) => r.universityId === null);
-    const globalOn = globalRow?.enabled ?? false;
-    if (universityId === null) return { on: globalOn, overridden: false, globalOn };
+    const globalState = rows.find((r) => r.universityId === null)?.state ?? "off";
+    if (universityId === null) return { state: globalState, overridden: false, globalState };
 
     const scoped = rows.find((r) => r.universityId === universityId);
-    return { on: scoped?.enabled ?? globalOn, overridden: !!scoped, globalOn };
+    return { state: scoped?.state ?? globalState, overridden: !!scoped, globalState };
   }
 
-  async function set(key: string, enabled: boolean) {
+  async function set(key: string, state: FlagState) {
     if (!accessToken) return;
     setBusy(key);
     setError(null);
     try {
       await apiFetch("/admin/features", accessToken, {
         method: "PUT",
-        body: JSON.stringify({ key, universityId, enabled }),
+        body: JSON.stringify({ key, universityId, state }),
       });
       load();
     } catch {
@@ -120,7 +130,8 @@ export function FeatureFlags() {
       <h2 className="text-[17px] font-semibold tracking-tight text-ink">Features</h2>
       <p className="mb-5 mt-1 text-[12.5px] leading-5 text-muted">
         Switches for work that is built but not yet released. Everything is off until someone
-        turns it on.
+        turns it on. &ldquo;Beta testers&rdquo; shows a feature only to people approved on the Beta
+        page.
       </p>
 
       <div className="mb-5">
@@ -153,7 +164,7 @@ export function FeatureFlags() {
 
       <ul className="flex flex-col divide-y divide-border">
         {data.catalogue.map((flag) => {
-          const { on, overridden, globalOn } = stateOf(flag.key);
+          const { state, overridden, globalState } = stateOf(flag.key);
           return (
             <li key={flag.key} className="flex items-start gap-4 py-4">
               <div className="min-w-0 flex-1">
@@ -163,40 +174,50 @@ export function FeatureFlags() {
                   <p className="mt-1 text-[12px] text-muted">
                     {overridden ? (
                       <>
-                        Overriding the global default ({globalOn ? "on" : "off"}).{" "}
-                        <button
-                          type="button"
-                          onClick={() => clearOverride(flag.key)}
-                          className={`rounded-control px-1 font-semibold text-ink underline ${FOCUS_RING}`}
-                        >
-                          Use the default
-                        </button>
+                        Overriding the global default ({STATE_WORD[globalState]}).{" "}
+                        {canManage ? (
+                          <button
+                            type="button"
+                            onClick={() => clearOverride(flag.key)}
+                            className={`rounded-control px-1 font-semibold text-ink underline ${FOCUS_RING}`}
+                          >
+                            Use the default
+                          </button>
+                        ) : null}
                       </>
                     ) : (
-                      <>Following the global default ({globalOn ? "on" : "off"}).</>
+                      <>Following the global default ({STATE_WORD[globalState]}).</>
                     )}
                   </p>
                 ) : null}
               </div>
 
-              <button
-                type="button"
-                role="switch"
-                aria-checked={on}
-                aria-label={flag.label}
-                disabled={busy === flag.key}
-                onClick={() => set(flag.key, !on)}
-                className={`mt-0.5 inline-flex h-[26px] w-[44px] flex-shrink-0 items-center rounded-pill p-0.5 disabled:opacity-50 ${FOCUS_RING} ${
-                  on ? "justify-end bg-ink" : "justify-start border border-muted bg-surface"
-                }`}
+              {/* Three states, so a radio group rather than a switch: a switch
+                  can only say on or off, and "on for testers" is neither. */}
+              <div
+                role="radiogroup"
+                aria-label={`${flag.label}: who sees it`}
+                className="mt-0.5 inline-flex flex-shrink-0 rounded-pill border border-border bg-surface p-0.5"
               >
-                {/* Ink knob when off, white when on — a white knob on a pale
-                    track is ~1.1:1 and disappears, so "off" would look broken
-                    rather than off. Same reasoning as the mobile Switch. */}
-                <span
-                  className={`block h-[20px] w-[20px] rounded-pill ${on ? "bg-surface" : "bg-muted"}`}
-                />
-              </button>
+                {STATE_OPTIONS.map((option) => {
+                  const selected = state === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      disabled={!canManage || busy === flag.key}
+                      onClick={() => !selected && set(flag.key, option.value)}
+                      className={`min-h-[30px] rounded-pill px-3 text-[12px] font-semibold disabled:cursor-default ${FOCUS_RING} ${
+                        selected ? "bg-ink text-surface" : "text-ink disabled:text-muted"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
             </li>
           );
         })}

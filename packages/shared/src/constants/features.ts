@@ -81,33 +81,65 @@ export function allFeaturesOff(): Record<FeatureKey, boolean> {
   >;
 }
 
+export const FLAG_STATES = ["off", "beta", "on"] as const;
+export type FlagState = (typeof FLAG_STATES)[number];
+
+export function isFlagState(value: unknown): value is FlagState {
+  return typeof value === "string" && (FLAG_STATES as readonly string[]).includes(value);
+}
+
+export interface FeatureFlagRow {
+  key: string;
+  universityId: string | null;
+  state: FlagState | string;
+}
+
+/** Who is asking. Only approved beta testers see a flag in the `beta` state. */
+export interface FeatureViewer {
+  isBetaTester?: boolean;
+}
+
 /**
- * Resolve one flag from the rows that exist.
+ * The state a flag is set to for a campus, before asking who is looking.
  *
  * A row scoped to the university wins over the global row, and the global row
- * wins over the built-in `false`. Passing rows for other universities is safe —
+ * wins over the built-in `off`. Passing rows for other universities is safe —
  * they are ignored — so callers can hand over an unfiltered fetch.
+ */
+export function resolveFeatureState(
+  key: FeatureKey,
+  universityId: string | null | undefined,
+  rows: FeatureFlagRow[],
+): FlagState {
+  const forKey = rows.filter((r) => r.key === key);
+  const scoped = universityId ? forKey.find((r) => r.universityId === universityId) : undefined;
+  const row = scoped ?? forKey.find((r) => r.universityId === null);
+  // An unknown state string reads as off — the same rule as a missing row.
+  return row && isFlagState(row.state) ? row.state : "off";
+}
+
+/**
+ * Whether one flag is on for this person.
+ *
+ * `beta` is on only for approved testers, so a feature can be switched on for
+ * the people who asked to try it before anyone else sees it.
  */
 export function resolveFeature(
   key: FeatureKey,
   universityId: string | null | undefined,
-  rows: { key: string; universityId: string | null; enabled: boolean }[],
+  rows: FeatureFlagRow[],
+  viewer: FeatureViewer = {},
 ): boolean {
-  const forKey = rows.filter((r) => r.key === key);
-  const scoped = universityId
-    ? forKey.find((r) => r.universityId === universityId)
-    : undefined;
-  if (scoped) return scoped.enabled;
-
-  const global = forKey.find((r) => r.universityId === null);
-  return global?.enabled ?? false;
+  const state = resolveFeatureState(key, universityId, rows);
+  return state === "on" || (state === "beta" && viewer.isBetaTester === true);
 }
 
 export function resolveFeatures(
   universityId: string | null | undefined,
-  rows: { key: string; universityId: string | null; enabled: boolean }[],
+  rows: FeatureFlagRow[],
+  viewer: FeatureViewer = {},
 ): Record<FeatureKey, boolean> {
   return Object.fromEntries(
-    FEATURE_KEYS.map((k) => [k, resolveFeature(k, universityId, rows)]),
+    FEATURE_KEYS.map((k) => [k, resolveFeature(k, universityId, rows, viewer)]),
   ) as Record<FeatureKey, boolean>;
 }

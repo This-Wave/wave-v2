@@ -1,10 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import {
   FEATURE_FLAGS,
+  FLAG_STATES,
   isFeatureKey,
+  isFlagState,
   resolveFeatures,
   type FeatureKey,
 } from "@wave/shared";
+import { isBetaTester } from "../beta/access";
 
 /**
  * Feature flags, resolved per university with a global fallback.
@@ -26,10 +29,13 @@ export async function featureRoutes(fastify: FastifyInstance) {
     });
 
     const rows = await fastify.prisma.featureFlag.findMany({
-      select: { key: true, universityId: true, enabled: true },
+      select: { key: true, universityId: true, state: true },
     });
 
-    return reply.send({ features: resolveFeatures(profile?.universityId, rows) });
+    // Beta testers get `beta` flags as on. Nobody learns which flags are in
+    // beta — the answer is still a plain map of booleans.
+    const viewer = { isBetaTester: await isBetaTester(fastify, request.user!.id) };
+    return reply.send({ features: resolveFeatures(profile?.universityId, rows, viewer) });
   });
 }
 
@@ -46,7 +52,7 @@ export async function adminFeatureRoutes(fastify: FastifyInstance) {
   fastify.get("/features", { preHandler: fastify.requirePermission("ops.read") }, async (_request, reply) => {
     const [rows, universities] = await Promise.all([
       fastify.prisma.featureFlag.findMany({
-        select: { key: true, universityId: true, enabled: true, updatedAt: true },
+        select: { key: true, universityId: true, state: true, updatedAt: true },
       }),
       fastify.prisma.university.findMany({
         where: { isActive: true },
@@ -55,14 +61,14 @@ export async function adminFeatureRoutes(fastify: FastifyInstance) {
       }),
     ]);
 
-    return reply.send({ catalogue: FEATURE_FLAGS, rows, universities });
+    return reply.send({ catalogue: FEATURE_FLAGS, states: FLAG_STATES, rows, universities });
   });
 
   fastify.put("/features", { preHandler: fastify.requirePermission("flags.manage") }, async (request, reply) => {
     const body = request.body as {
       key?: unknown;
       universityId?: unknown;
-      enabled?: unknown;
+      state?: unknown;
     };
 
     if (typeof body.key !== "string" || !isFeatureKey(body.key)) {
@@ -70,9 +76,10 @@ export async function adminFeatureRoutes(fastify: FastifyInstance) {
       // worse than an error, because the switch would look like it worked.
       return reply.code(400).send({ error: "Unknown feature key" });
     }
-    if (typeof body.enabled !== "boolean") {
-      return reply.code(400).send({ error: "`enabled` must be a boolean" });
+    if (!isFlagState(body.state)) {
+      return reply.code(400).send({ error: "`state` must be off, beta or on" });
     }
+    const state = body.state;
 
     const universityId =
       body.universityId === null || body.universityId === undefined
@@ -98,17 +105,17 @@ export async function adminFeatureRoutes(fastify: FastifyInstance) {
     const key: FeatureKey = body.key;
     const previous = await fastify.prisma.featureFlag.findFirst({
       where: { key, universityId },
-      select: { enabled: true },
+      select: { state: true },
     });
-    const logChange = (flag: { id: string; enabled: boolean }) =>
+    const logChange = (flag: { id: string; state: string }) =>
       request.audit({
         action: "flag.changed",
         category: "flag",
         entityType: "feature_flag",
         entityId: key,
         universityId,
-        before: previous ? { enabled: previous.enabled } : { enabled: null, note: "no row — inherited" },
-        after: { enabled: flag.enabled },
+        before: previous ? { state: previous.state } : { state: null, note: "no row — inherited" },
+        after: { state: flag.state },
       });
 
     // Postgres treats NULLs as distinct in a unique index, so the composite
@@ -122,10 +129,10 @@ export async function adminFeatureRoutes(fastify: FastifyInstance) {
       const flag = existing
         ? await fastify.prisma.featureFlag.update({
             where: { id: existing.id },
-            data: { enabled: body.enabled },
+            data: { state },
           })
         : await fastify.prisma.featureFlag.create({
-            data: { key, universityId: null, enabled: body.enabled },
+            data: { key, universityId: null, state },
           });
       await logChange(flag);
       return reply.send({ flag });
@@ -133,8 +140,8 @@ export async function adminFeatureRoutes(fastify: FastifyInstance) {
 
     const flag = await fastify.prisma.featureFlag.upsert({
       where: { key_universityId: { key, universityId } },
-      update: { enabled: body.enabled },
-      create: { key, universityId, enabled: body.enabled },
+      update: { state },
+      create: { key, universityId, state },
     });
     await logChange(flag);
     return reply.send({ flag });
@@ -153,7 +160,7 @@ export async function adminFeatureRoutes(fastify: FastifyInstance) {
 
     const removed = await fastify.prisma.featureFlag.findFirst({
       where: { key: body.key, universityId: body.universityId },
-      select: { enabled: true },
+      select: { state: true },
     });
     await fastify.prisma.featureFlag.deleteMany({
       where: { key: body.key, universityId: body.universityId },
@@ -164,8 +171,8 @@ export async function adminFeatureRoutes(fastify: FastifyInstance) {
       entityType: "feature_flag",
       entityId: body.key,
       universityId: body.universityId,
-      before: removed ? { enabled: removed.enabled } : null,
-      after: { enabled: null, note: "falls back to the global default" },
+      before: removed ? { state: removed.state } : null,
+      after: { state: null, note: "falls back to the global default" },
     });
     return reply.code(204).send();
   });

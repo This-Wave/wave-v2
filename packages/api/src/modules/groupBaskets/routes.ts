@@ -1,3 +1,4 @@
+import { isBetaTester } from "../beta/access";
 import type { FastifyInstance } from "fastify";
 import {
   basketRefusalMessage,
@@ -36,11 +37,13 @@ export async function groupBasketRoutes(fastify: FastifyInstance) {
     });
     const rows = await fastify.prisma.featureFlag.findMany({
       where: { key: "group_orders" },
-      select: { key: true, universityId: true, enabled: true },
+      select: { key: true, universityId: true, state: true },
     });
     return {
       profile,
-      enabled: resolveFeature("group_orders", profile?.universityId, rows),
+      enabled: resolveFeature("group_orders", profile?.universityId, rows, {
+        isBetaTester: await isBetaTester(fastify, userId),
+      }),
     };
   }
 

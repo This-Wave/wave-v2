@@ -36,6 +36,7 @@ import {
 import { riderEarningFor, riderEarningPct } from "../riders/earningRate";
 import { resolveFeature } from "@wave/shared";
 import { pausedFor, pausedReply } from "../switches/routes";
+import { isBetaTester } from "../beta/access";
 
 export async function orderRoutes(fastify: FastifyInstance) {
   // POST /orders — student places a "Buy For Me" order.
@@ -292,9 +293,11 @@ export async function orderRoutes(fastify: FastifyInstance) {
     // contradicts.
     const flagRows = await fastify.prisma.featureFlag.findMany({
       where: { key: "rider_earnings_preview" },
-      select: { key: true, universityId: true, enabled: true },
+      select: { key: true, universityId: true, state: true },
     });
-    const showEarnings = resolveFeature("rider_earnings_preview", rider.universityId, flagRows);
+    const showEarnings = resolveFeature("rider_earnings_preview", rider.universityId, flagRows, {
+      isBetaTester: await isBetaTester(fastify, request.user!.id),
+    });
 
     const pct = showEarnings
       ? await riderEarningPct({ fastify, log: request.log, riderType: rider.riderType })

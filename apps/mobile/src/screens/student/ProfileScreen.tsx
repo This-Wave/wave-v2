@@ -27,6 +27,7 @@ import {
   supportContactLabel,
 } from "../../lib/support";
 import { LegalLinksRow } from "../../components/LegalNotice";
+import { BetaProgram } from "../../components/BetaProgram";
 
 /**
  * Profile. Web uses a two-panel account page; native keeps the phone layout.
@@ -139,6 +140,8 @@ function ProfileMobile() {
               />
             ) : null}
           </RowGroup>
+
+          <BetaProgram />
 
           <View className="mt-6 px-1">
             <LegalLinksRow />

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bike,
+  FlaskConical,
   LayoutDashboard,
   MapPin,
   Package,
@@ -47,6 +48,7 @@ export function Sidebar({
     { href: "/config", label: "Config", icon: Settings2, permission: "ops.read" },
   ];
   const control: NavItem[] = [
+    { href: "/beta", label: "Beta testers", icon: FlaskConical, permission: "ops.read" },
     { href: "/staff", label: "Staff", icon: ShieldCheck, permission: "staff.manage" },
   ];
   const groups = [

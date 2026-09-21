@@ -22,6 +22,7 @@ import {
   openSupportContact,
   supportContactLabel,
 } from "../../lib/support";
+import { BetaProgram } from "../../components/BetaProgram";
 
 function verificationPill(status?: string): {
   label: string;
@@ -112,6 +113,8 @@ export function RiderProfileScreen() {
                   />
                 ) : null}
               </RowGroup>
+
+              <BetaProgram />
 
               <View className="mt-8">
                 <Row title="Log out" onPress={() => setConfirmLogout(true)} chevron={false} />

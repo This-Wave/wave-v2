@@ -1,3 +1,4 @@
+import { isBetaTester } from "../beta/access";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import {
   inCutoffReminderWindow,
@@ -31,12 +32,21 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 type Ctx = { fastify: FastifyInstance; log: FastifyBaseLogger; now?: Date };
 
-async function flagFor(fastify: FastifyInstance, key: FeatureKey, universityId: string | null) {
+async function flagFor(
+  fastify: FastifyInstance,
+  key: FeatureKey,
+  universityId: string | null,
+  profileId: string,
+) {
   const rows = await fastify.prisma.featureFlag.findMany({
     where: { key },
-    select: { key: true, universityId: true, enabled: true },
+    select: { key: true, universityId: true, state: true },
   });
-  return resolveFeature(key, universityId, rows);
+  // A reminder in beta goes to beta testers only, like any other beta feature.
+  const needsBeta = rows.some((r) => r.state === "beta");
+  return resolveFeature(key, universityId, rows, {
+    isBetaTester: needsBeta ? await isBetaTester(fastify, profileId) : false,
+  });
 }
 
 /** How many reminders this person has already had in the last rolling day. */
@@ -99,7 +109,7 @@ export async function sweepCutoffReminders(ctx: Ctx): Promise<{ sent: number }> 
 
   let sent = 0;
   for (const profile of candidates) {
-    const enabled = await flagFor(fastify, "cutoff_reminder", profile.universityId);
+    const enabled = await flagFor(fastify, "cutoff_reminder", profile.universityId, profile.id);
     const blocked = reminderBlockedReason({
       now,
       enabled,
@@ -151,7 +161,7 @@ export async function sweepAbandonedNudges(ctx: Ctx): Promise<{ sent: number }> 
 
   let sent = 0;
   for (const order of stale) {
-    const enabled = await flagFor(fastify, "abandoned_nudge", order.student?.universityId ?? null);
+    const enabled = await flagFor(fastify, "abandoned_nudge", order.student?.universityId ?? null, order.studentId);
     if (!enabled) continue;
     if (!underDailyCap(await sentInLastDay(fastify, order.studentId, now))) continue;
     if (!(await claim(fastify, order.studentId, "abandoned", order.id))) continue;

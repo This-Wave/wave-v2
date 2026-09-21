@@ -213,13 +213,16 @@ async function main() {
   // needed): phone +233271234567 / WaveAdmin123!
   const admin = await prisma.profile.upsert({
     where: { id: "f9aa5728-6af6-4d0b-9609-a079e1eea924" },
-    update: {},
+    // An admin with no staff role can open nothing (see ROLE_PERMISSIONS), and
+    // the add_staff_role migration only backfills admins that already existed.
+    update: { staffRole: "owner" },
     create: {
       id: "f9aa5728-6af6-4d0b-9609-a079e1eea924",
       universityId: ashesi.id,
       fullName: "Wave Platform Admin",
       phone: "+233271234567",
       role: "admin",
+      staffRole: "owner",
       isVerified: true,
       isActive: true,
     },
