@@ -7,6 +7,7 @@ import { loadEnv, type Env } from "./config/env";
 import { parseCorsOrigins } from "./config/cors";
 import prismaPlugin from "./plugins/prisma";
 import authPlugin from "./plugins/auth";
+import auditPlugin from "./plugins/audit";
 import rateLimitPlugin from "./plugins/rateLimit";
 import sweeperPlugin from "./plugins/sweeper";
 import { authRoutes } from "./modules/auth/routes";
@@ -49,6 +50,8 @@ export function buildApp(): FastifyInstance {
   app.register(prismaPlugin);
   app.register(rateLimitPlugin);
   app.register(authPlugin);
+  // Global hooks: every mutation and every refusal lands in audit_event.
+  app.register(auditPlugin);
   // After prisma: the sweep's first tick needs `fastify.prisma` decorated.
   app.register(sweeperPlugin);
 

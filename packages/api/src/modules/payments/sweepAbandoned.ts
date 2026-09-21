@@ -1,3 +1,4 @@
+import { recordAudit, SYSTEM_ACTOR } from "../../lib/audit";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import { fetchPaystackTransaction } from "./paystack";
 import { paystackMatchesGhs } from "./amounts";
@@ -102,6 +103,14 @@ export async function sweepAbandonedCheckouts(args: {
   }
 
   log.info({ ...result, cutoff }, "Swept abandoned checkouts");
+  if (result.cancelled > 0 || result.recovered > 0) {
+    await recordAudit(fastify, {
+      action: "system.abandoned_checkouts_swept",
+      category: "system",
+      metadata: { ...result, cutoff },
+      actor: SYSTEM_ACTOR,
+    });
+  }
   return result;
 }
 

@@ -1,4 +1,5 @@
-import type { FastifyBaseLogger, FastifyInstance } from "fastify";
+import type { FastifyBaseLogger, FastifyInstance, FastifyRequest } from "fastify";
+import { recordAudit } from "../../lib/audit";
 import axios from "axios";
 import { refundPaystackPayment } from "./paystack";
 import { clientSafeOrder } from "../orders/select";
@@ -32,6 +33,8 @@ export interface EndOrderWithRefundArgs {
    * this is what the business counts, and the two have different audiences.
    */
   failureReason: OrderFailureReason;
+  /** The request that asked, so the audit event carries who and from where. */
+  request?: FastifyRequest;
 }
 
 export type EndOrderWithRefundResult =
@@ -50,7 +53,7 @@ export type EndOrderWithRefundResult =
 export async function endOrderWithRefund(
   args: EndOrderWithRefundArgs,
 ): Promise<EndOrderWithRefundResult> {
-  const { fastify, log, orderId, reason, actorId, intent, failureReason } = args;
+  const { fastify, log, orderId, reason, actorId, intent, failureReason, request } = args;
 
   // Pre-flight checks that do not need the claim. Doing these first keeps a
   // 404 or an already-refunded 409 from taking — and then having to release —
@@ -128,6 +131,19 @@ export async function endOrderWithRefund(
           },
           "Paystack refund failed — order status left unchanged",
         );
+        await recordAudit(
+          fastify,
+          {
+            action: "refund.failed",
+            category: "refund",
+            entityType: "order",
+            entityId: orderId,
+            universityId: order.universityId,
+            outcome: "failed",
+            metadata: { reference, reason, intent, providerMessage: providerMessage ?? null },
+          },
+          request,
+        );
         return {
           ok: false,
           code: 502,
@@ -153,6 +169,28 @@ export async function endOrderWithRefund(
     // same thing — and so the copy follows `nextStatus`, which is the only
     // place that knows whether money actually moved.
     await notifyOrderStatus({ fastify, log, orderId, status: nextStatus });
+
+    await recordAudit(
+      fastify,
+      {
+        action: refundIssued ? "refund.issued" : "order.cancelled",
+        category: refundIssued ? "refund" : "order",
+        entityType: "order",
+        entityId: orderId,
+        universityId: order.universityId,
+        before: { status: order.status },
+        after: { status: nextStatus },
+        metadata: {
+          reason,
+          intent,
+          failureReason,
+          references: refsToRefund,
+          totalAmount: order.totalAmount,
+          itemPrice: order.itemPrice,
+        },
+      },
+      request,
+    );
 
     settled = true;
     return { ok: true, order: updated, refundIssued };

@@ -624,3 +624,70 @@ model PlatformConfig {
 
   @@map("platform_config")
 }
+
+// --- Audit log --------------------------------------------------------------
+
+enum AuditActorType {
+  /// A student, rider or shop owner acting on their own account.
+  user
+  /// Someone with `role = admin`, acting through the admin dashboard.
+  staff
+  /// The API itself: the abandoned-checkout sweep, reminders, scheduled resumes.
+  system
+  /// An inbound call from a third party, e.g. Paystack.
+  webhook
+  /// No valid session — a failed sign-in or a request that never authenticated.
+  anonymous
+}
+
+enum AuditOutcome {
+  success
+  denied
+  failed
+}
+
+/// One thing that happened, for auditing.
+///
+/// Append-only, and enforced by a trigger rather than by convention: the
+/// migration that creates this table also makes UPDATE and DELETE on it raise.
+/// A log that the people it records could edit would prove nothing.
+///
+/// No foreign keys on purpose. The actor and the entity are copied in as plain
+/// ids plus a name snapshot, so a row still reads correctly after the profile,
+/// order or shop it points at has changed or gone.
+model AuditEvent {
+  id             String         @id @default(uuid())
+  occurredAt     DateTime       @default(now()) @map("occurred_at")
+  actorId        String?        @map("actor_id")
+  actorType      AuditActorType @map("actor_type")
+  /// `profiles.role` at the time: student, rider, shop_owner, admin.
+  actorRole      String?        @map("actor_role")
+  /// `profiles.staff_role` at the time, for staff only.
+  actorStaffRole String?        @map("actor_staff_role")
+  actorName      String?        @map("actor_name")
+  /// Dotted, past tense: "order.refunded", "flag.changed", "pii.viewed".
+  action         String
+  /// The coarse bucket the panel filters on: auth, order, payment, ...
+  category       String
+  entityType     String?        @map("entity_type")
+  entityId       String?        @map("entity_id")
+  universityId   String?        @map("university_id")
+  /// Redacted before it is written — see `packages/api/src/lib/audit.ts`.
+  before         Json?
+  after          Json?
+  metadata       Json?
+  outcome        AuditOutcome   @default(success)
+  ip             String?
+  userAgent      String?        @map("user_agent")
+  requestId      String?        @map("request_id")
+  method         String?
+  path           String?
+  statusCode     Int?           @map("status_code")
+
+  @@index([occurredAt(sort: Desc)])
+  @@index([actorId, occurredAt(sort: Desc)])
+  @@index([entityType, entityId])
+  @@index([category, occurredAt(sort: Desc)])
+  @@index([universityId, occurredAt(sort: Desc)])
+  @@map("audit_event")
+}

@@ -219,6 +219,14 @@ export async function adminRoutes(fastify: FastifyInstance) {
       },
     });
     if (!order) return reply.code(404).send({ error: "Order not found" });
+    // Full phone numbers and a student id number, for both parties.
+    await request.audit({
+      action: "pii.order_contacts_viewed",
+      category: "pii",
+      entityType: "order",
+      entityId: order.id,
+      metadata: { studentId: order.student.id, riderId: order.rider?.id ?? null },
+    });
     return reply.send({ order });
   });
 
@@ -282,6 +290,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
       fastify.prisma.profile.count({ where }),
     ]);
 
+    if (users.length > 0) {
+      await request.audit({
+        action: "pii.user_list_viewed",
+        category: "pii",
+        metadata: { role: role ?? "all", search: term ?? null, page: currentPage, rows: users.length },
+      });
+    }
     return reply.send({ users, total, page: currentPage, pageSize: take });
   });
 
@@ -300,10 +315,19 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const first = parsed.error.issues[0]?.message ?? "Invalid payload";
       return reply.code(400).send({ error: first, details: parsed.error.flatten() });
     }
+    const previous = await fastify.prisma.platformConfig.findUnique({ where: { key: parsed.data.key } });
     const config = await fastify.prisma.platformConfig.upsert({
       where: { key: parsed.data.key },
       create: { key: parsed.data.key, value: parsed.data.value },
       update: { value: parsed.data.value },
+    });
+    await request.audit({
+      action: "config.changed",
+      category: "config",
+      entityType: "platform_config",
+      entityId: parsed.data.key,
+      before: previous ? { value: previous.value } : null,
+      after: { value: config.value },
     });
     return reply.send({ config });
   });
@@ -323,6 +347,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       actorId: request.user!.id,
       intent: "refund",
       failureReason: "admin_refunded",
+      request,
     });
     if (!result.ok) return reply.code(result.code).send({ error: result.error });
 
@@ -342,6 +367,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
    */
   fastify.post("/payments/sweep-abandoned", async (request, reply) => {
     const result = await sweepAbandonedCheckouts({ fastify, log: request.log });
+    await request.audit({ action: "payment.sweep_run_manually", category: "payment", metadata: result });
     return reply.send(result);
   });
 
@@ -367,7 +393,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     }
     const target = await fastify.prisma.profile.findUnique({
       where: { id },
-      select: { role: true },
+      select: { role: true, riderType: true },
     });
     if (!target) return reply.code(404).send({ error: "Profile not found" });
     if (target.role !== "rider") {
@@ -381,6 +407,14 @@ export async function adminRoutes(fastify: FastifyInstance) {
       { riderId: id, riderType: parsed.data.riderType, by: request.user!.id },
       "Rider type changed",
     );
+    await request.audit({
+      action: "rider.type_changed",
+      category: "rider",
+      entityType: "profile",
+      entityId: id,
+      before: { riderType: target.riderType },
+      after: { riderType: profile.riderType },
+    });
     return reply.send({ profile });
   });
 
@@ -443,6 +477,16 @@ export async function adminRoutes(fastify: FastifyInstance) {
       "Delivery closed by an admin without a PIN",
     );
 
+    await request.audit({
+      action: "order.force_delivered",
+      category: "order",
+      entityType: "order",
+      entityId: orderId,
+      before: { status: order.status },
+      after: { status: "delivered" },
+      metadata: { reason: parsed.data.reason, riderId: order.riderId, studentId: order.studentId },
+    });
+
     const updated = await fastify.prisma.order.findUnique({ where: { id: orderId } });
     return reply.send({ order: updated });
   });
@@ -460,9 +504,19 @@ export async function adminRoutes(fastify: FastifyInstance) {
     if (id === request.user!.id) {
       return reply.code(400).send({ error: "You cannot change your own role" });
     }
+    const before = await fastify.prisma.profile.findUnique({ where: { id }, select: { role: true } });
+    if (!before) return reply.code(404).send({ error: "User not found" });
     const user = await fastify.prisma.profile.update({
       where: { id },
       data: { role: parsed.data.role },
+    });
+    await request.audit({
+      action: "user.role_changed",
+      category: "user",
+      entityType: "profile",
+      entityId: id,
+      before: { role: before.role },
+      after: { role: user.role },
     });
     return reply.send({ user });
   });
@@ -476,9 +530,19 @@ export async function adminRoutes(fastify: FastifyInstance) {
     if (id === request.user!.id) {
       return reply.code(400).send({ error: "You cannot deactivate your own account" });
     }
+    const before = await fastify.prisma.profile.findUnique({ where: { id }, select: { isActive: true } });
+    if (!before) return reply.code(404).send({ error: "User not found" });
     const user = await fastify.prisma.profile.update({
       where: { id },
       data: { isActive: parsed.data.isActive },
+    });
+    await request.audit({
+      action: user.isActive ? "user.reactivated" : "user.banned",
+      category: "user",
+      entityType: "profile",
+      entityId: id,
+      before: { isActive: before.isActive },
+      after: { isActive: user.isActive },
     });
     return reply.send({ user });
   });
@@ -508,6 +572,14 @@ export async function adminRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ error: "Owner must have the shop_owner role" });
     }
     const shop = await fastify.prisma.shop.create({ data: parsed.data });
+    await request.audit({
+      action: "shop.created_by_staff",
+      category: "shop",
+      entityType: "shop",
+      entityId: shop.id,
+      universityId: shop.universityId,
+      after: parsed.data,
+    });
     return reply.code(201).send({ shop });
   });
 
@@ -517,7 +589,19 @@ export async function adminRoutes(fastify: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
+    const previous = await fastify.prisma.shop.findUnique({ where: { id } });
+    if (!previous) return reply.code(404).send({ error: "Shop not found" });
     const shop = await fastify.prisma.shop.update({ where: { id }, data: parsed.data });
+    const changed = Object.keys(parsed.data) as (keyof typeof previous)[];
+    await request.audit({
+      action: "shop.updated_by_staff",
+      category: "shop",
+      entityType: "shop",
+      entityId: id,
+      universityId: shop.universityId,
+      before: Object.fromEntries(changed.map((k) => [k, previous[k]])),
+      after: Object.fromEntries(changed.map((k) => [k, shop[k]])),
+    });
     return reply.send({ shop });
   });
 
@@ -645,6 +729,14 @@ export async function adminRoutes(fastify: FastifyInstance) {
       shopName: shop.name,
     });
 
+    await request.audit({
+      action: "suggestion.onboarded",
+      category: "suggestion",
+      entityType: "shop",
+      entityId: shop.id,
+      universityId,
+      metadata: { normalizedName, resolved: pending.length, emailed, pushed },
+    });
     return reply.send({ resolved: pending.length, emailed, pushed });
   });
 
@@ -661,6 +753,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
         status: "pending",
       },
       data: { status: "rejected" },
+    });
+    await request.audit({
+      action: "suggestion.rejected",
+      category: "suggestion",
+      universityId: parsed.data.universityId,
+      metadata: { normalizedName: parsed.data.normalizedName, rejected: result.count },
     });
     return reply.send({ rejected: result.count });
   });

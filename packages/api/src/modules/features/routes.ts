@@ -96,6 +96,20 @@ export async function adminFeatureRoutes(fastify: FastifyInstance) {
     }
 
     const key: FeatureKey = body.key;
+    const previous = await fastify.prisma.featureFlag.findFirst({
+      where: { key, universityId },
+      select: { enabled: true },
+    });
+    const logChange = (flag: { id: string; enabled: boolean }) =>
+      request.audit({
+        action: "flag.changed",
+        category: "flag",
+        entityType: "feature_flag",
+        entityId: key,
+        universityId,
+        before: previous ? { enabled: previous.enabled } : { enabled: null, note: "no row — inherited" },
+        after: { enabled: flag.enabled },
+      });
 
     // Postgres treats NULLs as distinct in a unique index, so the composite
     // unique cannot enforce one global row per key and `upsert` cannot target
@@ -113,6 +127,7 @@ export async function adminFeatureRoutes(fastify: FastifyInstance) {
         : await fastify.prisma.featureFlag.create({
             data: { key, universityId: null, enabled: body.enabled },
           });
+      await logChange(flag);
       return reply.send({ flag });
     }
 
@@ -121,6 +136,7 @@ export async function adminFeatureRoutes(fastify: FastifyInstance) {
       update: { enabled: body.enabled },
       create: { key, universityId, enabled: body.enabled },
     });
+    await logChange(flag);
     return reply.send({ flag });
   });
 
@@ -135,8 +151,21 @@ export async function adminFeatureRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ error: "`universityId` is required" });
     }
 
+    const removed = await fastify.prisma.featureFlag.findFirst({
+      where: { key: body.key, universityId: body.universityId },
+      select: { enabled: true },
+    });
     await fastify.prisma.featureFlag.deleteMany({
       where: { key: body.key, universityId: body.universityId },
+    });
+    await request.audit({
+      action: "flag.override_cleared",
+      category: "flag",
+      entityType: "feature_flag",
+      entityId: body.key,
+      universityId: body.universityId,
+      before: removed ? { enabled: removed.enabled } : null,
+      after: { enabled: null, note: "falls back to the global default" },
     });
     return reply.code(204).send();
   });

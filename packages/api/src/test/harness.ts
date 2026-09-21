@@ -3,6 +3,7 @@ import rateLimit from "@fastify/rate-limit";
 import rawBody from "fastify-raw-body";
 import type { Env } from "../config/env";
 import type { Role } from "../plugins/auth";
+import type { AuditInput } from "../lib/audit";
 
 /**
  * Builds a Fastify instance carrying one route module, with `prisma`, `config`
@@ -30,6 +31,11 @@ export interface HarnessOptions {
    * only where the limit itself is what is being asserted.
    */
   rateLimit?: boolean;
+  /**
+   * Collects every `request.audit(...)` a handler makes, so a test can assert
+   * that an action was recorded — and recorded with what.
+   */
+  audits?: AuditInput[];
 }
 
 export const TEST_PAYSTACK_SECRET = "sk_test_wave_harness";
@@ -56,10 +62,18 @@ export async function buildTestApp(
   routes: (fastify: FastifyInstance) => Promise<void>,
   options: HarnessOptions,
 ): Promise<FastifyInstance> {
-  const app = Fastify({ logger: false });
+  const app = Fastify({ logger: process.env.HARNESS_LOG === "1" });
 
   app.decorate("config", testEnv(options.env));
   app.decorate("prisma", options.prisma as never);
+
+  const audits = options.audits ?? [];
+  app.decorateRequest("auditRecorded", false);
+  app.decorateRequest("audit", function (this: FastifyRequest, input: AuditInput) {
+    audits.push(input);
+    this.auditRecorded = true;
+    return Promise.resolve();
+  });
 
   const user = options.user === undefined ? { id: "test-user", role: "student" as Role } : options.user;
 

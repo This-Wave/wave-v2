@@ -186,6 +186,19 @@ export async function riderRoutes(fastify: FastifyInstance) {
         orderBy: { createdAt: "desc" },
         include: { rider: { select: { id: true, fullName: true, phone: true } } },
       });
+      if (verifications.length > 0) {
+        // Signed URLs to government ID photographs — the most sensitive thing Wave holds.
+        await request.audit({
+          action: "pii.rider_ids_viewed",
+          category: "pii",
+          entityType: "rider_verification",
+          metadata: {
+            status: status ?? "pending",
+            verificationIds: verifications.map((v) => v.id),
+            riderIds: verifications.map((v) => v.riderId),
+          },
+        });
+      }
       return reply.send({
         verifications: await signVerificationImages(fastify.config, verifications, request.log),
       });
@@ -201,6 +214,11 @@ export async function riderRoutes(fastify: FastifyInstance) {
       if (!parsed.success) {
         return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
       }
+      const previous = await fastify.prisma.riderVerification.findUnique({
+        where: { id },
+        select: { status: true, rejectionReason: true },
+      });
+      if (!previous) return reply.code(404).send({ error: "Verification not found" });
       const verification = await fastify.prisma.riderVerification.update({
         where: { id },
         data: {
@@ -227,6 +245,15 @@ export async function riderRoutes(fastify: FastifyInstance) {
             : "Rejected verification had no deletable image paths, or storage delete failed",
         );
       }
+      await request.audit({
+        action: parsed.data.status === "approved" ? "rider.verification_approved" : parsed.data.status === "rejected" ? "rider.verification_rejected" : "rider.verification_reviewed",
+        category: "rider",
+        entityType: "rider_verification",
+        entityId: verification.id,
+        before: previous,
+        after: { status: verification.status, rejectionReason: verification.rejectionReason },
+        metadata: { riderId: verification.riderId },
+      });
       return reply.send({ verification });
     },
   );

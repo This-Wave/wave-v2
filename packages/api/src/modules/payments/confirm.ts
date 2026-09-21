@@ -1,3 +1,4 @@
+import { recordAudit, SYSTEM_ACTOR } from "../../lib/audit";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import { issueDeliveryPin } from "../orders/issuePin";
 import { announceNewOrderToRiders, notifyGoodsPaid, notifyOrderStatus } from "../notifications/dispatch";
@@ -133,6 +134,16 @@ export async function confirmDeliveryFeePaid(args: {
     shopName: order.shop?.name ?? "a nearby shop",
   });
 
+  await recordAudit(fastify, {
+    action: "payment.confirmed",
+    category: "payment",
+    entityType: "order",
+    entityId: order.id,
+    universityId: order.universityId,
+    metadata: { kind: "delivery_fee", reference: reference ?? order.paystackRef, totalAmount: order.totalAmount },
+    actor: { ...SYSTEM_ACTOR, name: "Paystack confirmation" },
+  });
+
   return { confirmed: true, alreadyProcessed: false };
 }
 
@@ -173,6 +184,14 @@ export async function confirmGoodsPaid(args: {
     },
   });
   await notifyGoodsPaid({ fastify, log, orderId: order.id });
+  await recordAudit(fastify, {
+    action: "payment.confirmed",
+    category: "payment",
+    entityType: "order",
+    entityId: order.id,
+    metadata: { kind: "goods", reference: reference ?? order.goodsPaystackRef },
+    actor: { ...SYSTEM_ACTOR, name: "Paystack confirmation" },
+  });
 
   return { confirmed: true, alreadyProcessed: false };
 }

@@ -817,6 +817,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
         actorId: request.user!.id,
         intent: "cancel",
         failureReason: "student_cancelled",
+        request,
       });
       if (!result.ok) return reply.code(result.code).send({ error: result.error });
 
@@ -857,6 +858,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
       if (order.deliveryPinCiphertext) {
         try {
           const pin = decryptDeliveryPin(order.deliveryPinCiphertext, fastify.config.JWT_SECRET);
+          await request.audit({ action: "order.pin_viewed", category: "order", entityType: "order", entityId: order.id });
           return reply.send({ pin });
         } catch (err) {
           request.log.error({ err }, "Failed to decrypt delivery PIN — re-issuing");
@@ -881,6 +883,13 @@ export async function orderRoutes(fastify: FastifyInstance) {
               },
             })
             .then(() => undefined),
+      });
+      await request.audit({
+        action: "order.pin_reissued",
+        category: "order",
+        entityType: "order",
+        entityId: order.id,
+        metadata: { reason: "legacy order had no readable PIN", smsSent },
       });
       return reply.send({ pin, smsSent });
     },
@@ -1065,6 +1074,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
       // A shop cancelling is nearly always a stock-out; the free-text reason
       // carries the detail, this carries the category.
       failureReason: "shop_rejected",
+      request,
     });
     if (!result.ok) return reply.code(result.code).send({ error: result.error });
 
