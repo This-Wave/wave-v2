@@ -12,6 +12,7 @@ import { capturePaymentError, capturePaymentIssue } from "../../lib/sentry";
 import { parseCorsOrigins } from "../../config/cors";
 import { PAYMENT_INITIATE_RATE_LIMIT, perAccount } from "../../plugins/rateLimit";
 import type { Env } from "../../config/env";
+import { pausedFor, pausedReply } from "../switches/routes";
 
 const PAYABLE_DELIVERY_STATUSES = ["pending", "payment_pending"] as const;
 
@@ -97,6 +98,10 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     if (order.paidAt) {
       return reply.code(409).send({ error: "This order has already been paid" });
     }
+    // An order made before a pause but not yet paid for is still new business:
+    // paying for it now is what would put a rider on the road.
+    const paused = await pausedFor(fastify, order.universityId, order.orderType);
+    if (paused) return reply.code(503).send(pausedReply(paused));
     if (!PAYABLE_DELIVERY_STATUSES.includes(order.status as (typeof PAYABLE_DELIVERY_STATUSES)[number])) {
       return reply.code(409).send({ error: "This order cannot be paid in its current state" });
     }

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import { sweepAbandonedCheckouts } from "../modules/payments/sweepAbandoned";
 import { sweepReminders } from "../modules/notifications/reminders";
+import { resumeExpiredPauses } from "../modules/switches/routes";
 
 /**
  * How often the abandoned-checkout sweep runs.
@@ -50,6 +51,9 @@ export default fp(async function sweeperPlugin(fastify: FastifyInstance) {
       // pays for them in cold starts. Reminders are gated by their own feature
       // flags, so this does nothing at all until someone turns one on.
       await sweepReminders({ fastify, log: fastify.log });
+      // A timed pause already reads as over once its time passes; this flips
+      // the row and records who resumed ordering (nobody — the clock).
+      await resumeExpiredPauses({ fastify, log: fastify.log });
     } catch (err) {
       // Never let a throw escape a timer callback: an unhandled rejection here
       // takes the whole API down, and a failed sweep is not worth an outage.

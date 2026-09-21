@@ -10,6 +10,7 @@ import {
   resolveFeature,
   MAX_BASKET_ITEM_QUANTITY,
 } from "@wave/shared";
+import { pausedFor, pausedReply } from "../switches/routes";
 
 /**
  * Group baskets — several students filling one basket that one of them pays for.
@@ -74,6 +75,8 @@ export async function groupBasketRoutes(fastify: FastifyInstance) {
     if (!profile?.universityId) {
       return reply.code(400).send({ error: "Your account has no university set" });
     }
+    const paused = await pausedFor(fastify, profile.universityId, "buy_for_me");
+    if (paused) return reply.code(503).send(pausedReply(paused));
 
     const body = request.body as {
       shopId?: string;

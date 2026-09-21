@@ -17,6 +17,7 @@ import {
   ScreenBody,
   SearchCapsule,
   SectionTitle,
+  ServicePausedNotice,
   SkeletonCard,
   StatusPill,
   Thumb,
@@ -28,6 +29,7 @@ import { openOrderTracking } from "../../lib/desktopNavigate";
 import { useShops } from "../../lib/shops";
 import { useMyOrders } from "../../lib/orders";
 import { useWave } from "../../lib/wave";
+import { useServiceStatus } from "../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
 import { orderProgress, statusPill } from "./orderPresenters";
@@ -54,6 +56,8 @@ function HomeScreenMobile() {
   const { data: orders } = useMyOrders();
   const wave = useWave();
   const [mode, setMode] = useState<ServiceMode>("buy");
+  const { data: service } = useServiceStatus();
+  const paused = mode === "pickup" ? service?.pickup : service?.buy_for_me;
 
   /**
    * The Wave a Home tap books onto: the next open one. Tapping a shop from Home
@@ -103,6 +107,18 @@ function HomeScreenMobile() {
       </Gutter>
 
       <ScreenBody bottomInset={32}>
+        {/* A pause outranks everything, search included: it is the one thing
+            on this screen that changes whether any of the rest will work. */}
+        {paused?.paused ? (
+          <Gutter className="pt-5">
+            <ServicePausedNotice
+              service={mode === "pickup" ? "Pickup" : "Buy for me"}
+              message={paused.message ?? ""}
+              resumeAt={paused.resumeAt}
+            />
+          </Gutter>
+        ) : null}
+
         {/* Search leads. The Wave reads as context beneath it rather than
             competing with it for the top of the screen. */}
         <Gutter className="pb-4 pt-5">
@@ -162,6 +178,7 @@ function HomeScreenMobile() {
             <Button
               label="Start a pickup"
               full={false}
+              disabled={!!paused?.paused}
               onPress={() => navigation.navigate("PickupRequest", waveDate)}
             />
           </Gutter>

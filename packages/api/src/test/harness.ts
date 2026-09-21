@@ -70,7 +70,14 @@ export async function buildTestApp(
   const app = Fastify({ logger: process.env.HARNESS_LOG === "1" });
 
   app.decorate("config", testEnv(options.env));
-  app.decorate("prisma", options.prisma as never);
+  // Routes that start new business consult the service switches. A test that
+  // does not care about pauses gets "nothing paused" rather than a crash on a
+  // model it never mocked.
+  const prisma = (options.prisma ?? {}) as Record<string, unknown>;
+  if (prisma && typeof prisma === "object" && !("serviceSwitch" in prisma)) {
+    prisma.serviceSwitch = { findMany: async () => [] };
+  }
+  app.decorate("prisma", prisma as never);
 
   const audits = options.audits ?? [];
   app.decorateRequest("auditRecorded", false);

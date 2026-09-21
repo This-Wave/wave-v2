@@ -7,6 +7,7 @@ import { PageHeader } from "../../../components/ui/PageHeader";
 import { Button } from "../../../components/ui/Button";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 import { FeatureFlags } from "../../../components/FeatureFlags";
+import { ServiceSwitches } from "../../../components/ServiceSwitches";
 
 interface ConfigRow {
   key: string;
@@ -172,7 +173,12 @@ export default function ConfigPage() {
 
   return (
     <div className="px-10 py-8">
-      <PageHeader title="Config" subtitle="Platform pricing and scheduling" />
+      <PageHeader title="Config" subtitle="Ordering, pricing and scheduling" />
+
+      {/* First on the page: when something is on fire, this is what you came for. */}
+      <div className="mb-8 max-w-[720px]">
+        <ServiceSwitches />
+      </div>
 
       <div className="mb-7 flex max-w-[720px] gap-3 rounded-control bg-wave-lime p-4">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0">

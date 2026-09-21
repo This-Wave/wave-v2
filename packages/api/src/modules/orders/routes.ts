@@ -35,6 +35,7 @@ import {
 } from "../../plugins/rateLimit";
 import { riderEarningFor, riderEarningPct } from "../riders/earningRate";
 import { resolveFeature } from "@wave/shared";
+import { pausedFor, pausedReply } from "../switches/routes";
 
 export async function orderRoutes(fastify: FastifyInstance) {
   // POST /orders — student places a "Buy For Me" order.
@@ -123,6 +124,9 @@ export async function orderRoutes(fastify: FastifyInstance) {
       if (!universityId) {
         return reply.code(400).send({ error: "Your profile has no campus set" });
       }
+
+      const paused = await pausedFor(fastify, universityId, input.orderType);
+      if (paused) return reply.code(503).send(pausedReply(paused));
 
       const checkpointIds = [input.checkpointId, input.originCheckpointId].filter(
         (id): id is string => !!id,

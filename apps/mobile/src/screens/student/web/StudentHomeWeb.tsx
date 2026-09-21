@@ -13,6 +13,7 @@ import {
   ScreenBody,
   Gutter,
   SearchCapsule,
+  ServicePausedNotice,
   SkeletonCard,
   StatusPill,
   Thumb,
@@ -23,6 +24,7 @@ import { useLayout } from "../../../hooks/useLayout";
 import { useShops } from "../../../lib/shops";
 import { useMyOrders } from "../../../lib/orders";
 import { useWave } from "../../../lib/wave";
+import { useServiceStatus } from "../../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../../lib/pricing";
 import {
   openOrderTracking,
@@ -46,6 +48,7 @@ export function StudentHomeWeb() {
   const { data: orders } = useMyOrders();
   const wave = useWave();
   const [category, setCategory] = useState<string | null>(null);
+  const { data: service } = useServiceStatus();
 
   const categories = useMemo(
     () => Array.from(new Set((shops ?? []).map((s) => s.category).filter(Boolean))).sort(),
@@ -91,6 +94,30 @@ export function StudentHomeWeb() {
             </Text>
           </Pressable>
         </Gutter>
+
+        {service?.buy_for_me.paused || service?.pickup.paused ? (
+          <Gutter className="mb-6" style={{ gap: 12 }}>
+            {service.buy_for_me.paused ? (
+              <ServicePausedNotice
+                service={
+                  service.pickup.paused && service.pickup.message === service.buy_for_me.message
+                    ? "Ordering"
+                    : "Buy for me"
+                }
+                message={service.buy_for_me.message ?? ""}
+                resumeAt={service.buy_for_me.resumeAt}
+              />
+            ) : null}
+            {/* One notice when the master switch paused both with one message. */}
+            {service.pickup.paused && service.pickup.message !== service.buy_for_me.message ? (
+              <ServicePausedNotice
+                service="Pickup"
+                message={service.pickup.message ?? ""}
+                resumeAt={service.pickup.resumeAt}
+              />
+            ) : null}
+          </Gutter>
+        ) : null}
 
         <Gutter className="mb-8">
           <SearchCapsule

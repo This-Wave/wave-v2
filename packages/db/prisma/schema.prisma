@@ -140,6 +140,7 @@ model University {
   orders          Order[]
   shopSuggestions ShopSuggestion[]
   featureFlags    FeatureFlag[]
+  serviceSwitches ServiceSwitch[]
   groupBaskets    GroupBasket[]
 
   @@map("universities")
@@ -704,4 +705,29 @@ model AuditEvent {
   @@index([category, occurredAt(sort: Desc)])
   @@index([universityId, occurredAt(sort: Desc)])
   @@map("audit_event")
+}
+
+/// A pause on taking new orders — the kill switch. See `SERVICE_SWITCHES` in
+/// `@wave/shared`.
+///
+/// The opposite default to `FeatureFlag`: a missing row means RUNNING. Only a
+/// row with `paused = true` stops anything, and it stops new orders only;
+/// paid orders already in flight carry on to delivery.
+model ServiceSwitch {
+  id           String      @id @default(uuid())
+  key          String
+  /// Null is the global switch that applies to every university.
+  universityId String?     @map("university_id")
+  university   University? @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  paused       Boolean     @default(false)
+  /// Shown to students, word for word. Null falls back to a generic line.
+  message      String?
+  /// The pause lifts itself at this time. Null means until someone resumes it.
+  resumeAt     DateTime?   @map("resume_at")
+  updatedById  String?     @map("updated_by_id")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  @@unique([key, universityId])
+  @@index([key])
+  @@map("service_switch")
 }
