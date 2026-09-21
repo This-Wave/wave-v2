@@ -15,7 +15,7 @@ import {
   Store,
   Users,
 } from "lucide-react";
-import { staffRoleLabel, type Permission } from "@wave/shared";
+import { LEGAL_OPERATOR, staffRoleLabel, type Permission } from "@wave/shared";
 import { useAdminAuth } from "../providers/AdminAuthProvider";
 import { FOCUS_RING } from "./ui/Field";
 
@@ -124,6 +124,7 @@ export function Sidebar({
         >
           Log out
         </button>
+        <p className="mt-3 text-[10.5px] leading-4 text-muted">{LEGAL_OPERATOR}</p>
       </div>
     </aside>
   );

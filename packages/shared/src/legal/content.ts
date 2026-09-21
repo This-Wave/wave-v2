@@ -50,10 +50,18 @@ export interface LegalDoc {
  */
 export const LEGAL_CONTACT_EMAIL = "REPLACE-ME@example.com";
 
-export const LEGAL_OPERATOR = "Wave";
+/**
+ * The registered business. "Wave" is the name students know it by and stays
+ * the brand everywhere in the app; this is who the agreement is actually with,
+ * so it appears wherever a legal party, a receipt or a data controller is named.
+ */
+export const LEGAL_OPERATOR = "Ride the Wave Logistics";
+
+/** The everyday name, which the documents define as meaning the operator. */
+export const LEGAL_BRAND = "Wave";
 
 /** Shown on both documents. Bump whenever the text materially changes. */
-export const LEGAL_LAST_UPDATED = "2 September 2026";
+export const LEGAL_LAST_UPDATED = "21 September 2026";
 
 /**
  * Flip to `true` once a qualified adviser has reviewed both documents.
@@ -77,7 +85,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           kind: "p",
-          text: `These terms are an agreement between you and ${LEGAL_OPERATOR}, a campus delivery service operating at Ashesi University, Berekuso, Ghana. By creating an account or placing an order you accept them. If you do not accept them, do not use Wave.`,
+          text: `These terms are an agreement between you and ${LEGAL_OPERATOR} ("${LEGAL_BRAND}", "we"), a registered business operating a campus delivery service at Ashesi University, Berekuso, Ghana. By creating an account or placing an order you accept them. If you do not accept them, do not use Wave.`,
         },
       ],
     },
@@ -247,7 +255,7 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           kind: "p",
-          text: `${LEGAL_OPERATOR} operates a campus delivery service at Ashesi University, Berekuso, Ghana, and is the data controller for the information described here. This policy is written with reference to Ghana's Data Protection Act, 2012 (Act 843).`,
+          text: `${LEGAL_OPERATOR} ("${LEGAL_BRAND}") operates a campus delivery service at Ashesi University, Berekuso, Ghana, and is the data controller for the information described here. This policy is written with reference to Ghana's Data Protection Act, 2012 (Act 843).`,
         },
       ],
     },
@@ -269,6 +277,11 @@ export const PRIVACY: LegalDoc = {
             ["Shop suggestions", "Decides which shops to onboard next."],
             ["Rider ID document and selfie", "Riders only. Verifies identity before a rider may accept orders."],
             ["Rider earnings records", "Riders only. Records what is owed for completed deliveries."],
+            [
+              "Activity records",
+              "What was done on your account and when — orders, payments, sign-ins, changes — with the IP address and device type it came from. Kept to investigate disputes and fraud, and for audit. Wave staff viewing your phone number or documents is recorded the same way.",
+            ],
+            ["Beta programme", "Optional. Your application, and any feedback you send as a tester."],
           ],
         },
         {
