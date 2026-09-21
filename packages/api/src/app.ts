@@ -26,6 +26,7 @@ import { groupBasketRoutes } from "./modules/groupBaskets/routes";
 import { staffRoutes } from "./modules/staff/routes";
 import { serviceStatusRoutes, adminSwitchRoutes } from "./modules/switches/routes";
 import { betaRoutes, adminBetaRoutes } from "./modules/beta/routes";
+import { auditRoutes } from "./modules/audit/routes";
 import { setupSentryFastify } from "./lib/sentry";
 
 declare module "fastify" {
@@ -87,6 +88,7 @@ export function buildApp(): FastifyInstance {
   app.register(adminSwitchRoutes, { prefix: "/v1/admin" });
   app.register(betaRoutes, { prefix: "/v1/beta" });
   app.register(adminBetaRoutes, { prefix: "/v1/admin" });
+  app.register(auditRoutes, { prefix: "/v1/admin" });
 
   setupSentryFastify(app);
 

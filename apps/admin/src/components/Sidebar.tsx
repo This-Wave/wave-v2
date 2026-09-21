@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Activity,
   Bike,
   FlaskConical,
   LayoutDashboard,
@@ -48,6 +49,7 @@ export function Sidebar({
     { href: "/config", label: "Config", icon: Settings2, permission: "ops.read" },
   ];
   const control: NavItem[] = [
+    { href: "/audit", label: "Activity log", icon: Activity, permission: "ops.read" },
     { href: "/beta", label: "Beta testers", icon: FlaskConical, permission: "ops.read" },
     { href: "/staff", label: "Staff", icon: ShieldCheck, permission: "staff.manage" },
   ];
