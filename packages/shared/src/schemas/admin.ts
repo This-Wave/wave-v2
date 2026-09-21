@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PROFILE_ROLES, RIDER_TYPES, SELF_SERVE_PROFILE_ROLES } from "../constants/platform";
-import { STAFF_ROLE_KEYS, type StaffRole } from "../constants/staff";
+import { HQ_STAFF_ROLES, type StaffRole } from "../constants/staff";
 
 /**
  * Every `platform_config` key the platform actually reads, with the range its
@@ -153,18 +153,47 @@ export type ForceDeliverInput = z.infer<typeof forceDeliverSchema>;
 
 // --- Staff ------------------------------------------------------------------
 
+/** HQ roles only. A campus admin needs a university too, so they have their own schema. */
+const hqRole = z.enum(HQ_STAFF_ROLES as unknown as [StaffRole, ...StaffRole[]], {
+  errorMap: () => ({ message: "Choose an HQ role. Campus admins are added on the Campus admins page." }),
+});
+
 export const addStaffSchema = z
   .object({
     /** Anything a person would type: 024…, 24…, +233…, with spaces. */
     phone: z.string().trim().min(9, "Enter the person's phone number").max(20),
-    staffRole: z.enum(STAFF_ROLE_KEYS as unknown as [StaffRole, ...StaffRole[]]),
+    staffRole: hqRole,
   })
   .strict();
 export type AddStaffInput = z.infer<typeof addStaffSchema>;
 
-export const changeStaffRoleSchema = z
-  .object({ staffRole: z.enum(STAFF_ROLE_KEYS as unknown as [StaffRole, ...StaffRole[]]) })
+export const changeStaffRoleSchema = z.object({ staffRole: hqRole }).strict();
+
+export const addCampusAdminSchema = z
+  .object({
+    phone: z.string().trim().min(9, "Enter the person's phone number").max(20),
+    universityId: z.string().uuid("Choose a university"),
+  })
   .strict();
+
+export const requestRefundSchema = z
+  .object({
+    orderId: z.string().uuid(),
+    reason: z.string().trim().min(5, "Say why this order should be refunded").max(500),
+  })
+  .strict();
+
+export const decideRefundSchema = z
+  .object({
+    decision: z.enum(["approve", "reject"]),
+    /** Shown to the campus admin who asked. Required when rejecting. */
+    note: z.string().trim().max(300).optional(),
+  })
+  .strict()
+  .refine((v) => v.decision === "approve" || (v.note && v.note.length > 0), {
+    message: "Say why the refund is being turned down",
+    path: ["note"],
+  });
 
 export const removeStaffSchema = z
   .object({

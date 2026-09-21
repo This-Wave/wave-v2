@@ -15,6 +15,7 @@ import {
   ownsVerificationPath,
   signVerificationImages,
 } from "./images";
+import { campusOf, inCampus, outsideCampus } from "../../lib/scope";
 
 export async function riderRoutes(fastify: FastifyInstance) {
   fastify.post(
@@ -181,8 +182,9 @@ export async function riderRoutes(fastify: FastifyInstance) {
     { preHandler: [fastify.authenticate, fastify.requirePermission("pii.read")] },
     async (request, reply) => {
       const { status } = request.query as { status?: "pending" | "approved" | "rejected" };
+      const campus = campusOf(request);
       const verifications = await fastify.prisma.riderVerification.findMany({
-        where: { status: status ?? "pending" },
+        where: { status: status ?? "pending", ...(campus ? { rider: { universityId: campus } } : {}) },
         orderBy: { createdAt: "desc" },
         include: { rider: { select: { id: true, fullName: true, phone: true } } },
       });
@@ -216,9 +218,11 @@ export async function riderRoutes(fastify: FastifyInstance) {
       }
       const previous = await fastify.prisma.riderVerification.findUnique({
         where: { id },
-        select: { status: true, rejectionReason: true },
+        select: { status: true, rejectionReason: true, rider: { select: { universityId: true } } },
       });
-      if (!previous) return reply.code(404).send({ error: "Verification not found" });
+      if (!previous || !inCampus(request, previous.rider.universityId)) {
+        return outsideCampus(reply, "Verification not found");
+      }
       const verification = await fastify.prisma.riderVerification.update({
         where: { id },
         data: {
@@ -250,7 +254,7 @@ export async function riderRoutes(fastify: FastifyInstance) {
         category: "rider",
         entityType: "rider_verification",
         entityId: verification.id,
-        before: previous,
+        before: { status: previous.status, rejectionReason: previous.rejectionReason },
         after: { status: verification.status, rejectionReason: verification.rejectionReason },
         metadata: { riderId: verification.riderId },
       });

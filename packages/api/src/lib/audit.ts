@@ -164,7 +164,9 @@ export async function recordAudit(
         category: input.category,
         entityType: input.entityType ?? null,
         entityId: input.entityId ?? null,
-        universityId: input.universityId ?? request?.user?.universityId ?? null,
+        // A campus admin's actions belong to the campus they run, which is not
+        // necessarily the one on their own profile.
+        universityId: input.universityId ?? request?.user?.campusId ?? request?.user?.universityId ?? null,
         before: asJson(input.before),
         after: asJson(input.after),
         metadata: asJson(input.metadata),

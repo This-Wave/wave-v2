@@ -24,7 +24,7 @@ export interface HarnessOptions {
    * without a `staffRole` is treated as an owner, which is what every existing
    * admin became in the add_staff_role migration.
    */
-  user?: { id: string; role: Role; staffRole?: string | null } | null;
+  user?: { id: string; role: Role; staffRole?: string | null; campusId?: string | null } | null;
   env?: Partial<Env>;
   prefix?: string;
   /**
@@ -104,6 +104,10 @@ export async function buildTestApp(
     return async (request: FastifyRequest, reply: FastifyReply) => {
       if (!request.user || request.user.role !== "admin" || !hasPermission(request.user.staffRole, permission)) {
         await reply.code(403).send({ error: "Your staff role can't do this", permission });
+        return;
+      }
+      if (request.user.staffRole === "campus_admin" && !request.user.campusId) {
+        await reply.code(403).send({ error: "Your campus admin account has no university set" });
       }
     };
   });

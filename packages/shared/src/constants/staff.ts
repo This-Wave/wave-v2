@@ -41,6 +41,12 @@ export const STAFF_ROLES = [
     label: "Auditor",
     description: "Reads everything, including the full audit log. Changes nothing.",
   },
+  {
+    key: "campus_admin",
+    label: "Campus admin",
+    description:
+      "Runs one university: its orders, riders, shops, checkpoints and beta testers, and can pause ordering there. Refunds go to HQ for approval.",
+  },
 ] as const;
 
 export type StaffRole = (typeof STAFF_ROLES)[number]["key"];
@@ -49,6 +55,16 @@ export const STAFF_ROLE_KEYS = STAFF_ROLES.map((r) => r.key) as readonly StaffRo
 
 export function isStaffRole(value: unknown): value is StaffRole {
   return typeof value === "string" && (STAFF_ROLE_KEYS as readonly string[]).includes(value);
+}
+
+/**
+ * The roles that see every university. Everyone else — today only
+ * `campus_admin` — is walled to `profiles.admin_university_id`.
+ */
+export const HQ_STAFF_ROLES = STAFF_ROLE_KEYS.filter((r) => r !== "campus_admin");
+
+export function isCampusRole(role: string | null | undefined): boolean {
+  return role === "campus_admin";
 }
 
 export function staffRoleLabel(role: string | null | undefined): string {
@@ -60,6 +76,9 @@ export const PERMISSIONS = [
   "pii.read",
   "orders.force_deliver",
   "refunds.issue",
+  /** Ask HQ to refund an order; the money only moves on `refunds.approve`. */
+  "refunds.request",
+  "refunds.approve",
   "payments.read",
   "payments.sweep",
   "config.write",
@@ -74,6 +93,7 @@ export const PERMISSIONS = [
   "beta.review",
   "audit.read_all",
   "staff.manage",
+  "campus_admins.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -82,11 +102,35 @@ const ALL: readonly Permission[] = PERMISSIONS;
 
 export const ROLE_PERMISSIONS: Readonly<Record<StaffRole, readonly Permission[]>> = {
   owner: ALL,
-  accountant: ["ops.read", "payments.read", "payments.sweep", "config.write"],
-  claims_officer: ["ops.read", "pii.read", "payments.read", "refunds.issue", "orders.force_deliver"],
+  accountant: ["ops.read", "payments.read", "payments.sweep", "config.write", "refunds.approve"],
+  claims_officer: ["ops.read", "pii.read", "payments.read", "refunds.issue", "refunds.approve", "orders.force_deliver"],
   logistics_head: ["ops.read", "pii.read", "riders.verify", "checkpoints.manage", "switches.manage", "orders.force_deliver"],
-  support: ["ops.read", "pii.read", "users.ban", "users.role", "shops.manage", "suggestions.manage", "beta.review"],
+  support: [
+    "ops.read",
+    "pii.read",
+    "users.ban",
+    "users.role",
+    "shops.manage",
+    "suggestions.manage",
+    "beta.review",
+    "campus_admins.manage",
+  ],
   auditor: ["ops.read", "pii.read", "payments.read", "audit.read_all"],
+  // Everything here applies to their own university only — the API scopes
+  // each query to `admin_university_id`. `audit.read_all` is deliberately
+  // absent: they read their campus's log, never the whole platform's.
+  campus_admin: [
+    "ops.read",
+    "pii.read",
+    "riders.verify",
+    "checkpoints.manage",
+    "switches.manage",
+    "orders.force_deliver",
+    "shops.manage",
+    "suggestions.manage",
+    "beta.review",
+    "refunds.request",
+  ],
 };
 
 export function hasPermission(role: string | null | undefined, permission: Permission): boolean {

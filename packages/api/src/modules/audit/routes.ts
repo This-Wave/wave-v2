@@ -3,6 +3,7 @@ import type { AuditEvent } from "@prisma/client";
 import { hasPermission } from "@wave/shared";
 import { auditBus } from "../../lib/audit";
 import { auditMatches, auditWhere, parseAuditFilters, type AuditFilters } from "./filters";
+import { campusOf } from "../../lib/scope";
 
 const PAGE_SIZE = 50;
 const EXPORT_CAP = 10_000;
@@ -28,9 +29,13 @@ export async function auditRoutes(fastify: FastifyInstance) {
     for (const end of streams) end();
   });
 
-  function scopedFilters(request: FastifyRequest): { filters: AuditFilters; scope: "all" | "own" } {
+  function scopedFilters(request: FastifyRequest): { filters: AuditFilters; scope: "all" | "campus" | "own" } {
     const filters = parseAuditFilters(request.query as Record<string, unknown>);
     if (hasPermission(request.user!.staffRole, "audit.read_all")) return { filters, scope: "all" };
+    // A campus admin reads everything that happened at their campus — not
+    // just their own actions, since running a campus means seeing it.
+    const campus = campusOf(request);
+    if (campus) return { filters: { ...filters, universityId: campus }, scope: "campus" };
     return { filters: { ...filters, actorId: request.user!.id }, scope: "own" };
   }
 
@@ -68,7 +73,11 @@ export async function auditRoutes(fastify: FastifyInstance) {
   /** What the filter dropdowns can offer: the actions and entity types that actually occur. */
   fastify.get("/audit/facets", async (request, reply) => {
     const { filters } = scopedFilters(request);
-    const scoped = filters.actorId ? { actorId: filters.actorId } : {};
+    const scoped = filters.actorId
+      ? { actorId: filters.actorId }
+      : filters.universityId
+        ? { universityId: filters.universityId }
+        : {};
     const [actions, entityTypes] = await Promise.all([
       fastify.prisma.auditEvent.groupBy({ by: ["action"], where: scoped, _count: { _all: true }, orderBy: { action: "asc" }, take: 300 }),
       fastify.prisma.auditEvent.groupBy({ by: ["entityType"], where: scoped, orderBy: { entityType: "asc" }, take: 50 }),

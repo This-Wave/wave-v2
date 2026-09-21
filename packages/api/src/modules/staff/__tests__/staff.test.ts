@@ -168,6 +168,6 @@ describe("staff routes", () => {
     const app = await buildTestApp(staffRoutes, { prisma, user: staff("owner") });
     const res = await app.inject({ method: "DELETE", url: "/s1", payload: { revertTo: "rider" } });
     expect(res.statusCode).toBe(204);
-    expect(prisma.profile.update.mock.calls[0]?.[0].data).toEqual({ role: "rider", staffRole: null });
+    expect(prisma.profile.update.mock.calls[0]?.[0].data).toEqual({ role: "rider", staffRole: null, adminUniversityId: null });
   });
 });

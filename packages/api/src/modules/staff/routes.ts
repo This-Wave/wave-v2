@@ -26,12 +26,17 @@ export async function staffRoutes(fastify: FastifyInstance) {
   /** Any staff member: who am I, and what may I do. Drives the admin nav. */
   fastify.get("/me", { preHandler: fastify.requireRole("admin") }, async (request, reply) => {
     const staffRole = request.user!.staffRole ?? null;
-    return reply.send({ staffRole, permissions: permissionsFor(staffRole) });
+    const campusId = request.user!.campusId ?? null;
+    const campus = campusId
+      ? await fastify.prisma.university.findUnique({ where: { id: campusId }, select: { id: true, name: true } })
+      : null;
+    return reply.send({ staffRole, permissions: permissionsFor(staffRole), campus });
   });
 
   fastify.get("/", { preHandler: fastify.requirePermission("staff.manage") }, async (_request, reply) => {
     const staff = await fastify.prisma.profile.findMany({
-      where: { role: "admin" },
+      // HQ only. Campus admins are managed, and listed, on their own page.
+      where: { role: "admin", OR: [{ staffRole: null }, { staffRole: { not: "campus_admin" } }] },
       orderBy: [{ staffRole: "asc" }, { fullName: "asc" }],
       select: { id: true, fullName: true, phone: true, staffRole: true, isActive: true, createdAt: true, updatedAt: true },
     });
@@ -89,7 +94,9 @@ export async function staffRoutes(fastify: FastifyInstance) {
       where: { id },
       select: { role: true, staffRole: true, fullName: true },
     });
-    if (!target || target.role !== "admin") return reply.code(404).send({ error: "Not a staff member" });
+    if (!target || target.role !== "admin" || target.staffRole === "campus_admin") {
+      return reply.code(404).send({ error: "Not an HQ staff member" });
+    }
 
     if (target.staffRole === "owner" && parsed.data.staffRole !== "owner" && (await ownerCount(fastify)) <= 1) {
       await request.audit({
@@ -138,7 +145,7 @@ export async function staffRoutes(fastify: FastifyInstance) {
 
     await fastify.prisma.profile.update({
       where: { id },
-      data: { role: parsed.data.revertTo, staffRole: null },
+      data: { role: parsed.data.revertTo, staffRole: null, adminUniversityId: null },
     });
     await request.audit({
       action: "staff.removed",

@@ -14,6 +14,7 @@ import {
 } from "@wave/shared";
 import { hasPermission } from "@wave/shared";
 import { maskPhone } from "../../lib/audit";
+import { campusWhere, inCampus, outsideCampus } from "../../lib/scope";
 import { endOrderWithRefund } from "../payments/refund";
 import { sweepAbandonedCheckouts } from "../payments/sweepAbandoned";
 import { announceShopIsLive } from "../suggestions/announce";
@@ -77,18 +78,19 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const [grouped, unrecorded, delivered] = await Promise.all([
       fastify.prisma.order.groupBy({
         by: ["failureReason"],
-        where: { createdAt: { gte: since }, failureReason: { not: null } },
+        where: { ...campusWhere(request), createdAt: { gte: since }, failureReason: { not: null } },
         _count: { _all: true },
       }),
       fastify.prisma.order.count({
         where: {
+          ...campusWhere(request),
           createdAt: { gte: since },
           status: { in: ["cancelled", "refunded"] },
           failureReason: null,
         },
       }),
       fastify.prisma.order.count({
-        where: { createdAt: { gte: since }, status: "delivered" },
+        where: { ...campusWhere(request), createdAt: { gte: since }, status: "delivered" },
       }),
     ]);
 
@@ -102,7 +104,10 @@ export async function adminRoutes(fastify: FastifyInstance) {
     });
   });
 
-  fastify.get("/stats", { preHandler: fastify.requirePermission("ops.read") }, async (_request, reply) => {
+  fastify.get("/stats", { preHandler: fastify.requirePermission("ops.read") }, async (request, reply) => {
+    // Every count below is for the caller's campus, or all of them for HQ.
+    const uni = campusWhere(request);
+    const riderUni = uni.universityId ? { rider: { universityId: uni.universityId } } : {};
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
@@ -118,32 +123,33 @@ export async function adminRoutes(fastify: FastifyInstance) {
       activeRiders,
       revenueTodayResult,
     ] = await Promise.all([
-      fastify.prisma.order.count(),
-      fastify.prisma.profile.count(),
-      fastify.prisma.shop.count(),
-      fastify.prisma.riderVerification.count({ where: { status: "pending" } }),
+      fastify.prisma.order.count({ where: uni }),
+      fastify.prisma.profile.count({ where: uni }),
+      fastify.prisma.shop.count({ where: uni }),
+      fastify.prisma.riderVerification.count({ where: { status: "pending", ...riderUni } }),
       // Shops a shop owner registered in the app that no admin has approved.
       // Without a count here the only way to notice one is to scan the Shops
       // table, and an unapproved shop is invisible to students — so a missed
       // one looks to its owner like Wave simply never opened.
-      fastify.prisma.shop.count({ where: { isVerified: false } }),
+      fastify.prisma.shop.count({ where: { isVerified: false, ...uni } }),
       // The oldest thing in each queue, so the dashboard can say how long
       // somebody has actually been stuck rather than only how many are stuck.
       // A count of 3 looks the same on day one and on day nine.
       fastify.prisma.riderVerification.findFirst({
-        where: { status: "pending" },
+        where: { status: "pending", ...riderUni },
         orderBy: { createdAt: "asc" },
         select: { createdAt: true },
       }),
       fastify.prisma.shop.findFirst({
-        where: { isVerified: false },
+        where: { isVerified: false, ...uni },
         orderBy: { createdAt: "asc" },
         select: { createdAt: true },
       }),
-      fastify.prisma.order.count({ where: { createdAt: { gte: startOfToday } } }),
-      fastify.prisma.profile.count({ where: { role: "rider", isActive: true } }),
+      fastify.prisma.order.count({ where: { createdAt: { gte: startOfToday }, ...uni } }),
+      fastify.prisma.profile.count({ where: { role: "rider", isActive: true, ...uni } }),
       fastify.prisma.order.aggregate({
         where: {
+          ...uni,
           createdAt: { gte: startOfToday },
           status: { notIn: ["cancelled", "refunded", "payment_pending", "pending"] },
         },
@@ -189,6 +195,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
     if (limit) {
       const orders = await fastify.prisma.order.findMany({
+        where: campusWhere(request),
         take: Math.min(Number(limit), 100),
         orderBy: { createdAt: "desc" },
         select: ADMIN_ORDER_SELECT,
@@ -196,7 +203,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       return reply.send({ orders: maskPhonesUnlessAllowed(request, orders) });
     }
 
-    const where = status ? { status: status as never } : undefined;
+    const where = { ...campusWhere(request), ...(status ? { status: status as never } : {}) };
     const take = Math.min(Number(pageSize) || 20, 100);
     const currentPage = Math.max(Number(page) || 1, 1);
 
@@ -235,6 +242,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
         cancellationReason: true,
         createdAt: true,
         updatedAt: true,
+        universityId: true,
         student: { select: { id: true, fullName: true, phone: true, studentId: true } },
         shop: { select: { id: true, name: true } },
         checkpoint: { select: { name: true } },
@@ -247,7 +255,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
         },
       },
     });
-    if (!order) return reply.code(404).send({ error: "Order not found" });
+    if (!order || !inCampus(request, order.universityId)) return outsideCampus(reply, "Order not found");
     if (!hasPermission(request.user?.staffRole, "pii.read")) {
       return reply.send({ order: maskPhonesUnlessAllowed(request, order) });
     }
@@ -296,7 +304,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const currentPage = Math.max(Number(page) || 1, 1);
     const term = search?.trim();
 
+    const campus = campusWhere(request);
     const where = {
+      ...campus,
+      // A campus admin sees their campus's students, riders and shop owners —
+      // not HQ staff who happen to list the same university on their profile.
+      ...(campus.universityId ? { NOT: { role: "admin" as const } } : {}),
       ...(role ? { role: role as never } : {}),
       // Phone is stored E.164; someone searching "0241234567" or "241234567"
       // should still find "+233241234567", so match on a contains rather than
@@ -428,9 +441,9 @@ export async function adminRoutes(fastify: FastifyInstance) {
     }
     const target = await fastify.prisma.profile.findUnique({
       where: { id },
-      select: { role: true, riderType: true },
+      select: { role: true, riderType: true, universityId: true },
     });
-    if (!target) return reply.code(404).send({ error: "Profile not found" });
+    if (!target || !inCampus(request, target.universityId)) return outsideCampus(reply, "Profile not found");
     if (target.role !== "rider") {
       return reply.code(400).send({ error: "Only a rider has a rider type" });
     }
@@ -475,7 +488,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     }
 
     const order = await fastify.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) return reply.code(404).send({ error: "Order not found" });
+    if (!order || !inCampus(request, order.universityId)) return outsideCampus(reply, "Order not found");
     if (!order.riderId) {
       return reply.code(409).send({ error: "No rider has picked this order up" });
     }
@@ -601,6 +614,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
   // admin-scoped equivalents: create on an owner's behalf, and suspend.
   fastify.get("/shops", { preHandler: fastify.requirePermission("ops.read") }, async (request, reply) => {
     const shops = await fastify.prisma.shop.findMany({
+      where: campusWhere(request),
       orderBy: { createdAt: "desc" },
       include: {
         owner: { select: { id: true, fullName: true, phone: true } },
@@ -614,6 +628,9 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const parsed = adminCreateShopSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    if (!inCampus(request, parsed.data.universityId)) {
+      return reply.code(403).send({ error: "You can only add shops at your own campus" });
     }
     const owner = await fastify.prisma.profile.findUnique({ where: { id: parsed.data.ownerId } });
     if (!owner) return reply.code(404).send({ error: "Owner not found" });
@@ -639,7 +656,10 @@ export async function adminRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
     const previous = await fastify.prisma.shop.findUnique({ where: { id } });
-    if (!previous) return reply.code(404).send({ error: "Shop not found" });
+    if (!previous || !inCampus(request, previous.universityId)) return outsideCampus(reply, "Shop not found");
+    if ("universityId" in parsed.data && !inCampus(request, (parsed.data as { universityId?: string }).universityId)) {
+      return reply.code(403).send({ error: "You can't move a shop to another campus" });
+    }
     const shop = await fastify.prisma.shop.update({ where: { id }, data: parsed.data });
     const changed = Object.keys(parsed.data) as (keyof typeof previous)[];
     await request.audit({
@@ -672,9 +692,10 @@ export async function adminRoutes(fastify: FastifyInstance) {
   fastify.get("/shop-suggestions", { preHandler: fastify.requirePermission("ops.read") }, async (request, reply) => {
     const { status = "pending" } = request.query as { status?: string };
 
+    const scope = campusWhere(request);
     const grouped = await fastify.prisma.shopSuggestion.groupBy({
       by: ["normalizedName", "universityId"],
-      where: status === "all" ? {} : { status: status as never },
+      where: status === "all" ? scope : { ...scope, status: status as never },
       _count: { _all: true },
       _max: { createdAt: true },
     });
@@ -683,7 +704,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     // carry them. One follow-up query for the rows in these groups, resolved in
     // memory — the pilot has one campus and a page of suggestions, not a feed.
     const rows = await fastify.prisma.shopSuggestion.findMany({
-      where: status === "all" ? {} : { status: status as never },
+      where: status === "all" ? scope : { ...scope, status: status as never },
       select: {
         id: true,
         name: true,
@@ -747,6 +768,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
     const { normalizedName, universityId, shopId } = parsed.data;
+    if (!inCampus(request, universityId)) return outsideCampus(reply, "No pending suggestions for that place");
 
     const shop = await fastify.prisma.shop.findUnique({
       where: { id: shopId },
@@ -795,6 +817,9 @@ export async function adminRoutes(fastify: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
+    if (!inCampus(request, parsed.data.universityId)) {
+      return outsideCampus(reply, "No pending suggestions for that place");
+    }
     const result = await fastify.prisma.shopSuggestion.updateMany({
       where: {
         normalizedName: parsed.data.normalizedName,
@@ -816,8 +841,9 @@ export async function adminRoutes(fastify: FastifyInstance) {
   // Create/update already live on /v1/checkpoints behind requireRole("admin").
   // This is the cross-university listing the admin table needs, with the order
   // count that decides whether a checkpoint may be deactivated rather than kept.
-  fastify.get("/checkpoints", { preHandler: fastify.requirePermission("ops.read") }, async (_request, reply) => {
+  fastify.get("/checkpoints", { preHandler: fastify.requirePermission("ops.read") }, async (request, reply) => {
     const checkpoints = await fastify.prisma.checkpoint.findMany({
+      where: campusWhere(request),
       orderBy: { name: "asc" },
       include: { _count: { select: { orders: true } } },
     });

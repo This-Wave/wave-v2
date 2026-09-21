@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { BetaStatus } from "@prisma/client";
 import { applyForBetaSchema, betaFeedbackSchema, reviewBetaSchema } from "@wave/shared";
 import { pushToProfiles } from "../notifications/dispatch";
+import { campusOf, inCampus } from "../../lib/scope";
 
 /**
  * The beta programme, from the tester's side.
@@ -110,7 +111,11 @@ export async function adminBetaRoutes(fastify: FastifyInstance) {
 
   fastify.get("/beta", { preHandler: fastify.requirePermission("ops.read") }, async (request, reply) => {
     const { status } = request.query as { status?: string };
-    const where = status && status !== "all" ? { status: status as BetaStatus } : {};
+    const campus = campusOf(request);
+    const where = {
+      ...(status && status !== "all" ? { status: status as BetaStatus } : {}),
+      ...(campus ? { profile: { universityId: campus } } : {}),
+    };
     const [applications, counts] = await Promise.all([
       fastify.prisma.betaApplication.findMany({
         where,
@@ -126,7 +131,11 @@ export async function adminBetaRoutes(fastify: FastifyInstance) {
           profile: { select: { id: true, fullName: true, role: true, riderType: true, createdAt: true } },
         },
       }),
-      fastify.prisma.betaApplication.groupBy({ by: ["status"], _count: { _all: true } }),
+      fastify.prisma.betaApplication.groupBy({
+        by: ["status"],
+        where: campus ? { profile: { universityId: campus } } : {},
+        _count: { _all: true },
+      }),
     ]);
     return reply.send({
       applications,
@@ -145,9 +154,11 @@ export async function adminBetaRoutes(fastify: FastifyInstance) {
 
       const current = await fastify.prisma.betaApplication.findUnique({
         where: { id },
-        select: { status: true, profileId: true, profile: { select: { fullName: true } } },
+        select: { status: true, profileId: true, profile: { select: { fullName: true, universityId: true } } },
       });
-      if (!current) return reply.code(404).send({ error: "Application not found" });
+      if (!current || !inCampus(request, current.profile.universityId)) {
+        return reply.code(404).send({ error: "Application not found" });
+      }
       if (!ALLOWED_FROM[decision].includes(current.status)) {
         return reply.code(409).send({ error: `This application is ${current.status} — refresh and try again` });
       }
@@ -187,8 +198,10 @@ export async function adminBetaRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/beta/feedback",
     { preHandler: fastify.requirePermission("ops.read") },
-    async (_request, reply) => {
+    async (request, reply) => {
+      const campus = campusOf(request);
       const feedback = await fastify.prisma.betaFeedback.findMany({
+        where: campus ? { profile: { universityId: campus } } : {},
         orderBy: { createdAt: "desc" },
         take: 100,
         select: {

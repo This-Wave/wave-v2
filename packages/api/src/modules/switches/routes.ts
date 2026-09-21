@@ -8,6 +8,7 @@ import {
 } from "@wave/shared";
 import { z } from "zod";
 import { recordAudit, SYSTEM_ACTOR } from "../../lib/audit";
+import { campusOf, inCampus } from "../../lib/scope";
 
 const SWITCH_SELECT = {
   key: true,
@@ -81,18 +82,22 @@ const clearSwitchSchema = z.object({ key: z.string().refine(isServiceSwitchKey),
 export async function adminSwitchRoutes(fastify: FastifyInstance) {
   fastify.addHook("preHandler", fastify.authenticate);
 
-  fastify.get("/switches", { preHandler: fastify.requirePermission("ops.read") }, async (_request, reply) => {
+  fastify.get("/switches", { preHandler: fastify.requirePermission("ops.read") }, async (request, reply) => {
+    const campus = campusOf(request);
     const [rows, universities] = await Promise.all([
       fastify.prisma.serviceSwitch.findMany({
+        // A campus admin sees the global rows (they apply to their campus too)
+        // and their own campus's, never another campus's.
+        where: campus ? { OR: [{ universityId: null }, { universityId: campus }] } : {},
         select: { ...SWITCH_SELECT, updatedAt: true, updatedById: true },
       }),
       fastify.prisma.university.findMany({
-        where: { isActive: true },
+        where: { isActive: true, ...(campus ? { id: campus } : {}) },
         select: { id: true, name: true },
         orderBy: { name: "asc" },
       }),
     ]);
-    return reply.send({ catalogue: SERVICE_SWITCHES, rows, universities });
+    return reply.send({ catalogue: SERVICE_SWITCHES, rows, universities, campus });
   });
 
   fastify.put("/switches", { preHandler: fastify.requirePermission("switches.manage") }, async (request, reply) => {
@@ -101,6 +106,11 @@ export async function adminSwitchRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid payload" });
     }
     const { key, universityId, paused } = parsed.data;
+    // The every-university switch is HQ's. A campus admin pauses their campus.
+    const campus = campusOf(request);
+    if (campus && universityId !== campus) {
+      return reply.code(403).send({ error: "You can only pause ordering at your own campus" });
+    }
     const message = paused ? (parsed.data.message ?? null) : null;
     const resumeAt = paused && parsed.data.resumeAt ? new Date(parsed.data.resumeAt) : null;
 
@@ -138,6 +148,9 @@ export async function adminSwitchRoutes(fastify: FastifyInstance) {
   fastify.delete("/switches", { preHandler: fastify.requirePermission("switches.manage") }, async (request, reply) => {
     const parsed = clearSwitchSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: "Name the switch and the campus" });
+    if (!inCampus(request, parsed.data.universityId)) {
+      return reply.code(403).send({ error: "You can only change your own campus" });
+    }
     const existing = await fastify.prisma.serviceSwitch.findFirst({
       where: { key: parsed.data.key, universityId: parsed.data.universityId },
       select: SWITCH_SELECT,

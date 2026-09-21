@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { createCheckpointSchema, updateCheckpointSchema } from "@wave/shared";
+import { inCampus, outsideCampus } from "../../lib/scope";
 
 // Covers both /universities and /checkpoints per Wave_Technical_Document.md Section 8.3.
 export async function universityRoutes(fastify: FastifyInstance) {
@@ -24,6 +25,9 @@ export async function universityRoutes(fastify: FastifyInstance) {
       if (!parsed.success) {
         return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
       }
+      if (!inCampus(request, parsed.data.universityId)) {
+        return reply.code(403).send({ error: "You can only add checkpoints at your own campus" });
+      }
       const checkpoint = await fastify.prisma.checkpoint.create({ data: parsed.data });
       return reply.code(201).send({ checkpoint });
     },
@@ -38,6 +42,8 @@ export async function universityRoutes(fastify: FastifyInstance) {
       if (!parsed.success) {
         return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
       }
+      const existing = await fastify.prisma.checkpoint.findUnique({ where: { id }, select: { universityId: true } });
+      if (!existing || !inCampus(request, existing.universityId)) return outsideCampus(reply, "Checkpoint not found");
       const checkpoint = await fastify.prisma.checkpoint.update({ where: { id }, data: parsed.data });
       return reply.send({ checkpoint });
     },

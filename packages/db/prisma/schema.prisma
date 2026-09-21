@@ -35,6 +35,9 @@ enum StaffRole {
   logistics_head
   support
   auditor
+  /// Runs one university. Which one is `profiles.admin_university_id`, and
+  /// every admin route scopes to it.
+  campus_admin
 }
 
 enum ProductStatus {
@@ -134,7 +137,9 @@ model University {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  profiles        Profile[]
+  profiles        Profile[]        @relation("ProfileUniversity")
+  campusAdmins    Profile[]        @relation("AdminUniversity")
+  refundRequests  RefundRequest[]
   checkpoints     Checkpoint[]
   shops           Shop[]
   orders          Order[]
@@ -147,39 +152,44 @@ model University {
 }
 
 model Profile {
-  id           String      @id @default(uuid())
-  universityId String?     @map("university_id")
-  fullName     String      @map("full_name")
-  phone        String      @unique
+  id                String      @id @default(uuid())
+  universityId      String?     @map("university_id")
+  fullName          String      @map("full_name")
+  phone             String      @unique
   // Optional forever: auth is phone-based, so a student who never gives an
   // email must still be able to order. Used for the "the shop you suggested is
   // now on Wave" notification, which also goes out by push and SMS.
-  email        String?
-  studentId    String?     @map("student_id")
-  role         ProfileRole
-  avatarUrl    String?     @map("avatar_url")
-  pushToken    String?     @map("push_token")
+  email             String?
+  studentId         String?     @map("student_id")
+  role              ProfileRole
+  avatarUrl         String?     @map("avatar_url")
+  pushToken         String?     @map("push_token")
   // Two different questions, deliberately two columns. `isActive` is the ban
   // flag: `plugins/auth.ts` rejects every authenticated request when it is
   // false. `isAvailable` is the rider's own online/offline toggle. They were
   // the same column, so a rider tapping "Offline" locked themselves out of the
   // app and could not tap it back on — only an admin could. Nothing but a
   // rider ever reads `isAvailable`.
-  isActive     Boolean     @default(true) @map("is_active")
-  isAvailable  Boolean     @default(true) @map("is_available")
-  isVerified   Boolean     @default(false) @map("is_verified")
+  isActive          Boolean     @default(true) @map("is_active")
+  isAvailable       Boolean     @default(true) @map("is_available")
+  isVerified        Boolean     @default(false) @map("is_verified")
   /// Riders only; null for every other role. Set during onboarding and not
   /// self-editable afterwards — `updateProfileSchema` is `.strict()` and omits
   /// it, because moving yourself from external to student would change which
   /// ID you are allowed to verify with.
-  riderType    RiderType?  @map("rider_type")
+  riderType         RiderType?  @map("rider_type")
   /// Staff only (`role = admin`); null for everyone else. An admin with no
   /// staff role has no permissions — see `hasPermission` in `@wave/shared`.
-  staffRole    StaffRole?  @map("staff_role")
-  createdAt    DateTime    @default(now()) @map("created_at")
-  updatedAt    DateTime    @updatedAt @map("updated_at")
+  staffRole         StaffRole?  @map("staff_role")
+  /// Campus admins only: the university they run. Set by HQ, never by the
+  /// admin themselves — `universityId` is self-editable on the profile, so it
+  /// cannot be what decides whose data they see.
+  adminUniversityId String?     @map("admin_university_id")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
 
-  university University? @relation(fields: [universityId], references: [id])
+  university      University? @relation("ProfileUniversity", fields: [universityId], references: [id])
+  adminUniversity University? @relation("AdminUniversity", fields: [adminUniversityId], references: [id])
 
   shops                 Shop[]
   studentOrders         Order[]               @relation("StudentOrders")
@@ -419,10 +429,11 @@ model Order {
   product          Product?        @relation(fields: [productId], references: [id])
   suggestion       ShopSuggestion? @relation(fields: [suggestionId], references: [id])
 
-  items         OrderItem[]
-  statusHistory OrderStatusHistory[]
-  earning       RiderEarning?
-  groupBasket   GroupBasket?
+  items          OrderItem[]
+  statusHistory  OrderStatusHistory[]
+  refundRequests RefundRequest[]
+  earning        RiderEarning?
+  groupBasket    GroupBasket?
 
   /// Added by 20260807150000_package_pickup_orders but never written into this
   /// schema, so every later `migrate dev` generated a DROP INDEX for it — the
@@ -783,4 +794,38 @@ model ServiceSwitch {
   @@unique([key, universityId])
   @@index([key])
   @@map("service_switch")
+}
+
+enum RefundRequestStatus {
+  pending
+  approved
+  rejected
+  /// Approved, but Paystack refused. The order is unchanged; HQ can retry.
+  failed
+}
+
+/// A campus admin asking HQ to refund an order. Money moves only when an HQ
+/// role holding `refunds.approve` decides it — the campus admin never calls
+/// Paystack themselves.
+model RefundRequest {
+  id            String              @id @default(uuid())
+  orderId       String              @map("order_id")
+  order         Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  universityId  String              @map("university_id")
+  university    University          @relation(fields: [universityId], references: [id])
+  requestedById String              @map("requested_by_id")
+  reason        String
+  status        RefundRequestStatus @default(pending)
+  decidedById   String?             @map("decided_by_id")
+  decidedAt     DateTime?           @map("decided_at")
+  decisionNote  String?             @map("decision_note")
+  /// Paystack's reason, when an approved refund failed.
+  failureDetail String?             @map("failure_detail")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@index([universityId, status])
+  @@index([orderId])
+  @@map("refund_request")
 }

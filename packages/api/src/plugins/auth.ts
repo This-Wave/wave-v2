@@ -3,7 +3,7 @@ import fp from "fastify-plugin";
 import type { Env } from "../config/env";
 import { createServerSupabaseClient } from "../lib/supabaseServer";
 import { recordAudit } from "../lib/audit";
-import { hasPermission, type Permission } from "@wave/shared";
+import { hasPermission, isCampusRole, type Permission } from "@wave/shared";
 
 /**
  * Supabase session ids this process has already logged a sign-in for.
@@ -39,6 +39,8 @@ declare module "fastify" {
       fullName?: string;
       universityId?: string | null;
       staffRole?: string | null;
+      /** Campus admins: the only university they may act on. Null for HQ and customers. */
+      campusId?: string | null;
     };
   }
 }
@@ -63,7 +65,15 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
 
       const profile = await fastify.prisma.profile.findUnique({
         where: { id: data.user.id },
-        select: { id: true, role: true, isActive: true, fullName: true, universityId: true, staffRole: true },
+        select: {
+          id: true,
+          role: true,
+          isActive: true,
+          fullName: true,
+          universityId: true,
+          staffRole: true,
+          adminUniversityId: true,
+        },
       });
       if (!profile) {
         return reply.code(401).send({ error: "No profile for authenticated user" });
@@ -74,6 +84,7 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
         fullName: profile.fullName,
         universityId: profile.universityId,
         staffRole: profile.role === "admin" ? profile.staffRole : null,
+        campusId: profile.role === "admin" && isCampusRole(profile.staffRole) ? profile.adminUniversityId : null,
       };
       if (!profile.isActive) {
         // Attributed, so the log shows *which* banned account keeps trying.
@@ -115,6 +126,11 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
     return async (request: FastifyRequest, reply: FastifyReply) => {
       if (!request.user || request.user.role !== "admin" || !hasPermission(request.user.staffRole, permission)) {
         return reply.code(403).send({ error: "Your staff role can't do this", permission });
+      }
+      // A campus admin with no campus set has nothing to be scoped to, and
+      // an unscoped campus admin would see everything. Refuse outright.
+      if (isCampusRole(request.user.staffRole) && !request.user.campusId) {
+        return reply.code(403).send({ error: "Your campus admin account has no university set" });
       }
     };
   });
