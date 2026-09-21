@@ -24,7 +24,7 @@ interface Shop {
 }
 
 export default function ShopsPage() {
-  const { accessToken } = useAdminAuth();
+  const { accessToken, can } = useAdminAuth();
   const [shops, setShops] = useState<Shop[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
@@ -123,7 +123,7 @@ export default function ShopsPage() {
       // to students whatever `isActive` says, so showing it as "Active" would
       // tell an admin the storefront is live when it is not.
       render: (s) =>
-        !s.isVerified ? (
+        !can("shops.manage") ? null : !s.isVerified ? (
           <StatusPill
             label={`Awaiting approval · ${approvalWait(s.createdAt).label}`}
             tone={approvalWait(s.createdAt).overdue ? "bad" : "warn"}
@@ -155,7 +155,7 @@ export default function ShopsPage() {
       <PageHeader
         title="Shops"
         subtitle="Directory and moderation"
-        action={<Button label="Add shop" onClick={() => setCreating(true)} />}
+        action={can("shops.manage") ? <Button label="Add shop" onClick={() => setCreating(true)} /> : undefined}
       />
 
       {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}

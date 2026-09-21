@@ -4,6 +4,7 @@ import rawBody from "fastify-raw-body";
 import type { Env } from "../config/env";
 import type { Role } from "../plugins/auth";
 import type { AuditInput } from "../lib/audit";
+import { hasPermission, type Permission } from "@wave/shared";
 
 /**
  * Builds a Fastify instance carrying one route module, with `prisma`, `config`
@@ -18,8 +19,12 @@ import type { AuditInput } from "../lib/audit";
 export interface HarnessOptions {
   /** Registered as `fastify.prisma`. Give each test only the models it uses. */
   prisma: unknown;
-  /** Who `authenticate` resolves to. `null` makes it answer 401. */
-  user?: { id: string; role: Role } | null;
+  /**
+   * Who `authenticate` resolves to. `null` makes it answer 401. An `admin`
+   * without a `staffRole` is treated as an owner, which is what every existing
+   * admin became in the add_staff_role migration.
+   */
+  user?: { id: string; role: Role; staffRole?: string | null } | null;
   env?: Partial<Env>;
   prefix?: string;
   /**
@@ -84,7 +89,16 @@ export async function buildTestApp(
       await reply.code(401).send({ error: "Missing bearer token" });
       return;
     }
-    request.user = user;
+    request.user =
+      user.role === "admin" && user.staffRole === undefined ? { ...user, staffRole: "owner" } : user;
+  });
+
+  app.decorate("requirePermission", (permission: Permission) => {
+    return async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!request.user || request.user.role !== "admin" || !hasPermission(request.user.staffRole, permission)) {
+        await reply.code(403).send({ error: "Your staff role can't do this", permission });
+      }
+    };
   });
 
   app.decorate("requireRole", (...roles: Role[]) => {

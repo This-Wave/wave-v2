@@ -43,7 +43,7 @@ export async function adminFeatureRoutes(fastify: FastifyInstance) {
    * and the universities to scope them to. Three round-trips for one screen was
    * the alternative.
    */
-  fastify.get("/features", async (_request, reply) => {
+  fastify.get("/features", { preHandler: fastify.requirePermission("ops.read") }, async (_request, reply) => {
     const [rows, universities] = await Promise.all([
       fastify.prisma.featureFlag.findMany({
         select: { key: true, universityId: true, enabled: true, updatedAt: true },
@@ -58,7 +58,7 @@ export async function adminFeatureRoutes(fastify: FastifyInstance) {
     return reply.send({ catalogue: FEATURE_FLAGS, rows, universities });
   });
 
-  fastify.put("/features", async (request, reply) => {
+  fastify.put("/features", { preHandler: fastify.requirePermission("flags.manage") }, async (request, reply) => {
     const body = request.body as {
       key?: unknown;
       universityId?: unknown;
@@ -141,7 +141,7 @@ export async function adminFeatureRoutes(fastify: FastifyInstance) {
   });
 
   /** Clear a university override so the flag falls back to the global default. */
-  fastify.delete("/features", async (request, reply) => {
+  fastify.delete("/features", { preHandler: fastify.requirePermission("flags.manage") }, async (request, reply) => {
     const body = request.body as { key?: unknown; universityId?: unknown };
 
     if (typeof body.key !== "string" || !isFeatureKey(body.key)) {

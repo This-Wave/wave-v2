@@ -23,6 +23,7 @@ import { notificationRoutes } from "./modules/notifications/routes";
 import { suggestionRoutes } from "./modules/suggestions/routes";
 import { featureRoutes, adminFeatureRoutes } from "./modules/features/routes";
 import { groupBasketRoutes } from "./modules/groupBaskets/routes";
+import { staffRoutes } from "./modules/staff/routes";
 import { setupSentryFastify } from "./lib/sentry";
 
 declare module "fastify" {
@@ -79,6 +80,7 @@ export function buildApp(): FastifyInstance {
   app.register(featureRoutes, { prefix: "/v1" });
   app.register(adminFeatureRoutes, { prefix: "/v1/admin" });
   app.register(groupBasketRoutes, { prefix: "/v1/group-baskets" });
+  app.register(staffRoutes, { prefix: "/v1/admin/staff" });
 
   setupSentryFastify(app);
 

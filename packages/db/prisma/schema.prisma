@@ -26,6 +26,17 @@ enum ProfileRole {
   admin
 }
 
+/// Which kind of staff an `admin` profile is. Permissions per role live in
+/// `@wave/shared` (`ROLE_PERMISSIONS`), not in the database.
+enum StaffRole {
+  owner
+  accountant
+  claims_officer
+  logistics_head
+  support
+  auditor
+}
+
 enum ProductStatus {
   active
   out_of_stock
@@ -161,6 +172,9 @@ model Profile {
   /// it, because moving yourself from external to student would change which
   /// ID you are allowed to verify with.
   riderType    RiderType?  @map("rider_type")
+  /// Staff only (`role = admin`); null for everyone else. An admin with no
+  /// staff role has no permissions — see `hasPermission` in `@wave/shared`.
+  staffRole    StaffRole?  @map("staff_role")
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
 

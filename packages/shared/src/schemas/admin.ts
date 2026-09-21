@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { PROFILE_ROLES, RIDER_TYPES } from "../constants/platform";
+import { PROFILE_ROLES, RIDER_TYPES, SELF_SERVE_PROFILE_ROLES } from "../constants/platform";
+import { STAFF_ROLE_KEYS, type StaffRole } from "../constants/staff";
 
 /**
  * Every `platform_config` key the platform actually reads, with the range its
@@ -149,3 +150,25 @@ export const forceDeliverSchema = z.object({
   reason: z.string().min(10).max(500),
 });
 export type ForceDeliverInput = z.infer<typeof forceDeliverSchema>;
+
+// --- Staff ------------------------------------------------------------------
+
+export const addStaffSchema = z
+  .object({
+    /** Anything a person would type: 024…, 24…, +233…, with spaces. */
+    phone: z.string().trim().min(9, "Enter the person's phone number").max(20),
+    staffRole: z.enum(STAFF_ROLE_KEYS as unknown as [StaffRole, ...StaffRole[]]),
+  })
+  .strict();
+export type AddStaffInput = z.infer<typeof addStaffSchema>;
+
+export const changeStaffRoleSchema = z
+  .object({ staffRole: z.enum(STAFF_ROLE_KEYS as unknown as [StaffRole, ...StaffRole[]]) })
+  .strict();
+
+export const removeStaffSchema = z
+  .object({
+    /** What the person goes back to being. Staff hold no student or rider role meanwhile. */
+    revertTo: z.enum(SELF_SERVE_PROFILE_ROLES),
+  })
+  .strict();

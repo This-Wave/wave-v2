@@ -18,7 +18,7 @@ export async function universityRoutes(fastify: FastifyInstance) {
 
   fastify.post(
     "/checkpoints",
-    { preHandler: [fastify.authenticate, fastify.requireRole("admin")] },
+    { preHandler: [fastify.authenticate, fastify.requirePermission("checkpoints.manage")] },
     async (request, reply) => {
       const parsed = createCheckpointSchema.safeParse(request.body);
       if (!parsed.success) {
@@ -31,7 +31,7 @@ export async function universityRoutes(fastify: FastifyInstance) {
 
   fastify.put(
     "/checkpoints/:id",
-    { preHandler: [fastify.authenticate, fastify.requireRole("admin")] },
+    { preHandler: [fastify.authenticate, fastify.requirePermission("checkpoints.manage")] },
     async (request, reply) => {
       const { id } = request.params as { id: string };
       const parsed = updateCheckpointSchema.safeParse(request.body);

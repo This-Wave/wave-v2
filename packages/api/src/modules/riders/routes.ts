@@ -178,7 +178,7 @@ export async function riderRoutes(fastify: FastifyInstance) {
 
   fastify.get(
     "/admin/riders",
-    { preHandler: [fastify.authenticate, fastify.requireRole("admin")] },
+    { preHandler: [fastify.authenticate, fastify.requirePermission("pii.read")] },
     async (request, reply) => {
       const { status } = request.query as { status?: "pending" | "approved" | "rejected" };
       const verifications = await fastify.prisma.riderVerification.findMany({
@@ -207,7 +207,7 @@ export async function riderRoutes(fastify: FastifyInstance) {
 
   fastify.patch(
     "/admin/riders/:id/verify",
-    { preHandler: [fastify.authenticate, fastify.requireRole("admin")] },
+    { preHandler: [fastify.authenticate, fastify.requirePermission("riders.verify")] },
     async (request, reply) => {
       const { id } = request.params as { id: string };
       const parsed = reviewVerificationSchema.safeParse(request.body);

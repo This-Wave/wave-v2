@@ -54,7 +54,7 @@ function formatGhs(amount: number): string {
 
 export default function OrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
-  const { accessToken } = useAdminAuth();
+  const { accessToken, can } = useAdminAuth();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refundOpen, setRefundOpen] = useState(false);
@@ -109,7 +109,7 @@ export default function OrderDetailPage() {
           >
             {order.status.replace(/_/g, " ")}
           </span>
-          {refundable && accessToken ? (
+          {refundable && accessToken && can("refunds.issue") ? (
             <button
               type="button"
               onClick={() => setRefundOpen(true)}

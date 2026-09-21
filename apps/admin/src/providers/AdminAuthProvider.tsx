@@ -3,12 +3,15 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "../lib/supabase";
 import { apiFetch } from "../lib/api";
+import { hasPermission, type Permission } from "@wave/shared";
 
 interface AdminProfile {
   id: string;
   fullName: string;
   phone: string;
   role: string;
+  /** Which kind of staff. Null for non-staff and for a half-created admin. */
+  staffRole: string | null;
 }
 
 interface AdminAuthState {
@@ -16,6 +19,11 @@ interface AdminAuthState {
   profile: AdminProfile | null;
   isLoading: boolean;
   signOut: () => Promise<void>;
+  /**
+   * Whether this staff role may do something. For hiding controls only — the
+   * API checks the same table and refuses regardless of what is drawn.
+   */
+  can: (permission: Permission) => boolean;
 }
 
 const AdminAuthContext = createContext<AdminAuthState>({
@@ -23,6 +31,7 @@ const AdminAuthContext = createContext<AdminAuthState>({
   profile: null,
   isLoading: true,
   signOut: async () => {},
+  can: () => false,
 });
 
 export function useAdminAuth() {
@@ -101,7 +110,15 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AdminAuthContext.Provider value={{ accessToken, profile, isLoading, signOut }}>
+    <AdminAuthContext.Provider
+      value={{
+        accessToken,
+        profile,
+        isLoading,
+        signOut,
+        can: (permission) => profile?.role === "admin" && hasPermission(profile.staffRole, permission),
+      }}
+    >
       {children}
     </AdminAuthContext.Provider>
   );

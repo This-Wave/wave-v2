@@ -3,6 +3,7 @@ import fp from "fastify-plugin";
 import type { Env } from "../config/env";
 import { createServerSupabaseClient } from "../lib/supabaseServer";
 import { recordAudit } from "../lib/audit";
+import { hasPermission, type Permission } from "@wave/shared";
 
 /**
  * Supabase session ids this process has already logged a sign-in for.
@@ -62,7 +63,7 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
 
       const profile = await fastify.prisma.profile.findUnique({
         where: { id: data.user.id },
-        select: { id: true, role: true, isActive: true, fullName: true, universityId: true },
+        select: { id: true, role: true, isActive: true, fullName: true, universityId: true, staffRole: true },
       });
       if (!profile) {
         return reply.code(401).send({ error: "No profile for authenticated user" });
@@ -72,6 +73,7 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
         role: profile.role as Role,
         fullName: profile.fullName,
         universityId: profile.universityId,
+        staffRole: profile.role === "admin" ? profile.staffRole : null,
       };
       if (!profile.isActive) {
         // Attributed, so the log shows *which* banned account keeps trying.
@@ -105,6 +107,18 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
     },
   );
 
+  /**
+   * Staff-only, and only the staff roles `ROLE_PERMISSIONS` grants this to.
+   * Implies `requireRole("admin")`, so a route may use this alone.
+   */
+  fastify.decorate("requirePermission", (permission: Permission) => {
+    return async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!request.user || request.user.role !== "admin" || !hasPermission(request.user.staffRole, permission)) {
+        return reply.code(403).send({ error: "Your staff role can't do this", permission });
+      }
+    };
+  });
+
   fastify.decorate("requireRole", (...roles: Role[]) => {
     return async (request: FastifyRequest, reply: FastifyReply) => {
       if (!request.user || !roles.includes(request.user.role)) {
@@ -118,5 +132,6 @@ declare module "fastify" {
   interface FastifyInstance {
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     requireRole: (...roles: Role[]) => (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    requirePermission: (permission: Permission) => (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
 }

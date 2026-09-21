@@ -91,7 +91,8 @@ const GROUPS: { title: string; keys: { key: string; label: string; suffix?: stri
 const KNOWN_KEYS = GROUPS.flatMap((g) => g.keys.map((k) => k.key));
 
 export default function ConfigPage() {
-  const { accessToken } = useAdminAuth();
+  const { accessToken, can } = useAdminAuth();
+  const canEdit = can("config.write");
   const [rows, setRows] = useState<ConfigRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -239,6 +240,7 @@ export default function ConfigPage() {
                     id={r.key}
                     value={draft[r.key] ?? ""}
                     onChange={(e) => setDraft((d) => ({ ...d, [r.key]: e.target.value }))}
+                    readOnly={!canEdit}
                     className="h-[46px] w-full max-w-[320px] rounded-control border border-border bg-surface px-4 text-[14px] text-ink outline-none focus:border-wave-500"
                   />
                 </div>
@@ -246,19 +248,23 @@ export default function ConfigPage() {
             </div>
           ) : null}
 
-          <div className="mt-3 flex gap-3">
-            <Button
-              label={saving ? "Saving…" : "Save changes"}
-              onClick={handleSave}
-              disabled={saving || dirtyKeys.length === 0}
-            />
-            <Button
-              label="Discard"
-              variant="secondary"
-              onClick={handleDiscard}
-              disabled={saving || dirtyKeys.length === 0}
-            />
-          </div>
+          {canEdit ? (
+            <div className="mt-3 flex gap-3">
+              <Button
+                label={saving ? "Saving…" : "Save changes"}
+                onClick={handleSave}
+                disabled={saving || dirtyKeys.length === 0}
+              />
+              <Button
+                label="Discard"
+                variant="secondary"
+                onClick={handleDiscard}
+                disabled={saving || dirtyKeys.length === 0}
+              />
+            </div>
+          ) : (
+            <p className="mt-3 text-[12.5px] text-muted">Your role can see pricing but not change it.</p>
+          )}
 
           <p className="mt-[22px] text-[12px] text-muted">
             {dirtyKeys.length > 0
