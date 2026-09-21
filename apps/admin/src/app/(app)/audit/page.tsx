@@ -99,18 +99,24 @@ export default function AuditPage() {
     return () => clearTimeout(t);
   }, [draftQ]);
 
+  // Filters change faster than responses arrive; only the newest may write.
+  const latest = useRef(0);
+
   const load = useCallback(() => {
     if (!accessToken) return;
+    const request = ++latest.current;
     setEvents(null);
     setHeld([]);
     setError(null);
     apiFetch<{ events: AuditEventDto[]; hasMore: boolean; scope: "all" | "own" }>(`/admin/audit?${query}`, accessToken)
       .then((res) => {
+        if (request !== latest.current) return;
         setEvents(res.events);
         setHasMore(res.hasMore);
         setScope(res.scope);
       })
       .catch(() => {
+        if (request !== latest.current) return;
         setEvents([]);
         setError("Could not load the activity log.");
       });
@@ -366,7 +372,7 @@ export default function AuditPage() {
           <caption className="sr-only">Activity, newest first</caption>
           <thead>
             <tr className="border-b border-border bg-canvas">
-              <Th className="w-[104px]">When</Th>
+              <Th className="w-[128px]">When</Th>
               <Th className="w-[220px]">Who</Th>
               <Th>What</Th>
               <Th className="w-[190px]">On</Th>
@@ -396,7 +402,7 @@ export default function AuditPage() {
                       className={`border-b border-border align-top ${fresh.has(e.id) ? "bg-lime/25" : ""} ${open ? "bg-canvas" : ""}`}
                     >
                       <td className="px-[22px] py-3">
-                        <p className="text-[13px] tabular-nums text-ink">{t.clock}</p>
+                        <p className="whitespace-nowrap text-[13px] tabular-nums text-ink">{t.clock}</p>
                         <p className="text-[11.5px] text-muted">{t.day}</p>
                       </td>
                       <td className="px-[22px] py-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch, errorMessage } from "../../../lib/api";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
@@ -59,8 +59,13 @@ export default function BetaPage() {
   const [deciding, setDeciding] = useState<{ app: Application; decision: Decision } | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
 
+  // Switching tabs quickly fires overlapping requests. Only the newest may
+  // write, or a slow "Waiting" reply lands on top of the "Testers" tab.
+  const latest = useRef(0);
+
   const load = useCallback(() => {
     if (!accessToken) return;
+    const request = ++latest.current;
     setApplications(null);
     setError(null);
     apiFetch<{ applications: Application[]; counts: Partial<Record<Status, number>> }>(
@@ -68,10 +73,12 @@ export default function BetaPage() {
       accessToken,
     )
       .then((res) => {
+        if (request !== latest.current) return;
         setApplications(res.applications);
         setCounts(res.counts);
       })
       .catch(() => {
+        if (request !== latest.current) return;
         setApplications([]);
         setError("Could not load beta applications.");
       });
