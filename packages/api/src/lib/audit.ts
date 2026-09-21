@@ -127,6 +127,21 @@ export function actorFromRequest(request: FastifyRequest | undefined): AuditActo
   };
 }
 
+/**
+ * Which campus an event belongs to when the caller didn't say.
+ *
+ * A student's or rider's action belongs to their campus. A campus admin's to
+ * the campus they run (not the one on their own profile). An HQ staff action
+ * with no campus of its own is platform-wide — filing it under the owner's
+ * home campus would show HQ's sign-ins in that campus admin's log.
+ */
+function defaultCampus(request: FastifyRequest | undefined): string | null {
+  const user = request?.user;
+  if (!user) return null;
+  if (user.role === "admin") return user.campusId ?? null;
+  return user.universityId ?? null;
+}
+
 /** The client's address, honouring the proxy Render puts in front of the API. */
 export function clientIp(request: FastifyRequest): string | null {
   const forwarded = request.headers["x-forwarded-for"];
@@ -164,9 +179,7 @@ export async function recordAudit(
         category: input.category,
         entityType: input.entityType ?? null,
         entityId: input.entityId ?? null,
-        // A campus admin's actions belong to the campus they run, which is not
-        // necessarily the one on their own profile.
-        universityId: input.universityId ?? request?.user?.campusId ?? request?.user?.universityId ?? null,
+        universityId: input.universityId ?? defaultCampus(request),
         before: asJson(input.before),
         after: asJson(input.after),
         metadata: asJson(input.metadata),

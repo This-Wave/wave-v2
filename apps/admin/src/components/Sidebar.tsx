@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Activity,
+  Banknote,
   Bike,
+  Building2,
   FlaskConical,
   LayoutDashboard,
   MapPin,
@@ -50,7 +52,9 @@ export function Sidebar({
   ];
   const control: NavItem[] = [
     { href: "/audit", label: "Activity log", icon: Activity, permission: "ops.read" },
+    { href: "/refunds", label: "Refund requests", icon: Banknote, permission: can("refunds.approve") ? "refunds.approve" : "refunds.request" },
     { href: "/beta", label: "Beta testers", icon: FlaskConical, permission: "ops.read" },
+    { href: "/campus-admins", label: "Campus admins", icon: Building2, permission: "campus_admins.manage" },
     { href: "/staff", label: "Staff", icon: ShieldCheck, permission: "staff.manage" },
   ];
   const groups = [
@@ -63,7 +67,7 @@ export function Sidebar({
       <div className="flex items-center gap-2.5 px-[18px] pb-[22px] pt-[26px]">
         <span className="text-[19px] font-semibold tracking-tight text-ink">wave</span>
         <span className="rounded-pill bg-admin-bg px-2.5 py-[3px] text-[10px] font-semibold uppercase tracking-[0.06em] text-admin-text">
-          Admin
+          {profile?.campus ? "Campus" : "Admin"}
         </span>
       </div>
 
@@ -117,7 +121,10 @@ export function Sidebar({
         <p className="mb-[3px] truncate text-[12.5px] font-semibold text-ink">
           {profile?.fullName ?? "Admin"}
         </p>
-        <p className="mb-1.5 text-[11px] text-muted">{staffRoleLabel(profile?.staffRole)}</p>
+        <p className="mb-1.5 text-[11px] text-muted">
+          {staffRoleLabel(profile?.staffRole)}
+          {profile?.campus ? ` · ${profile.campus.name}` : ""}
+        </p>
         <button
           onClick={() => signOut()}
           className={`-mx-1 inline-flex min-h-[24px] items-center rounded-control px-1 text-[11px] font-medium text-danger-text ${FOCUS_RING}`}

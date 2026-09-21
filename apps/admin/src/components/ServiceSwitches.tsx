@@ -14,6 +14,8 @@ interface Payload {
   catalogue: { key: ServiceSwitchKey; label: string; description: string }[];
   rows: (ServiceSwitchRow & { updatedAt: string })[];
   universities: { id: string; name: string }[];
+  /** Set for a campus admin: the only campus they may pause. */
+  campus: string | null;
 }
 
 const GLOBAL = "__global__";
@@ -50,6 +52,8 @@ export function ServiceSwitches() {
     apiFetch<Payload>("/admin/switches", accessToken)
       .then((d) => {
         setData(d);
+        // A campus admin starts on — and stays on — their own campus.
+        if (d.campus) setScope(d.campus);
         setError(null);
       })
       .catch(() => setError("Could not load the ordering switches."));
@@ -126,7 +130,7 @@ export function ServiceSwitches() {
           onChange={(e) => setScope(e.target.value)}
           className={`min-h-[42px] rounded-control border border-border bg-surface px-3.5 py-2 text-[13.5px] text-ink ${FOCUS_RING}`}
         >
-          <option value={GLOBAL}>Every university</option>
+          {data.campus ? null : <option value={GLOBAL}>Every university</option>}
           {data.universities.map((u) => (
             <option key={u.id} value={u.id}>
               {u.name}

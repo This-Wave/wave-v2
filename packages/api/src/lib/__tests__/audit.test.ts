@@ -132,3 +132,27 @@ describe("audit plugin", () => {
     expect(rows).toHaveLength(0);
   });
 });
+
+describe("which campus an event is filed under", () => {
+  async function campusFor(user: Record<string, unknown>): Promise<unknown> {
+    const rows: Record<string, unknown>[] = [];
+    const fastify = {
+      prisma: { auditEvent: { create: async ({ data }: { data: Record<string, unknown> }) => (rows.push(data), data) } },
+      log: { error: () => {} },
+    } as never;
+    const request = { user, headers: {}, id: "r", method: "GET", url: "/x", ip: "1.1.1.1", log: { error: () => {} } } as never;
+    const { recordAudit } = await import("../audit");
+    await recordAudit(fastify, { action: "x", category: "system" }, request);
+    return rows[0]?.universityId;
+  }
+
+  it("a student's action belongs to their campus", async () => {
+    expect(await campusFor({ id: "s", role: "student", universityId: "ashesi" })).toBe("ashesi");
+  });
+  it("a campus admin's belongs to the campus they run, not their profile's", async () => {
+    expect(await campusFor({ id: "c", role: "admin", staffRole: "campus_admin", universityId: "home", campusId: "run" })).toBe("run");
+  });
+  it("an HQ action with no campus of its own is platform-wide", async () => {
+    expect(await campusFor({ id: "o", role: "admin", staffRole: "owner", universityId: "ashesi" })).toBeNull();
+  });
+});

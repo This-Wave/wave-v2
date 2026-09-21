@@ -40,7 +40,8 @@ const ROLE_LABEL: Record<string, string> = { student: "Student", rider: "Rider",
 /** "order.cancelled_by_shop" → "Order cancelled by shop". */
 function describeAction(action: string): string {
   const words = action.replace(/^http\./, "request ").replace(/[._]/g, " ").trim();
-  return words.charAt(0).toUpperCase() + words.slice(1);
+  const sentence = words.charAt(0).toUpperCase() + words.slice(1);
+  return sentence.replace(/\bPii\b/, "Personal data").replace(/\bpin\b/g, "PIN").replace(/\bcsv\b/gi, "CSV");
 }
 
 function toQuery(f: Filters): URLSearchParams {
@@ -75,12 +76,12 @@ function time(iso: string): { clock: string; day: string } {
  * dropping them, so reading a row never costs you the ones that arrived meanwhile.
  */
 export default function AuditPage() {
-  const { accessToken, can } = useAdminAuth();
+  const { accessToken, can, profile } = useAdminAuth();
   const [filters, setFilters] = useState<Filters>(EMPTY);
   const [draftQ, setDraftQ] = useState("");
   const [events, setEvents] = useState<AuditEventDto[] | null>(null);
   const [hasMore, setHasMore] = useState(false);
-  const [scope, setScope] = useState<"all" | "own">("all");
+  const [scope, setScope] = useState<"all" | "campus" | "own">("all");
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(true);
   const [held, setHeld] = useState<AuditEventDto[]>([]);
@@ -108,7 +109,7 @@ export default function AuditPage() {
     setEvents(null);
     setHeld([]);
     setError(null);
-    apiFetch<{ events: AuditEventDto[]; hasMore: boolean; scope: "all" | "own" }>(`/admin/audit?${query}`, accessToken)
+    apiFetch<{ events: AuditEventDto[]; hasMore: boolean; scope: "all" | "campus" | "own" }>(`/admin/audit?${query}`, accessToken)
       .then((res) => {
         if (request !== latest.current) return;
         setEvents(res.events);
@@ -261,7 +262,9 @@ export default function AuditPage() {
         subtitle={
           scope === "own"
             ? "Everything you have done on Wave. Only an owner or auditor sees everyone's."
-            : "Everything that happens on Wave, as it happens. Kept permanently; nobody can edit or delete a row."
+            : scope === "campus"
+              ? `Everything that happens at ${profile?.campus?.name ?? "your campus"}, as it happens.`
+              : "Everything that happens on Wave, as it happens. Kept permanently; nobody can edit or delete a row."
         }
         action={
           <div className="flex items-center gap-3">
@@ -279,7 +282,7 @@ export default function AuditPage() {
               />
               {live ? (streamState === "live" ? "Live" : streamState === "retrying" ? "Reconnecting…" : "Connecting…") : "Paused"}
             </button>
-            {can("audit.read_all") || scope === "own" ? (
+            {can("audit.read_all") || scope !== "all" ? (
               <Button label={exporting ? "Exporting…" : "Export CSV"} variant="secondary" disabled={exporting} onClick={exportCsv} />
             ) : null}
           </div>

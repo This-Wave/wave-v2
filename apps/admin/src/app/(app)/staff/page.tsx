@@ -21,13 +21,18 @@ interface StaffMember {
   updatedAt: string;
 }
 
-const ROLE_OPTIONS = STAFF_ROLES.map((r) => ({ value: r.key, label: r.label }));
+// HQ roles only: a campus admin needs a university, so they are added on the
+// Campus admins page.
+const ROLE_OPTIONS = STAFF_ROLES.filter((r) => r.key !== "campus_admin").map((r) => ({ value: r.key, label: r.label }));
 
 const PERMISSION_LABEL: Record<string, string> = {
   "ops.read": "See orders, users, shops",
   "pii.read": "See full phone numbers and rider IDs",
   "orders.force_deliver": "Close a delivery without a PIN",
   "refunds.issue": "Issue refunds",
+  "refunds.request": "Ask HQ to refund an order",
+  "refunds.approve": "Approve refund requests from campuses",
+  "campus_admins.manage": "Add and remove campus admins",
   "payments.read": "See payment references",
   "payments.sweep": "Run the abandoned-checkout sweep",
   "config.write": "Change pricing",
@@ -41,7 +46,7 @@ const PERMISSION_LABEL: Record<string, string> = {
   "suggestions.manage": "Onboard or reject suggested shops",
   "beta.review": "Approve beta testers",
   "audit.read_all": "Read the whole audit log",
-  "staff.manage": "Add and remove staff",
+  "staff.manage": "Add and remove HQ staff",
 };
 
 export default function StaffPage() {

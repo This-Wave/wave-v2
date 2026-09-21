@@ -77,6 +77,34 @@ export const ROUTE_AUDIT: Record<string, RouteAudit> = {
   "POST /v1/group-baskets/:code/unlock": { action: "basket.unlocked", category: "basket", entityType: "group_basket", entityParam: "code" },
   "POST /v1/checkpoints": { action: "checkpoint.created", category: "checkpoint", entityType: "checkpoint", entityFromReply: "checkpoint.id", body: ["name", "universityId", "isActive"] },
   "PUT /v1/checkpoints/:id": { action: "checkpoint.updated", category: "checkpoint", entityType: "checkpoint", entityParam: "id", body: ["name", "isActive", "description"] },
+
+  // Staff and admin. Handlers write their own rich event on success; these
+  // names are what a refused or failed attempt is logged as.
+  "PUT /v1/admin/config": { action: "config.change_attempted", category: "config", body: ["key", "value"] },
+  "POST /v1/admin/refund/:orderId": { action: "refund.attempted", category: "refund", entityType: "order", entityParam: "orderId", body: ["reason"] },
+  "POST /v1/admin/orders/:orderId/force-deliver": { action: "order.force_deliver_attempted", category: "order", entityType: "order", entityParam: "orderId", body: ["reason"] },
+  "PATCH /v1/admin/users/:id/role": { action: "user.role_change_attempted", category: "user", entityType: "profile", entityParam: "id", body: ["role"] },
+  "PATCH /v1/admin/users/:id/status": { action: "user.status_change_attempted", category: "user", entityType: "profile", entityParam: "id", body: ["isActive"] },
+  "PATCH /v1/admin/riders/:id/type": { action: "rider.type_change_attempted", category: "rider", entityType: "profile", entityParam: "id", body: ["riderType"] },
+  "POST /v1/admin/shops": { action: "shop.create_attempted", category: "shop", body: ["name", "universityId"] },
+  "PATCH /v1/admin/shops/:id": { action: "shop.update_attempted", category: "shop", entityType: "shop", entityParam: "id" },
+  "POST /v1/admin/shop-suggestions/resolve": { action: "suggestion.onboard_attempted", category: "suggestion", body: ["normalizedName", "universityId", "shopId"] },
+  "POST /v1/admin/shop-suggestions/reject": { action: "suggestion.reject_attempted", category: "suggestion", body: ["normalizedName", "universityId"] },
+  "POST /v1/admin/payments/sweep-abandoned": { action: "payment.sweep_attempted", category: "payment" },
+  "POST /v1/admin/staff": { action: "staff.add_attempted", category: "staff", body: ["staffRole"] },
+  "PATCH /v1/admin/staff/:id": { action: "staff.role_change_attempted", category: "staff", entityType: "profile", entityParam: "id", body: ["staffRole"] },
+  "DELETE /v1/admin/staff/:id": { action: "staff.remove_attempted", category: "staff", entityType: "profile", entityParam: "id" },
+  "POST /v1/admin/campus-admins": { action: "campus_admin.add_attempted", category: "staff", body: ["universityId"] },
+  "DELETE /v1/admin/campus-admins/:id": { action: "campus_admin.remove_attempted", category: "staff", entityType: "profile", entityParam: "id" },
+  "POST /v1/admin/refund-requests": { action: "refund.request_attempted", category: "refund", entityType: "order", body: ["orderId", "reason"] },
+  "POST /v1/admin/refund-requests/:id/decide": { action: "refund.decision_attempted", category: "refund", entityType: "refund_request", entityParam: "id", body: ["decision", "note"] },
+  "PUT /v1/admin/switches": { action: "switch.change_attempted", category: "switch", body: ["key", "universityId", "paused"] },
+  "DELETE /v1/admin/switches": { action: "switch.clear_attempted", category: "switch", body: ["key", "universityId"] },
+  "PUT /v1/admin/features": { action: "flag.change_attempted", category: "flag", body: ["key", "universityId", "state"] },
+  "DELETE /v1/admin/features": { action: "flag.clear_attempted", category: "flag", body: ["key", "universityId"] },
+  "POST /v1/beta/apply": { action: "beta.apply_attempted", category: "beta" },
+  "POST /v1/beta/feedback": { action: "beta.feedback_attempted", category: "beta" },
+  "POST /v1/admin/beta/:id/review": { action: "beta.review_attempted", category: "beta", entityType: "beta_application", entityParam: "id", body: ["decision"] },
 };
 
 /** Fallback category for a route nobody described, from its path. */

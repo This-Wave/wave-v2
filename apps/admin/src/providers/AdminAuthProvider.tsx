@@ -12,6 +12,8 @@ interface AdminProfile {
   role: string;
   /** Which kind of staff. Null for non-staff and for a half-created admin. */
   staffRole: string | null;
+  /** Campus admins only: the university they run. Null means HQ (every campus). */
+  campus: { id: string; name: string } | null;
 }
 
 interface AdminAuthState {
@@ -40,8 +42,14 @@ export function useAdminAuth() {
 
 async function fetchProfile(token: string): Promise<AdminProfile | null> {
   try {
-    const { profile } = await apiFetch<{ profile: AdminProfile }>("/profile/me", token);
-    return profile;
+    const { profile } = await apiFetch<{ profile: Omit<AdminProfile, "campus"> }>("/profile/me", token);
+    if (profile.role !== "admin") return { ...profile, campus: null };
+    // The campus name comes from the staff endpoint, which resolves it from the
+    // same column the API scopes by — not from the self-editable profile.
+    const me = await apiFetch<{ campus: { id: string; name: string } | null }>("/admin/staff/me", token).catch(
+      () => ({ campus: null }),
+    );
+    return { ...profile, campus: me.campus };
   } catch {
     return null;
   }
