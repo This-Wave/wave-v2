@@ -1,19 +1,18 @@
-import { useEffect } from "react";
+
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { useMyOrders } from "../../lib/orders";
+import { LIVE_ORDER_STATUSES, useMyOrders } from "../../lib/orders";
 import { useLayout } from "../../hooks/useLayout";
 import { openOrderTracking } from "../../lib/desktopNavigate";
 import { statusPill } from "../../screens/student/orderPresenters";
 import { StatusPill } from "./Controls";
 import { shadowFloating } from "../../theme/tokens";
 import { FULL, NAV_BOTTOM_GAP } from "./TabBar";
-import { useNavBarStore } from "../../hooks/useNavBarScroll";
 
-const LIVE = ["confirmed", "rider_assigned", "en_route", "at_checkpoint"];
+const LIVE = LIVE_ORDER_STATUSES;
 
 /**
  * Persistent strip when the student has an active delivery.
@@ -32,14 +31,6 @@ export function LiveOrderBar() {
   const { data: orders } = useMyOrders();
 
   const live = (orders ?? []).find((o) => LIVE.includes(o.status));
-
-  // Screens need to know this is here so their last row is not left under it.
-  const setLiveBar = useNavBarStore((s) => s.setLiveBar);
-  const showing = !!live && !isDesktop;
-  useEffect(() => {
-    setLiveBar(showing);
-    return () => setLiveBar(false);
-  }, [showing, setLiveBar]);
 
   if (!live) return null;
 

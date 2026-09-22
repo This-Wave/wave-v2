@@ -2,7 +2,8 @@ import { Platform, SafeAreaView, ScrollView, View, RefreshControl } from "react-
 import { useContext, type ReactNode } from "react";
 import { BottomTabBarHeightContext } from "@react-navigation/bottom-tabs";
 import { useLayout } from "../../hooks/useLayout";
-import { useNavBarStore, useReportNavBarScroll } from "../../hooks/useNavBarScroll";
+import { useReportNavBarScroll } from "../../hooks/useNavBarScroll";
+import { useHasLiveOrder } from "../../lib/orders";
 import { layout } from "../../theme/layout";
 
 /**
@@ -80,7 +81,12 @@ export function ScreenBody({
   const onScroll = useReportNavBarScroll();
   const underFloatingNav = useContext(BottomTabBarHeightContext) !== undefined;
   // The live-order card floats above the nav, so it owes clearance of its own.
-  const liveBar = useNavBarStore((s) => s.liveBar);
+  //
+  // Read from the orders cache rather than a flag the bar sets: the bar mounts
+  // in two places (the tab navigator and the web shell), and whichever
+  // unmounted last used to clear the flag while the bar was still on screen —
+  // leaving the last card 30px under it.
+  const liveBar = useHasLiveOrder();
 
   return (
     <ScrollView

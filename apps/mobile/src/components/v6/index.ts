@@ -17,6 +17,8 @@ export { DeliveryPinSnippet } from "./DeliveryPinSnippet";
 export { LiveOrderBar } from "./LiveOrderBar";
 export { ResumeOrderCard } from "./ResumeOrderCard";
 export { ServicePausedNotice } from "./ServicePausedNotice";
+export { HowPickupWorks } from "./HowPickupWorks";
+export { ShopsComingCard } from "./ShopsComingCard";
 export { LoyaltyProgress } from "./LoyaltyProgress";
 export { ActiveDeliveryBar } from "./ActiveDeliveryBar";
 export { ToastHost } from "./ToastHost";

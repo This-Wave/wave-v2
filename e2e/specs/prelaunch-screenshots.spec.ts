@@ -43,5 +43,14 @@ test("@mobile the student sees Pickup only", async ({ page }) => {
   await skipOverlays(page, "student");
   await page.goto("/");
   await page.getByText("Move a package").waitFor({ timeout: 60_000 });
+  await page.getByText("How a pickup works").waitFor();
   await shot(page, "app-03-home-pickup-only");
+  // Scrolled to the end — `fullPage` cannot capture it, because the app scrolls
+  // an inner React Native ScrollView rather than the document. This is the frame
+  // that shows whether the last card clears the floating nav.
+  // Let Playwright scroll the right ancestor: this project emulates touch,
+  // where wheel events do not drive a React Native ScrollView reliably.
+  await page.getByText("Suggest a shop").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(700);
+  await shot(page, "app-04-home-pickup-only-bottom");
 });

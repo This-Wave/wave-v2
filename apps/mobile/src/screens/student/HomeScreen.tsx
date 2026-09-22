@@ -17,7 +17,9 @@ import {
   ScreenBody,
   SearchCapsule,
   SectionTitle,
+  HowPickupWorks,
   ServicePausedNotice,
+  ShopsComingCard,
   SkeletonCard,
   StatusPill,
   Thumb,
@@ -31,6 +33,8 @@ import { useMyOrders } from "../../lib/orders";
 import { useWave } from "../../lib/wave";
 import { useBuyForMeLaunched, useServiceStatus } from "../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
+import { useCheckpoints } from "../../lib/checkpoints";
+import { useAuthStore } from "../../store/authStore";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
 import { orderProgress, statusPill } from "./orderPresenters";
 import { StudentHomeWeb } from "./web/StudentHomeWeb";
@@ -58,6 +62,9 @@ function HomeScreenMobile() {
   const [mode, setMode] = useState<ServiceMode>("buy");
   const { data: service } = useServiceStatus();
   const buyForMeLaunched = useBuyForMeLaunched();
+  const universityId = useAuthStore((state) => state.profile?.universityId ?? undefined);
+  const { data: checkpoints } = useCheckpoints(universityId);
+  const checkpointCount = checkpoints?.length ?? 0;
   // Before Buy for me launches there is only one service, so there is nothing
   // to switch between and no shops to show.
   const effectiveMode: ServiceMode = buyForMeLaunched ? mode : "pickup";
@@ -175,19 +182,39 @@ function HomeScreenMobile() {
         {/* A shop rail is meaningless when nothing is being bought, so Pickup
             gets the thing it actually needs: the route, again. */}
         {effectiveMode === "pickup" ? (
-          <Gutter>
-            <Text className="mb-3 font-sans-medium text-heading-sm text-ink">Move a package</Text>
-            <Text className="mb-4 font-sans text-body text-muted">
-              We&apos;ll collect it from one campus checkpoint and drop it at another. You pay the
-              delivery fee only — there is nothing for us to buy.
-            </Text>
-            <Button
-              label="Start a pickup"
-              full={false}
-              disabled={!!paused?.paused}
-              onPress={() => navigation.navigate("PickupRequest", waveDate)}
-            />
-          </Gutter>
+          <>
+            <Gutter>
+              <Text className="mb-1 font-sans-medium text-heading-sm text-ink">Move a package</Text>
+              {/* Two facts rather than a paragraph: what it costs and how many
+                  places it can be handed over. Both read from live data. */}
+              <Text className="mb-4 font-sans text-body text-muted">
+                Flat {formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)} between campus checkpoints
+                {checkpointCount ? ` · ${checkpointCount} pickup points on campus` : ""}.
+              </Text>
+              <Button
+                label="Start a pickup"
+                full={false}
+                disabled={!!paused?.paused}
+                onPress={() => navigation.navigate("PickupRequest", waveDate)}
+              />
+            </Gutter>
+
+            {/* Before Buy for me launches, Pickup is the whole product and the
+                screen is otherwise empty: explain it, and give students the one
+                lever that fills the catalogue. */}
+            {!buyForMeLaunched ? (
+              <>
+                <Gutter className="pt-6">
+                  <HowPickupWorks />
+                </Gutter>
+                <Gutter className="pt-3">
+                  <ShopsComingCard
+                    onSuggest={() => navigation.navigate("SuggestShop", waveDate)}
+                  />
+                </Gutter>
+              </>
+            ) : null}
+          </>
         ) : (
           <>
             <Section

@@ -3,6 +3,23 @@ import type { CreateOrderInput } from "@wave/shared";
 import { api } from "./api";
 import type { Order } from "../types";
 
+/** The statuses that put an order on the floating live-order bar. */
+export const LIVE_ORDER_STATUSES = ["confirmed", "rider_assigned", "en_route", "at_checkpoint"];
+
+/**
+ * Whether this student has an order in flight, read from the cache only.
+ *
+ * `enabled: false` subscribes to the same query the live-order bar fills
+ * without issuing a request of its own, which is what lets a shared scroll
+ * container ask the question. It matters that it does not fetch: `ScreenBody`
+ * is used by riders and shop owners too, and `/orders/my` is a student route
+ * that would answer 403 for them. No cache, no bar, no clearance.
+ */
+export function useHasLiveOrder(): boolean {
+  const { data } = useQuery<Order[]>({ queryKey: ["orders", "my"], enabled: false });
+  return (data ?? []).some((order) => LIVE_ORDER_STATUSES.includes(order.status));
+}
+
 export function useMyOrders() {
   return useQuery({
     queryKey: ["orders", "my"],

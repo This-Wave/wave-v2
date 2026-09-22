@@ -7,6 +7,7 @@ import {
   Button,
   CardGrid,
   Chip,
+  HowPickupWorks,
   PhotoCard,
   ProgressRail,
   Screen,
@@ -14,6 +15,7 @@ import {
   Gutter,
   SearchCapsule,
   ServicePausedNotice,
+  ShopsComingCard,
   SkeletonCard,
   StatusPill,
   Thumb,
@@ -26,6 +28,8 @@ import { useMyOrders } from "../../../lib/orders";
 import { useWave } from "../../../lib/wave";
 import { useBuyForMeLaunched, useServiceStatus } from "../../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../../lib/pricing";
+import { useCheckpoints } from "../../../lib/checkpoints";
+import { useAuthStore } from "../../../store/authStore";
 import {
   openOrderTracking,
   openShopMenu,
@@ -50,6 +54,9 @@ export function StudentHomeWeb() {
   const [category, setCategory] = useState<string | null>(null);
   const { data: service } = useServiceStatus();
   const buyForMeLaunched = useBuyForMeLaunched();
+  const universityId = useAuthStore((state) => state.profile?.universityId ?? undefined);
+  const { data: checkpoints } = useCheckpoints(universityId);
+  const checkpointCount = checkpoints?.length ?? 0;
 
   const categories = useMemo(
     () => Array.from(new Set((shops ?? []).map((s) => s.category).filter(Boolean))).sort(),
@@ -142,11 +149,27 @@ export function StudentHomeWeb() {
         </Gutter>
         ) : (
           <Gutter className="mb-10">
+            <Text className="mb-4 font-sans text-body text-muted">
+              Flat {formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)} between campus checkpoints
+              {checkpointCount ? ` · ${checkpointCount} pickup points on campus` : ""}.
+            </Text>
             <Button
               label="Start a pickup"
               full={false}
               onPress={() => navigation.navigate("PickupRequest", waveDate)}
             />
+            {/* Same two cards as the phone, side by side where there is room. */}
+            <View
+              className="mt-8 flex-row flex-wrap items-start"
+              style={{ gap: 12 }}
+            >
+              <View style={{ flex: 1, minWidth: 320 }}>
+                <HowPickupWorks />
+              </View>
+              <View style={{ flex: 1, minWidth: 320 }}>
+                <ShopsComingCard onSuggest={() => navigation.navigate("SuggestShop", waveDate)} />
+              </View>
+            </View>
           </Gutter>
         )}
 
