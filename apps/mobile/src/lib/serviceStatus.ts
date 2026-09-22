@@ -27,3 +27,18 @@ export function useServiceStatus() {
     refetchInterval: 2 * 60 * 1000,
   });
 }
+
+/**
+ * Whether Buy for me exists for this student yet.
+ *
+ * Before launch the service is not merely paused: there is no tab and no shop
+ * browsing, because a catalogue you cannot order from is a dead end.
+ *
+ * Unknown reads as launched, deliberately. A flaky status check must not make
+ * the shops disappear for everyone after launch — and if it is genuinely still
+ * closed, the API refuses browsing anyway and the screens say why.
+ */
+export function useBuyForMeLaunched(): boolean {
+  const { data } = useServiceStatus();
+  return !data?.buy_for_me.hidden;
+}

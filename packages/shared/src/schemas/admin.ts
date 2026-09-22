@@ -29,6 +29,7 @@ export const PLATFORM_CONFIG_KEYS = {
   rider_earning_pct: { min: 0, max: 100, integer: false, label: "Rider share — legacy, unused (%)" },
   rider_earning_pct_student: { min: 0, max: 100, integer: false, label: "Student rider share of the delivery fee (%)" },
   rider_earning_pct_external: { min: 0, max: 100, integer: false, label: "External rider share of the delivery fee (%)" },
+  buy_for_me_min_shops: { min: 0, max: 500, integer: true, label: "Shops needed before Buy for me opens" },
 } as const;
 
 export type PlatformConfigKey = keyof typeof PLATFORM_CONFIG_KEYS;

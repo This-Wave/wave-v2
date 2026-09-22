@@ -41,12 +41,17 @@ export function isServiceSwitchKey(value: unknown): value is ServiceSwitchKey {
 /** What a student is told when nobody wrote a message. */
 export const DEFAULT_PAUSE_MESSAGE = "Wave isn't taking new orders right now. Please check back soon.";
 
+/** The same, for a service that has not launched yet. */
+export const DEFAULT_PRELAUNCH_MESSAGE = "This isn't available yet. We'll let you know when it opens.";
+
 export interface ServiceSwitchRow {
   key: string;
   universityId: string | null;
   paused: boolean;
   message: string | null;
   resumeAt: Date | string | null;
+  /** Not launched yet. Optional so older callers and fixtures still type-check. */
+  hidden?: boolean;
 }
 
 export interface ServiceState {
@@ -54,6 +59,12 @@ export interface ServiceState {
   message: string | null;
   /** ISO time the pause lifts by itself, if one was set. */
   resumeAt: string | null;
+  /**
+   * The service has not launched. Stronger than `paused`: the app leaves it out
+   * of the interface entirely — no tab, and for Buy for me no shop browsing —
+   * instead of showing it as temporarily closed.
+   */
+  hidden: boolean;
 }
 
 function resumeTime(row: ServiceSwitchRow): number | null {
@@ -77,12 +88,16 @@ export function resolveSwitch(
   const row =
     (universityId ? forKey.find((r) => r.universityId === universityId) : undefined) ??
     forKey.find((r) => r.universityId === null);
-  if (!row || !row.paused) return { paused: false, message: null, resumeAt: null };
+  if (!row || !row.paused) return { paused: false, message: null, resumeAt: null, hidden: false };
   const until = resumeTime(row);
-  if (until !== null && until <= now.getTime()) return { paused: false, message: null, resumeAt: null };
+  if (until !== null && until <= now.getTime()) {
+    return { paused: false, message: null, resumeAt: null, hidden: false };
+  }
+  const hidden = row.hidden === true;
   return {
     paused: true,
-    message: row.message?.trim() || DEFAULT_PAUSE_MESSAGE,
+    hidden,
+    message: row.message?.trim() || (hidden ? DEFAULT_PRELAUNCH_MESSAGE : DEFAULT_PAUSE_MESSAGE),
     resumeAt: until !== null ? new Date(until).toISOString() : null,
   };
 }
@@ -100,8 +115,19 @@ export function resolveServiceStatus(
   now: Date = new Date(),
 ): ServiceStatus {
   const all = resolveSwitch("all_orders", universityId, rows, now);
-  const pick = (key: "buy_for_me" | "pickup") => (all.paused ? all : resolveSwitch(key, universityId, rows, now));
+  const pick = (key: "buy_for_me" | "pickup"): ServiceState => {
+    const own = resolveSwitch(key, universityId, rows, now);
+    // The master switch's message wins when both are closed, but it must never
+    // *un-hide* a service: an unlaunched Buy for me stays absent, not paused.
+    if (all.paused) return { ...all, hidden: all.hidden || own.hidden };
+    return own;
+  };
   return { buy_for_me: pick("buy_for_me"), pickup: pick("pickup") };
+}
+
+/** Whether a service is live enough to be shown at all. */
+export function isServiceVisible(state: ServiceState): boolean {
+  return !state.hidden;
 }
 
 /** Which switch governs an order type. A suggested-shop order is shown to students as a kind of pickup. */

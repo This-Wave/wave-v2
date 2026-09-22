@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PAUSE_MESSAGE,
+  DEFAULT_PRELAUNCH_MESSAGE,
+  isServiceVisible,
   resolveServiceStatus,
   resolveSwitch,
   serviceForOrderType,
@@ -62,5 +64,37 @@ describe("serviceForOrderType", () => {
     expect(serviceForOrderType("buy_for_me")).toBe("buy_for_me");
     expect(serviceForOrderType("pickup")).toBe("pickup");
     expect(serviceForOrderType("shop_pickup")).toBe("pickup");
+  });
+});
+
+describe("a service that has not launched", () => {
+  const prelaunch = [row({ key: "buy_for_me", hidden: true, message: "Coming soon — we're signing up shops." })];
+
+  it("is hidden, not merely paused", () => {
+    const status = resolveServiceStatus(UNI, prelaunch, now);
+    expect(status.buy_for_me).toMatchObject({ paused: true, hidden: true, message: "Coming soon — we're signing up shops." });
+    expect(status.pickup.hidden).toBe(false);
+  });
+
+  it("stays hidden when the master switch is also paused", () => {
+    const status = resolveServiceStatus(UNI, [...prelaunch, row({ key: "all_orders", message: "Exams week" })], now);
+    expect(status.buy_for_me).toMatchObject({ hidden: true, message: "Exams week" });
+    expect(status.pickup).toMatchObject({ paused: true, hidden: false });
+  });
+
+  it("a campus can open it before the rest of the platform", () => {
+    const rows = [...prelaunch, row({ key: "buy_for_me", universityId: UNI, paused: false })];
+    expect(resolveServiceStatus(UNI, rows, now).buy_for_me).toMatchObject({ paused: false, hidden: false });
+    expect(resolveServiceStatus("other", rows, now).buy_for_me.hidden).toBe(true);
+  });
+
+  it("falls back to a coming-soon line rather than a closed-for-now one", () => {
+    const state = resolveSwitch("buy_for_me", UNI, [row({ key: "buy_for_me", hidden: true, message: null })], now);
+    expect(state.message).toBe(DEFAULT_PRELAUNCH_MESSAGE);
+  });
+
+  it("is visible once it launches", () => {
+    expect(isServiceVisible(resolveServiceStatus(UNI, [], now).buy_for_me)).toBe(true);
+    expect(isServiceVisible(resolveServiceStatus(UNI, prelaunch, now).buy_for_me)).toBe(false);
   });
 });

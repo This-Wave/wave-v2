@@ -24,7 +24,7 @@ import { useLayout } from "../../../hooks/useLayout";
 import { useShops } from "../../../lib/shops";
 import { useMyOrders } from "../../../lib/orders";
 import { useWave } from "../../../lib/wave";
-import { useServiceStatus } from "../../../lib/serviceStatus";
+import { useBuyForMeLaunched, useServiceStatus } from "../../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../../lib/pricing";
 import {
   openOrderTracking,
@@ -49,6 +49,7 @@ export function StudentHomeWeb() {
   const wave = useWave();
   const [category, setCategory] = useState<string | null>(null);
   const { data: service } = useServiceStatus();
+  const buyForMeLaunched = useBuyForMeLaunched();
 
   const categories = useMemo(
     () => Array.from(new Set((shops ?? []).map((s) => s.category).filter(Boolean))).sort(),
@@ -77,9 +78,13 @@ export function StudentHomeWeb() {
       <ScreenBody bottomInset={48}>
         <Gutter className="flex-row items-end justify-between pb-8 pt-8">
           <View className="flex-1 pr-6">
-            <Text className="font-sans-bold text-heading text-ink">Browse shops</Text>
+            <Text className="font-sans-bold text-heading text-ink">
+              {buyForMeLaunched ? "Browse shops" : "Move a package"}
+            </Text>
             <Text className="mt-1 font-sans text-ui text-muted">
-              Order from campus partners. We buy and bring it to your checkpoint.
+              {buyForMeLaunched
+                ? "Order from campus partners. We buy and bring it to your checkpoint."
+                : "We collect from one campus checkpoint and drop at another. Shop orders are coming soon."}
             </Text>
           </View>
           <Pressable
@@ -119,6 +124,7 @@ export function StudentHomeWeb() {
           </Gutter>
         ) : null}
 
+        {buyForMeLaunched ? (
         <Gutter className="mb-8">
           <SearchCapsule
             onPressQuery={() => navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })}
@@ -134,6 +140,15 @@ export function StudentHomeWeb() {
             </Text>
           </Pressable>
         </Gutter>
+        ) : (
+          <Gutter className="mb-10">
+            <Button
+              label="Start a pickup"
+              full={false}
+              onPress={() => navigation.navigate("PickupRequest", waveDate)}
+            />
+          </Gutter>
+        )}
 
         {live ? (
           <Gutter className="mb-10">
@@ -144,69 +159,77 @@ export function StudentHomeWeb() {
           </Gutter>
         ) : null}
 
-        {categories.length > 0 ? (
-          <Gutter className="mb-5">
-            <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-              <Chip label="All" selected={category === null} onPress={() => setCategory(null)} />
-              {categories.map((c) => (
-                <Chip
-                  key={c}
-                  label={titleCase(c)}
-                  selected={category === c}
-                  onPress={() => setCategory(c)}
+        {/* The catalogue, and everything that leads into it, only exists once
+            Buy for me has launched. Suggesting a shop stays: a suggested shop
+            becomes a pickup-style order, which works today, and the
+            suggestions are how the catalogue gets filled. */}
+        {buyForMeLaunched ? (
+          <>
+          {categories.length > 0 ? (
+            <Gutter className="mb-5">
+              <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+                <Chip label="All" selected={category === null} onPress={() => setCategory(null)} />
+                {categories.map((c) => (
+                  <Chip
+                    key={c}
+                    label={titleCase(c)}
+                    selected={category === c}
+                    onPress={() => setCategory(c)}
+                  />
+                ))}
+              </View>
+            </Gutter>
+          ) : null}
+
+          <Gutter className="mb-4 flex-row items-center justify-between">
+            <Text className="font-sans-medium text-heading-sm text-ink">
+              {wave ? `On ${wave.name}` : "Open now"}
+            </Text>
+            <Pressable
+              onPress={() => navigation.navigate("ShopSelection", waveDate)}
+              accessibilityRole="button"
+              className="flex-row items-center gap-1"
+            >
+              <Text className="font-sans-medium text-body text-ink">See all</Text>
+              <ChevronRightIcon size={16} color={colors.ink} strokeWidth={2} />
+            </Pressable>
+          </Gutter>
+
+          {isLoading ? (
+            <CardGrid>
+              {Array.from({ length: shopColumns }, (_, i) => (
+                <SkeletonCard key={i} width={cardWidth} />
+              ))}
+            </CardGrid>
+          ) : visible.length === 0 ? (
+            <Gutter>
+              <Text className="font-sans text-body text-muted">
+                {category
+                  ? `No ${titleCase(category)} shops on this Wave.`
+                  : "No shops are live yet."}
+              </Text>
+            </Gutter>
+          ) : (
+            <CardGrid>
+              {visible.map((shop) => (
+                <ShopTile
+                  key={shop.id}
+                  shop={shop}
+                  width={cardWidth}
+                  onPress={() =>
+                    openShopMenu(navigation, {
+                      shopId: shop.id,
+                      shopName: shop.name,
+                      scheduledDate: waveDate.scheduledDate,
+                      isSpecialOrder: waveDate.isSpecialOrder,
+                    })
+                  }
                 />
               ))}
-            </View>
-          </Gutter>
+            </CardGrid>
+          )}
+          </>
         ) : null}
-
-        <Gutter className="mb-4 flex-row items-center justify-between">
-          <Text className="font-sans-medium text-heading-sm text-ink">
-            {wave ? `On ${wave.name}` : "Open now"}
-          </Text>
-          <Pressable
-            onPress={() => navigation.navigate("ShopSelection", waveDate)}
-            accessibilityRole="button"
-            className="flex-row items-center gap-1"
-          >
-            <Text className="font-sans-medium text-body text-ink">See all</Text>
-            <ChevronRightIcon size={16} color={colors.ink} strokeWidth={2} />
-          </Pressable>
-        </Gutter>
-
-        {isLoading ? (
-          <CardGrid>
-            {Array.from({ length: shopColumns }, (_, i) => (
-              <SkeletonCard key={i} width={cardWidth} />
-            ))}
-          </CardGrid>
-        ) : visible.length === 0 ? (
-          <Gutter>
-            <Text className="font-sans text-body text-muted">
-              {category
-                ? `No ${titleCase(category)} shops on this Wave.`
-                : "No shops are live yet."}
-            </Text>
-          </Gutter>
-        ) : (
-          <CardGrid>
-            {visible.map((shop) => (
-              <ShopTile
-                key={shop.id}
-                shop={shop}
-                width={cardWidth}
-                onPress={() =>
-                  openShopMenu(navigation, {
-                    shopId: shop.id,
-                    shopName: shop.name,
-                    scheduledDate: waveDate.scheduledDate,
-                    isSpecialOrder: waveDate.isSpecialOrder,
-                  })
-                }
-              />
-            ))}
-          </CardGrid>
-        )}
 
         <Gutter className="mt-12 mb-4">
           <View className="flex-row items-center justify-between rounded-card bg-surface p-5">

@@ -29,7 +29,7 @@ import { openOrderTracking } from "../../lib/desktopNavigate";
 import { useShops } from "../../lib/shops";
 import { useMyOrders } from "../../lib/orders";
 import { useWave } from "../../lib/wave";
-import { useServiceStatus } from "../../lib/serviceStatus";
+import { useBuyForMeLaunched, useServiceStatus } from "../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
 import { orderProgress, statusPill } from "./orderPresenters";
@@ -57,7 +57,11 @@ function HomeScreenMobile() {
   const wave = useWave();
   const [mode, setMode] = useState<ServiceMode>("buy");
   const { data: service } = useServiceStatus();
-  const paused = mode === "pickup" ? service?.pickup : service?.buy_for_me;
+  const buyForMeLaunched = useBuyForMeLaunched();
+  // Before Buy for me launches there is only one service, so there is nothing
+  // to switch between and no shops to show.
+  const effectiveMode: ServiceMode = buyForMeLaunched ? mode : "pickup";
+  const paused = effectiveMode === "pickup" ? service?.pickup : service?.buy_for_me;
 
   /**
    * The Wave a Home tap books onto: the next open one. Tapping a shop from Home
@@ -102,9 +106,11 @@ function HomeScreenMobile() {
       {/* Both services, always visible. Tabs rather than a filled control:
           Home already carries a shadowed capsule and the Wave card, and a third
           container was what made the screen feel crowded. */}
-      <Gutter>
-        <ModeTabs mode={mode} onChange={setMode} />
-      </Gutter>
+      {buyForMeLaunched ? (
+        <Gutter>
+          <ModeTabs mode={mode} onChange={setMode} />
+        </Gutter>
+      ) : null}
 
       <ScreenBody bottomInset={32}>
         {/* A pause outranks everything, search included: it is the one thing
@@ -112,7 +118,7 @@ function HomeScreenMobile() {
         {paused?.paused ? (
           <Gutter className="pt-5">
             <ServicePausedNotice
-              service={mode === "pickup" ? "Pickup" : "Buy for me"}
+              service={effectiveMode === "pickup" ? "Pickup" : "Buy for me"}
               message={paused.message ?? ""}
               resumeAt={paused.resumeAt}
             />
@@ -123,14 +129,14 @@ function HomeScreenMobile() {
             competing with it for the top of the screen. */}
         <Gutter className="pb-4 pt-5">
           <SearchCapsule
-            mode={mode}
+            mode={effectiveMode}
             onPressQuery={() =>
-              mode === "pickup"
+              effectiveMode === "pickup"
                 ? navigation.navigate("PickupRequest", waveDate)
                 : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
             }
             onSubmit={() =>
-              mode === "pickup"
+              effectiveMode === "pickup"
                 ? navigation.navigate("PickupRequest", waveDate)
                 : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
             }
@@ -168,7 +174,7 @@ function HomeScreenMobile() {
 
         {/* A shop rail is meaningless when nothing is being bought, so Pickup
             gets the thing it actually needs: the route, again. */}
-        {mode === "pickup" ? (
+        {effectiveMode === "pickup" ? (
           <Gutter>
             <Text className="mb-3 font-sans-medium text-heading-sm text-ink">Move a package</Text>
             <Text className="mb-4 font-sans text-body text-muted">

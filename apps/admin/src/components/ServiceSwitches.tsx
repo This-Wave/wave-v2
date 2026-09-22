@@ -16,6 +16,9 @@ interface Payload {
   universities: { id: string; name: string }[];
   /** Set for a campus admin: the only campus they may pause. */
   campus: string | null;
+  /** Verified, active shops per university id — the number that decides whether Buy for me is worth opening. */
+  verifiedShops: Record<string, number>;
+  minShopsToOpen: number;
 }
 
 const GLOBAL = "__global__";
@@ -80,6 +83,16 @@ export function ServiceSwitches() {
     return data!.rows.find((r) => r.key === key && r.universityId === universityId);
   }
 
+  const shopsHere =
+    universityId !== null
+      ? (data.verifiedShops[universityId] ?? 0)
+      : Object.values(data.verifiedShops).reduce((a, b) => a + b, 0);
+
+  /** Opening a service for the first time. Clears "not launched" as well as the pause. */
+  async function open(key: ServiceSwitchKey) {
+    await resume(key);
+  }
+
   async function resume(key: ServiceSwitchKey) {
     if (!accessToken) return;
     setBusy(key);
@@ -117,7 +130,8 @@ export function ServiceSwitches() {
     <Card className="p-6">
       <h2 className="text-[17px] font-semibold tracking-tight text-ink">Ordering</h2>
       <p className="mb-5 mt-1 text-[12.5px] leading-5 text-muted">
-        Pause new orders when operations need it. Orders already paid for still get delivered.
+        Pause new orders when operations need it. Orders already paid for still get delivered. A service
+        marked &ldquo;not launched&rdquo; is left out of the app entirely until you open it.
       </p>
 
       <div className="mb-5">
@@ -158,9 +172,21 @@ export function ServiceSwitches() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-[13.5px] font-semibold text-ink">{sw.label}</p>
-                  <StatusPill label={effective.paused ? "Paused" : "Taking orders"} tone={effective.paused ? "bad" : "good"} />
+                  <StatusPill
+                    label={effective.hidden ? "Not launched" : effective.paused ? "Paused" : "Taking orders"}
+                    tone={effective.hidden ? "warn" : effective.paused ? "bad" : "good"}
+                  />
                 </div>
                 <p className="mt-0.5 text-[12.5px] leading-5 text-muted">{sw.description}</p>
+                {sw.key === "buy_for_me" && effective.hidden ? (
+                  <p className="mt-1.5 text-[12.5px] leading-5 text-ink">
+                    <span className="font-semibold">
+                      {shopsHere} verified {shopsHere === 1 ? "shop" : "shops"}
+                    </span>{" "}
+                    {universityId ? "at this campus" : "across Wave"} · you set {data.minShopsToOpen} as the marker
+                    {shopsHere >= data.minShopsToOpen ? " — ready to open." : "."}
+                  </p>
+                ) : null}
                 {effective.paused ? (
                   <p className="mt-1.5 text-[12.5px] leading-5 text-ink">
                     Students see: &ldquo;{effective.message}&rdquo;
@@ -190,7 +216,15 @@ export function ServiceSwitches() {
               </div>
 
               {canManage ? (
-                effective.paused && !inherited ? (
+                effective.hidden && !inherited ? (
+                  // Launching is the one green button here: everything else on
+                  // this panel closes something.
+                  <Button
+                    label={busy === sw.key ? "Opening…" : `Open ${sw.label}`}
+                    disabled={busy === sw.key}
+                    onClick={() => open(sw.key)}
+                  />
+                ) : effective.paused && !inherited ? (
                   <Button
                     label={busy === sw.key ? "Resuming…" : "Resume"}
                     variant="secondary"

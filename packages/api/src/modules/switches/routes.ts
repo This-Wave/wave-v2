@@ -1,5 +1,6 @@
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import {
+  DEFAULT_BUY_FOR_ME_MIN_SHOPS,
   SERVICE_SWITCHES,
   isServiceSwitchKey,
   resolveServiceStatus,
@@ -14,6 +15,7 @@ const SWITCH_SELECT = {
   key: true,
   universityId: true,
   paused: true,
+  hidden: true,
   message: true,
   resumeAt: true,
 } as const;
@@ -41,7 +43,27 @@ export async function pausedFor(
 
 /** The body a paused door answers with. 503: the service, not the request, is the problem. */
 export function pausedReply(state: ServiceState) {
-  return { error: state.message, code: "service_paused", resumeAt: state.resumeAt };
+  return {
+    error: state.message,
+    code: state.hidden ? "service_not_launched" : "service_paused",
+    resumeAt: state.resumeAt,
+  };
+}
+
+/**
+ * Whether Buy for me is still unlaunched at this campus, which is what closes
+ * shop browsing as well as ordering. A pause alone leaves browsing open.
+ */
+export async function buyForMeHidden(
+  fastify: FastifyInstance,
+  universityId: string | null | undefined,
+): Promise<ServiceState | null> {
+  const rows = await fastify.prisma.serviceSwitch.findMany({
+    where: { OR: [{ universityId: null }, ...(universityId ? [{ universityId }] : [])] },
+    select: SWITCH_SELECT,
+  });
+  const state = resolveServiceStatus(universityId, rows).buy_for_me;
+  return state.hidden ? state : null;
 }
 
 /**
@@ -67,6 +89,8 @@ const setSwitchSchema = z
     key: z.string().refine(isServiceSwitchKey, "Unknown switch"),
     universityId: z.string().uuid().nullable(),
     paused: z.boolean(),
+    /** Not launched yet. Only HQ sets this; a campus admin may pause, not un-launch. */
+    hidden: z.boolean().optional(),
     message: z.string().trim().max(200).nullable().optional(),
     resumeAt: z
       .string()
@@ -84,7 +108,7 @@ export async function adminSwitchRoutes(fastify: FastifyInstance) {
 
   fastify.get("/switches", { preHandler: fastify.requirePermission("ops.read") }, async (request, reply) => {
     const campus = campusOf(request);
-    const [rows, universities] = await Promise.all([
+    const [rows, universities, shopCounts, threshold] = await Promise.all([
       fastify.prisma.serviceSwitch.findMany({
         // A campus admin sees the global rows (they apply to their campus too)
         // and their own campus's, never another campus's.
@@ -96,8 +120,25 @@ export async function adminSwitchRoutes(fastify: FastifyInstance) {
         select: { id: true, name: true },
         orderBy: { name: "asc" },
       }),
+      // How many shops are actually live per campus. This is the number the
+      // decision to open Buy for me rests on, so it belongs next to the switch
+      // rather than on another page.
+      fastify.prisma.shop.groupBy({
+        by: ["universityId"],
+        where: { isVerified: true, isActive: true, ...(campus ? { universityId: campus } : {}) },
+        _count: { _all: true },
+      }),
+      fastify.prisma.platformConfig.findUnique({ where: { key: "buy_for_me_min_shops" } }),
     ]);
-    return reply.send({ catalogue: SERVICE_SWITCHES, rows, universities, campus });
+    const parsedThreshold = Number(threshold?.value);
+    return reply.send({
+      catalogue: SERVICE_SWITCHES,
+      rows,
+      universities,
+      campus,
+      verifiedShops: Object.fromEntries(shopCounts.map((c) => [c.universityId, c._count._all])),
+      minShopsToOpen: Number.isFinite(parsedThreshold) ? parsedThreshold : DEFAULT_BUY_FOR_ME_MIN_SHOPS,
+    });
   });
 
   fastify.put("/switches", { preHandler: fastify.requirePermission("switches.manage") }, async (request, reply) => {
@@ -112,6 +153,11 @@ export async function adminSwitchRoutes(fastify: FastifyInstance) {
       return reply.code(403).send({ error: "You can only pause ordering at your own campus" });
     }
     const message = paused ? (parsed.data.message ?? null) : null;
+    // Opening a service always un-hides it: "not launched" is a state you leave
+    // once, and resuming later should read as a pause, not a second launch.
+    // Whether a service has launched at all is HQ's call, so a campus admin's
+    // `hidden` is ignored — they may pause their campus, not un-launch it.
+    const hidden = paused && !campus ? (parsed.data.hidden ?? false) : false;
     const resumeAt = paused && parsed.data.resumeAt ? new Date(parsed.data.resumeAt) : null;
 
     if (universityId) {
@@ -125,21 +171,21 @@ export async function adminSwitchRoutes(fastify: FastifyInstance) {
       where: { key, universityId },
       select: { id: true, ...SWITCH_SELECT },
     });
-    const data = { paused, message, resumeAt, updatedById: request.user!.id };
+    const data = { paused, hidden, message, resumeAt, updatedById: request.user!.id };
     const row = existing
       ? await fastify.prisma.serviceSwitch.update({ where: { id: existing.id }, data, select: SWITCH_SELECT })
       : await fastify.prisma.serviceSwitch.create({ data: { key, universityId, ...data }, select: SWITCH_SELECT });
 
     await request.audit({
-      action: paused ? "switch.paused" : "switch.resumed",
+      action: !paused && existing?.hidden ? "switch.launched" : paused ? "switch.paused" : "switch.resumed",
       category: "switch",
       entityType: "service_switch",
       entityId: key,
       universityId,
       before: existing
-        ? { paused: existing.paused, message: existing.message, resumeAt: existing.resumeAt }
+        ? { paused: existing.paused, hidden: existing.hidden, message: existing.message, resumeAt: existing.resumeAt }
         : { paused: false, note: "no row — running" },
-      after: { paused: row.paused, message: row.message, resumeAt: row.resumeAt },
+      after: { paused: row.paused, hidden: row.hidden, message: row.message, resumeAt: row.resumeAt },
     });
     return reply.send({ switch: row });
   });
@@ -186,7 +232,7 @@ export async function resumeExpiredPauses(args: { fastify: FastifyInstance; log:
   for (const row of expired) {
     const flipped = await fastify.prisma.serviceSwitch.updateMany({
       where: { id: row.id, paused: true },
-      data: { paused: false, message: null, resumeAt: null, updatedById: null },
+      data: { paused: false, hidden: false, message: null, resumeAt: null, updatedById: null },
     });
     if (flipped.count === 0) continue;
     await recordAudit(fastify, {

@@ -1,10 +1,16 @@
 import type { FastifyInstance } from "fastify";
 import { createProductSchema, updateProductStatusSchema } from "@wave/shared";
 import { findOwnedProduct } from "./access";
+import { buyForMeHidden, pausedReply } from "../switches/routes";
 
 export async function productRoutes(fastify: FastifyInstance) {
+  // A shop's menu is Buy for me's catalogue, so it closes with it while Buy
+  // for me has not launched — see the note in modules/shops/routes.ts.
   fastify.get("/shops/:shopId/products", async (request, reply) => {
     const { shopId } = request.params as { shopId: string };
+    const shop = await fastify.prisma.shop.findUnique({ where: { id: shopId }, select: { universityId: true } });
+    const hidden = await buyForMeHidden(fastify, shop?.universityId ?? null);
+    if (hidden) return reply.code(503).send({ ...pausedReply(hidden), products: [] });
     const products = await fastify.prisma.product.findMany({ where: { shopId } });
     return reply.send({ products });
   });

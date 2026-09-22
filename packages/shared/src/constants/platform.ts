@@ -3,6 +3,13 @@ export const DEFAULT_DELIVERY_FEE_GHS = 20.0;
 export const DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT = 30;
 export const DEFAULT_LOYALTY_DISCOUNT_PCT = 20;
 export const DEFAULT_LOYALTY_THRESHOLD = 6;
+
+/**
+ * How many verified shops a campus should have before Buy for me is worth
+ * opening. Only a prompt in the admin — nothing opens by itself, because
+ * "enough shops" is a judgement about which shops, not just how many.
+ */
+export const DEFAULT_BUY_FOR_ME_MIN_SHOPS = 8;
 export const DEFAULT_SPECIAL_ORDER_LEAD_HOURS = 24;
 
 /**

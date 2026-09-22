@@ -23,6 +23,7 @@ import { describeWave } from "../../lib/wave";
 import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
 import { openShopMenu } from "../../lib/desktopNavigate";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
+import { useBuyForMeLaunched } from "../../lib/serviceStatus";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
 type Route = RouteProp<StudentStackParamList, "ShopSelection">;
@@ -37,6 +38,7 @@ export function ShopSelectionScreen() {
   const { params } = useRoute<Route>();
   const { gutter, cardWidth, shopColumns, isDesktop } = useLayout();
   const { data: shops, isLoading } = useShops();
+  const buyForMeLaunched = useBuyForMeLaunched();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
 
@@ -148,7 +150,13 @@ export function ShopSelectionScreen() {
           )
         ) : null}
 
-        {isLoading ? (
+        {!buyForMeLaunched ? (
+          // Reachable by a link or an old build; Home leaves it out entirely.
+          <Empty
+            title="Shop orders are coming soon"
+            body="We're signing up shops now. Meanwhile Wave can move a package between campus checkpoints for you."
+          />
+        ) : isLoading ? (
           <CardGrid>
             {Array.from({ length: Math.max(shopColumns, 2) }, (_, i) => (
               <SkeletonCard key={i} width={cardWidth} />

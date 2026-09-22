@@ -784,6 +784,10 @@ model ServiceSwitch {
   universityId String?     @map("university_id")
   university   University? @relation(fields: [universityId], references: [id], onDelete: Cascade)
   paused       Boolean     @default(false)
+  /// Not launched yet: the service is not merely paused but absent. The app
+  /// hides its tab and (for Buy for me) shop browsing entirely, and the API
+  /// refuses to serve either. Only meaningful while `paused` is true.
+  hidden       Boolean     @default(false)
   /// Shown to students, word for word. Null falls back to a generic line.
   message      String?
   /// The pause lifts itself at this time. Null means until someone resumes it.

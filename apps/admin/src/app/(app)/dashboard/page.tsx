@@ -7,6 +7,7 @@ import { useApiQuery } from "../../../hooks/useApiQuery";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 import { OrderFailures } from "../../../components/OrderFailures";
 import { approvalWait } from "@wave/shared";
+import { LaunchReadiness } from "../../../components/LaunchReadiness";
 
 /** "oldest 3 days", or nothing when the queue is empty. */
 function waitHint(oldestAt: string | null | undefined): string | undefined {
@@ -101,6 +102,8 @@ export default function DashboardPage() {
           Run Day Active
         </span>
       </div>
+
+      <LaunchReadiness />
 
       {statsQuery.error ? (
         <FetchErrorBanner message={statsQuery.error} onRetry={statsQuery.retry} />
