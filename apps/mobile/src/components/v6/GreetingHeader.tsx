@@ -21,6 +21,7 @@ export function GreetingHeader({
   alert,
   onPressAvatar,
   onPressBell,
+  note,
   children,
   wholeName,
 }: {
@@ -32,6 +33,13 @@ export function GreetingHeader({
   alert?: boolean;
   onPressAvatar: () => void;
   onPressBell: () => void;
+  /**
+   * A line between the greeting and the action — on Home, the next Wave and how
+   * long is left to join it. It sits inside the panel because the deadline is
+   * context for the action directly below it, and a standalone card for one
+   * line of text was a card Home did not need.
+   */
+  note?: ReactNode;
   children?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
@@ -42,7 +50,12 @@ export function GreetingHeader({
       className="rounded-b-card bg-ink px-gutter pb-5"
       style={{ paddingTop: Math.max(insets.top, 12) + 12 }}
     >
-      <View className="mb-5 flex-row items-center justify-between">
+      {/* The greeting rides the avatar row rather than sitting under it. On its
+          own line, at display size, it took a third of the panel to tell
+          someone their own name — and left a band of empty ink above it. Beside
+          the avatar it is the same information at a glance, and the panel is
+          ~90pt shorter. */}
+      <View className="flex-row items-center justify-between">
         <Pressable
           onPress={onPressAvatar}
           accessibilityRole="button"
@@ -55,6 +68,13 @@ export function GreetingHeader({
             <UserIcon size={22} color={colors.white} strokeWidth={1.8} />
           )}
         </Pressable>
+
+        <View className="min-w-0 flex-1 px-3">
+          <Text className="font-sans text-meta text-white/70">Hello,</Text>
+          <Text className="font-sans-bold text-subheading text-white" numberOfLines={1}>
+            {shown}
+          </Text>
+        </View>
 
         <Pressable
           onPress={onPressBell}
@@ -71,12 +91,9 @@ export function GreetingHeader({
         </Pressable>
       </View>
 
-      <Text className="font-sans text-body text-white/70">Hello,</Text>
-      <Text className="mb-5 font-sans-bold text-heading text-white" numberOfLines={2}>
-        {shown}
-      </Text>
+      {note ? <View className="mt-5">{note}</View> : null}
 
-      {children}
+      {children ? <View className="mt-5">{children}</View> : null}
     </View>
   );
 }

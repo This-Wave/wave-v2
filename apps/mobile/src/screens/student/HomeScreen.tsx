@@ -23,8 +23,7 @@ import {
   ShopsComingCard,
   SuggestShopCard,
   SkeletonCard,
-  WaveBanner,
-  WaveClosedBanner,
+  WaveNote,
 } from "../../components/v6";
 import { useLayout } from "../../hooks/useLayout";
 import { openOrderTracking } from "../../lib/desktopNavigate";
@@ -119,6 +118,7 @@ function HomeScreenMobile() {
           alert={active.length > 0 || !!unpaid}
           onPressAvatar={() => navigation.navigate("Tabs", { screen: "Profile" })}
           onPressBell={() => navigation.navigate("Tabs", { screen: "Orders" })}
+          note={<WaveNote wave={wave} onPress={() => navigation.navigate("WaveCalendar")} />}
         >
           {buyForMeLaunched ? (
             <View className="mb-3">
@@ -164,16 +164,11 @@ function HomeScreenMobile() {
           </Gutter>
         ) : null}
 
-        <Gutter className="pb-4 pt-5">
-          {wave && !wave.closed ? (
-            <WaveBanner wave={wave} onPress={() => navigation.navigate("WaveCalendar")} />
-          ) : (
-            <WaveClosedBanner onPress={() => navigation.navigate("WaveCalendar")} />
-          )}
-        </Gutter>
-
+        {/* The Wave used to have a card here. It is the `note` inside the panel
+            above now, so the first thing under the panel is whatever this
+            student actually needs to act on. */}
         {unpaid ? (
-          <Gutter>
+          <Gutter className="pt-5">
             <ResumeOrderCard
               order={unpaid}
               onPress={() =>
@@ -187,7 +182,7 @@ function HomeScreenMobile() {
         ) : null}
 
         {active.length > 0 ? (
-          <Gutter className="pt-2">
+          <Gutter className="pt-5">
             <Text className="mb-3 font-sans-medium text-heading-sm text-ink">
               {active.length === 1 ? "Active delivery" : `Active deliveries (${active.length})`}
             </Text>
@@ -209,7 +204,7 @@ function HomeScreenMobile() {
           <>
             {/* A route this student has sent before is one tap. Absent for
                 anyone who has not sent a package yet. */}
-            <Gutter className="pt-2">
+            <Gutter className="pt-5">
               <MoveItAgain
                 onPick={(route) =>
                   navigation.navigate("PickupRequest", {

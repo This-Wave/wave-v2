@@ -35,6 +35,6 @@ export { Steps, ProgressRail, type Step } from "./Progress";
 export { TabBar } from "./TabBar";
 export { ModeTabs, type ServiceMode } from "./ModeTabs";
 export { Sheet, Confirm } from "./Sheet";
-export { WaveBanner, WaveClosedBanner } from "./WaveBanner";
+export { WaveCountdown, WaveNote } from "./WaveCountdown";
 export { Skeleton, SkeletonCard } from "./Skeleton";
 export { Calendar, isSameDay, type CalendarDay, type DayKind } from "./Calendar";
