@@ -6,7 +6,6 @@ import { useLayout } from "../../hooks/useLayout";
 import { useDesktopPanelStore } from "../../store/desktopPanelStore";
 import { SideNav, type AppRole } from "./SideNav";
 import { DesktopPanelHost } from "./DesktopPanelHost";
-import { LiveOrderBar } from "./LiveOrderBar";
 import { ActiveDeliveryBar } from "./ActiveDeliveryBar";
 import { PanelScrim } from "./RightPanel";
 
@@ -81,7 +80,6 @@ export function AppWebShell({ role, children }: { role: AppRole; children: React
           position: "relative",
         }}
       >
-        {role === "student" ? <LiveOrderBar /> : null}
         {role === "rider" ? <ActiveDeliveryBar /> : null}
         {panelOpen ? <PanelScrim onPress={closePanel} /> : null}
         <View style={{ flex: 1, width: "100%", backgroundColor: colors.canvas }}>{children}</View>

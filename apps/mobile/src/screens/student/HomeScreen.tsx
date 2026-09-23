@@ -4,44 +4,42 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
-  BrandBar,
-  Button,
+  ActionTile,
+  ActiveDeliveryCard,
   CardGrid,
   CardRail,
   Gutter,
   ModeTabs,
   PhotoCard,
-  ProgressRail,
   ResumeOrderCard,
   Screen,
   ScreenBody,
   SearchCapsule,
   SectionTitle,
+  GreetingHeader,
   HowPickupWorks,
   MoveItAgain,
   ServicePausedNotice,
   ShopsComingCard,
   SuggestShopCard,
   SkeletonCard,
-  StatusPill,
-  Thumb,
   WaveBanner,
   WaveClosedBanner,
 } from "../../components/v6";
 import { useLayout } from "../../hooks/useLayout";
 import { openOrderTracking } from "../../lib/desktopNavigate";
 import { useShops } from "../../lib/shops";
-import { useMyOrders, useRecentPickupRoutes } from "../../lib/orders";
+import { LIVE_ORDER_STATUSES, useMyOrders, useRecentPickupRoutes } from "../../lib/orders";
 import { useWave } from "../../lib/wave";
 import { useBuyForMeStatus, useServiceStatus } from "../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
-import { useCheckpoints } from "../../lib/checkpoints";
 import { useAuthStore } from "../../store/authStore";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
-import { orderProgress, statusPill } from "./orderPresenters";
 import { StudentHomeWeb } from "./web/StudentHomeWeb";
 import type { ServiceMode } from "../../components/v6";
-import type { Order, Shop } from "../../types";
+import type { Shop } from "../../types";
+import { BoxIcon } from "../../components/icons";
+import { colors } from "../../theme/tokens";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
 
@@ -68,9 +66,8 @@ function HomeScreenMobile() {
   const wave = useWave();
   const [mode, setMode] = useState<ServiceMode>("buy");
   const { data: service } = useServiceStatus();
-  const universityId = useAuthStore((state) => state.profile?.universityId ?? undefined);
-  const { data: checkpoints } = useCheckpoints(universityId);
-  const checkpointCount = checkpoints?.length ?? 0;
+  const profileName = useAuthStore((state) => state.profile?.fullName ?? "there");
+  const avatarUrl = useAuthStore((state) => state.profile?.avatarUrl ?? null);
   // Before Buy for me launches there is only one service, so there is nothing
   // to switch between and no shops to show.
   const effectiveMode: ServiceMode = buyForMeLaunched ? mode : "pickup";
@@ -87,10 +84,6 @@ function HomeScreenMobile() {
       isSpecialOrder: wave ? !isStandardRunDay(wave.date) : false,
     }),
     [wave],
-  );
-
-  const live = (orders ?? []).find((o) =>
-    ["confirmed", "rider_assigned", "en_route", "at_checkpoint"].includes(o.status),
   );
 
   /**
@@ -112,20 +105,54 @@ function HomeScreenMobile() {
     return (shops ?? []).filter((s) => ids.has(s.id));
   }, [orders, shops]);
 
+  const active = (orders ?? []).filter((o) => LIVE_ORDER_STATUSES.includes(o.status));
+
   return (
     <Screen>
-      <BrandBar />
-
-      {/* Both services, always visible. Tabs rather than a filled control:
-          Home already carries a shadowed capsule and the Wave card, and a third
-          container was what made the screen feel crowded. */}
-      {buyForMeLaunched ? (
-        <Gutter>
-          <ModeTabs mode={mode} onChange={setMode} />
-        </Gutter>
-      ) : null}
-
       <ScreenBody bottomInset={32}>
+        {/* One ink panel: who you are, the one action, and — once there are
+            shops — the search. Everything below it is white on canvas, so the
+            screen has a single anchor instead of five cards of equal weight. */}
+        <GreetingHeader
+          name={profileName}
+          avatarUrl={avatarUrl}
+          alert={active.length > 0 || !!unpaid}
+          onPressAvatar={() => navigation.navigate("Tabs", { screen: "Profile" })}
+          onPressBell={() => navigation.navigate("Tabs", { screen: "Orders" })}
+        >
+          {buyForMeLaunched ? (
+            <View className="mb-3">
+              <SearchCapsule
+                mode={effectiveMode}
+                onPressQuery={() =>
+                  effectiveMode === "pickup"
+                    ? navigation.navigate("PickupRequest", waveDate)
+                    : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
+                }
+                onSubmit={() =>
+                  effectiveMode === "pickup"
+                    ? navigation.navigate("PickupRequest", waveDate)
+                    : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
+                }
+              />
+            </View>
+          ) : null}
+
+          <ActionTile
+            label="Send a package"
+            meta={`Flat ${formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)}, checkpoint to checkpoint`}
+            icon={<BoxIcon size={20} color={colors.ink} strokeWidth={1.9} />}
+            disabled={!!paused?.paused}
+            onPress={() => navigation.navigate("PickupRequest", waveDate)}
+          />
+        </GreetingHeader>
+
+        {/* Both services, once there are two. */}
+        {buyForMeLaunched ? (
+          <Gutter className="pt-5">
+            <ModeTabs mode={mode} onChange={setMode} />
+          </Gutter>
+        ) : null}
         {/* A pause outranks everything, search included: it is the one thing
             on this screen that changes whether any of the rest will work. */}
         {paused?.paused ? (
@@ -138,28 +165,7 @@ function HomeScreenMobile() {
           </Gutter>
         ) : null}
 
-        {/* Search leads — once there is something to search. Before Buy for me
-            launches the only journey is a pickup, and the capsule was a second
-            door to the screen the button already opens. */}
-        {buyForMeLaunched ? (
-          <Gutter className="pb-4 pt-5">
-            <SearchCapsule
-              mode={effectiveMode}
-              onPressQuery={() =>
-                effectiveMode === "pickup"
-                  ? navigation.navigate("PickupRequest", waveDate)
-                  : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
-              }
-              onSubmit={() =>
-                effectiveMode === "pickup"
-                  ? navigation.navigate("PickupRequest", waveDate)
-                  : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
-              }
-            />
-          </Gutter>
-        ) : null}
-
-        <Gutter className={buyForMeLaunched ? "pb-4" : "pb-4 pt-5"}>
+        <Gutter className="pb-4 pt-5">
           {wave && !wave.closed ? (
             <WaveBanner wave={wave} onPress={() => navigation.navigate("WaveCalendar")} />
           ) : (
@@ -181,36 +187,30 @@ function HomeScreenMobile() {
           </Gutter>
         ) : null}
 
-        {live ? (
-          <LiveOrderCard
-            order={live}
-            onPress={() => openOrderTracking(navigation, live.id)}
-          />
+        {active.length > 0 ? (
+          <Gutter className="pt-2">
+            <Text className="mb-3 font-sans-medium text-heading-sm text-ink">
+              {active.length === 1 ? "Active delivery" : `Active deliveries (${active.length})`}
+            </Text>
+            <View style={{ gap: 8 }}>
+              {active.map((order) => (
+                <ActiveDeliveryCard
+                  key={order.id}
+                  order={order}
+                  onPress={() => openOrderTracking(navigation, order.id)}
+                />
+              ))}
+            </View>
+          </Gutter>
         ) : null}
 
         {/* A shop rail is meaningless when nothing is being bought, so Pickup
             gets the thing it actually needs: the route, again. */}
         {effectiveMode === "pickup" ? (
           <>
-            <Gutter>
-              <Text className="mb-1 font-sans-medium text-heading-sm text-ink">Move a package</Text>
-              {/* Two facts rather than a paragraph: what it costs and how many
-                  places it can be handed over. Both read from live data. */}
-              <Text className="mb-4 font-sans text-body text-muted">
-                Flat {formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)} between campus checkpoints
-                {checkpointCount ? ` · ${checkpointCount} pickup points on campus` : ""}.
-              </Text>
-              <Button
-                label="Start a pickup"
-                full={false}
-                disabled={!!paused?.paused}
-                onPress={() => navigation.navigate("PickupRequest", waveDate)}
-              />
-            </Gutter>
-
             {/* A route this student has sent before is one tap. Absent for
                 anyone who has not sent a package yet. */}
-            <Gutter className="pt-6">
+            <Gutter className="pt-2">
               <MoveItAgain
                 onPick={(route) =>
                   navigation.navigate("PickupRequest", {
@@ -355,40 +355,6 @@ function Section({
   );
 }
 
-/**
- * The live order strip. Replaces v5's "Active orders" list — a student has at
- * most one order in flight in practice, and a one-item list is a card wearing a
- * heading.
- */
-function LiveOrderCard({ order, onPress }: { order: Order; onPress: () => void }) {
-  const pill = statusPill(order.status);
-  return (
-    <Gutter className="mb-section">
-      <View className="rounded-card bg-surface p-4">
-        <View className="mb-3 flex-row items-center gap-3">
-          <Thumb uri={order.shop?.logoUrl} size={48} />
-          <View className="flex-1">
-            <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
-              {order.shop?.name ?? "Your order"}
-            </Text>
-            <Text className="font-sans text-body text-muted" numberOfLines={1}>
-              To {order.checkpoint?.name ?? "your checkpoint"}
-            </Text>
-          </View>
-          <StatusPill label={pill.label} tone={pill.tone} />
-        </View>
-        <ProgressRail ratio={orderProgress(order.status)} />
-        <Text
-          className="pt-3 font-sans-medium text-body text-ink"
-          onPress={onPress}
-          accessibilityRole="button"
-        >
-          Track this order
-        </Text>
-      </View>
-    </Gutter>
-  );
-}
 
 function titleCase(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
