@@ -496,8 +496,16 @@ model RiderVerification {
 }
 
 model StudentDeliveryStats {
-  studentId        String   @id @map("student_id")
-  totalDeliveries  Int      @default(0) @map("total_deliveries")
+  studentId       String @id @map("student_id")
+  /// Lifetime deliveries. Never reset — it is the account's history, and the
+  /// admin and the profile both report on it.
+  totalDeliveries Int    @default(0) @map("total_deliveries")
+  /// Stamps toward the NEXT reward, which is why this exists alongside
+  /// `totalDeliveries`: the discount became one-shot on 2026-09-23, so the
+  /// number that earns it has to be spendable. Incremented on every delivery,
+  /// reduced by the threshold when a discounted order is actually paid for, and
+  /// put back if that order is later refunded.
+  rewardStamps    Int    @default(0) @map("reward_stamps")
   discountEligible Boolean  @default(false) @map("discount_eligible")
   updatedAt        DateTime @updatedAt @map("updated_at")
 

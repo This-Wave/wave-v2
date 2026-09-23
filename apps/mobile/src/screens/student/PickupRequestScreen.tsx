@@ -29,7 +29,7 @@ import {
 } from "../../lib/pricing";
 
 /**
- * Campus-to-campus package pickup: move something already on campus from one
+ * Checkpoint-to-checkpoint package pickup: move something you already have from one
  * checkpoint to another.
  *
  * This used to be a dead form — `POST /orders` required a `shopId` and an order
@@ -105,7 +105,7 @@ export function PickupRequestScreen() {
         <Gutter>
           <Text className="mb-1 font-sans-bold text-heading text-ink">Send a package</Text>
           <Text className="mb-6 font-sans text-body text-muted">
-            Carried between campus checkpoints on the next Wave. The delivery fee is the whole
+            Carried between checkpoints on the next Wave. The delivery fee is the whole
             price.
           </Text>
 

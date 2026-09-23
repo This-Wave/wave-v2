@@ -38,7 +38,12 @@ function makePrisma(switches: unknown[]) {
     product: {
       findMany: vi.fn().mockResolvedValue([{ id: PRODUCT, name: "Jollof", price: "30.00", status: "active" }]),
     },
-    order: { create: vi.fn().mockResolvedValue({ id: "order-1" }) },
+    // `findFirst` is the anti-stacking check on the loyalty reward: the order
+    // route refuses a second discounted order while one sits unpaid.
+    order: {
+      create: vi.fn().mockResolvedValue({ id: "order-1" }),
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
   };
 }
 

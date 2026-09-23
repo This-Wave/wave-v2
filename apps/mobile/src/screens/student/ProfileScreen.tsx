@@ -26,7 +26,7 @@ import {
 import { colors } from "../../theme/tokens";
 import { getLegalLinks, openLegalLink } from "../../lib/legal";
 import { useAuthStore } from "../../store/authStore";
-import { useMyOrders } from "../../lib/orders";
+import { useLoyalty } from "../../lib/loyalty";
 import { signOut } from "../../lib/auth";
 import { updateProfile } from "../../lib/profile";
 import { isStandardRunDay } from "../../lib/pricing";
@@ -63,13 +63,11 @@ function ProfileMobile() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const profile = useAuthStore((s) => s.profile);
   const setProfile = useAuthStore((s) => s.setProfile);
-  const { data: orders } = useMyOrders();
+  const { data: loyalty } = useLoyalty();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [email, setEmail] = useState(profile?.email ?? "");
   const [emailSaving, setEmailSaving] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
-
-  const completed = (orders ?? []).filter((o) => o.status === "delivered").length;
 
   const legal = getLegalLinks();
 
@@ -85,7 +83,12 @@ function ProfileMobile() {
         </Gutter>
 
         <Gutter className="mb-8">
-          <LoyaltyStamps completed={completed} />
+          <LoyaltyStamps
+            stamps={loyalty?.stamps ?? 0}
+            threshold={loyalty?.threshold}
+            discountPct={loyalty?.discountPct}
+            pending={loyalty?.rewardPending}
+          />
         </Gutter>
 
         <Gutter>

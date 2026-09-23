@@ -157,7 +157,7 @@ export function ShopMenuScreen() {
           {!buyForMeLaunched ? (
             <Empty
               title="Shop orders are coming soon"
-              body="We're signing up shops now. Wave can still move a package between campus checkpoints."
+              body="We're signing up shops now. Wave can still move a package between checkpoints for you."
             />
           ) : isLoading ? (
             <ListSkeleton rows={3} />

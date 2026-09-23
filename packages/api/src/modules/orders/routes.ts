@@ -106,9 +106,28 @@ export async function orderRoutes(fastify: FastifyInstance) {
       // The loyalty discount applies to the DELIVERY FEE ONLY, never to the
       // items — see calculateOrderTotal, and Wave_Technical_Document.md §"20%
       // discount applies to delivery fee, not the item purchase price".
+      // One-shot since 2026-09-23: a full stamp card takes the discount off the
+      // NEXT order and is then spent. `rewardStamps` is the spendable number —
+      // `totalDeliveries` is lifetime history and would make the discount
+      // permanent again if it were read here.
+      //
+      // The second condition is the anti-stacking guard. Stamps are only
+      // consumed when an order is *paid*, so without this a student holding one
+      // full card could build three unpaid orders, each priced with the
+      // discount, and then pay all three. One reward, one discounted order in
+      // flight at a time.
+      const rewardHeldOpen = await fastify.prisma.order.findFirst({
+        where: {
+          studentId: request.user!.id,
+          status: "payment_pending",
+          discountApplied: { gt: 0 },
+        },
+        select: { id: true },
+      });
       const discountPct =
+        !rewardHeldOpen &&
         calculateDiscount({
-          totalDeliveries: stats?.totalDeliveries ?? 0,
+          stamps: stats?.rewardStamps ?? 0,
           baseAmount: 1,
           threshold,
           discountPct: configuredDiscountPct,
@@ -1138,10 +1157,12 @@ async function settleDelivery(args: {
     data: { orderId: order.id, status: "delivered", changedBy: closedBy, note },
   });
 
+  // Two counters on purpose: `totalDeliveries` is the account's history and is
+  // never reset, `rewardStamps` is what the one-shot discount spends.
   await fastify.prisma.studentDeliveryStats.upsert({
     where: { studentId: order.studentId },
-    create: { studentId: order.studentId, totalDeliveries: 1 },
-    update: { totalDeliveries: { increment: 1 } },
+    create: { studentId: order.studentId, totalDeliveries: 1, rewardStamps: 1 },
+    update: { totalDeliveries: { increment: 1 }, rewardStamps: { increment: 1 } },
   });
 
   // The rider is paid for the run whichever way it was closed. A delivery that

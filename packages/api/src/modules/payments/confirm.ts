@@ -1,3 +1,4 @@
+import { DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
 import { recordAudit, SYSTEM_ACTOR } from "../../lib/audit";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import { issueDeliveryPin } from "../orders/issuePin";
@@ -91,6 +92,32 @@ export async function confirmDeliveryFeePaid(args: {
       );
     }
     return { confirmed: true, alreadyProcessed: true };
+  }
+
+  // The stamp card is spent here and nowhere else.
+  //
+  // This sits immediately after the claim because the claim is the only
+  // exactly-once point in the whole payment path: webhook and verify-poll both
+  // call this function for the same order, and only one of them gets
+  // `count === 1`. Spending the card anywhere earlier — at order creation, say —
+  // would charge a student their reward for a checkout they abandoned, and the
+  // sweeper cancels unpaid orders after 45 minutes.
+  //
+  // `decrement` by the threshold rather than a write to 0: a delivery that
+  // completed between the card filling and this order being paid is a stamp the
+  // student earned towards their *next* card, and setting 0 would eat it.
+  if (Number(order.discountApplied) > 0) {
+    const thresholdRow = await fastify.prisma.platformConfig.findUnique({
+      where: { key: "loyalty_threshold" },
+    });
+    const threshold = Number(thresholdRow?.value ?? DEFAULT_LOYALTY_THRESHOLD);
+    // `updateMany` with the predicate, so a card that has somehow already been
+    // spent cannot go negative — the floor is enforced by the database rather
+    // than by reading first and hoping.
+    await fastify.prisma.studentDeliveryStats.updateMany({
+      where: { studentId: order.studentId, rewardStamps: { gte: threshold } },
+      data: { rewardStamps: { decrement: threshold } },
+    });
   }
 
   const { smsSent } = await issueDeliveryPin({

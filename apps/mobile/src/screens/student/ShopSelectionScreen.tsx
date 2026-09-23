@@ -154,7 +154,7 @@ export function ShopSelectionScreen() {
           // Reachable by a link or an old build; Home leaves it out entirely.
           <Empty
             title="Shop orders are coming soon"
-            body="We're signing up shops now. Meanwhile Wave can move a package between campus checkpoints for you."
+            body="We're signing up shops now. Meanwhile Wave can move a package between checkpoints for you."
           />
         ) : isLoading ? (
           <CardGrid>

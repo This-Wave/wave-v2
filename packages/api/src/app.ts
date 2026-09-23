@@ -22,6 +22,7 @@ import { adminRoutes } from "./modules/admin/routes";
 import { notificationRoutes } from "./modules/notifications/routes";
 import { suggestionRoutes } from "./modules/suggestions/routes";
 import { featureRoutes, adminFeatureRoutes } from "./modules/features/routes";
+import { loyaltyRoutes } from "./modules/loyalty/routes";
 import { groupBasketRoutes } from "./modules/groupBaskets/routes";
 import { staffRoutes } from "./modules/staff/routes";
 import { serviceStatusRoutes, adminSwitchRoutes } from "./modules/switches/routes";
@@ -83,6 +84,7 @@ export function buildApp(): FastifyInstance {
   app.register(notificationRoutes, { prefix: "/v1/notifications" });
   app.register(suggestionRoutes, { prefix: "/v1/shop-suggestions" });
   app.register(featureRoutes, { prefix: "/v1" });
+  app.register(loyaltyRoutes, { prefix: "/v1" });
   app.register(adminFeatureRoutes, { prefix: "/v1/admin" });
   app.register(groupBasketRoutes, { prefix: "/v1/group-baskets" });
   app.register(staffRoutes, { prefix: "/v1/admin/staff" });

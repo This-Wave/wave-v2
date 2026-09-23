@@ -107,7 +107,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           kind: "p",
-          text: "Wave arranges for a rider to buy goods on your behalf from an off-campus shop and bring them to a campus checkpoint. Wave is a delivery and coordination service. It is not the manufacturer or, except where stated, the seller of the goods.",
+          text: "Wave arranges for a rider to buy goods on your behalf from an off-campus shop and bring them to a checkpoint. Wave is a delivery and coordination service. It is not the manufacturer or, except where stated, the seller of the goods.",
         },
         {
           kind: "p",
@@ -158,7 +158,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           kind: "p",
-          text: "Delivery is to a campus checkpoint you choose, not to a room or hostel door. Be at the checkpoint when the app tells you the rider has arrived.",
+          text: "Delivery is to a checkpoint you choose, not to a room or hostel door. Be at the checkpoint when the app tells you the rider has arrived.",
         },
         {
           kind: "p",

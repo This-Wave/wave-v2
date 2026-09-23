@@ -162,11 +162,14 @@ export type DeliveryDay = (typeof DELIVERY_DAYS)[number];
  * `remaining` is 0 once earned, and the caller decides whether to say so.
  */
 export function loyaltyProgress(
-  completedDeliveries: number,
+  stamps: number,
   threshold: number = DEFAULT_LOYALTY_THRESHOLD,
   discountPct: number = DEFAULT_LOYALTY_DISCOUNT_PCT,
 ): { earned: boolean; completed: number; threshold: number; remaining: number; discountPct: number } {
-  const completed = Math.max(0, Math.floor(completedDeliveries));
+  // `completed` is stamps toward the next reward, not lifetime deliveries. The
+  // discount became one-shot on 2026-09-23: a full card is spent on the next
+  // order and the stamps reset, so this number goes down as well as up.
+  const completed = Math.max(0, Math.floor(stamps));
   const earned = completed >= threshold;
   return {
     earned,
@@ -180,7 +183,10 @@ export function loyaltyProgress(
 /** The one sentence both the profile and the review screen show. */
 export function loyaltyProgressLabel(progress: ReturnType<typeof loyaltyProgress>): string {
   if (progress.earned) {
-    return `You get ${progress.discountPct}% off delivery on every order.`;
+    // "every order" was true while the discount was permanent. It is one order
+    // now, and promising more than that in the place a student reads it is the
+    // kind of copy that turns into a support message.
+    return `Reward ready — ${progress.discountPct}% off your next delivery fee.`;
   }
   const n = progress.remaining;
   return `${n} more ${n === 1 ? "delivery" : "deliveries"} for ${progress.discountPct}% off delivery.`;

@@ -35,7 +35,7 @@ describe("loyaltyProgressLabel", () => {
 
   it("switches to the earned sentence once it applies", () => {
     expect(loyaltyProgressLabel(loyaltyProgress(DEFAULT_LOYALTY_THRESHOLD))).toBe(
-      "You get 20% off delivery on every order.",
+      "Reward ready — 20% off your next delivery fee.",
     );
   });
 });

@@ -60,7 +60,7 @@ export function ChooseServiceScreen() {
           <ServiceRow
             icon={<BoxIcon size={22} color={colors.ink} strokeWidth={1.7} />}
             title="Pickup"
-            body="Already have the thing? We'll move it from one campus checkpoint to another. You pay the delivery fee only."
+            body="Already have the thing? We'll move it from one checkpoint to another. You pay the delivery fee only."
             onPress={() =>
               navigation.navigate("PickupRequest", {
                 scheduledDate: params.scheduledDate,

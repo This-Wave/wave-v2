@@ -21,7 +21,8 @@ import { colors } from "../../theme/tokens";
 import { useCheckpoints } from "../../lib/checkpoints";
 import { useAuthStore } from "../../store/authStore";
 import { useLastCheckpoint } from "../../hooks/useLastCheckpoint";
-import { useCompletedDeliveryCount, useCreateOrder } from "../../lib/orders";
+import { useCreateOrder } from "../../lib/orders";
+import { useLoyalty } from "../../lib/loyalty";
 import { apiErrorMessage } from "../../lib/apiError";
 import {
   deliveryDayFor,
@@ -64,7 +65,7 @@ export function OrderSummaryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
   const createOrder = useCreateOrder();
-  const completedDeliveries = useCompletedDeliveryCount();
+  const { data: loyalty } = useLoyalty();
   const [error, setError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -90,9 +91,9 @@ export function OrderSummaryScreen() {
       estimateOrderTotal({
         itemPrice: basketTotal,
         isSpecialOrder: params.isSpecialOrder,
-        completedDeliveries,
+        rewardReady: !!loyalty?.rewardReady,
       }),
-    [basketTotal, params.isSpecialOrder, completedDeliveries],
+    [basketTotal, params.isSpecialOrder, loyalty?.rewardReady],
   );
 
   async function handleConfirm() {

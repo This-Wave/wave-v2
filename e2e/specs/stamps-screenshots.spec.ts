@@ -5,12 +5,13 @@ import { ACCOUNTS, type RoleKey } from "../fixtures/accounts";
 import { signIn } from "../fixtures/session";
 
 /**
- * The delivery stamp card, at the three counts that look different.
+ * The delivery stamp card, at the counts that look different.
  *
- * The seed student has seven delivered orders, so live data only ever shows a
- * full card. The counts are faked with a route intercept — the screen derives
- * `completed` from the order list and nothing else on it reads the orders, so a
- * list of bare statuses is a sufficient fixture.
+ * The reward is one-shot, so the card comes from `GET /loyalty` rather than
+ * being counted out of the order list — which is exactly why the fixture is an
+ * intercept on that endpoint. The seed student sits on 1 stamp (7 lifetime
+ * deliveries, one card already spent), so live data shows neither a full card
+ * nor an empty one.
  *
  *   npx playwright test -c e2e/playwright.shots.config.ts stamps
  */
@@ -25,21 +26,24 @@ test.use({
   viewport: { width: 390, height: 844 },
 });
 
-const delivered = (n: number) =>
+const loyalty = (stamps: number, pending = false) =>
   JSON.stringify({
-    orders: Array.from({ length: n }, (_, i) => ({
-      id: `00000000-0000-0000-0000-0000000009${String(i).padStart(2, "0")}`,
-      status: "delivered",
-      orderType: "pickup",
-      deliveryFee: "20",
-      discountApplied: "0",
-      createdAt: new Date().toISOString(),
-    })),
+    stamps,
+    threshold: 6,
+    discountPct: 20,
+    totalDeliveries: stamps,
+    rewardReady: stamps >= 6 && !pending,
+    rewardPending: stamps >= 6 && pending,
   });
 
-async function openProfile(page: Page, count: number, name: string): Promise<void> {
-  await page.route("**/orders/my", (route) =>
-    route.fulfill({ status: 200, contentType: "application/json", body: delivered(count) }),
+async function openProfile(
+  page: Page,
+  count: number,
+  name: string,
+  pending = false,
+): Promise<void> {
+  await page.route("**/loyalty", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: loyalty(count, pending) }),
   );
   await signIn(page, "student");
   await page.addInitScript((profileId) => {
@@ -67,9 +71,16 @@ test("@mobile an empty card", async ({ page }) => {
   await expect(page.getByText("0 of 6").first()).toBeVisible();
 });
 
-test("@mobile a full card stops at six", async ({ page }) => {
-  // Nine delivered, six slots: the card must not grow a seventh stamp.
+test("@mobile a full card stops at six and says the reward is ready", async ({ page }) => {
+  // Nine stamps, six slots: the card must not grow a seventh.
   await openProfile(page, 9, "03-full");
   await expect(page.getByText("6 of 6").first()).toBeVisible();
-  await expect(page.getByText(/Card full/).first()).toBeVisible();
+  await expect(page.getByText(/Reward ready/).first()).toBeVisible();
+});
+
+test("@mobile a full card already spent on an unpaid order says so", async ({ page }) => {
+  // Saying "reward ready" here would promise a discount the next order will not
+  // get, because the order route refuses a second one while this is open.
+  await openProfile(page, 6, "04-pending", true);
+  await expect(page.getByText(/haven't paid for yet/).first()).toBeVisible();
 });

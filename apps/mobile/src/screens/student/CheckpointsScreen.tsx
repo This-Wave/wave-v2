@@ -16,7 +16,7 @@ import { useLayout } from "../../hooks/useLayout";
 import { StudentCheckpointsWeb } from "./web/StudentCheckpointsWeb";
 
 /**
- * The campus drop-off points, read-only.
+ * The checkpoints Wave hands over at, read-only.
  * Web uses a card grid; native keeps the phone list.
  */
 export function CheckpointsScreen() {

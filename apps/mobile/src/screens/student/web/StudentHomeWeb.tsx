@@ -91,8 +91,8 @@ export function StudentHomeWeb() {
             </Text>
             <Text className="mt-1 font-sans text-ui text-muted">
               {buyForMeLaunched
-                ? "Order from campus partners. We buy and bring it to your checkpoint."
-                : "We collect from one campus checkpoint and drop at another. Shop orders are coming soon."}
+                ? "Order from off-campus shops. We buy and bring it in to your checkpoint."
+                : "We collect from one checkpoint and drop at another. Shop orders are coming soon."}
             </Text>
           </View>
           <Pressable
@@ -151,8 +151,8 @@ export function StudentHomeWeb() {
         ) : (
           <Gutter className="mb-10">
             <Text className="mb-4 font-sans text-body text-muted">
-              Flat {formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)} between campus checkpoints
-              {checkpointCount ? ` · ${checkpointCount} pickup points on campus` : ""}.
+              Flat {formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)} between checkpoints
+              {checkpointCount ? ` · ${checkpointCount} checkpoints to choose from` : ""}.
             </Text>
             <Button
               label="Start a pickup"

@@ -28,8 +28,19 @@ import { colors } from "../../theme/tokens";
  * The sentence above states the count either way, so nothing here is carried by
  * colour alone.
  */
-export function LoyaltyStamps({ completed }: { completed: number }) {
-  const progress = loyaltyProgress(completed);
+export function LoyaltyStamps({
+  stamps,
+  threshold,
+  discountPct,
+  /** A full card already priced into an unpaid order — see `lib/loyalty.ts`. */
+  pending = false,
+}: {
+  stamps: number;
+  threshold?: number;
+  discountPct?: number;
+  pending?: boolean;
+}) {
+  const progress = loyaltyProgress(stamps, threshold, discountPct);
   // Past the threshold the card stops being a target and becomes a statement,
   // so it fills rather than showing a seventh stamp with nowhere to go.
   const filled = Math.min(progress.completed, progress.threshold);
@@ -80,8 +91,13 @@ export function LoyaltyStamps({ completed }: { completed: number }) {
 
       <Text className="mt-4 font-sans text-body text-ink-700">
         {progress.earned
-          ? `Card full — ${progress.discountPct}% off the delivery fee on every order.`
-          : `${progress.remaining} more ${progress.remaining === 1 ? "delivery" : "deliveries"} and the next card gets ${progress.discountPct}% off the delivery fee.`}
+          ? pending
+            ? // The card is full but already priced into an order waiting to be
+              // paid. Saying "reward ready" here would promise a discount the
+              // next order would not get.
+              `Your ${progress.discountPct}% off is on the order you haven't paid for yet.`
+            : `Reward ready — ${progress.discountPct}% off your next delivery fee, then the card resets.`
+          : `${progress.remaining} more ${progress.remaining === 1 ? "delivery" : "deliveries"} for ${progress.discountPct}% off one delivery fee.`}
       </Text>
     </View>
   );

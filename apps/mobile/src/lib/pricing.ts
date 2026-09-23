@@ -3,7 +3,6 @@ import {
   RUN_DAYS,
   DEFAULT_DELIVERY_FEE_GHS,
   DEFAULT_LOYALTY_DISCOUNT_PCT,
-  DEFAULT_LOYALTY_THRESHOLD,
   DEFAULT_SPECIAL_ORDER_LEAD_HOURS,
   DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
 } from "@wave/shared";
@@ -34,11 +33,19 @@ export function earliestSpecialOrderDate(now: Date = new Date()): Date {
 export function estimateOrderTotal(input: {
   itemPrice: number;
   isSpecialOrder: boolean;
-  completedDeliveries: number;
+  /**
+   * Whether the student is holding a full stamp card that this order will
+   * actually spend — the server's `rewardReady`, not a count of past
+   * deliveries. The discount became one-shot on 2026-09-23, so "six or more
+   * deliveries" stopped predicting it: the counter is spent when a discounted
+   * order is paid for, and an order already holding the reward blocks a second.
+   * Guessing locally would quote a total the server then disagreed with.
+   */
+  rewardReady: boolean;
 }) {
   const deliveryFee = DEFAULT_DELIVERY_FEE_GHS;
   const surchargePct = input.isSpecialOrder ? DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT : 0;
-  const discountPct = input.completedDeliveries >= DEFAULT_LOYALTY_THRESHOLD ? DEFAULT_LOYALTY_DISCOUNT_PCT : 0;
+  const discountPct = input.rewardReady ? DEFAULT_LOYALTY_DISCOUNT_PCT : 0;
 
   const surchargeAmount = (deliveryFee * surchargePct) / 100;
   const discountAmount = (deliveryFee * discountPct) / 100;
