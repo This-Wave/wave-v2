@@ -44,10 +44,20 @@ export function OrderFeedScreen() {
   const activeRun = (myDeliveries ?? []).find((o) =>
     ["rider_assigned", "en_route", "at_checkpoint"].includes(o.status),
   );
-  const { data: orders, isLoading, isError, refetch, isRefetching } = useAvailableOrders();
+  const {
+    data: orders,
+    isLoading,
+    isError,
+    refetch,
+    isRefetching,
+  } = useAvailableOrders({ enabled: online });
   const setAvailability = useSetAvailability();
   const wave = useWave();
   const { isDesktop } = useLayout();
+
+  // Desktop has its own "Available" page heading, so the section label would be
+  // a second one.
+  const showHeading = !isDesktop && online && !!orders && orders.length > 0;
 
   function handleToggle(value: boolean) {
     setOnline(value);
@@ -124,25 +134,35 @@ export function OrderFeedScreen() {
           </Gutter>
         ) : null}
 
-        {!isDesktop && online && orders && orders.length > 0 ? (
+        {showHeading ? (
           <Gutter className="pt-6">
             <Text className="mb-3 font-sans-medium text-heading-sm text-ink">Available to claim</Text>
           </Gutter>
         ) : null}
 
-        <Gutter>
-          {isLoading ? (
+        {/* The heading is what clears the greeting panel, so without it the
+            body needs its own top padding — otherwise the error card and the
+            skeleton sit flush against the panel's rounded edge. */}
+        <Gutter className={!isDesktop && !showHeading ? "pt-6" : undefined}>
+          {/* Offline outranks every other state, error included. It has to be
+              checked here rather than left to `orders` being absent, because
+              the cached rows survive the switch — react-query keeps the data of
+              a query it has stopped running — and a failure from before going
+              offline would otherwise leave a retry button on a feed the rider
+              has deliberately closed. */}
+          {!online ? (
+            <Empty
+              title="You're offline"
+              body="Turn on availability to see and claim orders for this Wave."
+            />
+          ) : isLoading ? (
             <ListSkeleton rows={3} />
           ) : isError ? (
             <ListError onRetry={() => void refetch()} />
           ) : !orders || orders.length === 0 ? (
             <Empty
               title="Nothing waiting"
-              body={
-                online
-                  ? "New orders land here as students place them for this Wave."
-                  : "You're offline. Turn on availability to receive orders."
-              }
+              body="New orders land here as students place them for this Wave."
             />
           ) : isDesktop ? (
             <View className="overflow-hidden rounded-card bg-surface">
