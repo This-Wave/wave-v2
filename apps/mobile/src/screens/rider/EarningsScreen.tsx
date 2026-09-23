@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import {
+  BrandBar,
   Chip,
   Empty,
   Gutter,
@@ -60,6 +61,7 @@ export function EarningsScreen() {
 
   return (
     <Screen>
+      <BrandBar />
       <ScreenBody bottomInset={24}>
         <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-6 pt-4"}>
           {isDesktop ? (

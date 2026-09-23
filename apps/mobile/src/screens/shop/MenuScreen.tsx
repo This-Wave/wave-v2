@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import type { ProductStatus } from "@wave/shared";
 import type { Product } from "../../types";
 import {
+  BrandBar,
   Empty,
   Field,
   Gutter,
@@ -75,6 +76,7 @@ export function MenuScreen() {
 
   return (
     <Screen>
+      <BrandBar />
       <ScreenBody
         bottomInset={24}
         refreshing={isRefetching}

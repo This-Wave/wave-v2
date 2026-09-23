@@ -279,3 +279,38 @@ export const SettingsIcon: Icon = ({ size = 18, color = colors.muted, strokeWidt
     />
   </Svg>
 );
+
+/**
+ * The Wave app mark: ink ground, two lime strokes.
+ *
+ * Transcribed path-for-path from `assets/source/mark.svg`, which is the single
+ * source every app icon and PWA raster is generated from. It is drawn here
+ * rather than loaded as one of those rasters because they are 1024px squares of
+ * ink — fine as an app icon, a heavy black tile at 28px in a header — and
+ * because a vector stays sharp at whatever size a bar asks for.
+ *
+ * Two strokes, not three: the third stops reading below about 32px.
+ *
+ * `mark.svg` still carries a PLACEHOLDER note, so this glyph is expected to
+ * change with it. Keep the two in step — if the strokes move there, move them
+ * here.
+ */
+export const WaveMarkIcon = ({ size = 28 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 1024 1024">
+    <Rect width={1024} height={1024} fill={colors.ink} />
+    <Path
+      d="M 192 412 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"
+      fill="none"
+      stroke={colors.lime}
+      strokeWidth={76}
+      strokeLinecap="round"
+    />
+    <Path
+      d="M 192 612 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"
+      fill="none"
+      stroke={colors.lime}
+      strokeWidth={76}
+      strokeLinecap="round"
+    />
+  </Svg>
+);

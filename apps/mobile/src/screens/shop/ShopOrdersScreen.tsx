@@ -3,6 +3,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { ShopStackParamList } from "../../navigation/ShopNavigator";
 import {
+  BrandBar,
   Empty,
   Gutter,
   ListError,
@@ -35,6 +36,7 @@ export function ShopOrdersScreen() {
 
   return (
     <Screen>
+      <BrandBar />
       <ScreenBody
         bottomInset={24}
         refreshing={isRefetching}

@@ -7,7 +7,7 @@ export { RightPanel } from "./RightPanel";
 export { DesktopPanelHost } from "./DesktopPanelHost";
 export { Button } from "./Button";
 export { IconCircle, Chip, StatusPill, SectionTitle, PageTitle, Divider } from "./Controls";
-export { TopBar, BrandBar } from "./TopBar";
+export { TopBar, BrandBar, BrandLockup } from "./TopBar";
 export { SearchCapsule, SearchPill } from "./SearchCapsule";
 export { PhotoCard, CardRail, CardGrid } from "./PhotoCard";
 export { Row, RowGroup, Thumb, Empty, ListError, ListSkeleton } from "./List";

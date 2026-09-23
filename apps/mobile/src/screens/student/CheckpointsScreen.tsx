@@ -1,5 +1,6 @@
 import { Text, View } from "react-native";
 import {
+  BrandBar,
   Empty,
   Gutter,
   PageTitle,
@@ -30,6 +31,7 @@ function CheckpointsMobile() {
 
   return (
     <Screen>
+      <BrandBar />
       <ScreenBody bottomInset={24}>
         <Gutter className="pb-2 pt-4">
           <PageTitle>Checkpoints</PageTitle>

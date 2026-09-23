@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
 import {
+  BrandBar,
   Confirm,
   Gutter,
   PageTitle,
@@ -46,6 +47,7 @@ export function RiderProfileScreen() {
 
   return (
     <Screen>
+      <BrandBar />
       <ScreenBody bottomInset={24}>
         <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-8 pt-4"}>
           {isDesktop ? (

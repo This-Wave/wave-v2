@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
+  BrandBar,
   Confirm,
   Field,
   Gutter,
@@ -73,6 +74,7 @@ function ProfileMobile() {
 
   return (
     <Screen>
+      <BrandBar />
       <ScreenBody bottomInset={24}>
         <Gutter className="pb-8 pt-4">
           <PageTitle>{profile?.fullName ?? "Student"}</PageTitle>
