@@ -11,6 +11,7 @@ import {
   PageTitle,
   Screen,
   ScreenBody,
+  LoyaltyStamps,
   SettingsGroup,
   SettingsRow,
 } from "../../components/v6";
@@ -28,8 +29,7 @@ import { useAuthStore } from "../../store/authStore";
 import { useMyOrders } from "../../lib/orders";
 import { signOut } from "../../lib/auth";
 import { updateProfile } from "../../lib/profile";
-import { formatGhs, isStandardRunDay } from "../../lib/pricing";
-import { DEFAULT_LOYALTY_DISCOUNT_PCT, DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
+import { isStandardRunDay } from "../../lib/pricing";
 import { useLayout } from "../../hooks/useLayout";
 import { StudentProfileWeb } from "./web/StudentProfileWeb";
 import {
@@ -71,17 +71,7 @@ function ProfileMobile() {
 
   const completed = (orders ?? []).filter((o) => o.status === "delivered").length;
 
-  // Percentage × the fee it applied to — never the raw column.
-  const saved = (orders ?? []).reduce((sum, o) => {
-    const pct = Number(o.discountApplied ?? 0);
-    const fee = Number(o.deliveryFee ?? 0);
-    return sum + (fee * pct) / 100;
-  }, 0);
-
   const legal = getLegalLinks();
-
-  const remaining = Math.max(0, DEFAULT_LOYALTY_THRESHOLD - completed);
-  const unlocked = completed >= DEFAULT_LOYALTY_THRESHOLD;
 
   return (
     <Screen>
@@ -95,23 +85,7 @@ function ProfileMobile() {
         </Gutter>
 
         <Gutter className="mb-8">
-          <View className="rounded-card bg-surface p-5">
-            <Text className="mb-1 font-sans-semibold text-meta text-muted">LOYALTY</Text>
-            {unlocked ? (
-              <Text className="font-sans text-body text-ink">
-                You're getting {DEFAULT_LOYALTY_DISCOUNT_PCT}% off every delivery fee. You've saved{" "}
-                <Text className="font-sans-semibold">{formatGhs(saved)}</Text> so far across{" "}
-                {completed} deliveries.
-              </Text>
-            ) : (
-              <Text className="font-sans text-body text-ink">
-                {remaining} more{" "}
-                {remaining === 1 ? "delivery" : "deliveries"} and you'll get{" "}
-                {DEFAULT_LOYALTY_DISCOUNT_PCT}% off every delivery fee. You're at {completed} of{" "}
-                {DEFAULT_LOYALTY_THRESHOLD}.
-              </Text>
-            )}
-          </View>
+          <LoyaltyStamps completed={completed} />
         </Gutter>
 
         <Gutter>

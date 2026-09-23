@@ -16,7 +16,7 @@ import {
   Gutter,
   SearchCapsule,
   ServicePausedNotice,
-  ShopsComingCard,
+  PromoCard,
   SkeletonCard,
   StatusPill,
   Thumb,
@@ -179,7 +179,12 @@ export function StudentHomeWeb() {
                 <HowPickupWorks />
               </View>
               <View style={{ flex: 1, minWidth: 320 }}>
-                <ShopsComingCard onSuggest={() => navigation.navigate("SuggestShop", waveDate)} />
+                <PromoCard
+                  headline="Shop orders are coming"
+                  body="We're signing up shops around campus now. Tell us where you actually buy — the places the most people ask for open first."
+                  cta="Suggest a shop"
+                  onPress={() => navigation.navigate("SuggestShop", waveDate)}
+                />
               </View>
             </View>
           </Gutter>

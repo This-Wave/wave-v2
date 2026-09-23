@@ -1,75 +1,24 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import type { WaveInfo } from "../../lib/wave";
 import { countdownParts } from "../../lib/wave";
-import { ChevronRightIcon } from "../icons";
-import { colors } from "../../theme/tokens";
-
-/**
- * The next Wave as one line inside the greeting panel.
- *
- * Home used to give this a card of its own, stacked with the payment card, the
- * deliveries list and the routes — four cards of equal weight before a student
- * saw anything they had asked for. As a line in the panel it is context for the
- * action right below it, and the full counter lives one tap away on the Wave
- * screen, which is where someone who cares about the deadline is going anyway.
- *
- * `bg-white/10` matches the avatar and bell buttons in the same panel, so it
- * reads as a control rather than a caption. The card it replaced was pressable
- * with nothing to say so, which is how the calendar became undiscoverable.
- */
-export function WaveNote({ wave, onPress }: { wave: WaveInfo | null; onPress: () => void }) {
-  const closed = !wave || wave.closed;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={
-        closed
-          ? "Today's Wave has closed. See the next one"
-          : `${wave.name}, ${wave.countdown} left to order`
-      }
-      accessibilityHint="Opens the Wave calendar"
-      className="flex-row items-center rounded-input bg-white/10 px-3.5 py-3 active:bg-white/15"
-    >
-      <View className="min-w-0 flex-1 pr-2">
-        <Text className="font-sans-medium text-body text-white" numberOfLines={1}>
-          {closed ? "Today's Wave has closed" : wave.name}
-        </Text>
-        <Text className="font-sans text-meta text-white/70" numberOfLines={1}>
-          {closed ? "See the next one" : `${wave.countdown} left to order`}
-        </Text>
-      </View>
-
-      {!closed && wave.closingSoon ? (
-        <View className="mr-2 rounded-pill bg-lime px-2 py-0.5">
-          <Text className="font-sans-medium text-meta text-ink">closing soon</Text>
-        </View>
-      ) : null}
-
-      <ChevronRightIcon size={18} color={colors.white} strokeWidth={2} />
-    </Pressable>
-  );
-}
 
 /**
  * How long is left to join the next Wave, as a counter.
  *
- * This replaces the banner that used to sit on Home, and it is a counter rather
- * than a line of text because that is the one number the screen exists to
- * deliver. The old version squeezed "3d 22h" into a corner above a 2px progress
- * rail; at the start of a booking window the rail's lime fill was a few pixels
- * wide and read as a stray hairline next to the divider below it, so it was
- * decoration that told a student nothing the digits did not. It is gone.
+ * Lives on the Wave calendar screen. Home says which Wave is next in a single
+ * strip; someone who taps through to change the day is here because the timing
+ * matters to them, so this is where the full counter belongs.
+ *
+ * There is no progress rail. The one this replaced was 2px with a lime fill, so
+ * at the start of a booking window it was a few pixels wide and sat a few pixels
+ * from a real divider — decoration that told a student nothing the digits did
+ * not.
  *
  * The blocks carry the tinted wash rather than the accent: two solid lime tiles
- * side by side is a lot of accent for something that is information, and the
- * accent is spent on the thing worth pressing. `ink-700` on `lime-faint` is the
- * pairing the tokens define for exactly this — full ink on a tinted ground is
- * too heavy at this size.
- *
- * Under six hours the "closing soon" pill appears. That is the one moment the
- * accent is warranted here: "later" has stopped being a safe assumption.
+ * side by side is a lot of accent for information, and `ink-700` on `lime-faint`
+ * is the pairing the tokens define for exactly this. Under six hours the
+ * "closing soon" pill appears, which is the one moment the solid accent is
+ * warranted here.
  */
 export function WaveCountdown({ wave }: { wave: WaveInfo }) {
   const parts = countdownParts(wave.msLeft);

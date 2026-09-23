@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../../navigation/StudentNavigator";
 import {
+  LoyaltyStamps,
   Confirm,
   Gutter,
   Row,
@@ -16,7 +17,7 @@ import { useMyOrders } from "../../../lib/orders";
 import { signOut } from "../../../lib/auth";
 import { formatGhs, isStandardRunDay } from "../../../lib/pricing";
 import { openPaymentMethods } from "../../../lib/desktopNavigate";
-import { DEFAULT_LOYALTY_DISCOUNT_PCT, DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
+import { DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
 import {
   hasSupportContact,
   openSupportContact,
@@ -49,7 +50,6 @@ export function StudentProfileWeb() {
     const fee = Number(o.deliveryFee ?? 0);
     return sum + (fee * pct) / 100;
   }, 0);
-  const remaining = Math.max(0, DEFAULT_LOYALTY_THRESHOLD - completed);
   const unlocked = completed >= DEFAULT_LOYALTY_THRESHOLD;
 
   return (
@@ -72,21 +72,18 @@ export function StudentProfileWeb() {
                 {[profile?.studentId, profile?.phone].filter(Boolean).join(" · ") || "—"}
               </Text>
 
+              {/* The same stamp card as the phone, so the discount looks like
+                  one thing across both layouts. The amount saved is web-only:
+                  there is room for it here and it is the payoff the stamps are
+                  working towards. */}
               <View className="mt-6 border-t border-hairline pt-5">
-                <Text className="mb-2 font-sans-semibold text-meta text-muted">LOYALTY</Text>
-                {unlocked ? (
-                  <Text className="font-sans text-body text-ink">
-                    {DEFAULT_LOYALTY_DISCOUNT_PCT}% off every delivery fee. Saved{" "}
-                    <Text className="font-sans-semibold">{formatGhs(saved)}</Text> across{" "}
-                    {completed} deliveries.
+                <LoyaltyStamps completed={completed} />
+                {unlocked && saved > 0 ? (
+                  <Text className="mt-3 font-sans text-body text-muted">
+                    Saved <Text className="font-sans-semibold text-ink">{formatGhs(saved)}</Text>{" "}
+                    across {completed} deliveries.
                   </Text>
-                ) : (
-                  <Text className="font-sans text-body text-ink">
-                    {remaining} more {remaining === 1 ? "delivery" : "deliveries"} unlocks{" "}
-                    {DEFAULT_LOYALTY_DISCOUNT_PCT}% off fees. You’re at {completed} of{" "}
-                    {DEFAULT_LOYALTY_THRESHOLD}.
-                  </Text>
-                )}
+                ) : null}
               </View>
             </View>
 
