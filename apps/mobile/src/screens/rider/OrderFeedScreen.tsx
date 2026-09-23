@@ -4,11 +4,12 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
 import {
+  ActiveDeliveryCard,
+  GreetingHeader,
   Empty,
   Gutter,
   ListError,
   ListSkeleton,
-  PageTitle,
   Row,
   RowGroup,
   Screen,
@@ -19,7 +20,7 @@ import {
 import { ChevronRightIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useAuthStore } from "../../store/authStore";
-import { useAvailableOrders, useSetAvailability } from "../../lib/rider";
+import { useAvailableOrders, useMyDeliveries, useSetAvailability } from "../../lib/rider";
 import { useWave } from "../../lib/wave";
 import { useLayout } from "../../hooks/useLayout";
 import { openRiderClaim } from "../../lib/desktopNavigate";
@@ -38,6 +39,11 @@ export function OrderFeedScreen() {
   // `isAvailable`, not `isActive` — the latter is the ban flag, and reading it
   // here would show a banned rider as "Online" while every request 403s.
   const [online, setOnline] = useState(profile?.isAvailable ?? true);
+  // The run they are already on, so the feed never hides it behind the list.
+  const { data: myDeliveries } = useMyDeliveries();
+  const activeRun = (myDeliveries ?? []).find((o) =>
+    ["rider_assigned", "en_route", "at_checkpoint"].includes(o.status),
+  );
   const { data: orders, isLoading, isError, refetch, isRefetching } = useAvailableOrders();
   const setAvailability = useSetAvailability();
   const wave = useWave();
@@ -55,43 +61,72 @@ export function OrderFeedScreen() {
         refreshing={isRefetching}
         onRefresh={() => void refetch()}
       >
-        <Gutter className={isDesktop ? "flex-row items-end justify-between pb-8 pt-8" : "pb-6 pt-4"}>
-          <View className="flex-1 pr-4">
-            {isDesktop ? (
-              <>
-                <Text className="font-sans-bold text-heading text-ink">Available</Text>
-                <Text className="mt-1 font-sans text-ui text-muted">
-                  {wave
-                    ? `${wave.name} · closes in ${wave.countdown}. Claim what you can run.`
-                    : "Orders for the next Wave land here."}
+        {isDesktop ? (
+          <Gutter className="flex-row items-end justify-between pb-8 pt-8">
+            <View className="flex-1 pr-4">
+              <Text className="font-sans-bold text-heading text-ink">Available</Text>
+              <Text className="mt-1 font-sans text-ui text-muted">
+                {wave
+                  ? `${wave.name} · closes in ${wave.countdown}. Claim what you can run.`
+                  : "Orders for the next Wave land here."}
+              </Text>
+            </View>
+            <View className="items-end gap-1.5">
+              <Switch
+                value={online}
+                onValueChange={handleToggle}
+                accessibilityLabel="Available for deliveries"
+                accessibilityHint="Turn off to stop new orders appearing in your feed"
+              />
+              <Text className="font-sans text-meta text-muted">{online ? "Online" : "Offline"}</Text>
+            </View>
+          </Gutter>
+        ) : (
+          /* Going online is the rider's first move of the day, so it sits in
+             the panel where the student's "Send a package" sits. */
+          <GreetingHeader
+            name={profile?.fullName ?? "there"}
+            avatarUrl={profile?.avatarUrl}
+            alert={!!activeRun}
+            onPressAvatar={() => navigation.navigate("Tabs", { screen: "Profile" })}
+            onPressBell={() => navigation.navigate("Tabs", { screen: "MyOrders" })}
+          >
+            <View className="flex-row items-center gap-3 rounded-card bg-surface px-4 py-3.5">
+              <View className="min-w-0 flex-1">
+                <Text className="font-sans-medium text-ui text-ink">
+                  {online ? "You're online" : "You're offline"}
                 </Text>
-              </>
-            ) : (
-              <>
-                <PageTitle>Available</PageTitle>
-                <Text className="mt-2 font-sans text-body text-muted">
-                  {wave ? `${wave.name} · closes in ${wave.countdown}` : "Next Wave"}
+                <Text className="font-sans text-body text-muted" numberOfLines={1}>
+                  {online
+                    ? (wave ? `${wave.name} · closes in ${wave.countdown}` : "Next Wave")
+                    : "Turn on to see and claim orders"}
                 </Text>
-              </>
-            )}
-          </View>
-          <View className="items-end gap-1.5">
-            <Switch
-              value={online}
-              onValueChange={handleToggle}
-              accessibilityLabel="Available for deliveries"
-              accessibilityHint="Turn off to stop new orders appearing in your feed"
-            />
-            <Text className="font-sans text-meta text-muted">{online ? "Online" : "Offline"}</Text>
-          </View>
-        </Gutter>
+              </View>
+              <Switch
+                value={online}
+                onValueChange={handleToggle}
+                accessibilityLabel="Available for deliveries"
+                accessibilityHint="Turn off to stop new orders appearing in your feed"
+              />
+            </View>
+          </GreetingHeader>
+        )}
 
-        {!online ? (
-          <Gutter className="mb-4 rounded-card bg-surface px-4 py-3">
-            <Text className="font-sans-medium text-body text-ink">You are offline</Text>
-            <Text className="mt-0.5 font-sans text-body text-muted">
-              Turn availability on to see and claim new orders.
-            </Text>
+        {activeRun ? (
+          <Gutter className="pt-5">
+            <Text className="mb-3 font-sans-medium text-heading-sm text-ink">On this run</Text>
+            <ActiveDeliveryCard
+              order={activeRun}
+              title={activeRun.shop?.name ?? "Package pickup"}
+              trailing={formatGhs(Number(activeRun.deliveryFee))}
+              onPress={() => navigation.navigate("ActiveDelivery", { orderId: activeRun.id })}
+            />
+          </Gutter>
+        ) : null}
+
+        {!isDesktop && online && orders && orders.length > 0 ? (
+          <Gutter className="pt-6">
+            <Text className="mb-3 font-sans-medium text-heading-sm text-ink">Available to claim</Text>
           </Gutter>
         ) : null}
 

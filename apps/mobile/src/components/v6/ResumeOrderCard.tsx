@@ -17,9 +17,11 @@ import type { Order } from "../../types";
  * carrying. This gives that feeling somewhere to land instead of making them
  * start over.
  *
- * Deliberately *not* the lime CTA treatment. This is a loose end to tidy, not
- * the thing we want a student to do most on this screen — the accent stays with
- * placing a new order.
+ * On the pale green wash rather than full lime: the unfinished order should
+ * catch the eye among white cards, but it is a loose end to tidy, not the thing
+ * we want a student to do most on this screen. Full accent is reserved for
+ * starting something new. Ink-700 on the wash for the second line, which is
+ * what the tinted ground is scaled for.
  */
 export function ResumeOrderCard({
   order,
@@ -40,15 +42,15 @@ export function ResumeOrderCard({
       accessible
       accessibilityLabel={`Finish paying for your order from ${where}, ${amount}`}
       accessibilityHint="Reopens the payment step for this order"
-      className="mb-6 flex-row items-center gap-4 rounded-card border border-ink bg-surface p-4 active:bg-hairline"
+      className="mb-6 flex-row items-center gap-4 rounded-card bg-lime-faint p-4 active:bg-lime/30"
     >
       <View className="min-w-0 flex-1">
         <Text className="font-sans-medium text-ui text-ink">Finish paying</Text>
-        <Text className="mt-0.5 font-sans text-body text-muted" numberOfLines={1}>
+        <Text className="mt-0.5 font-sans text-body text-ink-700" numberOfLines={1}>
           {where} · {amount}
         </Text>
       </View>
-      <ChevronRightIcon size={18} color={colors.icon} strokeWidth={2} />
+      <ChevronRightIcon size={18} color={colors.ink} strokeWidth={2} />
     </Pressable>
   );
 }

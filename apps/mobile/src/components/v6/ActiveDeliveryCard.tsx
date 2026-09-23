@@ -38,7 +38,19 @@ function stopReached(order: Order): number {
  * wants to know — where a one-line bar could only say the status, and covered
  * the last row of every screen it floated over.
  */
-export function ActiveDeliveryCard({ order, onPress }: { order: Order; onPress: () => void }) {
+export function ActiveDeliveryCard({
+  order,
+  onPress,
+  title,
+  trailing,
+}: {
+  order: Order;
+  onPress: () => void;
+  /** Overrides the student-facing title — a rider reads the shop, not "your order". */
+  title?: string;
+  /** An extra line under the title: the fee on a rider's run, for instance. */
+  trailing?: string;
+}) {
   const pill = statusPill(order.status);
   const reached = stopReached(order);
   const to = order.checkpoint?.name ?? "your checkpoint";
@@ -54,12 +66,13 @@ export function ActiveDeliveryCard({ order, onPress }: { order: Order; onPress: 
       <View className="mb-4 flex-row items-start justify-between gap-3">
         <View className="min-w-0 flex-1">
           <Text className="font-sans-medium text-ui text-ink" numberOfLines={1}>
-            {order.orderType === "pickup" ? "Package pickup" : (order.shop?.name ?? "Your order")}
+            {title ?? (order.orderType === "pickup" ? "Package pickup" : (order.shop?.name ?? "Your order"))}
           </Text>
           <Text className="font-sans text-meta text-muted" numberOfLines={1}>
             {/* The tail of the id: enough to match a rider's screen, short
                 enough to read out loud. */}
             No. {order.id.slice(-6).toUpperCase()}
+            {trailing ? ` · ${trailing}` : ""}
           </Text>
         </View>
         <StatusPill label={pill.label} tone={pill.tone} />

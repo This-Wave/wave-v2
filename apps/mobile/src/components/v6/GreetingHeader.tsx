@@ -22,8 +22,11 @@ export function GreetingHeader({
   onPressAvatar,
   onPressBell,
   children,
+  wholeName,
 }: {
   name: string;
+  /** Shops are called by their whole name; people by their first. */
+  wholeName?: boolean;
   avatarUrl?: string | null;
   /** Dot on the bell: something of theirs is in flight or unpaid. */
   alert?: boolean;
@@ -32,7 +35,7 @@ export function GreetingHeader({
   children?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
-  const firstName = name.trim().split(/\s+/)[0] ?? name;
+  const shown = wholeName ? name.trim() : (name.trim().split(/\s+/)[0] ?? name);
 
   return (
     <View
@@ -69,7 +72,9 @@ export function GreetingHeader({
       </View>
 
       <Text className="font-sans text-body text-white/70">Hello,</Text>
-      <Text className="mb-5 font-sans-bold text-heading text-white">{firstName}</Text>
+      <Text className="mb-5 font-sans-bold text-heading text-white" numberOfLines={2}>
+        {shown}
+      </Text>
 
       {children}
     </View>

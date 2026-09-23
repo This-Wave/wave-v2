@@ -140,7 +140,6 @@ function HomeScreenMobile() {
 
           <ActionTile
             label="Send a package"
-            meta={`Flat ${formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)}, checkpoint to checkpoint`}
             icon={<BoxIcon size={20} color={colors.ink} strokeWidth={1.9} />}
             disabled={!!paused?.paused}
             onPress={() => navigation.navigate("PickupRequest", waveDate)}
