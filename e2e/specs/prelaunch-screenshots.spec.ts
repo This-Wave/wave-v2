@@ -43,7 +43,11 @@ test("@mobile the student sees Pickup only", async ({ page }) => {
   await skipOverlays(page, "student");
   await page.goto("/");
   await page.getByText("Move a package").waitFor({ timeout: 60_000 });
-  await page.getByText("How a pickup works").waitFor();
+  // Either the explainer (a student who has sent nothing) or their past routes.
+  await Promise.race([
+    page.getByText("How a pickup works").waitFor(),
+    page.getByText("Move it again").waitFor(),
+  ]);
   await shot(page, "app-03-home-pickup-only");
   // Scrolled to the end — `fullPage` cannot capture it, because the app scrolls
   // an inner React Native ScrollView rather than the document. This is the frame

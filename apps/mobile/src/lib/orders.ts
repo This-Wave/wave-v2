@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CreateOrderInput } from "@wave/shared";
+import { recentPickupRoutes } from "@wave/shared";
 import { api } from "./api";
 import type { Order } from "../types";
 
@@ -32,6 +33,12 @@ function myOrdersQuery() {
       return data.orders;
     },
   };
+}
+
+/** The distinct routes this student has sent a package along, newest first. */
+export function useRecentPickupRoutes(limit = 3) {
+  const { data } = useMyOrders();
+  return recentPickupRoutes(data ?? [], limit);
 }
 
 export function useMyOrders() {

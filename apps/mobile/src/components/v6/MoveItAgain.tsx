@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
-import { recentPickupRoutes, type RecentRoute } from "@wave/shared";
-import { useMyOrders } from "../../lib/orders";
+import type { RecentRoute } from "@wave/shared";
+import { useRecentPickupRoutes } from "../../lib/orders";
 import { Row, RowGroup } from "./List";
 
 /** "today", "yesterday", "3 days ago", then a date once it stops being useful. */
@@ -24,8 +24,7 @@ function lastSent(iso: string): string {
  * is absent for anyone who has not sent a package yet.
  */
 export function MoveItAgain({ onPick }: { onPick: (route: RecentRoute) => void }) {
-  const { data: orders } = useMyOrders();
-  const routes = recentPickupRoutes(orders ?? []);
+  const routes = useRecentPickupRoutes();
 
   if (routes.length === 0) return null;
 

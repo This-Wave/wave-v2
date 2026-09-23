@@ -13,9 +13,10 @@ import { colors } from "../../theme/tokens";
  * information, not alarm: the Wave's name leads, the countdown is a single line
  * beside it, and the rail carries the urgency visually.
  *
- * Under six hours the treatment flips to the lime ground. That is the one point
- * where "I'll do it later" stops being safe, so it is the one point that earns
- * the accent.
+ * Under six hours it marks itself urgent with one lime pill, not a lime
+ * ground. A whole card of accent shouts across everything else on the screen,
+ * and Home carries several cards; the deadline has to read as urgent without
+ * taking the page over.
  */
 export function WaveBanner({ wave, onPress }: { wave: WaveInfo; onPress?: () => void }) {
   const urgent = wave.closingSoon;
@@ -26,36 +27,34 @@ export function WaveBanner({ wave, onPress }: { wave: WaveInfo; onPress?: () => 
       accessibilityRole={onPress ? "button" : undefined}
       accessibilityLabel={`${wave.name}, ordering closes in ${wave.countdown}`}
       accessibilityHint={onPress ? "Opens the calendar to pick a different Wave" : undefined}
-      className={`rounded-card p-4 ${urgent ? "bg-lime" : "bg-surface"}`}
+      className="rounded-card bg-surface p-4"
     >
       <View className="mb-3 flex-row items-end justify-between">
         <View className="flex-1 pr-3">
           <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
             {wave.name}
           </Text>
-          <Text
-            className={`font-sans text-body ${urgent ? "text-ink" : "text-muted"}`}
-            numberOfLines={1}
-          >
+          <Text className="font-sans text-body text-muted" numberOfLines={1}>
             Arriving {wave.dateLabel}
           </Text>
         </View>
 
         <View className="items-end">
           <Text className="font-sans-bold text-heading-sm text-ink">{wave.countdown}</Text>
-          <Text className={`font-sans text-meta ${urgent ? "text-ink" : "text-muted"}`}>
-            {urgent ? "closing soon" : "to order"}
-          </Text>
+          {urgent ? (
+            <View className="mt-0.5 rounded-pill bg-lime px-2 py-0.5">
+              <Text className="font-sans-medium text-meta text-ink">closing soon</Text>
+            </View>
+          ) : (
+            <Text className="font-sans text-meta text-muted">to order</Text>
+          )}
         </View>
       </View>
 
-      {urgent ? (
-        <View className="h-0.5 w-full overflow-hidden rounded-pill bg-ink/20">
-          <View className="h-full rounded-pill bg-ink" style={{ width: `${wave.elapsed * 100}%` }} />
-        </View>
-      ) : (
-        <ProgressRail ratio={wave.elapsed} />
-      )}
+      {/* One rail in both states. An ink rail at 95% elapsed reads as a solid
+          black bar across the card, which is louder than the lime ground it
+          replaced; the pill above carries the urgency instead. */}
+      <ProgressRail ratio={wave.elapsed} />
 
       {/*
         The card was pressable and nothing said so, which left the calendar
@@ -66,9 +65,7 @@ export function WaveBanner({ wave, onPress }: { wave: WaveInfo; onPress?: () => 
       */}
       {onPress ? (
         <View
-          className={`mt-3 flex-row items-center justify-between border-t pt-3 ${
-            urgent ? "border-ink/15" : "border-hairline"
-          }`}
+          className="mt-3 flex-row items-center justify-between border-t border-hairline pt-3"
         >
           <Text className="font-sans-medium text-body text-ink">See all Waves</Text>
           <ChevronRightIcon size={18} color={colors.ink} strokeWidth={2} />

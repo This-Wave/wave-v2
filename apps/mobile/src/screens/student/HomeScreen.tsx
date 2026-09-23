@@ -31,7 +31,7 @@ import {
 import { useLayout } from "../../hooks/useLayout";
 import { openOrderTracking } from "../../lib/desktopNavigate";
 import { useShops } from "../../lib/shops";
-import { useMyOrders } from "../../lib/orders";
+import { useMyOrders, useRecentPickupRoutes } from "../../lib/orders";
 import { useWave } from "../../lib/wave";
 import { useBuyForMeStatus, useServiceStatus } from "../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
@@ -59,10 +59,12 @@ export function HomeScreen() {
 function HomeScreenMobile() {
   const navigation = useNavigation<Nav>();
   const { launched: buyForMeLaunched, settled: serviceSettled } = useBuyForMeStatus();
+  const pickupRoutes = useRecentPickupRoutes();
   const { data: shops, isLoading: shopsLoading } = useShops({
     enabled: serviceSettled && buyForMeLaunched,
   });
   const { data: orders } = useMyOrders();
+  const ordersLoaded = orders !== undefined;
   const wave = useWave();
   const [mode, setMode] = useState<ServiceMode>("buy");
   const { data: service } = useServiceStatus();
@@ -136,25 +138,28 @@ function HomeScreenMobile() {
           </Gutter>
         ) : null}
 
-        {/* Search leads. The Wave reads as context beneath it rather than
-            competing with it for the top of the screen. */}
-        <Gutter className="pb-4 pt-5">
-          <SearchCapsule
-            mode={effectiveMode}
-            onPressQuery={() =>
-              effectiveMode === "pickup"
-                ? navigation.navigate("PickupRequest", waveDate)
-                : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
-            }
-            onSubmit={() =>
-              effectiveMode === "pickup"
-                ? navigation.navigate("PickupRequest", waveDate)
-                : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
-            }
-          />
-        </Gutter>
+        {/* Search leads — once there is something to search. Before Buy for me
+            launches the only journey is a pickup, and the capsule was a second
+            door to the screen the button already opens. */}
+        {buyForMeLaunched ? (
+          <Gutter className="pb-4 pt-5">
+            <SearchCapsule
+              mode={effectiveMode}
+              onPressQuery={() =>
+                effectiveMode === "pickup"
+                  ? navigation.navigate("PickupRequest", waveDate)
+                  : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
+              }
+              onSubmit={() =>
+                effectiveMode === "pickup"
+                  ? navigation.navigate("PickupRequest", waveDate)
+                  : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
+              }
+            />
+          </Gutter>
+        ) : null}
 
-        <Gutter className="pb-4">
+        <Gutter className={buyForMeLaunched ? "pb-4" : "pb-4 pt-5"}>
           {wave && !wave.closed ? (
             <WaveBanner wave={wave} onPress={() => navigation.navigate("WaveCalendar")} />
           ) : (
@@ -222,9 +227,15 @@ function HomeScreenMobile() {
                 lever that fills the catalogue. */}
             {!buyForMeLaunched ? (
               <>
-                <Gutter className="pt-6">
-                  <HowPickupWorks />
-                </Gutter>
+                {/* Only for someone who has not sent a package: the routes
+                    above say more to anyone who has. Waits for the orders to
+                    load, or the card appears for a second and then vanishes
+                    under someone who has sent plenty. */}
+                {ordersLoaded && pickupRoutes.length === 0 ? (
+                  <Gutter className="pt-6">
+                    <HowPickupWorks />
+                  </Gutter>
+                ) : null}
                 <Gutter className="pt-3">
                   <ShopsComingCard
                     onSuggest={() => navigation.navigate("SuggestShop", waveDate)}
