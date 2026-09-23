@@ -1,24 +1,38 @@
 import { View } from "react-native";
-import { Gutter, Skeleton, SkeletonCard } from "../../components/v6";
+import { Skeleton } from "../../components/v6";
 
-/** Home's loading state — the search capsule, a chip rail, and one card row. */
+/**
+ * Home's placeholder while `/orders/my` is in flight.
+ *
+ * Everything below the greeting panel is derived from that one request — the
+ * unpaid-order card, the active deliveries, the repeat routes, and the
+ * newcomer explainer, which is deliberately held back until the orders are
+ * known so it cannot flash in front of someone who has sent plenty. The
+ * consequence was that Home had nothing at all in that slot while it waited:
+ * the panel, one card about shops, and roughly 900px of empty canvas. It read
+ * as a broken screen rather than a loading one, and on Ghanaian mobile data it
+ * is a state students will meet often.
+ *
+ * Sized to roughly the height of what usually replaces it, so the card below
+ * barely moves when the answer lands.
+ *
+ * It stands in for a section whose *shape* is not yet known — one delivery, three
+ * routes, or an explainer — so this is one calm block rather than a mimicry of
+ * any particular one. No shimmer, per `Skeleton`.
+ */
 export function HomeSkeleton() {
   return (
-    <View className="pt-1">
-      <Gutter className="pb-6">
-        <Skeleton height={64} radius={9999} />
-      </Gutter>
-      <View className="mb-6 flex-row gap-2 px-gutter">
-        <Skeleton width={64} height={36} radius={9999} />
-        <Skeleton width={84} height={36} radius={9999} />
-        <Skeleton width={72} height={36} radius={9999} />
-      </View>
-      <Gutter className="mb-3">
-        <Skeleton width={180} height={26} radius={6} />
-      </Gutter>
-      <View className="flex-row gap-3 px-gutter">
-        <SkeletonCard width={168} />
-        <SkeletonCard width={168} />
+    <View
+      className="rounded-card bg-surface p-4"
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading your orders"
+    >
+      <Skeleton height={20} radius={4} width="45%" />
+      <View className="pt-4" style={{ gap: 12 }}>
+        <Skeleton height={14} radius={4} width="88%" />
+        <Skeleton height={14} radius={4} width="70%" />
+        <Skeleton height={14} radius={4} width="78%" />
       </View>
     </View>
   );

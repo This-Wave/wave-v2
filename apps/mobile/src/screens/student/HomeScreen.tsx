@@ -34,6 +34,7 @@ import { useBuyForMeStatus, useServiceStatus } from "../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
 import { useAuthStore } from "../../store/authStore";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
+import { HomeSkeleton } from "./HomeSkeleton";
 import { StudentHomeWeb } from "./web/StudentHomeWeb";
 import type { ServiceMode } from "../../components/v6";
 import type { Shop } from "../../types";
@@ -167,6 +168,16 @@ function HomeScreenMobile() {
         {/* The Wave used to have a card here. It is the `note` inside the panel
             above now, so the first thing under the panel is whatever this
             student actually needs to act on. */}
+
+        {/* Every section below is derived from `/orders/my`, and the newcomer
+            explainer is deliberately held back until it resolves, so without
+            this Home waits with an empty screen rather than a loading one. */}
+        {!ordersLoaded ? (
+          <Gutter className="pt-5">
+            <HomeSkeleton />
+          </Gutter>
+        ) : null}
+
         {unpaid ? (
           <Gutter className="pt-5">
             <ResumeOrderCard
@@ -226,7 +237,9 @@ function HomeScreenMobile() {
                     load, or the card appears for a second and then vanishes
                     under someone who has sent plenty. */}
                 {ordersLoaded && pickupRoutes.length === 0 ? (
-                  <Gutter className="pt-6">
+                  // pt-5 like every other section under the panel, so the first
+                  // card sits the same distance down whichever one it is.
+                  <Gutter className="pt-5">
                     <HowPickupWorks />
                   </Gutter>
                 ) : null}
