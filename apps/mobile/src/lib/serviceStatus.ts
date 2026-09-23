@@ -42,3 +42,17 @@ export function useBuyForMeLaunched(): boolean {
   const { data } = useServiceStatus();
   return !data?.buy_for_me.hidden;
 }
+
+/**
+ * The same answer, plus whether it is known yet.
+ *
+ * `launched` alone is optimistic on purpose, which is right for drawing but
+ * wrong for fetching: on the first paint it would send a request for a
+ * catalogue that is closed and take a 503 every time Home opens. Callers that
+ * fetch wait for `settled` — set once the status has arrived or failed, so a
+ * failed check still ends up asking rather than hiding the shops forever.
+ */
+export function useBuyForMeStatus(): { launched: boolean; settled: boolean } {
+  const { data, isPending, isError } = useServiceStatus();
+  return { launched: !data?.buy_for_me.hidden, settled: !isPending || isError };
+}

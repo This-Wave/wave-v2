@@ -16,17 +16,27 @@ export const LIVE_ORDER_STATUSES = ["confirmed", "rider_assigned", "en_route", "
  * that would answer 403 for them. No cache, no bar, no clearance.
  */
 export function useHasLiveOrder(): boolean {
-  const { data } = useQuery<Order[]>({ queryKey: ["orders", "my"], enabled: false });
+  // Same options as `useMyOrders`, only never fetching: react-query still wants
+  // a `queryFn` even when disabled, and logs an error without one — which the
+  // e2e harness treats as a failed run.
+  const { data } = useQuery({ ...myOrdersQuery(), enabled: false });
   return (data ?? []).some((order) => LIVE_ORDER_STATUSES.includes(order.status));
 }
 
-export function useMyOrders() {
-  return useQuery({
+/** The one definition of the student's own orders query. */
+function myOrdersQuery() {
+  return {
     queryKey: ["orders", "my"],
     queryFn: async () => {
       const { data } = await api.get<{ orders: Order[] }>("/orders/my");
       return data.orders;
     },
+  };
+}
+
+export function useMyOrders() {
+  return useQuery({
+    ...myOrdersQuery(),
   });
 }
 

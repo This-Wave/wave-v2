@@ -8,6 +8,7 @@ import {
   CardGrid,
   Chip,
   HowPickupWorks,
+  MoveItAgain,
   PhotoCard,
   ProgressRail,
   Screen,
@@ -26,7 +27,7 @@ import { useLayout } from "../../../hooks/useLayout";
 import { useShops } from "../../../lib/shops";
 import { useMyOrders } from "../../../lib/orders";
 import { useWave } from "../../../lib/wave";
-import { useBuyForMeLaunched, useServiceStatus } from "../../../lib/serviceStatus";
+import { useBuyForMeStatus, useServiceStatus } from "../../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../../lib/pricing";
 import { useCheckpoints } from "../../../lib/checkpoints";
 import { useAuthStore } from "../../../store/authStore";
@@ -48,12 +49,12 @@ type Nav = NativeStackNavigationProp<StudentStackParamList>;
 export function StudentHomeWeb() {
   const navigation = useNavigation<Nav>();
   const { cardWidth, shopColumns } = useLayout();
-  const { data: shops, isLoading } = useShops();
+  const { launched: buyForMeLaunched, settled: serviceSettled } = useBuyForMeStatus();
+  const { data: shops, isLoading } = useShops({ enabled: serviceSettled && buyForMeLaunched });
   const { data: orders } = useMyOrders();
   const wave = useWave();
   const [category, setCategory] = useState<string | null>(null);
   const { data: service } = useServiceStatus();
-  const buyForMeLaunched = useBuyForMeLaunched();
   const universityId = useAuthStore((state) => state.profile?.universityId ?? undefined);
   const { data: checkpoints } = useCheckpoints(universityId);
   const checkpointCount = checkpoints?.length ?? 0;
@@ -158,6 +159,17 @@ export function StudentHomeWeb() {
               full={false}
               onPress={() => navigation.navigate("PickupRequest", waveDate)}
             />
+            <View className="mt-8">
+              <MoveItAgain
+                onPick={(route) =>
+                  navigation.navigate("PickupRequest", {
+                    ...waveDate,
+                    fromId: route.originId,
+                    toId: route.destinationId,
+                  })
+                }
+              />
+            </View>
             {/* Same two cards as the phone, side by side where there is room. */}
             <View
               className="mt-8 flex-row flex-wrap items-start"

@@ -23,7 +23,7 @@ import { describeWave } from "../../lib/wave";
 import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
 import { openShopMenu } from "../../lib/desktopNavigate";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
-import { useBuyForMeLaunched } from "../../lib/serviceStatus";
+import { useBuyForMeStatus } from "../../lib/serviceStatus";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
 type Route = RouteProp<StudentStackParamList, "ShopSelection">;
@@ -37,8 +37,8 @@ export function ShopSelectionScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
   const { gutter, cardWidth, shopColumns, isDesktop } = useLayout();
-  const { data: shops, isLoading } = useShops();
-  const buyForMeLaunched = useBuyForMeLaunched();
+  const { launched: buyForMeLaunched, settled: serviceSettled } = useBuyForMeStatus();
+  const { data: shops, isLoading } = useShops({ enabled: serviceSettled && buyForMeLaunched });
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
 

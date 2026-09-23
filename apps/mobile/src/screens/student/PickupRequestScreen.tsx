@@ -52,8 +52,9 @@ export function PickupRequestScreen() {
   const { data: checkpoints } = useCheckpoints(profile?.universityId ?? undefined);
 
   const [description, setDescription] = useState("");
-  const [fromId, setFromId] = useState<string | null>(null);
-  const [toId, setToId] = useState<string | null>(null);
+  // Pre-chosen when arriving from "Move it again"; both are still editable.
+  const [fromId, setFromId] = useState<string | null>(params?.fromId ?? null);
+  const [toId, setToId] = useState<string | null>(params?.toId ?? null);
   const [dayIndex, setDayIndex] = useState(0);
   const [picker, setPicker] = useState<"from" | "to" | "day" | null>(null);
   const [error, setError] = useState<string | null>(null);

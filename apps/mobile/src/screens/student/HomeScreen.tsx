@@ -18,8 +18,10 @@ import {
   SearchCapsule,
   SectionTitle,
   HowPickupWorks,
+  MoveItAgain,
   ServicePausedNotice,
   ShopsComingCard,
+  SuggestShopCard,
   SkeletonCard,
   StatusPill,
   Thumb,
@@ -31,7 +33,7 @@ import { openOrderTracking } from "../../lib/desktopNavigate";
 import { useShops } from "../../lib/shops";
 import { useMyOrders } from "../../lib/orders";
 import { useWave } from "../../lib/wave";
-import { useBuyForMeLaunched, useServiceStatus } from "../../lib/serviceStatus";
+import { useBuyForMeStatus, useServiceStatus } from "../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
 import { useCheckpoints } from "../../lib/checkpoints";
 import { useAuthStore } from "../../store/authStore";
@@ -56,12 +58,14 @@ export function HomeScreen() {
 
 function HomeScreenMobile() {
   const navigation = useNavigation<Nav>();
-  const { data: shops, isLoading: shopsLoading } = useShops();
+  const { launched: buyForMeLaunched, settled: serviceSettled } = useBuyForMeStatus();
+  const { data: shops, isLoading: shopsLoading } = useShops({
+    enabled: serviceSettled && buyForMeLaunched,
+  });
   const { data: orders } = useMyOrders();
   const wave = useWave();
   const [mode, setMode] = useState<ServiceMode>("buy");
   const { data: service } = useServiceStatus();
-  const buyForMeLaunched = useBuyForMeLaunched();
   const universityId = useAuthStore((state) => state.profile?.universityId ?? undefined);
   const { data: checkpoints } = useCheckpoints(universityId);
   const checkpointCount = checkpoints?.length ?? 0;
@@ -199,6 +203,20 @@ function HomeScreenMobile() {
               />
             </Gutter>
 
+            {/* A route this student has sent before is one tap. Absent for
+                anyone who has not sent a package yet. */}
+            <Gutter className="pt-6">
+              <MoveItAgain
+                onPick={(route) =>
+                  navigation.navigate("PickupRequest", {
+                    ...waveDate,
+                    fromId: route.originId,
+                    toId: route.destinationId,
+                  })
+                }
+              />
+            </Gutter>
+
             {/* Before Buy for me launches, Pickup is the whole product and the
                 screen is otherwise empty: explain it, and give students the one
                 lever that fills the catalogue. */}
@@ -234,6 +252,15 @@ function HomeScreenMobile() {
                 waveDate={waveDate}
               />
             ) : null}
+
+            {/* The shop a student wanted and did not find is only recorded if
+                asking is reachable from here — searching and settling never
+                reaches the shop list's empty state. */}
+            <Gutter className="pt-4">
+              <SuggestShopCard
+                onSuggest={() => navigation.navigate("SuggestShop", waveDate)}
+              />
+            </Gutter>
           </>
         )}
       </ScreenBody>

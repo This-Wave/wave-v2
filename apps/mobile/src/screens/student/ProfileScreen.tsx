@@ -17,7 +17,7 @@ import { useAuthStore } from "../../store/authStore";
 import { useMyOrders } from "../../lib/orders";
 import { signOut } from "../../lib/auth";
 import { updateProfile } from "../../lib/profile";
-import { formatGhs } from "../../lib/pricing";
+import { formatGhs, isStandardRunDay } from "../../lib/pricing";
 import { DEFAULT_LOYALTY_DISCOUNT_PCT, DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
 import { useLayout } from "../../hooks/useLayout";
 import { StudentProfileWeb } from "./web/StudentProfileWeb";
@@ -28,10 +28,21 @@ import {
 } from "../../lib/support";
 import { LegalLinksRow } from "../../components/LegalNotice";
 import { BetaProgram } from "../../components/BetaProgram";
+import { describeWave } from "../../lib/wave";
 
 /**
  * Profile. Web uses a two-panel account page; native keeps the phone layout.
  */
+/**
+ * Suggesting from Profile has no Wave chosen, and the flow ends in an order, so
+ * it needs one: the next open Wave, which the student can still change.
+ */
+function nextWaveParams(): { scheduledDate: string; isSpecialOrder: boolean } {
+  const next = describeWave();
+  const date = next?.date ?? new Date();
+  return { scheduledDate: date.toISOString(), isSpecialOrder: !isStandardRunDay(date) };
+}
+
 export function ProfileScreen() {
   const { isDesktop } = useLayout();
   if (isDesktop) return <StudentProfileWeb />;
@@ -131,6 +142,11 @@ function ProfileMobile() {
               title="Payment"
               meta="How you pay for deliveries"
               onPress={() => navigation.navigate("PaymentMethods")}
+            />
+            <Row
+              title="Suggest a shop"
+              meta="Somewhere you'd like Wave to buy from"
+              onPress={() => navigation.navigate("SuggestShop", nextWaveParams())}
             />
             {hasSupportContact() ? (
               <Row

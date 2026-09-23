@@ -84,7 +84,12 @@ export type StudentStackParamList = {
   PaymentMethods: undefined;
   Checkpoints: undefined;
   OrderConfirmed: { orderId: string };
-  PickupRequest: WaveParams | undefined;
+  /**
+   * `fromId`/`toId` pre-choose the two ends of the route — Home's "Move it
+   * again" hands over a route the student has sent before. The form still has
+   * to be filled in and submitted.
+   */
+  PickupRequest: (WaveParams & { fromId?: string; toId?: string }) | undefined;
   OrderTracking: { orderId: string };
   OrderDetail: { orderId: string };
   PickupPin: { orderId: string };

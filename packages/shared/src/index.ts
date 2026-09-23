@@ -3,6 +3,7 @@ export * from "./constants/features";
 export * from "./constants/audit";
 export * from "./constants/staff";
 export * from "./constants/switches";
+export * from "./constants/pickupRoutes";
 export * from "./constants/schedule";
 export * from "./constants/reminders";
 export * from "./constants/groupBasket";

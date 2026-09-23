@@ -14,7 +14,7 @@ import {
 import { useAuthStore } from "../../../store/authStore";
 import { useMyOrders } from "../../../lib/orders";
 import { signOut } from "../../../lib/auth";
-import { formatGhs } from "../../../lib/pricing";
+import { formatGhs, isStandardRunDay } from "../../../lib/pricing";
 import { openPaymentMethods } from "../../../lib/desktopNavigate";
 import { DEFAULT_LOYALTY_DISCOUNT_PCT, DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
 import {
@@ -24,8 +24,19 @@ import {
 } from "../../../lib/support";
 import { LegalLinksRow } from "../../../components/LegalNotice";
 import { BetaProgram } from "../../../components/BetaProgram";
+import { describeWave } from "../../../lib/wave";
 
 /** Desktop profile — account panel + settings column. */
+/**
+ * Suggesting from Profile has no Wave chosen, and the flow ends in an order, so
+ * it needs one: the next open Wave, which the student can still change.
+ */
+function nextWaveParams(): { scheduledDate: string; isSpecialOrder: boolean } {
+  const next = describeWave();
+  const date = next?.date ?? new Date();
+  return { scheduledDate: date.toISOString(), isSpecialOrder: !isStandardRunDay(date) };
+}
+
 export function StudentProfileWeb() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const profile = useAuthStore((s) => s.profile);
@@ -90,6 +101,11 @@ export function StudentProfileWeb() {
                   title="Payment"
                   meta="How you pay for deliveries"
                   onPress={() => openPaymentMethods(navigation)}
+                />
+                <Row
+                  title="Suggest a shop"
+                  meta="Somewhere you'd like Wave to buy from"
+                  onPress={() => navigation.navigate("SuggestShop", nextWaveParams())}
                 />
                 {hasSupportContact() ? (
                   <Row
