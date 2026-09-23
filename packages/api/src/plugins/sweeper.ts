@@ -3,6 +3,7 @@ import fp from "fastify-plugin";
 import { sweepAbandonedCheckouts } from "../modules/payments/sweepAbandoned";
 import { sweepReminders } from "../modules/notifications/reminders";
 import { resumeExpiredPauses } from "../modules/switches/routes";
+import { archiveAuditEvents } from "../modules/audit/archive";
 
 /**
  * How often the abandoned-checkout sweep runs.
@@ -12,6 +13,16 @@ import { resumeExpiredPauses } from "../modules/switches/routes";
  * that the Paystack lookups stay a rounding error against real traffic.
  */
 export const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
+
+/**
+ * How often the audit archive runs.
+ *
+ * Daily, not on the 10-minute sweep: it uploads and prunes, so it is the one
+ * scheduled job here with a real cost, and nothing about a 180-day retention
+ * window is urgent to the hour. It no-ops immediately when nothing is past the
+ * window, which is most days.
+ */
+export const AUDIT_ARCHIVE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Runs the abandoned-checkout sweep on a timer.
@@ -63,14 +74,41 @@ export default fp(async function sweeperPlugin(fastify: FastifyInstance) {
     }
   }
 
+  let archiving = false;
+
+  async function archiveTick() {
+    // Same reason as the sweep: a long backlog drains in batches over several
+    // runs, and two overlapping passes would upload the same rows twice.
+    if (archiving) return;
+    archiving = true;
+    try {
+      await archiveAuditEvents({ fastify, log: fastify.log });
+    } catch (err) {
+      // Deliberately swallowed after logging. The job deletes nothing unless the
+      // upload was written and read back, so a failure leaves the table intact
+      // and the next run retries — and an audit archive is never worth an
+      // outage of the API it is archiving.
+      fastify.log.error({ err }, "Audit archive failed — nothing pruned");
+    } finally {
+      archiving = false;
+    }
+  }
+
   const timer = setInterval(() => void tick(), SWEEP_INTERVAL_MS);
+  const archiveTimer = setInterval(() => void archiveTick(), AUDIT_ARCHIVE_INTERVAL_MS);
+  archiveTimer.unref();
   // Do not hold the event loop open: `index.ts` drains and exits on SIGTERM, and
   // a live interval would keep the process alive past the drain.
   timer.unref();
 
   fastify.addHook("onClose", async () => {
     clearInterval(timer);
+    clearInterval(archiveTimer);
   });
 
   fastify.log.info({ intervalMs: SWEEP_INTERVAL_MS }, "Abandoned-checkout sweep scheduled");
+  fastify.log.info(
+    { intervalMs: AUDIT_ARCHIVE_INTERVAL_MS },
+    "Audit archive scheduled",
+  );
 });

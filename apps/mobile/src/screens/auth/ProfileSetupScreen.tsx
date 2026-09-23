@@ -92,6 +92,9 @@ export function ProfileSetupScreen({ route }: Props) {
   const [email, setEmail] = useState("");
   const [universityId, setUniversityId] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
+  // Starts unticked on purpose. A pre-ticked consent box is a dark pattern and
+  // is not consent anyone could evidence later.
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const setProfile = useAuthStore((s) => s.setProfile);
@@ -210,7 +213,7 @@ export function ProfileSetupScreen({ route }: Props) {
           </RowGroup>
 
           {error ? <Text className="mt-4 font-sans text-body text-danger">{error}</Text> : null}
-          <LegalNotice />
+          <LegalNotice accepted={acceptedLegal} onChange={setAcceptedLegal} />
         </Gutter>
       </ScreenBody>
 
@@ -219,7 +222,9 @@ export function ProfileSetupScreen({ route }: Props) {
           label={copy.cta}
           onPress={handleContinue}
           loading={loading}
-          disabled={fullName.trim().length < 2 || (role === "rider" && !riderType)}
+          disabled={
+            !acceptedLegal || fullName.trim().length < 2 || (role === "rider" && !riderType)
+          }
         />
       </ActionBar>
 

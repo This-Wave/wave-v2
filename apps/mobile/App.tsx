@@ -1,8 +1,10 @@
 import "./global.css";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer } from "@react-navigation/native";
+import { NotFoundScreen } from "./src/screens/NotFoundScreen";
+import { isUnknownWebPath } from "./src/lib/webPath";
 import { QueryClientProvider } from "@tanstack/react-query";
 import * as SplashScreen from "expo-splash-screen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -72,8 +74,26 @@ function App() {
   // rather than inside the component that eventually uses it.
   useEffect(() => captureInstallPrompt(), []);
 
+  // Read once. The path cannot change without a reload — nothing here calls
+  // pushState except the payment return, which only strips query params.
+  const [unknownPath] = useState(() => isUnknownWebPath());
+
   if (!fontsSettled) {
     return null;
+  }
+
+  // Before anything else: `vercel.json` rewrites every path to index.html, so a
+  // typo'd URL used to load the whole app and land silently on Home. Checked
+  // here rather than inside the navigator because there are no URL routes to
+  // miss — the app ignores the path entirely — and because a 404 should not
+  // require a session to read.
+  if (unknownPath) {
+    return (
+      <SafeAreaProvider>
+        <NotFoundScreen />
+        <StatusBar style="dark" />
+      </SafeAreaProvider>
+    );
   }
 
   return (
