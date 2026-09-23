@@ -9,11 +9,21 @@ import {
   Field,
   Gutter,
   PageTitle,
-  Row,
-  RowGroup,
   Screen,
   ScreenBody,
+  SettingsGroup,
+  SettingsRow,
 } from "../../components/v6";
+import {
+  CardIcon,
+  MenuIcon,
+  LogoutIcon,
+  MessageIcon,
+  PinIcon,
+  PlusIcon,
+} from "../../components/icons";
+import { colors } from "../../theme/tokens";
+import { getLegalLinks, openLegalLink } from "../../lib/legal";
 import { useAuthStore } from "../../store/authStore";
 import { useMyOrders } from "../../lib/orders";
 import { signOut } from "../../lib/auth";
@@ -27,7 +37,6 @@ import {
   openSupportContact,
   supportContactLabel,
 } from "../../lib/support";
-import { LegalLinksRow } from "../../components/LegalNotice";
 import { BetaProgram } from "../../components/BetaProgram";
 import { describeWave } from "../../lib/wave";
 
@@ -69,6 +78,8 @@ function ProfileMobile() {
     return sum + (fee * pct) / 100;
   }, 0);
 
+  const legal = getLegalLinks();
+
   const remaining = Math.max(0, DEFAULT_LOYALTY_THRESHOLD - completed);
   const unlocked = completed >= DEFAULT_LOYALTY_THRESHOLD;
 
@@ -104,70 +115,111 @@ function ProfileMobile() {
         </Gutter>
 
         <Gutter>
-          <View className="mb-6">
-            <Field
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@ashesi.edu.gh"
-              hint="Optional — shop-live alerts when you suggest a place."
-              keyboardType="email-address"
-              error={emailError}
-            />
-            {email !== (profile?.email ?? "") ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  setEmailSaving(true);
-                  setEmailError(null);
-                  void updateProfile({ email: email.trim() || null })
-                    .then((next) => setProfile(next))
-                    .catch(() => setEmailError("Couldn't save email."))
-                    .finally(() => setEmailSaving(false));
-                }}
-                className="mt-3 self-start rounded-pill bg-lime px-4 py-2"
-              >
-                <Text className="font-sans-semibold text-ui text-ink">
-                  {emailSaving ? "Saving…" : "Save email"}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
+          {/* Email stays an editable field rather than a row that leads
+              somewhere: there is no email screen to lead to, and it is the one
+              setting here a student actually types into. Inside a titled group
+              so it reads as part of the same list. */}
+          <SettingsGroup title="Contact">
+            <View className="p-4">
+              <Field
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="you@ashesi.edu.gh"
+                hint="Optional — shop-live alerts when you suggest a place."
+                keyboardType="email-address"
+                error={emailError}
+              />
+              {email !== (profile?.email ?? "") ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setEmailSaving(true);
+                    setEmailError(null);
+                    void updateProfile({ email: email.trim() || null })
+                      .then((next) => setProfile(next))
+                      .catch(() => setEmailError("Couldn't save email."))
+                      .finally(() => setEmailSaving(false));
+                  }}
+                  className="mt-3 self-start rounded-pill bg-lime px-4 py-2"
+                >
+                  <Text className="font-sans-semibold text-ui text-ink">
+                    {emailSaving ? "Saving…" : "Save email"}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </SettingsGroup>
 
-          <RowGroup>
-            <Row
-              title="Delivery checkpoints"
-              meta="Where your runner meets you"
+          <SettingsGroup title="Deliveries">
+            <SettingsRow
+              icon={<PinIcon size={18} color={colors.ink} strokeWidth={1.8} />}
+              label="Delivery checkpoints"
+              value="Where your runner meets you"
               onPress={() => navigation.navigate("Checkpoints")}
             />
-            <Row
-              title="Payment"
-              meta="How you pay for deliveries"
+            <SettingsRow
+              icon={<CardIcon size={18} color={colors.ink} strokeWidth={1.8} />}
+              label="Payment"
+              value="How you pay for deliveries"
               onPress={() => navigation.navigate("PaymentMethods")}
+              last
             />
-            <Row
-              title="Suggest a shop"
-              meta="Somewhere you'd like Wave to buy from"
+          </SettingsGroup>
+
+          <SettingsGroup title="Wave">
+            <SettingsRow
+              icon={<PlusIcon size={18} color={colors.ink} strokeWidth={2} />}
+              label="Suggest a shop"
+              value="Somewhere you'd like Wave to buy from"
               onPress={() => navigation.navigate("SuggestShop", nextWaveParams())}
             />
             {hasSupportContact() ? (
-              <Row
-                title="Help & support"
-                meta={supportContactLabel()}
+              <SettingsRow
+                icon={<MessageIcon size={18} color={colors.ink} strokeWidth={1.8} />}
+                label="Help & support"
+                value={supportContactLabel()}
                 onPress={() => void openSupportContact()}
+                last
               />
             ) : null}
-          </RowGroup>
+          </SettingsGroup>
 
+          {/* An application with its own states, not a row that goes
+              somewhere — it stays a card of its own. */}
           <BetaProgram />
 
-          <View className="mt-6 px-1">
-            <LegalLinksRow />
-          </View>
+          {legal.terms || legal.privacy ? (
+            <SettingsGroup title="Legal">
+              {legal.terms ? (
+                <SettingsRow
+                  icon={<MenuIcon size={18} color={colors.ink} strokeWidth={1.8} />}
+                  label="Terms of service"
+                  onPress={() => void openLegalLink(legal.terms)}
+                  last={!legal.privacy}
+                />
+              ) : null}
+              {legal.privacy ? (
+                <SettingsRow
+                  icon={<MenuIcon size={18} color={colors.ink} strokeWidth={1.8} />}
+                  label="Privacy policy"
+                  onPress={() => void openLegalLink(legal.privacy)}
+                  last
+                />
+              ) : null}
+            </SettingsGroup>
+          ) : null}
 
-          <View className="mt-8">
-            <Row title="Log out" onPress={() => setConfirmLogout(true)} chevron={false} />
-          </View>
+          <SettingsGroup title="Account">
+            <SettingsRow
+              icon={<LogoutIcon size={18} color={colors.danger} strokeWidth={1.8} />}
+              label="Log out"
+              danger
+              chevron={false}
+              onPress={() => setConfirmLogout(true)}
+              last
+            />
+          </SettingsGroup>
         </Gutter>
       </ScreenBody>
 

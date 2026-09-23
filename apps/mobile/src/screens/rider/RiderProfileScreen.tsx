@@ -8,12 +8,14 @@ import {
   Confirm,
   Gutter,
   PageTitle,
-  Row,
-  RowGroup,
   Screen,
   ScreenBody,
+  SettingsGroup,
+  SettingsRow,
   StatusPill,
 } from "../../components/v6";
+import { CameraIcon, LogoutIcon, MessageIcon } from "../../components/icons";
+import { colors } from "../../theme/tokens";
 import { useAuthStore } from "../../store/authStore";
 import { useVerificationStatus } from "../../lib/rider";
 import { useLayout } from "../../hooks/useLayout";
@@ -97,30 +99,43 @@ export function RiderProfileScreen() {
             </View>
 
             <View style={isDesktop ? { flex: 1, minWidth: 280 } : undefined}>
-              <RowGroup>
-                {canSubmit ? (
-                  <Row
-                    title={
-                      verification?.status === "rejected" ? "Resubmit your ID" : "Submit your ID"
-                    }
-                    meta="Photo of your ID plus a selfie"
-                    onPress={() => navigation.navigate("SubmitVerification")}
-                  />
-                ) : null}
-                {hasSupportContact() ? (
-                  <Row
-                    title="Help & support"
-                    meta={supportContactLabel()}
-                    onPress={() => void openSupportContact()}
-                  />
-                ) : null}
-              </RowGroup>
+              {canSubmit || hasSupportContact() ? (
+                <SettingsGroup title="Getting set up">
+                  {canSubmit ? (
+                    <SettingsRow
+                      icon={<CameraIcon size={18} color={colors.ink} strokeWidth={1.8} />}
+                      label={
+                        verification?.status === "rejected" ? "Resubmit your ID" : "Submit your ID"
+                      }
+                      value="Photo of your ID plus a selfie"
+                      onPress={() => navigation.navigate("SubmitVerification")}
+                      last={!hasSupportContact()}
+                    />
+                  ) : null}
+                  {hasSupportContact() ? (
+                    <SettingsRow
+                      icon={<MessageIcon size={18} color={colors.ink} strokeWidth={1.8} />}
+                      label="Help & support"
+                      value={supportContactLabel()}
+                      onPress={() => void openSupportContact()}
+                      last
+                    />
+                  ) : null}
+                </SettingsGroup>
+              ) : null}
 
               <BetaProgram />
 
-              <View className="mt-8">
-                <Row title="Log out" onPress={() => setConfirmLogout(true)} chevron={false} />
-              </View>
+              <SettingsGroup title="Account">
+                <SettingsRow
+                  icon={<LogoutIcon size={18} color={colors.danger} strokeWidth={1.8} />}
+                  label="Log out"
+                  danger
+                  chevron={false}
+                  onPress={() => setConfirmLogout(true)}
+                  last
+                />
+              </SettingsGroup>
             </View>
           </View>
         </Gutter>

@@ -4,7 +4,6 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
-  ActionTile,
   ActiveDeliveryCard,
   CardGrid,
   CardRail,
@@ -20,10 +19,11 @@ import {
   HowPickupWorks,
   MoveItAgain,
   ServicePausedNotice,
-  ShopsComingCard,
   SuggestShopCard,
   SkeletonCard,
-  WaveNote,
+  WaveStrip,
+  QuickTiles,
+  PromoCard,
 } from "../../components/v6";
 import { useLayout } from "../../hooks/useLayout";
 import { openOrderTracking } from "../../lib/desktopNavigate";
@@ -38,7 +38,7 @@ import { HomeSkeleton } from "./HomeSkeleton";
 import { StudentHomeWeb } from "./web/StudentHomeWeb";
 import type { ServiceMode } from "../../components/v6";
 import type { Shop } from "../../types";
-import { BoxIcon } from "../../components/icons";
+import { BoxIcon, PlusIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
@@ -110,16 +110,16 @@ function HomeScreenMobile() {
   return (
     <Screen>
       <ScreenBody bottomInset={32}>
-        {/* One ink panel: who you are, the one action, and — once there are
-            shops — the search. Everything below it is white on canvas, so the
-            screen has a single anchor instead of five cards of equal weight. */}
+        {/* One ink panel: who you are, what you can do, and — once there are
+            shops — the search. Everything below it is white on canvas bar the
+            Wave strip, so the screen has a single anchor rather than five
+            blocks of equal weight. */}
         <GreetingHeader
           name={profileName}
           avatarUrl={avatarUrl}
           alert={active.length > 0 || !!unpaid}
           onPressAvatar={() => navigation.navigate("Tabs", { screen: "Profile" })}
           onPressBell={() => navigation.navigate("Tabs", { screen: "Orders" })}
-          note={<WaveNote wave={wave} onPress={() => navigation.navigate("WaveCalendar")} />}
         >
           {buyForMeLaunched ? (
             <View className="mb-3">
@@ -139,13 +139,34 @@ function HomeScreenMobile() {
             </View>
           ) : null}
 
-          <ActionTile
-            label="Send a package"
-            icon={<BoxIcon size={20} color={colors.ink} strokeWidth={1.9} />}
-            disabled={!!paused?.paused}
-            onPress={() => navigation.navigate("PickupRequest", waveDate)}
+          {/* Both tiles stay in the panel, which is where every role's primary
+              action already lives. The reference puts them on the page below
+              its header, but Wave's panel *is* the action zone — moving them
+              out would make three distinct blocks to cross before the content. */}
+          <QuickTiles
+            actions={[
+              {
+                label: "Send a package",
+                icon: <BoxIcon size={21} color={colors.ink} strokeWidth={1.9} />,
+                disabled: !!paused?.paused,
+                onPress: () => navigation.navigate("PickupRequest", waveDate),
+              },
+              {
+                label: "Suggest a shop",
+                icon: <PlusIcon size={21} color={colors.ink} strokeWidth={2} />,
+                onPress: () => navigation.navigate("SuggestShop", waveDate),
+              },
+            ]}
           />
         </GreetingHeader>
+
+        {/* The Wave's deadline, on the one tinted ground on the screen. Below
+            the panel rather than inside it: in the panel it stopped reading as
+            something you could press, and the panel was carrying three
+            unrelated jobs. */}
+        <Gutter className="pt-5">
+          <WaveStrip wave={wave} onPress={() => navigation.navigate("WaveCalendar")} />
+        </Gutter>
 
         {/* Both services, once there are two. */}
         {buyForMeLaunched ? (
@@ -165,9 +186,9 @@ function HomeScreenMobile() {
           </Gutter>
         ) : null}
 
-        {/* The Wave used to have a card here. It is the `note` inside the panel
-            above now, so the first thing under the panel is whatever this
-            student actually needs to act on. */}
+        {/* The Wave had a card of its own here once. It is the strip under the
+            panel now, so the first thing in this position is whatever the
+            student actually has to act on. */}
 
         {/* Every section below is derived from `/orders/my`, and the newcomer
             explainer is deliberately held back until it resolves, so without
@@ -215,17 +236,23 @@ function HomeScreenMobile() {
           <>
             {/* A route this student has sent before is one tap. Absent for
                 anyone who has not sent a package yet. */}
-            <Gutter className="pt-5">
-              <MoveItAgain
-                onPick={(route) =>
-                  navigation.navigate("PickupRequest", {
-                    ...waveDate,
-                    fromId: route.originId,
-                    toId: route.destinationId,
-                  })
-                }
-              />
-            </Gutter>
+            {/* Gated here as well as inside the component: `MoveItAgain`
+                returns null for a student with no routes, but the Gutter around
+                it does not, so its `pt-5` was left behind as a phantom gap
+                between the Wave strip and the card below. */}
+            {pickupRoutes.length > 0 ? (
+              <Gutter className="pt-5">
+                <MoveItAgain
+                  onPick={(route) =>
+                    navigation.navigate("PickupRequest", {
+                      ...waveDate,
+                      fromId: route.originId,
+                      toId: route.destinationId,
+                    })
+                  }
+                />
+              </Gutter>
+            ) : null}
 
             {/* Before Buy for me launches, Pickup is the whole product and the
                 screen is otherwise empty: explain it, and give students the one
@@ -243,9 +270,15 @@ function HomeScreenMobile() {
                     <HowPickupWorks />
                   </Gutter>
                 ) : null}
+                {/* The ad space. Before launch the thing worth a student's
+                    attention is the half of Wave that is coming, and its button
+                    is what decides which shops arrive first. */}
                 <Gutter className="pt-3">
-                  <ShopsComingCard
-                    onSuggest={() => navigation.navigate("SuggestShop", waveDate)}
+                  <PromoCard
+                    headline="Shop orders are coming"
+                    body="We're signing up shops around campus now. Tell us where you actually buy — the places the most people ask for open first."
+                    cta="Suggest a shop"
+                    onPress={() => navigation.navigate("SuggestShop", waveDate)}
                   />
                 </Gutter>
               </>
