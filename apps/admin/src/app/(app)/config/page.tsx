@@ -7,6 +7,7 @@ import { PageHeader } from "../../../components/ui/PageHeader";
 import { Button } from "../../../components/ui/Button";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 import { FeatureFlags } from "../../../components/FeatureFlags";
+import { ServiceSwitches } from "../../../components/ServiceSwitches";
 
 interface ConfigRow {
   key: string;
@@ -91,7 +92,8 @@ const GROUPS: { title: string; keys: { key: string; label: string; suffix?: stri
 const KNOWN_KEYS = GROUPS.flatMap((g) => g.keys.map((k) => k.key));
 
 export default function ConfigPage() {
-  const { accessToken } = useAdminAuth();
+  const { accessToken, can } = useAdminAuth();
+  const canEdit = can("config.write");
   const [rows, setRows] = useState<ConfigRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -171,7 +173,12 @@ export default function ConfigPage() {
 
   return (
     <div className="px-10 py-8">
-      <PageHeader title="Config" subtitle="Platform pricing and scheduling" />
+      <PageHeader title="Config" subtitle="Ordering, pricing and scheduling" />
+
+      {/* First on the page: when something is on fire, this is what you came for. */}
+      <div className="mb-8 max-w-[720px]">
+        <ServiceSwitches />
+      </div>
 
       <div className="mb-7 flex max-w-[720px] gap-3 rounded-control bg-wave-lime p-4">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0">
@@ -239,6 +246,7 @@ export default function ConfigPage() {
                     id={r.key}
                     value={draft[r.key] ?? ""}
                     onChange={(e) => setDraft((d) => ({ ...d, [r.key]: e.target.value }))}
+                    readOnly={!canEdit}
                     className="h-[46px] w-full max-w-[320px] rounded-control border border-border bg-surface px-4 text-[14px] text-ink outline-none focus:border-wave-500"
                   />
                 </div>
@@ -246,19 +254,23 @@ export default function ConfigPage() {
             </div>
           ) : null}
 
-          <div className="mt-3 flex gap-3">
-            <Button
-              label={saving ? "Saving…" : "Save changes"}
-              onClick={handleSave}
-              disabled={saving || dirtyKeys.length === 0}
-            />
-            <Button
-              label="Discard"
-              variant="secondary"
-              onClick={handleDiscard}
-              disabled={saving || dirtyKeys.length === 0}
-            />
-          </div>
+          {canEdit ? (
+            <div className="mt-3 flex gap-3">
+              <Button
+                label={saving ? "Saving…" : "Save changes"}
+                onClick={handleSave}
+                disabled={saving || dirtyKeys.length === 0}
+              />
+              <Button
+                label="Discard"
+                variant="secondary"
+                onClick={handleDiscard}
+                disabled={saving || dirtyKeys.length === 0}
+              />
+            </div>
+          ) : (
+            <p className="mt-3 text-[12.5px] text-muted">Your role can see pricing but not change it.</p>
+          )}
 
           <p className="mt-[22px] text-[12px] text-muted">
             {dirtyKeys.length > 0

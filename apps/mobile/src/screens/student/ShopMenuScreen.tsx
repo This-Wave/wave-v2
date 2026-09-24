@@ -25,6 +25,7 @@ import { formatGhs } from "../../lib/pricing";
 import { useLayout } from "../../hooks/useLayout";
 import { MAX_ITEM_QUANTITY, MAX_ORDER_ITEMS } from "@wave/shared";
 import type { Product } from "../../types";
+import { useBuyForMeLaunched } from "../../lib/serviceStatus";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
 type Route = RouteProp<StudentStackParamList, "ShopMenu">;
@@ -49,6 +50,7 @@ export function ShopMenuScreen() {
   const { params } = useRoute<Route>();
   const { isDesktop, gutter } = useLayout();
   const { data: products, isLoading, isError, refetch } = useShopProducts(params.shopId);
+  const buyForMeLaunched = useBuyForMeLaunched();
 
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [note, setNote] = useState("");
@@ -152,7 +154,12 @@ export function ShopMenuScreen() {
         ) : null}
 
         <Gutter>
-          {isLoading ? (
+          {!buyForMeLaunched ? (
+            <Empty
+              title="Shop orders are coming soon"
+              body="We're signing up shops now. Wave can still move a package between checkpoints for you."
+            />
+          ) : isLoading ? (
             <ListSkeleton rows={3} />
           ) : isError ? (
             <ListError onRetry={() => void refetch()} />

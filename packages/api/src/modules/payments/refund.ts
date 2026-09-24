@@ -1,5 +1,7 @@
-import type { FastifyBaseLogger, FastifyInstance } from "fastify";
+import type { FastifyBaseLogger, FastifyInstance, FastifyRequest } from "fastify";
+import { recordAudit } from "../../lib/audit";
 import axios from "axios";
+import { DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
 import { refundPaystackPayment } from "./paystack";
 import { clientSafeOrder } from "../orders/select";
 import { notifyOrderStatus } from "../notifications/dispatch";
@@ -32,6 +34,8 @@ export interface EndOrderWithRefundArgs {
    * this is what the business counts, and the two have different audiences.
    */
   failureReason: OrderFailureReason;
+  /** The request that asked, so the audit event carries who and from where. */
+  request?: FastifyRequest;
 }
 
 export type EndOrderWithRefundResult =
@@ -50,7 +54,7 @@ export type EndOrderWithRefundResult =
 export async function endOrderWithRefund(
   args: EndOrderWithRefundArgs,
 ): Promise<EndOrderWithRefundResult> {
-  const { fastify, log, orderId, reason, actorId, intent, failureReason } = args;
+  const { fastify, log, orderId, reason, actorId, intent, failureReason, request } = args;
 
   // Pre-flight checks that do not need the claim. Doing these first keeps a
   // 404 or an already-refunded 409 from taking — and then having to release —
@@ -128,6 +132,19 @@ export async function endOrderWithRefund(
           },
           "Paystack refund failed — order status left unchanged",
         );
+        await recordAudit(
+          fastify,
+          {
+            action: "refund.failed",
+            category: "refund",
+            entityType: "order",
+            entityId: orderId,
+            universityId: order.universityId,
+            outcome: "failed",
+            metadata: { reference, reason, intent, providerMessage: providerMessage ?? null },
+          },
+          request,
+        );
         return {
           ok: false,
           code: 502,
@@ -148,11 +165,53 @@ export async function endOrderWithRefund(
       data: { orderId, status: nextStatus, changedBy: actorId, note: reason },
     });
 
+    // Put the stamp card back. `confirmDeliveryFeePaid` spends it when the
+    // delivery fee is paid, so a student whose discounted order is then refunded
+    // has paid for the reward with nothing to show — they would be six
+    // deliveries from the next one through no fault of theirs.
+    //
+    // Keyed on `order.paidAt`, not on `nextStatus`: the card is only spent once
+    // money actually arrived, so an order cancelled before payment never spent
+    // one and must not be given a free card here.
+    if (Number(order.discountApplied) > 0 && order.paidAt) {
+      const thresholdRow = await fastify.prisma.platformConfig.findUnique({
+        where: { key: "loyalty_threshold" },
+      });
+      const threshold = Number(thresholdRow?.value ?? DEFAULT_LOYALTY_THRESHOLD);
+      await fastify.prisma.studentDeliveryStats.upsert({
+        where: { studentId: order.studentId },
+        create: { studentId: order.studentId, totalDeliveries: 0, rewardStamps: threshold },
+        update: { rewardStamps: { increment: threshold } },
+      });
+    }
+
     // Notified here rather than at each call site so all three routes that end
     // an order (student cancel, shop-cancel, admin refund) tell the student the
     // same thing — and so the copy follows `nextStatus`, which is the only
     // place that knows whether money actually moved.
     await notifyOrderStatus({ fastify, log, orderId, status: nextStatus });
+
+    await recordAudit(
+      fastify,
+      {
+        action: refundIssued ? "refund.issued" : "order.cancelled",
+        category: refundIssued ? "refund" : "order",
+        entityType: "order",
+        entityId: orderId,
+        universityId: order.universityId,
+        before: { status: order.status },
+        after: { status: nextStatus },
+        metadata: {
+          reason,
+          intent,
+          failureReason,
+          references: refsToRefund,
+          totalAmount: order.totalAmount,
+          itemPrice: order.itemPrice,
+        },
+      },
+      request,
+    );
 
     settled = true;
     return { ok: true, order: updated, refundIssued };

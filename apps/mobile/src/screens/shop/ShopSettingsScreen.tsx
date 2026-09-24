@@ -1,15 +1,24 @@
 import { useState } from "react";
 import { Text, View } from "react-native";
 import {
+  BrandBar,
   Confirm,
   Gutter,
   PageTitle,
-  Row,
-  RowGroup,
   Screen,
   ScreenBody,
+  SettingsGroup,
+  SettingsRow,
   Switch,
 } from "../../components/v6";
+import {
+  BoltIcon,
+  CalendarIcon,
+  CartIcon,
+  LogoutIcon,
+  MessageIcon,
+} from "../../components/icons";
+import { colors } from "../../theme/tokens";
 import { ShopSwitcher } from "../../components/shop/ShopSwitcher";
 import { useSelectedShop, useSetShopServing } from "../../lib/shopOwner";
 import { useLayout } from "../../hooks/useLayout";
@@ -28,6 +37,7 @@ export function ShopSettingsScreen() {
 
   return (
     <Screen>
+      <BrandBar />
       <ScreenBody bottomInset={24}>
         <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-8 pt-4"}>
           {isDesktop ? (
@@ -58,59 +68,78 @@ export function ShopSettingsScreen() {
             className={isDesktop ? "flex-row flex-wrap" : undefined}
             style={isDesktop ? { gap: 24 } : undefined}
           >
-            <View
-              className={`flex-row items-center gap-3 rounded-card bg-surface p-5 ${
-                isDesktop ? "" : "mb-8"
-              }`}
-              style={isDesktop ? { flex: 1, minWidth: 280 } : undefined}
-            >
-              <View className="flex-1">
-                <Text className="font-sans-medium text-body text-ink">Serving</Text>
-                <Text className="font-sans text-body text-muted">
-                  {setServing.isError
-                    ? "Couldn't update — check your connection."
-                    : shop?.isActive === false
-                      ? "Paused. Students can't see your shop."
-                      : "Students can order from you right now."}
-                </Text>
-              </View>
-              <Switch
-                value={shop?.isActive ?? false}
-                disabled={!shop || setServing.isPending}
-                onValueChange={(next) => setServing.mutate(next)}
-                accessibilityLabel="Shop is serving orders"
-                accessibilityHint="Turn off to pause the shop and hide it from students"
-              />
+            {/* The switch in a titled row, as the reference does it. The row
+                itself is not pressable — the switch is the control, and two
+                overlapping targets for one setting is worse than one. */}
+            <View style={isDesktop ? { flex: 1, minWidth: 280 } : undefined}>
+              <SettingsGroup title="Storefront">
+                <SettingsRow
+                  icon={<BoltIcon size={18} color={colors.ink} strokeWidth={1.8} />}
+                  label="Serving"
+                  value={
+                    setServing.isError
+                      ? "Couldn't update — check your connection."
+                      : shop?.isActive === false
+                        ? "Paused. Students can't see your shop."
+                        : "Students can order from you right now."
+                  }
+                  trailing={
+                    <Switch
+                      value={shop?.isActive ?? false}
+                      disabled={!shop || setServing.isPending}
+                      onValueChange={(next) => setServing.mutate(next)}
+                      accessibilityLabel="Shop is serving orders"
+                      accessibilityHint="Turn off to pause the shop and hide it from students"
+                    />
+                  }
+                  last={!(shop?.openingTime && shop?.closingTime)}
+                />
+                {shop?.openingTime && shop?.closingTime ? (
+                  <SettingsRow
+                    icon={<CalendarIcon size={18} color={colors.ink} strokeWidth={1.8} />}
+                    label={`${shop.openingTime} – ${shop.closingTime}`}
+                    value="Opening hours"
+                    last
+                  />
+                ) : null}
+              </SettingsGroup>
             </View>
 
             <View style={isDesktop ? { flex: 1, minWidth: 280 } : undefined}>
-              <RowGroup>
-                {isDesktop ? (
-                  <Row
-                    title={shop?.name ?? "Your shop"}
-                    meta={[shop?.category, shop?.locationText].filter(Boolean).join(" · ") || "—"}
-                    chevron={false}
-                  />
-                ) : null}
-                {shop?.openingTime && shop?.closingTime ? (
-                  <Row
-                    title={`${shop.openingTime} – ${shop.closingTime}`}
-                    meta="Opening hours"
-                    chevron={false}
-                  />
-                ) : null}
-                {hasSupportContact() ? (
-                  <Row
-                    title="Help & support"
-                    meta={supportContactLabel()}
-                    onPress={() => void openSupportContact()}
-                  />
-                ) : null}
-              </RowGroup>
+              {isDesktop || hasSupportContact() ? (
+                <SettingsGroup title="Shop">
+                  {isDesktop ? (
+                    <SettingsRow
+                      icon={<CartIcon size={18} color={colors.ink} strokeWidth={1.8} />}
+                      label={shop?.name ?? "Your shop"}
+                      value={
+                        [shop?.category, shop?.locationText].filter(Boolean).join(" · ") || "—"
+                      }
+                      last={!hasSupportContact()}
+                    />
+                  ) : null}
+                  {hasSupportContact() ? (
+                    <SettingsRow
+                      icon={<MessageIcon size={18} color={colors.ink} strokeWidth={1.8} />}
+                      label="Help & support"
+                      value={supportContactLabel()}
+                      onPress={() => void openSupportContact()}
+                      last
+                    />
+                  ) : null}
+                </SettingsGroup>
+              ) : null}
 
-              <View className="mt-8">
-                <Row title="Log out" onPress={() => setConfirmLogout(true)} chevron={false} />
-              </View>
+              <SettingsGroup title="Account">
+                <SettingsRow
+                  icon={<LogoutIcon size={18} color={colors.danger} strokeWidth={1.8} />}
+                  label="Log out"
+                  danger
+                  chevron={false}
+                  onPress={() => setConfirmLogout(true)}
+                  last
+                />
+              </SettingsGroup>
             </View>
           </View>
         </Gutter>

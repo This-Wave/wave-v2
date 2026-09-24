@@ -7,6 +7,7 @@ import { BoxIcon, CartIcon, ChevronRightIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { formatFullDay } from "../../lib/pricing";
 import { DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT } from "@wave/shared";
+import { useBuyForMeLaunched } from "../../lib/serviceStatus";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
 type Route = RouteProp<StudentStackParamList, "ChooseService">;
@@ -23,6 +24,7 @@ type Route = RouteProp<StudentStackParamList, "ChooseService">;
 export function ChooseServiceScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
+  const buyForMeLaunched = useBuyForMeLaunched();
   const date = new Date(params.scheduledDate);
 
   return (
@@ -40,22 +42,25 @@ export function ChooseServiceScreen() {
             .
           </Text>
 
-          <ServiceRow
-            icon={<CartIcon size={22} color={colors.ink} strokeWidth={1.7} />}
-            title="Buy for me"
-            body="Pick items from a shop's menu and we'll buy them and bring them to your checkpoint."
-            onPress={() =>
-              navigation.navigate("ShopSelection", {
-                scheduledDate: params.scheduledDate,
-                isSpecialOrder: params.isSpecialOrder,
-              })
-            }
-          />
+          {/* Left out entirely before Buy for me launches — see lib/serviceStatus.ts. */}
+          {buyForMeLaunched ? (
+            <ServiceRow
+              icon={<CartIcon size={22} color={colors.ink} strokeWidth={1.7} />}
+              title="Buy for me"
+              body="Pick items from a shop's menu and we'll buy them and bring them to your checkpoint."
+              onPress={() =>
+                navigation.navigate("ShopSelection", {
+                  scheduledDate: params.scheduledDate,
+                  isSpecialOrder: params.isSpecialOrder,
+                })
+              }
+            />
+          ) : null}
 
           <ServiceRow
             icon={<BoxIcon size={22} color={colors.ink} strokeWidth={1.7} />}
             title="Pickup"
-            body="Already have the thing? We'll move it from one campus checkpoint to another. You pay the delivery fee only."
+            body="Already have the thing? We'll move it from one checkpoint to another. You pay the delivery fee only."
             onPress={() =>
               navigation.navigate("PickupRequest", {
                 scheduledDate: params.scheduledDate,

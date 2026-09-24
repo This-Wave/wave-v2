@@ -22,19 +22,14 @@ const TOP = 24;
 
 export const useNavBarStore = create<{
   compact: boolean;
-  /** Whether the live-order card is floating above the nav right now. */
-  liveBar: boolean;
   lastY: number;
   setCompact: (compact: boolean) => void;
-  setLiveBar: (liveBar: boolean) => void;
   reset: () => void;
   report: (y: number) => void;
 }>((set, get) => ({
   compact: false,
-  liveBar: false,
   lastY: 0,
   setCompact: (compact) => set({ compact }),
-  setLiveBar: (liveBar) => set({ liveBar }),
   reset: () => set({ compact: false, lastY: 0 }),
   report: (y) => {
     const { lastY } = get();

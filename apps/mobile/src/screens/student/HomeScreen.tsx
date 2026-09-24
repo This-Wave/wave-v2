@@ -4,36 +4,42 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
-  BrandBar,
-  Button,
+  ActiveDeliveryCard,
   CardGrid,
   CardRail,
   Gutter,
   ModeTabs,
   PhotoCard,
-  ProgressRail,
   ResumeOrderCard,
   Screen,
   ScreenBody,
   SearchCapsule,
   SectionTitle,
+  GreetingHeader,
+  HowPickupWorks,
+  MoveItAgain,
+  ServicePausedNotice,
+  SuggestShopCard,
   SkeletonCard,
-  StatusPill,
-  Thumb,
-  WaveBanner,
-  WaveClosedBanner,
+  WaveStrip,
+  QuickTiles,
+  PromoCard,
 } from "../../components/v6";
 import { useLayout } from "../../hooks/useLayout";
 import { openOrderTracking } from "../../lib/desktopNavigate";
 import { useShops } from "../../lib/shops";
-import { useMyOrders } from "../../lib/orders";
+import { LIVE_ORDER_STATUSES, useMyOrders, useRecentPickupRoutes } from "../../lib/orders";
 import { useWave } from "../../lib/wave";
+import { useBuyForMeStatus, useServiceStatus } from "../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
+import { useAuthStore } from "../../store/authStore";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
-import { orderProgress, statusPill } from "./orderPresenters";
+import { HomeSkeleton } from "./HomeSkeleton";
 import { StudentHomeWeb } from "./web/StudentHomeWeb";
 import type { ServiceMode } from "../../components/v6";
-import type { Order, Shop } from "../../types";
+import type { Shop } from "../../types";
+import { BoxIcon, PlusIcon } from "../../components/icons";
+import { colors } from "../../theme/tokens";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
 
@@ -50,10 +56,22 @@ export function HomeScreen() {
 
 function HomeScreenMobile() {
   const navigation = useNavigation<Nav>();
-  const { data: shops, isLoading: shopsLoading } = useShops();
+  const { launched: buyForMeLaunched, settled: serviceSettled } = useBuyForMeStatus();
+  const pickupRoutes = useRecentPickupRoutes();
+  const { data: shops, isLoading: shopsLoading } = useShops({
+    enabled: serviceSettled && buyForMeLaunched,
+  });
   const { data: orders } = useMyOrders();
+  const ordersLoaded = orders !== undefined;
   const wave = useWave();
   const [mode, setMode] = useState<ServiceMode>("buy");
+  const { data: service } = useServiceStatus();
+  const profileName = useAuthStore((state) => state.profile?.fullName ?? "there");
+  const avatarUrl = useAuthStore((state) => state.profile?.avatarUrl ?? null);
+  // Before Buy for me launches there is only one service, so there is nothing
+  // to switch between and no shops to show.
+  const effectiveMode: ServiceMode = buyForMeLaunched ? mode : "pickup";
+  const paused = effectiveMode === "pickup" ? service?.pickup : service?.buy_for_me;
 
   /**
    * The Wave a Home tap books onto: the next open one. Tapping a shop from Home
@@ -66,10 +84,6 @@ function HomeScreenMobile() {
       isSpecialOrder: wave ? !isStandardRunDay(wave.date) : false,
     }),
     [wave],
-  );
-
-  const live = (orders ?? []).find((o) =>
-    ["confirmed", "rider_assigned", "en_route", "at_checkpoint"].includes(o.status),
   );
 
   /**
@@ -91,46 +105,102 @@ function HomeScreenMobile() {
     return (shops ?? []).filter((s) => ids.has(s.id));
   }, [orders, shops]);
 
+  const active = (orders ?? []).filter((o) => LIVE_ORDER_STATUSES.includes(o.status));
+
   return (
     <Screen>
-      <BrandBar />
-
-      {/* Both services, always visible. Tabs rather than a filled control:
-          Home already carries a shadowed capsule and the Wave card, and a third
-          container was what made the screen feel crowded. */}
-      <Gutter>
-        <ModeTabs mode={mode} onChange={setMode} />
-      </Gutter>
-
       <ScreenBody bottomInset={32}>
-        {/* Search leads. The Wave reads as context beneath it rather than
-            competing with it for the top of the screen. */}
-        <Gutter className="pb-4 pt-5">
-          <SearchCapsule
-            mode={mode}
-            onPressQuery={() =>
-              mode === "pickup"
-                ? navigation.navigate("PickupRequest", waveDate)
-                : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
-            }
-            onSubmit={() =>
-              mode === "pickup"
-                ? navigation.navigate("PickupRequest", waveDate)
-                : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
-            }
+        {/* One ink panel: who you are, what you can do, and — once there are
+            shops — the search. Everything below it is white on canvas bar the
+            Wave strip, so the screen has a single anchor rather than five
+            blocks of equal weight. */}
+        <GreetingHeader
+          name={profileName}
+          avatarUrl={avatarUrl}
+          alert={active.length > 0 || !!unpaid}
+          onPressAvatar={() => navigation.navigate("Tabs", { screen: "Profile" })}
+          onPressBell={() => navigation.navigate("Tabs", { screen: "Orders" })}
+        >
+          {buyForMeLaunched ? (
+            <View className="mb-3">
+              <SearchCapsule
+                mode={effectiveMode}
+                onPressQuery={() =>
+                  effectiveMode === "pickup"
+                    ? navigation.navigate("PickupRequest", waveDate)
+                    : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
+                }
+                onSubmit={() =>
+                  effectiveMode === "pickup"
+                    ? navigation.navigate("PickupRequest", waveDate)
+                    : navigation.navigate("ShopSelection", { ...waveDate, focusSearch: true })
+                }
+              />
+            </View>
+          ) : null}
+
+          {/* Both tiles stay in the panel, which is where every role's primary
+              action already lives. The reference puts them on the page below
+              its header, but Wave's panel *is* the action zone — moving them
+              out would make three distinct blocks to cross before the content. */}
+          <QuickTiles
+            actions={[
+              {
+                label: "Send a package",
+                icon: <BoxIcon size={21} color={colors.ink} strokeWidth={1.9} />,
+                disabled: !!paused?.paused,
+                onPress: () => navigation.navigate("PickupRequest", waveDate),
+              },
+              {
+                label: "Suggest a shop",
+                icon: <PlusIcon size={21} color={colors.ink} strokeWidth={2} />,
+                onPress: () => navigation.navigate("SuggestShop", waveDate),
+              },
+            ]}
           />
+        </GreetingHeader>
+
+        {/* The Wave's deadline, on the one tinted ground on the screen. Below
+            the panel rather than inside it: in the panel it stopped reading as
+            something you could press, and the panel was carrying three
+            unrelated jobs. */}
+        <Gutter className="pt-5">
+          <WaveStrip wave={wave} onPress={() => navigation.navigate("WaveCalendar")} />
         </Gutter>
 
-        <Gutter className="pb-4">
-          {wave && !wave.closed ? (
-            <WaveBanner wave={wave} onPress={() => navigation.navigate("WaveCalendar")} />
-          ) : (
-            <WaveClosedBanner onPress={() => navigation.navigate("WaveCalendar")} />
-          )}
-        </Gutter>
+        {/* Both services, once there are two. */}
+        {buyForMeLaunched ? (
+          <Gutter className="pt-5">
+            <ModeTabs mode={mode} onChange={setMode} />
+          </Gutter>
+        ) : null}
+        {/* A pause outranks everything, search included: it is the one thing
+            on this screen that changes whether any of the rest will work. */}
+        {paused?.paused ? (
+          <Gutter className="pt-5">
+            <ServicePausedNotice
+              service={effectiveMode === "pickup" ? "Pickup" : "Buy for me"}
+              message={paused.message ?? ""}
+              resumeAt={paused.resumeAt}
+            />
+          </Gutter>
+        ) : null}
+
+        {/* The Wave had a card of its own here once. It is the strip under the
+            panel now, so the first thing in this position is whatever the
+            student actually has to act on. */}
+
+        {/* Every section below is derived from `/orders/my`, and the newcomer
+            explainer is deliberately held back until it resolves, so without
+            this Home waits with an empty screen rather than a loading one. */}
+        {!ordersLoaded ? (
+          <Gutter className="pt-5">
+            <HomeSkeleton />
+          </Gutter>
+        ) : null}
 
         {unpaid ? (
-          <Gutter>
+          <Gutter className="pt-5">
             <ResumeOrderCard
               order={unpaid}
               onPress={() =>
@@ -143,28 +213,77 @@ function HomeScreenMobile() {
           </Gutter>
         ) : null}
 
-        {live ? (
-          <LiveOrderCard
-            order={live}
-            onPress={() => openOrderTracking(navigation, live.id)}
-          />
+        {active.length > 0 ? (
+          <Gutter className="pt-5">
+            <Text className="mb-3 font-sans-medium text-heading-sm text-ink">
+              {active.length === 1 ? "Active delivery" : `Active deliveries (${active.length})`}
+            </Text>
+            <View style={{ gap: 8 }}>
+              {active.map((order) => (
+                <ActiveDeliveryCard
+                  key={order.id}
+                  order={order}
+                  onPress={() => openOrderTracking(navigation, order.id)}
+                />
+              ))}
+            </View>
+          </Gutter>
         ) : null}
 
         {/* A shop rail is meaningless when nothing is being bought, so Pickup
             gets the thing it actually needs: the route, again. */}
-        {mode === "pickup" ? (
-          <Gutter>
-            <Text className="mb-3 font-sans-medium text-heading-sm text-ink">Move a package</Text>
-            <Text className="mb-4 font-sans text-body text-muted">
-              We&apos;ll collect it from one campus checkpoint and drop it at another. You pay the
-              delivery fee only — there is nothing for us to buy.
-            </Text>
-            <Button
-              label="Start a pickup"
-              full={false}
-              onPress={() => navigation.navigate("PickupRequest", waveDate)}
-            />
-          </Gutter>
+        {effectiveMode === "pickup" ? (
+          <>
+            {/* A route this student has sent before is one tap. Absent for
+                anyone who has not sent a package yet. */}
+            {/* Gated here as well as inside the component: `MoveItAgain`
+                returns null for a student with no routes, but the Gutter around
+                it does not, so its `pt-5` was left behind as a phantom gap
+                between the Wave strip and the card below. */}
+            {pickupRoutes.length > 0 ? (
+              <Gutter className="pt-5">
+                <MoveItAgain
+                  onPick={(route) =>
+                    navigation.navigate("PickupRequest", {
+                      ...waveDate,
+                      fromId: route.originId,
+                      toId: route.destinationId,
+                    })
+                  }
+                />
+              </Gutter>
+            ) : null}
+
+            {/* Before Buy for me launches, Pickup is the whole product and the
+                screen is otherwise empty: explain it, and give students the one
+                lever that fills the catalogue. */}
+            {!buyForMeLaunched ? (
+              <>
+                {/* Only for someone who has not sent a package: the routes
+                    above say more to anyone who has. Waits for the orders to
+                    load, or the card appears for a second and then vanishes
+                    under someone who has sent plenty. */}
+                {ordersLoaded && pickupRoutes.length === 0 ? (
+                  // pt-5 like every other section under the panel, so the first
+                  // card sits the same distance down whichever one it is.
+                  <Gutter className="pt-5">
+                    <HowPickupWorks />
+                  </Gutter>
+                ) : null}
+                {/* The ad space. Before launch the thing worth a student's
+                    attention is the half of Wave that is coming, and its button
+                    is what decides which shops arrive first. */}
+                <Gutter className="pt-3">
+                  <PromoCard
+                    headline="Shop orders are coming"
+                    body="We're signing up shops around campus now. Tell us where you actually buy — the places the most people ask for open first."
+                    cta="Suggest a shop"
+                    onPress={() => navigation.navigate("SuggestShop", waveDate)}
+                  />
+                </Gutter>
+              </>
+            ) : null}
+          </>
         ) : (
           <>
             <Section
@@ -184,6 +303,15 @@ function HomeScreenMobile() {
                 waveDate={waveDate}
               />
             ) : null}
+
+            {/* The shop a student wanted and did not find is only recorded if
+                asking is reachable from here — searching and settling never
+                reaches the shop list's empty state. */}
+            <Gutter className="pt-4">
+              <SuggestShopCard
+                onSuggest={() => navigation.navigate("SuggestShop", waveDate)}
+              />
+            </Gutter>
           </>
         )}
       </ScreenBody>
@@ -267,40 +395,6 @@ function Section({
   );
 }
 
-/**
- * The live order strip. Replaces v5's "Active orders" list — a student has at
- * most one order in flight in practice, and a one-item list is a card wearing a
- * heading.
- */
-function LiveOrderCard({ order, onPress }: { order: Order; onPress: () => void }) {
-  const pill = statusPill(order.status);
-  return (
-    <Gutter className="mb-section">
-      <View className="rounded-card bg-surface p-4">
-        <View className="mb-3 flex-row items-center gap-3">
-          <Thumb uri={order.shop?.logoUrl} size={48} />
-          <View className="flex-1">
-            <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
-              {order.shop?.name ?? "Your order"}
-            </Text>
-            <Text className="font-sans text-body text-muted" numberOfLines={1}>
-              To {order.checkpoint?.name ?? "your checkpoint"}
-            </Text>
-          </View>
-          <StatusPill label={pill.label} tone={pill.tone} />
-        </View>
-        <ProgressRail ratio={orderProgress(order.status)} />
-        <Text
-          className="pt-3 font-sans-medium text-body text-ink"
-          onPress={onPress}
-          accessibilityRole="button"
-        >
-          Track this order
-        </Text>
-      </View>
-    </Gutter>
-  );
-}
 
 function titleCase(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);

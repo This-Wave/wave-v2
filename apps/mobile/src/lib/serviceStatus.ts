@@ -1,0 +1,58 @@
+import { useQuery } from "@tanstack/react-query";
+import type { ServiceStatus } from "@wave/shared";
+import { api } from "./api";
+import { useAuthStore } from "../store/authStore";
+
+/**
+ * Whether Wave is taking new orders at this student's campus.
+ *
+ * A pause is set by staff in the admin and enforced by the API regardless; this
+ * only exists so the app can say so up front, in the admin's own words, instead
+ * of letting someone build a basket and be refused at the last step.
+ *
+ * Unlike feature flags, a failed fetch reads as "running". Refusing orders
+ * because a status check timed out would be the app inventing an outage.
+ */
+export function useServiceStatus() {
+  const universityId = useAuthStore((s) => s.profile?.universityId ?? null);
+  return useQuery({
+    queryKey: ["service-status", universityId],
+    queryFn: async () => {
+      const { data } = await api.get<{ status: ServiceStatus }>("/service-status", {
+        params: universityId ? { universityId } : undefined,
+      });
+      return data.status;
+    },
+    staleTime: 60 * 1000,
+    refetchInterval: 2 * 60 * 1000,
+  });
+}
+
+/**
+ * Whether Buy for me exists for this student yet.
+ *
+ * Before launch the service is not merely paused: there is no tab and no shop
+ * browsing, because a catalogue you cannot order from is a dead end.
+ *
+ * Unknown reads as launched, deliberately. A flaky status check must not make
+ * the shops disappear for everyone after launch — and if it is genuinely still
+ * closed, the API refuses browsing anyway and the screens say why.
+ */
+export function useBuyForMeLaunched(): boolean {
+  const { data } = useServiceStatus();
+  return !data?.buy_for_me.hidden;
+}
+
+/**
+ * The same answer, plus whether it is known yet.
+ *
+ * `launched` alone is optimistic on purpose, which is right for drawing but
+ * wrong for fetching: on the first paint it would send a request for a
+ * catalogue that is closed and take a 503 every time Home opens. Callers that
+ * fetch wait for `settled` — set once the status has arrived or failed, so a
+ * failed check still ends up asking rather than hiding the shops forever.
+ */
+export function useBuyForMeStatus(): { launched: boolean; settled: boolean } {
+  const { data, isPending, isError } = useServiceStatus();
+  return { launched: !data?.buy_for_me.hidden, settled: !isPending || isError };
+}

@@ -7,6 +7,7 @@ import { loadEnv, type Env } from "./config/env";
 import { parseCorsOrigins } from "./config/cors";
 import prismaPlugin from "./plugins/prisma";
 import authPlugin from "./plugins/auth";
+import auditPlugin from "./plugins/audit";
 import rateLimitPlugin from "./plugins/rateLimit";
 import sweeperPlugin from "./plugins/sweeper";
 import { authRoutes } from "./modules/auth/routes";
@@ -21,7 +22,14 @@ import { adminRoutes } from "./modules/admin/routes";
 import { notificationRoutes } from "./modules/notifications/routes";
 import { suggestionRoutes } from "./modules/suggestions/routes";
 import { featureRoutes, adminFeatureRoutes } from "./modules/features/routes";
+import { loyaltyRoutes } from "./modules/loyalty/routes";
 import { groupBasketRoutes } from "./modules/groupBaskets/routes";
+import { staffRoutes } from "./modules/staff/routes";
+import { serviceStatusRoutes, adminSwitchRoutes } from "./modules/switches/routes";
+import { betaRoutes, adminBetaRoutes } from "./modules/beta/routes";
+import { auditRoutes } from "./modules/audit/routes";
+import { campusAdminRoutes } from "./modules/campusAdmins/routes";
+import { refundRequestRoutes } from "./modules/refundRequests/routes";
 import { setupSentryFastify } from "./lib/sentry";
 
 declare module "fastify" {
@@ -49,6 +57,8 @@ export function buildApp(): FastifyInstance {
   app.register(prismaPlugin);
   app.register(rateLimitPlugin);
   app.register(authPlugin);
+  // Global hooks: every mutation and every refusal lands in audit_event.
+  app.register(auditPlugin);
   // After prisma: the sweep's first tick needs `fastify.prisma` decorated.
   app.register(sweeperPlugin);
 
@@ -74,8 +84,17 @@ export function buildApp(): FastifyInstance {
   app.register(notificationRoutes, { prefix: "/v1/notifications" });
   app.register(suggestionRoutes, { prefix: "/v1/shop-suggestions" });
   app.register(featureRoutes, { prefix: "/v1" });
+  app.register(loyaltyRoutes, { prefix: "/v1" });
   app.register(adminFeatureRoutes, { prefix: "/v1/admin" });
   app.register(groupBasketRoutes, { prefix: "/v1/group-baskets" });
+  app.register(staffRoutes, { prefix: "/v1/admin/staff" });
+  app.register(serviceStatusRoutes, { prefix: "/v1" });
+  app.register(adminSwitchRoutes, { prefix: "/v1/admin" });
+  app.register(betaRoutes, { prefix: "/v1/beta" });
+  app.register(adminBetaRoutes, { prefix: "/v1/admin" });
+  app.register(auditRoutes, { prefix: "/v1/admin" });
+  app.register(campusAdminRoutes, { prefix: "/v1/admin/campus-admins" });
+  app.register(refundRequestRoutes, { prefix: "/v1/admin/refund-requests" });
 
   setupSentryFastify(app);
 

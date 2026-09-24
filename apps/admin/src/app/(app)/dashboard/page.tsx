@@ -7,6 +7,7 @@ import { useApiQuery } from "../../../hooks/useApiQuery";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 import { OrderFailures } from "../../../components/OrderFailures";
 import { approvalWait } from "@wave/shared";
+import { LaunchReadiness } from "../../../components/LaunchReadiness";
 
 /** "oldest 3 days", or nothing when the queue is empty. */
 function waitHint(oldestAt: string | null | undefined): string | undefined {
@@ -56,7 +57,7 @@ function formatGhs(amount: number): string {
 }
 
 export default function DashboardPage() {
-  const { accessToken } = useAdminAuth();
+  const { accessToken, profile } = useAdminAuth();
   const [orders, setOrders] = useState<RecentOrder[] | null>(null);
   const [ordersError, setOrdersError] = useState<string | null>(null);
   const [ordersLoading, setOrdersLoading] = useState(true);
@@ -90,13 +91,19 @@ export default function DashboardPage() {
     <div className="px-10 py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-[26px] font-semibold tracking-tight text-ink">Platform Overview</h1>
-          <p className="mt-0.5 text-[13px] text-muted">Today across all Wave activity</p>
+          <h1 className="text-[26px] font-semibold tracking-tight text-ink">
+            {profile?.campus ? profile.campus.name : "Platform Overview"}
+          </h1>
+          <p className="mt-0.5 text-[13px] text-muted">
+            {profile?.campus ? "Today at your campus" : "Today across all Wave activity"}
+          </p>
         </div>
         <span className="rounded-full bg-success-bg px-3 py-1.5 text-[11px] font-bold text-wave-700">
           Run Day Active
         </span>
       </div>
+
+      <LaunchReadiness />
 
       {statsQuery.error ? (
         <FetchErrorBanner message={statsQuery.error} onRetry={statsQuery.retry} />

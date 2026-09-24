@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { PROFILE_ROLES, RIDER_TYPES } from "../constants/platform";
+import { PROFILE_ROLES, RIDER_TYPES, SELF_SERVE_PROFILE_ROLES } from "../constants/platform";
+import { HQ_STAFF_ROLES, type StaffRole } from "../constants/staff";
 
 /**
  * Every `platform_config` key the platform actually reads, with the range its
@@ -28,6 +29,7 @@ export const PLATFORM_CONFIG_KEYS = {
   rider_earning_pct: { min: 0, max: 100, integer: false, label: "Rider share — legacy, unused (%)" },
   rider_earning_pct_student: { min: 0, max: 100, integer: false, label: "Student rider share of the delivery fee (%)" },
   rider_earning_pct_external: { min: 0, max: 100, integer: false, label: "External rider share of the delivery fee (%)" },
+  buy_for_me_min_shops: { min: 0, max: 500, integer: true, label: "Shops needed before Buy for me opens" },
 } as const;
 
 export type PlatformConfigKey = keyof typeof PLATFORM_CONFIG_KEYS;
@@ -149,3 +151,78 @@ export const forceDeliverSchema = z.object({
   reason: z.string().min(10).max(500),
 });
 export type ForceDeliverInput = z.infer<typeof forceDeliverSchema>;
+
+// --- Staff ------------------------------------------------------------------
+
+/** HQ roles only. A campus admin needs a university too, so they have their own schema. */
+const hqRole = z.enum(HQ_STAFF_ROLES as unknown as [StaffRole, ...StaffRole[]], {
+  errorMap: () => ({ message: "Choose an HQ role. Campus admins are added on the Campus admins page." }),
+});
+
+export const addStaffSchema = z
+  .object({
+    /** Anything a person would type: 024…, 24…, +233…, with spaces. */
+    phone: z.string().trim().min(9, "Enter the person's phone number").max(20),
+    staffRole: hqRole,
+  })
+  .strict();
+export type AddStaffInput = z.infer<typeof addStaffSchema>;
+
+export const changeStaffRoleSchema = z.object({ staffRole: hqRole }).strict();
+
+export const addCampusAdminSchema = z
+  .object({
+    phone: z.string().trim().min(9, "Enter the person's phone number").max(20),
+    universityId: z.string().uuid("Choose a university"),
+  })
+  .strict();
+
+export const requestRefundSchema = z
+  .object({
+    orderId: z.string().uuid(),
+    reason: z.string().trim().min(5, "Say why this order should be refunded").max(500),
+  })
+  .strict();
+
+export const decideRefundSchema = z
+  .object({
+    decision: z.enum(["approve", "reject"]),
+    /** Shown to the campus admin who asked. Required when rejecting. */
+    note: z.string().trim().max(300).optional(),
+  })
+  .strict()
+  .refine((v) => v.decision === "approve" || (v.note && v.note.length > 0), {
+    message: "Say why the refund is being turned down",
+    path: ["note"],
+  });
+
+export const removeStaffSchema = z
+  .object({
+    /** What the person goes back to being. Staff hold no student or rider role meanwhile. */
+    revertTo: z.enum(SELF_SERVE_PROFILE_ROLES),
+  })
+  .strict();
+
+// --- Beta programme -----------------------------------------------------------
+
+export const applyForBetaSchema = z
+  .object({
+    reason: z.string().trim().max(500, "Keep it under 500 characters").optional(),
+  })
+  .strict();
+
+export const betaFeedbackSchema = z
+  .object({
+    message: z.string().trim().min(3, "Tell us a little more").max(2000),
+    screen: z.string().trim().max(80).optional(),
+    appVersion: z.string().trim().max(40).optional(),
+  })
+  .strict();
+
+export const reviewBetaSchema = z
+  .object({
+    decision: z.enum(["approve", "reject", "revoke"]),
+    /** Shown to the applicant when rejected or revoked. */
+    note: z.string().trim().max(300).optional(),
+  })
+  .strict();

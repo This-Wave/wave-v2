@@ -62,6 +62,43 @@ export function describeWave(now: Date = new Date()): WaveInfo | null {
   };
 }
 
+/** One unit of the countdown, as the counter draws it: `3` over `days`. */
+export interface CountdownPart {
+  value: number;
+  /** Already singularised — "1 day", not "1 days". */
+  unit: string;
+}
+
+/**
+ * The countdown split into the two coarsest units that still have a value.
+ *
+ * Two, not three: "3 days 22 hours 14 minutes" invites a precision the schedule
+ * does not have — the Wave leaves at noon whatever the minutes say — and three
+ * blocks do not fit beside a label on a 390pt screen. The pair shifts down as
+ * the deadline approaches (d/h, then h/m, then m alone), so the unit on display
+ * is always the one a student would act on.
+ *
+ * Empty when the window has closed, which is the caller's cue to say so in
+ * words instead of showing zeros.
+ */
+export function countdownParts(ms: number): CountdownPart[] {
+  if (ms <= 0) return [];
+
+  const totalMinutes = Math.floor(ms / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  const unit = (value: number, name: string) => ({
+    value,
+    unit: value === 1 ? name : `${name}s`,
+  });
+
+  if (days > 0) return [unit(days, "day"), unit(hours, "hour")];
+  if (hours > 0) return [unit(hours, "hour"), unit(minutes, "minute")];
+  return [unit(minutes, "minute")];
+}
+
 export function formatCountdown(ms: number): string {
   if (ms <= 0) return "closed";
   const totalMinutes = Math.floor(ms / 60000);

@@ -4,11 +4,12 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { ShopStackParamList } from "../../navigation/ShopNavigator";
 import {
+  GreetingHeader,
+  Switch,
   Empty,
   Gutter,
   ListError,
   ListSkeleton,
-  PageTitle,
   Row,
   RowGroup,
   Screen,
@@ -16,7 +17,8 @@ import {
   StatusPill,
 } from "../../components/v6";
 import { ShopSwitcher } from "../../components/shop/ShopSwitcher";
-import { useSelectedShop, useShopOrders } from "../../lib/shopOwner";
+import { useAuthStore } from "../../store/authStore";
+import { useSelectedShop, useSetShopServing, useShopOrders } from "../../lib/shopOwner";
 import { useWave } from "../../lib/wave";
 import { useLayout } from "../../hooks/useLayout";
 import { openShopIncoming } from "../../lib/desktopNavigate";
@@ -49,6 +51,8 @@ export function ShopDashboardScreen() {
     .reduce((sum, o) => sum + Number(o.totalAmount), 0);
 
   const isLoading = shopLoading || ordersLoading;
+  const profile = useAuthStore((state) => state.profile);
+  const setServing = useSetShopServing(shop?.id);
 
   return (
     <Screen>
@@ -57,40 +61,70 @@ export function ShopDashboardScreen() {
         refreshing={isRefetching}
         onRefresh={() => void refetch()}
       >
-        <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-6 pt-4"}>
-          <View className="mb-2 flex-row items-start justify-between">
-            <View className="flex-1 pr-3">
-              {isDesktop ? (
-                <>
-                  <Text className="font-sans-bold text-heading text-ink">
-                    {shop?.name ?? "Your shop"}
-                  </Text>
-                  <Text className="mt-1 font-sans text-ui text-muted">
-                    {wave
-                      ? `${wave.name} · closes in ${wave.countdown}. Flag anything you can’t fulfil.`
-                      : "Today’s Wave and what needs a decision."}
-                  </Text>
-                </>
-              ) : (
-                <PageTitle>{shop?.name ?? "Your shop"}</PageTitle>
-              )}
+        {isDesktop ? (
+          <Gutter className="pb-8 pt-8">
+            <View className="mb-2 flex-row items-start justify-between">
+              <View className="flex-1 pr-3">
+                <Text className="font-sans-bold text-heading text-ink">
+                  {shop?.name ?? "Your shop"}
+                </Text>
+                <Text className="mt-1 font-sans text-ui text-muted">
+                  {wave
+                    ? `${wave.name} · closes in ${wave.countdown}. Flag anything you can’t fulfil.`
+                    : "Today’s Wave and what needs a decision."}
+                </Text>
+              </View>
+              {/* An unverified shop is invisible to students regardless of
+                  `isActive`, so showing "Serving" here would be a lie the owner
+                  acts on — they would sit waiting for orders that cannot arrive. */}
+              <StatusPill
+                label={
+                  shop && !shop.isVerified ? "Awaiting approval" : shop?.isActive ? "Serving" : "Closed"
+                }
+                tone={shop && !shop.isVerified ? "neutral" : shop?.isActive ? "done" : "neutral"}
+              />
             </View>
-            {/* An unverified shop is invisible to students regardless of
-                `isActive`, so showing "Serving" here would be a lie the owner
-                acts on — they would sit waiting for orders that cannot arrive. */}
-            <StatusPill
-              label={
-                shop && !shop.isVerified ? "Awaiting approval" : shop?.isActive ? "Serving" : "Closed"
-              }
-              tone={shop && !shop.isVerified ? "neutral" : shop?.isActive ? "done" : "neutral"}
-            />
-          </View>
-          {!isDesktop ? (
-            <Text className="font-sans text-body text-muted">
-              {wave ? `${wave.name} · closes in ${wave.countdown}` : "Next Wave"}
-            </Text>
-          ) : null}
-        </Gutter>
+          </Gutter>
+        ) : (
+          /* Open or closed is the shop's equivalent of a rider going online,
+             so it sits in the panel. An unverified shop gets the truth instead
+             of a switch it cannot act on. */
+          <GreetingHeader
+            name={shop?.name ?? profile?.fullName ?? "there"}
+            wholeName={!!shop?.name}
+            avatarUrl={profile?.avatarUrl}
+            alert={incoming.length > 0}
+            onPressAvatar={() => navigation.navigate("Tabs", { screen: "Settings" })}
+            onPressBell={() => navigation.navigate("Tabs", { screen: "ShopOrders" })}
+          >
+            <View className="flex-row items-center gap-3 rounded-card bg-surface px-4 py-3.5">
+              <View className="min-w-0 flex-1">
+                <Text className="font-sans-medium text-ui text-ink">
+                  {shop && !shop.isVerified
+                    ? "Awaiting approval"
+                    : shop?.isActive
+                      ? "Open for orders"
+                      : "Closed"}
+                </Text>
+                <Text className="font-sans text-body text-muted" numberOfLines={1}>
+                  {shop && !shop.isVerified
+                    ? "Students can't see you yet"
+                    : wave
+                      ? `${wave.name} · closes in ${wave.countdown}`
+                      : "Next Wave"}
+                </Text>
+              </View>
+              {shop?.isVerified ? (
+                <Switch
+                  value={shop?.isActive ?? false}
+                  onValueChange={(next) => setServing.mutate(next)}
+                  accessibilityLabel="Open for orders"
+                  accessibilityHint="Turn off to stop new orders arriving"
+                />
+              ) : null}
+            </View>
+          </GreetingHeader>
+        )}
 
         {shop && !shop.isVerified ? (
           <Gutter className="pb-4">
@@ -107,7 +141,7 @@ export function ShopDashboardScreen() {
         ) : null}
 
         {shops && shops.length > 1 ? (
-          <Gutter className="mb-6">
+          <Gutter className="mb-6 pt-5">
             <ShopSwitcher shops={shops} selectedId={shop?.id} onSelect={selectShop} />
           </Gutter>
         ) : null}

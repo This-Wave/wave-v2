@@ -17,7 +17,8 @@ import {
 import { CheckIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useCheckpoints } from "../../lib/checkpoints";
-import { useCompletedDeliveryCount, useCreateOrder } from "../../lib/orders";
+import { useCreateOrder } from "../../lib/orders";
+import { useLoyalty } from "../../lib/loyalty";
 import { useAuthStore } from "../../store/authStore";
 import { useLastCheckpoint } from "../../hooks/useLastCheckpoint";
 import {
@@ -48,7 +49,7 @@ export function SuggestOrderSummaryScreen() {
   const profile = useAuthStore((s) => s.profile);
   const { data: checkpoints } = useCheckpoints(profile?.universityId ?? undefined);
   const createOrder = useCreateOrder();
-  const completedDeliveries = useCompletedDeliveryCount();
+  const { data: loyalty } = useLoyalty();
 
   const checkpointIds = checkpoints?.map((c) => c.id);
   const { checkpointId, selectCheckpoint } = useLastCheckpoint(checkpointIds);
@@ -63,9 +64,9 @@ export function SuggestOrderSummaryScreen() {
       estimateOrderTotal({
         itemPrice: 0,
         isSpecialOrder: params.isSpecialOrder,
-        completedDeliveries,
+        rewardReady: !!loyalty?.rewardReady,
       }),
-    [params.isSpecialOrder, completedDeliveries],
+    [params.isSpecialOrder, loyalty?.rewardReady],
   );
 
   async function handleConfirm() {

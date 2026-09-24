@@ -1,7 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CreateOrderInput } from "@wave/shared";
+import { recentPickupRoutes } from "@wave/shared";
 import { api } from "./api";
 import type { Order } from "../types";
+
+/** Paid and not yet handed over: the orders Home lists under "Active delivery". */
+export const LIVE_ORDER_STATUSES = ["confirmed", "rider_assigned", "en_route", "at_checkpoint"];
+
+/** The distinct routes this student has sent a package along, newest first. */
+export function useRecentPickupRoutes(limit = 3) {
+  const { data } = useMyOrders();
+  return recentPickupRoutes(data ?? [], limit);
+}
 
 export function useMyOrders() {
   return useQuery({

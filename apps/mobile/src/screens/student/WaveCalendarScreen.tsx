@@ -11,6 +11,7 @@ import {
   Screen,
   ScreenBody,
   TopBar,
+  WaveCountdown,
 } from "../../components/v6";
 import { classifyMonth, formatFullDay, isStandardRunDay } from "../../lib/pricing";
 import { DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT } from "@wave/shared";
@@ -57,10 +58,19 @@ export function WaveCalendarScreen() {
       <ScreenBody bottomInset={16}>
         <Gutter>
           <Text className="mb-2 font-sans-bold text-heading text-ink">When do you need it?</Text>
-          <Text className="mb-6 font-sans text-body text-muted">
+          <Text className="mb-5 font-sans text-body text-muted">
             Wave runs every Sunday and Wednesday. Orders close at noon on the day itself. Any other
             day is a rush order.
           </Text>
+
+          {/* The counter belongs on this screen rather than Home: Home says
+              which Wave is next in one line, and anyone who came here to change
+              the day needs to know how long is left on the default first. */}
+          {wave ? (
+            <View className="mb-6">
+              <WaveCountdown wave={wave} />
+            </View>
+          ) : null}
 
           <Calendar
             month={month}

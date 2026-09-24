@@ -31,7 +31,7 @@ function initials(name: string): string {
 }
 
 export default function RidersPage() {
-  const { accessToken } = useAdminAuth();
+  const { accessToken, can } = useAdminAuth();
   const [tab, setTab] = useState<VerificationStatus>("pending");
   const [verifications, setVerifications] = useState<Verification[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +86,7 @@ export default function RidersPage() {
             }`}
           >
             {t.label}
-            {t.key === "pending" && verifications && tab === "pending" ? ` (${verifications.length})` : ""}
+            {t.key === "pending" && verifications && tab === "pending" && can("riders.verify") ? ` (${verifications.length})` : ""}
           </button>
         ))}
       </div>
@@ -97,11 +97,11 @@ export default function RidersPage() {
             <tr className="border-b border-border bg-canvas text-[11px] uppercase tracking-wide text-muted">
               <th className="px-4 py-3 font-semibold">Rider</th>
               <th className="px-4 py-3 font-semibold">Phone</th>
-              <th className="px-4 py-3 font-semibold">{tab === "pending" ? "Waiting" : "Submitted"}</th>
+              <th className="px-4 py-3 font-semibold">{tab === "pending" && can("riders.verify") ? "Waiting" : "Submitted"}</th>
               <th className="px-4 py-3 font-semibold">ID</th>
               <th className="px-4 py-3 font-semibold">Selfie</th>
               <th className="px-4 py-3 font-semibold">Status</th>
-              {tab === "pending" ? <th className="px-4 py-3 font-semibold">Actions</th> : null}
+              {tab === "pending" && can("riders.verify") ? <th className="px-4 py-3 font-semibold">Actions</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -196,7 +196,7 @@ export default function RidersPage() {
                       {v.status}
                     </span>
                   </td>
-                  {tab === "pending" ? (
+                  {tab === "pending" && can("riders.verify") ? (
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <button

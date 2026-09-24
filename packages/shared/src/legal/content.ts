@@ -32,28 +32,85 @@ export interface LegalSection {
 }
 
 export interface LegalDoc {
-  slug: "terms" | "privacy";
+  slug: "terms" | "privacy" | "refunds";
   title: string;
   description: string;
   sections: LegalSection[];
 }
 
 /**
+ * Who Wave actually is, as a legal party.
+ *
+ * One object rather than loose constants because these are the details a data
+ * subject, a regulator and Paystack all ask for, and they are asked for
+ * together. Both apps render from here, so filling this in once updates the
+ * terms, the privacy policy, the admin footer and the receipts at the same time.
+ *
+ * ⚠️ TODO(owner): four of these are blank and Wave must not go to production
+ * with them blank. `missingLegalDetails()` below names exactly which, and
+ * `LEGAL_DETAILS_COMPLETE` is false until all of them are filled. Under Ghana's
+ * Data Protection Act, 2012 (Act 843) a controller has to be reachable and
+ * registered — an unread address is a compliance gap, not a cosmetic one.
+ *
+ * Deliberately left empty rather than filled with plausible-looking values: a
+ * wrong address on a legal document is worse than an obvious blank, because the
+ * blank gets fixed and the wrong one gets trusted.
+ */
+export const LEGAL_DETAILS = {
+  /** The registered business name. The agreement is with this, not with "Wave". */
+  operator: "Ride the Wave Logistics",
+  /** Registered postal or physical address, as filed. */
+  address: "",
+  /** A phone number a customer can actually reach. */
+  phone: "",
+  /** A monitored mailbox. Data-subject requests arrive here. */
+  email: "",
+  /**
+   * Ghana Data Protection Commission registration number.
+   *
+   * If registration is still in progress, leave this blank — the documents say
+   * so honestly rather than implying a registration that does not exist.
+   */
+  dpcRegistration: "",
+} as const;
+
+/** The fields still blank, by name. Empty array means ready to ship. */
+export function missingLegalDetails(): string[] {
+  return Object.entries(LEGAL_DETAILS)
+    .filter(([, value]) => value.trim() === "")
+    .map(([key]) => key);
+}
+
+/**
+ * Whether Wave may present itself as a legal entity yet.
+ *
+ * Read by both renderers: while this is false the documents show what is
+ * missing instead of quietly rendering a blank where an address should be.
+ */
+export const LEGAL_DETAILS_COMPLETE = missingLegalDetails().length === 0;
+
+/**
  * The address a student, rider or shop owner writes to about their data.
  *
- * TODO(owner): point this at a mailbox that is actually monitored. `wave.app`
- * appears elsewhere in this repo only as a synthetic sender for Paystack
- * customer records and receives no mail, so it is deliberately not used here.
- * Ghana's Data Protection Act gives a data subject the right to reach the data
- * controller, which makes an unread address a compliance gap rather than a
- * cosmetic one.
+ * Kept as its own export because the documents reference it inline in a dozen
+ * places. Falls back to naming the gap rather than printing an empty string,
+ * so a missing mailbox reads as unfinished rather than as no contact at all.
  */
-export const LEGAL_CONTACT_EMAIL = "REPLACE-ME@example.com";
+export const LEGAL_CONTACT_EMAIL =
+  LEGAL_DETAILS.email.trim() || "[contact email not yet set]";
 
-export const LEGAL_OPERATOR = "Wave";
+/**
+ * The registered business. "Wave" is the name students know it by and stays
+ * the brand everywhere in the app; this is who the agreement is actually with,
+ * so it appears wherever a legal party, a receipt or a data controller is named.
+ */
+export const LEGAL_OPERATOR = LEGAL_DETAILS.operator;
+
+/** The everyday name, which the documents define as meaning the operator. */
+export const LEGAL_BRAND = "Wave";
 
 /** Shown on both documents. Bump whenever the text materially changes. */
-export const LEGAL_LAST_UPDATED = "2 September 2026";
+export const LEGAL_LAST_UPDATED = "21 September 2026";
 
 /**
  * Flip to `true` once a qualified adviser has reviewed both documents.
@@ -77,7 +134,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           kind: "p",
-          text: `These terms are an agreement between you and ${LEGAL_OPERATOR}, a campus delivery service operating at Ashesi University, Berekuso, Ghana. By creating an account or placing an order you accept them. If you do not accept them, do not use Wave.`,
+          text: `These terms are an agreement between you and ${LEGAL_OPERATOR} ("${LEGAL_BRAND}", "we"), a registered business operating a campus delivery service at Ashesi University, Berekuso, Ghana. By creating an account or placing an order you accept them. If you do not accept them, do not use Wave.`,
         },
       ],
     },
@@ -99,7 +156,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           kind: "p",
-          text: "Wave arranges for a rider to buy goods on your behalf from an off-campus shop and bring them to a campus checkpoint. Wave is a delivery and coordination service. It is not the manufacturer or, except where stated, the seller of the goods.",
+          text: "Wave arranges for a rider to buy goods on your behalf from an off-campus shop and bring them to a checkpoint. Wave is a delivery and coordination service. It is not the manufacturer or, except where stated, the seller of the goods.",
         },
         {
           kind: "p",
@@ -150,7 +207,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           kind: "p",
-          text: "Delivery is to a campus checkpoint you choose, not to a room or hostel door. Be at the checkpoint when the app tells you the rider has arrived.",
+          text: "Delivery is to a checkpoint you choose, not to a room or hostel door. Be at the checkpoint when the app tells you the rider has arrived.",
         },
         {
           kind: "p",
@@ -172,6 +229,10 @@ export const TERMS: LegalDoc = {
         {
           kind: "p",
           text: "If an order cannot be fulfilled — the shop is shut, the item is unavailable, no rider is found — it is cancelled and refunded in full.",
+        },
+        {
+          kind: "p",
+          text: "The full Refund Policy sets out what is refundable, how long it takes and how to ask. It forms part of these terms.",
         },
       ],
     },
@@ -247,7 +308,7 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           kind: "p",
-          text: `${LEGAL_OPERATOR} operates a campus delivery service at Ashesi University, Berekuso, Ghana, and is the data controller for the information described here. This policy is written with reference to Ghana's Data Protection Act, 2012 (Act 843).`,
+          text: `${LEGAL_OPERATOR} ("${LEGAL_BRAND}") operates a campus delivery service at Ashesi University, Berekuso, Ghana, and is the data controller for the information described here. This policy is written with reference to Ghana's Data Protection Act, 2012 (Act 843).`,
         },
       ],
     },
@@ -269,6 +330,11 @@ export const PRIVACY: LegalDoc = {
             ["Shop suggestions", "Decides which shops to onboard next."],
             ["Rider ID document and selfie", "Riders only. Verifies identity before a rider may accept orders."],
             ["Rider earnings records", "Riders only. Records what is owed for completed deliveries."],
+            [
+              "Activity records",
+              "What was done on your account and when — orders, payments, sign-ins, changes — with the IP address and device type it came from. Kept to investigate disputes and fraud, and for audit. Wave staff viewing your phone number or documents is recorded the same way.",
+            ],
+            ["Beta programme", "Optional. Your application, and any feedback you send as a tester."],
           ],
         },
         {
@@ -369,4 +435,145 @@ export const PRIVACY: LegalDoc = {
   ],
 };
 
-export const LEGAL_DOCS: LegalDoc[] = [TERMS, PRIVACY];
+
+/**
+ * Who Wave is, rendered from `LEGAL_DETAILS`.
+ *
+ * Both documents carry it, because a data subject reading the privacy policy
+ * and a customer reading the terms both need to know who they are dealing with
+ * and where to write. Built as a function so the blanks are reported in the
+ * document itself while they are still blank — a legal page that silently
+ * renders an empty address looks finished and is not.
+ */
+function businessDetailsSection(number: string): LegalSection {
+  const missing = missingLegalDetails();
+  const lines: string[] = [`Registered name: ${LEGAL_DETAILS.operator}`];
+  if (LEGAL_DETAILS.address) lines.push(`Registered address: ${LEGAL_DETAILS.address}`);
+  if (LEGAL_DETAILS.phone) lines.push(`Telephone: ${LEGAL_DETAILS.phone}`);
+  if (LEGAL_DETAILS.email) lines.push(`Email: ${LEGAL_DETAILS.email}`);
+  lines.push(
+    LEGAL_DETAILS.dpcRegistration
+      ? `Ghana Data Protection Commission registration: ${LEGAL_DETAILS.dpcRegistration}`
+      : "Ghana Data Protection Commission registration: application in progress.",
+  );
+
+  const blocks: LegalBlock[] = [
+    { kind: "p", text: `${LEGAL_BRAND} is operated by ${LEGAL_DETAILS.operator}.` },
+    { kind: "ul", items: lines },
+  ];
+  if (missing.length > 0) {
+    blocks.push({
+      kind: "p",
+      text: `This section is incomplete. Still to be published: ${missing.join(", ")}.`,
+    });
+  }
+  return { title: `${number}. Business details`, blocks };
+}
+
+/**
+ * The refund policy, as its own document.
+ *
+ * It was section 7 of the terms and nothing else, which is the wrong shape for
+ * it twice over: Paystack and the app stores both expect a refund policy to be
+ * findable on its own, and a student trying to get money back should not have
+ * to read a contract to find out how. The terms still cover it and now point
+ * here, so there is one authority and one copy of the rules.
+ */
+export const REFUNDS: LegalDoc = {
+  slug: "refunds",
+  title: "Refund Policy",
+  description: "What Wave refunds, how long it takes, and how to ask.",
+  sections: [
+    {
+      title: "1. The short version",
+      blocks: [
+        {
+          kind: "p",
+          text: `Cancel before a rider has bought your goods and you pay nothing. If ${LEGAL_BRAND} cannot deliver, you get everything back. Once a rider has paid at the till on your behalf, the cost of those goods is no longer automatically refundable.`,
+        },
+      ],
+    },
+    {
+      title: "2. Two separate charges",
+      blocks: [
+        {
+          kind: "p",
+          text: `An order can involve two payments: the delivery fee, taken when you place the order, and — on a "buy for me" order — the cost of the goods, taken after a rider has bought them. They are refunded independently, because they are owed to different people at different times.`,
+        },
+        {
+          kind: "ul",
+          items: [
+            `Delivery fee (GHS ${DEFAULT_DELIVERY_FEE_GHS.toFixed(2)} base): refunded in full whenever the delivery does not happen for a reason that is not your doing.`,
+            "Cost of goods: refundable while nobody has bought them yet. After a rider has paid at the till, the goods are yours and a refund is at Wave's discretion — for example where the wrong item was bought, or it arrived unusable.",
+          ],
+        },
+      ],
+    },
+    {
+      title: "3. When you get a full refund",
+      blocks: [
+        {
+          kind: "ul",
+          items: [
+            "You cancel before a rider has bought the goods.",
+            "No rider takes the order and the Wave passes.",
+            "The shop is shut, or the item turns out to be unavailable.",
+            `${LEGAL_BRAND} cancels the order for any reason of its own.`,
+            "The parcel or goods are lost or damaged in Wave's hands.",
+          ],
+        },
+      ],
+    },
+    {
+      title: "4. When a refund may be partial or refused",
+      blocks: [
+        {
+          kind: "ul",
+          items: [
+            "You are not at the checkpoint and cannot be reached, so the delivery fails. The goods were still bought and the rider still made the run.",
+            "You change your mind after the goods have been bought.",
+            "You gave a wrong or incomplete description and the rider bought what you asked for.",
+          ],
+        },
+        {
+          kind: "p",
+          text: "Where a refund is refused you will be told the reason, and you can ask for it to be looked at again using the contact details below.",
+        },
+      ],
+    },
+    {
+      title: "5. How to ask",
+      blocks: [
+        {
+          kind: "p",
+          text: `Cancel from the order screen in the app while cancelling is still possible — that is the fastest route and needs nobody's approval. Otherwise write to ${LEGAL_CONTACT_EMAIL} with your order number, which is on the order screen and in your receipt.`,
+        },
+        {
+          kind: "p",
+          text: "A refund on a completed payment is reviewed by Wave head office before it is issued, so there is a person in the loop rather than an automatic decision.",
+        },
+      ],
+    },
+    {
+      title: "6. How long it takes",
+      blocks: [
+        {
+          kind: "p",
+          text: `${LEGAL_BRAND} issues refunds through Paystack, to the card or mobile money wallet you paid with — never to a different account. Once issued, the time it takes to appear is set by your bank or mobile money provider and is outside Wave's control. Mobile money is usually quick; a card can take several working days.`,
+        },
+      ],
+    },
+    {
+      title: "7. Loyalty stamps",
+      blocks: [
+        {
+          kind: "p",
+          text: "If a refunded order used your delivery-stamp reward, the stamps are returned to your card so the reward is not lost with the order.",
+        },
+      ],
+    },
+    businessDetailsSection("8"),
+  ],
+};
+
+export const LEGAL_DOCS: LegalDoc[] = [TERMS, PRIVACY, REFUNDS];

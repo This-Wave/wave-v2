@@ -3,6 +3,8 @@ import rateLimit from "@fastify/rate-limit";
 import rawBody from "fastify-raw-body";
 import type { Env } from "../config/env";
 import type { Role } from "../plugins/auth";
+import type { AuditInput } from "../lib/audit";
+import { hasPermission, type Permission } from "@wave/shared";
 
 /**
  * Builds a Fastify instance carrying one route module, with `prisma`, `config`
@@ -17,8 +19,12 @@ import type { Role } from "../plugins/auth";
 export interface HarnessOptions {
   /** Registered as `fastify.prisma`. Give each test only the models it uses. */
   prisma: unknown;
-  /** Who `authenticate` resolves to. `null` makes it answer 401. */
-  user?: { id: string; role: Role } | null;
+  /**
+   * Who `authenticate` resolves to. `null` makes it answer 401. An `admin`
+   * without a `staffRole` is treated as an owner, which is what every existing
+   * admin became in the add_staff_role migration.
+   */
+  user?: { id: string; role: Role; staffRole?: string | null; campusId?: string | null } | null;
   env?: Partial<Env>;
   prefix?: string;
   /**
@@ -30,6 +36,11 @@ export interface HarnessOptions {
    * only where the limit itself is what is being asserted.
    */
   rateLimit?: boolean;
+  /**
+   * Collects every `request.audit(...)` a handler makes, so a test can assert
+   * that an action was recorded — and recorded with what.
+   */
+  audits?: AuditInput[];
 }
 
 export const TEST_PAYSTACK_SECRET = "sk_test_wave_harness";
@@ -56,10 +67,25 @@ export async function buildTestApp(
   routes: (fastify: FastifyInstance) => Promise<void>,
   options: HarnessOptions,
 ): Promise<FastifyInstance> {
-  const app = Fastify({ logger: false });
+  const app = Fastify({ logger: process.env.HARNESS_LOG === "1" });
 
   app.decorate("config", testEnv(options.env));
-  app.decorate("prisma", options.prisma as never);
+  // Routes that start new business consult the service switches. A test that
+  // does not care about pauses gets "nothing paused" rather than a crash on a
+  // model it never mocked.
+  const prisma = (options.prisma ?? {}) as Record<string, unknown>;
+  if (prisma && typeof prisma === "object" && !("serviceSwitch" in prisma)) {
+    prisma.serviceSwitch = { findMany: async () => [] };
+  }
+  app.decorate("prisma", prisma as never);
+
+  const audits = options.audits ?? [];
+  app.decorateRequest("auditRecorded", false);
+  app.decorateRequest("audit", function (this: FastifyRequest, input: AuditInput) {
+    audits.push(input);
+    this.auditRecorded = true;
+    return Promise.resolve();
+  });
 
   const user = options.user === undefined ? { id: "test-user", role: "student" as Role } : options.user;
 
@@ -70,7 +96,20 @@ export async function buildTestApp(
       await reply.code(401).send({ error: "Missing bearer token" });
       return;
     }
-    request.user = user;
+    request.user =
+      user.role === "admin" && user.staffRole === undefined ? { ...user, staffRole: "owner" } : user;
+  });
+
+  app.decorate("requirePermission", (permission: Permission) => {
+    return async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!request.user || request.user.role !== "admin" || !hasPermission(request.user.staffRole, permission)) {
+        await reply.code(403).send({ error: "Your staff role can't do this", permission });
+        return;
+      }
+      if (request.user.staffRole === "campus_admin" && !request.user.campusId) {
+        await reply.code(403).send({ error: "Your campus admin account has no university set" });
+      }
+    };
   });
 
   app.decorate("requireRole", (...roles: Role[]) => {

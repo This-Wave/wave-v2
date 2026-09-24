@@ -36,7 +36,7 @@ export interface Suggestion {
  * and emails/notifies everyone who asked for it.
  */
 export default function SuggestionsPage() {
-  const { accessToken } = useAdminAuth();
+  const { accessToken, can } = useAdminAuth();
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"pending" | "all">("pending");
@@ -134,7 +134,7 @@ export default function SuggestionsPage() {
       width: "w-[190px]",
       align: "right",
       render: (s) =>
-        s.status === "pending" ? (
+        s.status === "pending" && can("suggestions.manage") ? (
           <div className="flex justify-end gap-2">
             <RowAction
               label="Onboard"

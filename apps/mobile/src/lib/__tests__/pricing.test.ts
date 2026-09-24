@@ -15,7 +15,6 @@ import {
 import {
   DEFAULT_DELIVERY_FEE_GHS,
   DEFAULT_LOYALTY_DISCOUNT_PCT,
-  DEFAULT_LOYALTY_THRESHOLD,
   DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
 } from "@wave/shared";
 
@@ -98,7 +97,7 @@ describe("upcomingRunDays", () => {
 
 describe("estimateOrderTotal", () => {
   test("a plain order is items plus the flat delivery fee", () => {
-    const r = estimateOrderTotal({ itemPrice: 50, isSpecialOrder: false, completedDeliveries: 0 });
+    const r = estimateOrderTotal({ itemPrice: 50, isSpecialOrder: false, rewardReady: false });
     expect(r.deliveryFee).toBe(DEFAULT_DELIVERY_FEE_GHS);
     expect(r.total).toBe(50 + DEFAULT_DELIVERY_FEE_GHS);
     expect(r.discountPct).toBe(0);
@@ -106,7 +105,7 @@ describe("estimateOrderTotal", () => {
   });
 
   test("the special-order surcharge applies to the delivery fee only", () => {
-    const r = estimateOrderTotal({ itemPrice: 100, isSpecialOrder: true, completedDeliveries: 0 });
+    const r = estimateOrderTotal({ itemPrice: 100, isSpecialOrder: true, rewardReady: false });
     expect(r.surchargePct).toBe(DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT);
     expect(r.surchargeAmount).toBe(
       (DEFAULT_DELIVERY_FEE_GHS * DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT) / 100,
@@ -120,7 +119,7 @@ describe("estimateOrderTotal", () => {
     const r = estimateOrderTotal({
       itemPrice: 200,
       isSpecialOrder: false,
-      completedDeliveries: DEFAULT_LOYALTY_THRESHOLD,
+      rewardReady: true,
     });
     expect(r.discountPct).toBe(DEFAULT_LOYALTY_DISCOUNT_PCT);
     expect(r.discountAmount).toBe(
@@ -133,12 +132,12 @@ describe("estimateOrderTotal", () => {
     const below = estimateOrderTotal({
       itemPrice: 0,
       isSpecialOrder: false,
-      completedDeliveries: DEFAULT_LOYALTY_THRESHOLD - 1,
+      rewardReady: false,
     });
     const at = estimateOrderTotal({
       itemPrice: 0,
       isSpecialOrder: false,
-      completedDeliveries: DEFAULT_LOYALTY_THRESHOLD,
+      rewardReady: true,
     });
     expect(below.discountPct).toBe(0);
     expect(at.discountPct).toBe(DEFAULT_LOYALTY_DISCOUNT_PCT);
@@ -148,7 +147,7 @@ describe("estimateOrderTotal", () => {
     const r = estimateOrderTotal({
       itemPrice: 0,
       isSpecialOrder: true,
-      completedDeliveries: DEFAULT_LOYALTY_THRESHOLD,
+      rewardReady: true,
     });
     expect(r.total).toBe(DEFAULT_DELIVERY_FEE_GHS + r.surchargeAmount - r.discountAmount);
   });

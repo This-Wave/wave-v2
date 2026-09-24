@@ -3,15 +3,15 @@ import { calculateDiscount, calculateOrderTotal, isStandardDeliveryDay } from ".
 
 describe("Discount Engine", () => {
   test("should not apply discount below threshold", () => {
-    expect(calculateDiscount({ totalDeliveries: 5, baseAmount: 10 })).toBe(0);
+    expect(calculateDiscount({ stamps: 5, baseAmount: 10 })).toBe(0);
   });
 
   test("should apply 20% at 6 deliveries", () => {
-    expect(calculateDiscount({ totalDeliveries: 6, baseAmount: 10 })).toBe(2);
+    expect(calculateDiscount({ stamps: 6, baseAmount: 10 })).toBe(2);
   });
 
   test("should apply 20% above threshold", () => {
-    expect(calculateDiscount({ totalDeliveries: 10, baseAmount: 50 })).toBe(10);
+    expect(calculateDiscount({ stamps: 10, baseAmount: 50 })).toBe(10);
   });
 });
 

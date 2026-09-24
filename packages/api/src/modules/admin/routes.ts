@@ -1,5 +1,5 @@
 import type { OrderStatus } from "@prisma/client";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import {
   forceDeliverSchema,
   setRiderTypeSchema,
@@ -12,6 +12,9 @@ import {
   updateUserRoleSchema,
   updateUserStatusSchema,
 } from "@wave/shared";
+import { hasPermission } from "@wave/shared";
+import { maskPhone } from "../../lib/audit";
+import { campusWhere, inCampus, outsideCampus } from "../../lib/scope";
 import { endOrderWithRefund } from "../payments/refund";
 import { sweepAbandonedCheckouts } from "../payments/sweepAbandoned";
 import { announceShopIsLive } from "../suggestions/announce";
@@ -26,9 +29,36 @@ import { announceShopIsLive } from "../suggestions/announce";
  */
 const FORCE_DELIVERABLE_FROM: OrderStatus[] = ["rider_assigned", "en_route", "at_checkpoint"];
 
+/**
+ * Phone numbers, masked for staff whose role does not include `pii.read`.
+ *
+ * An accountant reconciling payments needs to see that an order exists and
+ * what it cost, not how to ring the student. Applied to whole response objects
+ * so a nested `student.phone` or `owner.phone` cannot be missed.
+ */
+function maskPhonesUnlessAllowed<T>(request: FastifyRequest, value: T): T {
+  if (hasPermission(request.user?.staffRole, "pii.read")) return value;
+  const walk = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object" && !(v instanceof Date) && !("toFixed" in v)) {
+      return Object.fromEntries(
+        Object.entries(v as Record<string, unknown>).map(([k, x]) => [
+          k,
+          k === "phone" && typeof x === "string" ? maskPhone(x) : walk(x),
+        ]),
+      );
+    }
+    return v;
+  };
+  return walk(value) as T;
+}
+
 export async function adminRoutes(fastify: FastifyInstance) {
   fastify.addHook("preHandler", fastify.authenticate);
   fastify.addHook("preHandler", fastify.requireRole("admin"));
+  // Each route below also names the one permission it needs — see
+  // ROLE_PERMISSIONS in @wave/shared. A route added without one is still
+  // staff-only, but every staff role can use it, so don't.
 
   /**
    * Why orders ended without a delivery, over a window.
@@ -41,25 +71,26 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * path that forgot to set it. Shown rather than hidden — a silently
    * mis-attributed bucket is worse than an honest gap.
    */
-  fastify.get("/order-failures", async (request, reply) => {
+  fastify.get("/order-failures", { preHandler: fastify.requirePermission("ops.read") }, async (request, reply) => {
     const days = Math.min(90, Math.max(1, Number((request.query as { days?: string })?.days) || 30));
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
     const [grouped, unrecorded, delivered] = await Promise.all([
       fastify.prisma.order.groupBy({
         by: ["failureReason"],
-        where: { createdAt: { gte: since }, failureReason: { not: null } },
+        where: { ...campusWhere(request), createdAt: { gte: since }, failureReason: { not: null } },
         _count: { _all: true },
       }),
       fastify.prisma.order.count({
         where: {
+          ...campusWhere(request),
           createdAt: { gte: since },
           status: { in: ["cancelled", "refunded"] },
           failureReason: null,
         },
       }),
       fastify.prisma.order.count({
-        where: { createdAt: { gte: since }, status: "delivered" },
+        where: { ...campusWhere(request), createdAt: { gte: since }, status: "delivered" },
       }),
     ]);
 
@@ -73,7 +104,10 @@ export async function adminRoutes(fastify: FastifyInstance) {
     });
   });
 
-  fastify.get("/stats", async (_request, reply) => {
+  fastify.get("/stats", { preHandler: fastify.requirePermission("ops.read") }, async (request, reply) => {
+    // Every count below is for the caller's campus, or all of them for HQ.
+    const uni = campusWhere(request);
+    const riderUni = uni.universityId ? { rider: { universityId: uni.universityId } } : {};
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
@@ -89,32 +123,33 @@ export async function adminRoutes(fastify: FastifyInstance) {
       activeRiders,
       revenueTodayResult,
     ] = await Promise.all([
-      fastify.prisma.order.count(),
-      fastify.prisma.profile.count(),
-      fastify.prisma.shop.count(),
-      fastify.prisma.riderVerification.count({ where: { status: "pending" } }),
+      fastify.prisma.order.count({ where: uni }),
+      fastify.prisma.profile.count({ where: uni }),
+      fastify.prisma.shop.count({ where: uni }),
+      fastify.prisma.riderVerification.count({ where: { status: "pending", ...riderUni } }),
       // Shops a shop owner registered in the app that no admin has approved.
       // Without a count here the only way to notice one is to scan the Shops
       // table, and an unapproved shop is invisible to students — so a missed
       // one looks to its owner like Wave simply never opened.
-      fastify.prisma.shop.count({ where: { isVerified: false } }),
+      fastify.prisma.shop.count({ where: { isVerified: false, ...uni } }),
       // The oldest thing in each queue, so the dashboard can say how long
       // somebody has actually been stuck rather than only how many are stuck.
       // A count of 3 looks the same on day one and on day nine.
       fastify.prisma.riderVerification.findFirst({
-        where: { status: "pending" },
+        where: { status: "pending", ...riderUni },
         orderBy: { createdAt: "asc" },
         select: { createdAt: true },
       }),
       fastify.prisma.shop.findFirst({
-        where: { isVerified: false },
+        where: { isVerified: false, ...uni },
         orderBy: { createdAt: "asc" },
         select: { createdAt: true },
       }),
-      fastify.prisma.order.count({ where: { createdAt: { gte: startOfToday } } }),
-      fastify.prisma.profile.count({ where: { role: "rider", isActive: true } }),
+      fastify.prisma.order.count({ where: { createdAt: { gte: startOfToday }, ...uni } }),
+      fastify.prisma.profile.count({ where: { role: "rider", isActive: true, ...uni } }),
       fastify.prisma.order.aggregate({
         where: {
+          ...uni,
           createdAt: { gte: startOfToday },
           status: { notIn: ["cancelled", "refunded", "payment_pending", "pending"] },
         },
@@ -150,7 +185,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
   // `limit` (legacy, used by the Dashboard's Recent Orders widget) returns a
   // flat list capped at 100, no total count needed for a "recent N" view.
   // Everything else (the Orders page) uses page/pageSize/status.
-  fastify.get("/orders", async (request, reply) => {
+  fastify.get("/orders", { preHandler: fastify.requirePermission("ops.read") }, async (request, reply) => {
     const { limit, page, pageSize, status } = request.query as {
       limit?: string;
       page?: string;
@@ -160,14 +195,15 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
     if (limit) {
       const orders = await fastify.prisma.order.findMany({
+        where: campusWhere(request),
         take: Math.min(Number(limit), 100),
         orderBy: { createdAt: "desc" },
         select: ADMIN_ORDER_SELECT,
       });
-      return reply.send({ orders });
+      return reply.send({ orders: maskPhonesUnlessAllowed(request, orders) });
     }
 
-    const where = status ? { status: status as never } : undefined;
+    const where = { ...campusWhere(request), ...(status ? { status: status as never } : {}) };
     const take = Math.min(Number(pageSize) || 20, 100);
     const currentPage = Math.max(Number(page) || 1, 1);
 
@@ -182,10 +218,10 @@ export async function adminRoutes(fastify: FastifyInstance) {
       fastify.prisma.order.count({ where }),
     ]);
 
-    return reply.send({ orders, total, page: currentPage, pageSize: take });
+    return reply.send({ orders: maskPhonesUnlessAllowed(request, orders), total, page: currentPage, pageSize: take });
   });
 
-  fastify.get("/orders/:orderId", async (request, reply) => {
+  fastify.get("/orders/:orderId", { preHandler: fastify.requirePermission("ops.read") }, async (request, reply) => {
     const { orderId } = request.params as { orderId: string };
     const order = await fastify.prisma.order.findUnique({
       where: { id: orderId },
@@ -206,6 +242,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
         cancellationReason: true,
         createdAt: true,
         updatedAt: true,
+        universityId: true,
         student: { select: { id: true, fullName: true, phone: true, studentId: true } },
         shop: { select: { id: true, name: true } },
         checkpoint: { select: { name: true } },
@@ -218,7 +255,18 @@ export async function adminRoutes(fastify: FastifyInstance) {
         },
       },
     });
-    if (!order) return reply.code(404).send({ error: "Order not found" });
+    if (!order || !inCampus(request, order.universityId)) return outsideCampus(reply, "Order not found");
+    if (!hasPermission(request.user?.staffRole, "pii.read")) {
+      return reply.send({ order: maskPhonesUnlessAllowed(request, order) });
+    }
+    // Full phone numbers and a student id number, for both parties.
+    await request.audit({
+      action: "pii.order_contacts_viewed",
+      category: "pii",
+      entityType: "order",
+      entityId: order.id,
+      metadata: { studentId: order.student.id, riderId: order.rider?.id ?? null },
+    });
     return reply.send({ order });
   });
 
@@ -244,7 +292,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     createdAt: true,
   } as const;
 
-  fastify.get("/users", async (request, reply) => {
+  fastify.get("/users", { preHandler: fastify.requirePermission("ops.read") }, async (request, reply) => {
     const { role, page, pageSize, search } = request.query as {
       role?: string;
       page?: string;
@@ -256,7 +304,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const currentPage = Math.max(Number(page) || 1, 1);
     const term = search?.trim();
 
+    const campus = campusWhere(request);
     const where = {
+      ...campus,
+      // A campus admin sees their campus's students, riders and shop owners —
+      // not HQ staff who happen to list the same university on their profile.
+      ...(campus.universityId ? { NOT: { role: "admin" as const } } : {}),
       ...(role ? { role: role as never } : {}),
       // Phone is stored E.164; someone searching "0241234567" or "241234567"
       // should still find "+233241234567", so match on a contains rather than
@@ -282,15 +335,25 @@ export async function adminRoutes(fastify: FastifyInstance) {
       fastify.prisma.profile.count({ where }),
     ]);
 
+    if (!hasPermission(request.user?.staffRole, "pii.read")) {
+      return reply.send({ users: maskPhonesUnlessAllowed(request, users), total, page: currentPage, pageSize: take });
+    }
+    if (users.length > 0) {
+      await request.audit({
+        action: "pii.user_list_viewed",
+        category: "pii",
+        metadata: { role: role ?? "all", search: term ?? null, page: currentPage, rows: users.length },
+      });
+    }
     return reply.send({ users, total, page: currentPage, pageSize: take });
   });
 
-  fastify.get("/config", async (_request, reply) => {
+  fastify.get("/config", { preHandler: fastify.requirePermission("ops.read") }, async (_request, reply) => {
     const config = await fastify.prisma.platformConfig.findMany({ orderBy: { key: "asc" } });
     return reply.send({ config });
   });
 
-  fastify.put("/config", async (request, reply) => {
+  fastify.put("/config", { preHandler: fastify.requirePermission("config.write") }, async (request, reply) => {
     const parsed = updateConfigSchema.safeParse(request.body);
     if (!parsed.success) {
       // Lead with the specific message rather than "Invalid payload": these are
@@ -300,15 +363,24 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const first = parsed.error.issues[0]?.message ?? "Invalid payload";
       return reply.code(400).send({ error: first, details: parsed.error.flatten() });
     }
+    const previous = await fastify.prisma.platformConfig.findUnique({ where: { key: parsed.data.key } });
     const config = await fastify.prisma.platformConfig.upsert({
       where: { key: parsed.data.key },
       create: { key: parsed.data.key, value: parsed.data.value },
       update: { value: parsed.data.value },
     });
+    await request.audit({
+      action: "config.changed",
+      category: "config",
+      entityType: "platform_config",
+      entityId: parsed.data.key,
+      before: previous ? { value: previous.value } : null,
+      after: { value: config.value },
+    });
     return reply.send({ config });
   });
 
-  fastify.post("/refund/:orderId", async (request, reply) => {
+  fastify.post("/refund/:orderId", { preHandler: fastify.requirePermission("refunds.issue") }, async (request, reply) => {
     const { orderId } = request.params as { orderId: string };
     const parsed = refundOrderSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -323,6 +395,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       actorId: request.user!.id,
       intent: "refund",
       failureReason: "admin_refunded",
+      request,
     });
     if (!result.ok) return reply.code(result.code).send({ error: result.error });
 
@@ -340,8 +413,9 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * Safe to hammer: everything the sweep does is idempotent, and an order
    * younger than the TTL is never touched however often this is called.
    */
-  fastify.post("/payments/sweep-abandoned", async (request, reply) => {
+  fastify.post("/payments/sweep-abandoned", { preHandler: fastify.requirePermission("payments.sweep") }, async (request, reply) => {
     const result = await sweepAbandonedCheckouts({ fastify, log: request.log });
+    await request.audit({ action: "payment.sweep_run_manually", category: "payment", metadata: result });
     return reply.send(result);
   });
 
@@ -359,7 +433,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * changing the type should look at whether to require a fresh submission.
    * Forcing it here would silently take a working rider offline mid-shift.
    */
-  fastify.patch("/riders/:id/type", async (request, reply) => {
+  fastify.patch("/riders/:id/type", { preHandler: fastify.requirePermission("riders.verify") }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const parsed = setRiderTypeSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -367,9 +441,9 @@ export async function adminRoutes(fastify: FastifyInstance) {
     }
     const target = await fastify.prisma.profile.findUnique({
       where: { id },
-      select: { role: true },
+      select: { role: true, riderType: true, universityId: true },
     });
-    if (!target) return reply.code(404).send({ error: "Profile not found" });
+    if (!target || !inCampus(request, target.universityId)) return outsideCampus(reply, "Profile not found");
     if (target.role !== "rider") {
       return reply.code(400).send({ error: "Only a rider has a rider type" });
     }
@@ -381,6 +455,14 @@ export async function adminRoutes(fastify: FastifyInstance) {
       { riderId: id, riderType: parsed.data.riderType, by: request.user!.id },
       "Rider type changed",
     );
+    await request.audit({
+      action: "rider.type_changed",
+      category: "rider",
+      entityType: "profile",
+      entityId: id,
+      before: { riderType: target.riderType },
+      after: { riderType: profile.riderType },
+    });
     return reply.send({ profile });
   });
 
@@ -398,7 +480,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * it, and logs at warn level. A rider-side version of this button would be the
    * end of the PIN meaning anything at all.
    */
-  fastify.post("/orders/:orderId/force-deliver", async (request, reply) => {
+  fastify.post("/orders/:orderId/force-deliver", { preHandler: fastify.requirePermission("orders.force_deliver") }, async (request, reply) => {
     const { orderId } = request.params as { orderId: string };
     const parsed = forceDeliverSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -406,7 +488,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     }
 
     const order = await fastify.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) return reply.code(404).send({ error: "Order not found" });
+    if (!order || !inCampus(request, order.universityId)) return outsideCampus(reply, "Order not found");
     if (!order.riderId) {
       return reply.code(409).send({ error: "No rider has picked this order up" });
     }
@@ -443,6 +525,16 @@ export async function adminRoutes(fastify: FastifyInstance) {
       "Delivery closed by an admin without a PIN",
     );
 
+    await request.audit({
+      action: "order.force_delivered",
+      category: "order",
+      entityType: "order",
+      entityId: orderId,
+      before: { status: order.status },
+      after: { status: "delivered" },
+      metadata: { reason: parsed.data.reason, riderId: order.riderId, studentId: order.studentId },
+    });
+
     const updated = await fastify.prisma.order.findUnique({ where: { id: orderId } });
     return reply.send({ order: updated });
   });
@@ -451,7 +543,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
   // Role reassignment is what promotes a verified student to rider. It is kept
   // separate from any general profile update so it can never be changed as a
   // side effect of editing something else.
-  fastify.patch("/users/:id/role", async (request, reply) => {
+  fastify.patch("/users/:id/role", { preHandler: fastify.requirePermission("users.role") }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const parsed = updateUserRoleSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -460,14 +552,30 @@ export async function adminRoutes(fastify: FastifyInstance) {
     if (id === request.user!.id) {
       return reply.code(400).send({ error: "You cannot change your own role" });
     }
+    const before = await fastify.prisma.profile.findUnique({ where: { id }, select: { role: true } });
+    if (!before) return reply.code(404).send({ error: "User not found" });
+    // Making someone staff, or un-making them, is a Staff-page action: it needs
+    // a staff role alongside it, and `staff.manage` rather than `users.role`.
+    // Without this, Support could promote anyone to a full owner.
+    if (parsed.data.role === "admin" || before.role === "admin") {
+      return reply.code(403).send({ error: "Staff accounts are managed on the Staff page" });
+    }
     const user = await fastify.prisma.profile.update({
       where: { id },
       data: { role: parsed.data.role },
     });
+    await request.audit({
+      action: "user.role_changed",
+      category: "user",
+      entityType: "profile",
+      entityId: id,
+      before: { role: before.role },
+      after: { role: user.role },
+    });
     return reply.send({ user });
   });
 
-  fastify.patch("/users/:id/status", async (request, reply) => {
+  fastify.patch("/users/:id/status", { preHandler: fastify.requirePermission("users.ban") }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const parsed = updateUserStatusSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -476,9 +584,27 @@ export async function adminRoutes(fastify: FastifyInstance) {
     if (id === request.user!.id) {
       return reply.code(400).send({ error: "You cannot deactivate your own account" });
     }
+    const before = await fastify.prisma.profile.findUnique({
+      where: { id },
+      select: { isActive: true, role: true },
+    });
+    if (!before) return reply.code(404).send({ error: "User not found" });
+    // Support may ban customers, not colleagues — otherwise one Support login
+    // could lock every owner out.
+    if (before.role === "admin" && !hasPermission(request.user?.staffRole, "staff.manage")) {
+      return reply.code(403).send({ error: "Only an owner can deactivate a staff account" });
+    }
     const user = await fastify.prisma.profile.update({
       where: { id },
       data: { isActive: parsed.data.isActive },
+    });
+    await request.audit({
+      action: user.isActive ? "user.reactivated" : "user.banned",
+      category: "user",
+      entityType: "profile",
+      entityId: id,
+      before: { isActive: before.isActive },
+      after: { isActive: user.isActive },
     });
     return reply.send({ user });
   });
@@ -486,21 +612,25 @@ export async function adminRoutes(fastify: FastifyInstance) {
   // --- Shops -------------------------------------------------------------
   // Shop owners manage their own storefront through /v1/shops. These are the
   // admin-scoped equivalents: create on an owner's behalf, and suspend.
-  fastify.get("/shops", async (_request, reply) => {
+  fastify.get("/shops", { preHandler: fastify.requirePermission("ops.read") }, async (request, reply) => {
     const shops = await fastify.prisma.shop.findMany({
+      where: campusWhere(request),
       orderBy: { createdAt: "desc" },
       include: {
         owner: { select: { id: true, fullName: true, phone: true } },
         _count: { select: { products: true, orders: true } },
       },
     });
-    return reply.send({ shops });
+    return reply.send({ shops: maskPhonesUnlessAllowed(request, shops) });
   });
 
-  fastify.post("/shops", async (request, reply) => {
+  fastify.post("/shops", { preHandler: fastify.requirePermission("shops.manage") }, async (request, reply) => {
     const parsed = adminCreateShopSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    if (!inCampus(request, parsed.data.universityId)) {
+      return reply.code(403).send({ error: "You can only add shops at your own campus" });
     }
     const owner = await fastify.prisma.profile.findUnique({ where: { id: parsed.data.ownerId } });
     if (!owner) return reply.code(404).send({ error: "Owner not found" });
@@ -508,16 +638,39 @@ export async function adminRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ error: "Owner must have the shop_owner role" });
     }
     const shop = await fastify.prisma.shop.create({ data: parsed.data });
+    await request.audit({
+      action: "shop.created_by_staff",
+      category: "shop",
+      entityType: "shop",
+      entityId: shop.id,
+      universityId: shop.universityId,
+      after: parsed.data,
+    });
     return reply.code(201).send({ shop });
   });
 
-  fastify.patch("/shops/:id", async (request, reply) => {
+  fastify.patch("/shops/:id", { preHandler: fastify.requirePermission("shops.manage") }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const parsed = adminUpdateShopSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
+    const previous = await fastify.prisma.shop.findUnique({ where: { id } });
+    if (!previous || !inCampus(request, previous.universityId)) return outsideCampus(reply, "Shop not found");
+    if ("universityId" in parsed.data && !inCampus(request, (parsed.data as { universityId?: string }).universityId)) {
+      return reply.code(403).send({ error: "You can't move a shop to another campus" });
+    }
     const shop = await fastify.prisma.shop.update({ where: { id }, data: parsed.data });
+    const changed = Object.keys(parsed.data) as (keyof typeof previous)[];
+    await request.audit({
+      action: "shop.updated_by_staff",
+      category: "shop",
+      entityType: "shop",
+      entityId: id,
+      universityId: shop.universityId,
+      before: Object.fromEntries(changed.map((k) => [k, previous[k]])),
+      after: Object.fromEntries(changed.map((k) => [k, shop[k]])),
+    });
     return reply.send({ shop });
   });
 
@@ -536,12 +689,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * `students` counts DISTINCT students, not suggestions, so one enthusiastic
    * person cannot outrank a genuine crowd.
    */
-  fastify.get("/shop-suggestions", async (request, reply) => {
+  fastify.get("/shop-suggestions", { preHandler: fastify.requirePermission("ops.read") }, async (request, reply) => {
     const { status = "pending" } = request.query as { status?: string };
 
+    const scope = campusWhere(request);
     const grouped = await fastify.prisma.shopSuggestion.groupBy({
       by: ["normalizedName", "universityId"],
-      where: status === "all" ? {} : { status: status as never },
+      where: status === "all" ? scope : { ...scope, status: status as never },
       _count: { _all: true },
       _max: { createdAt: true },
     });
@@ -550,7 +704,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     // carry them. One follow-up query for the rows in these groups, resolved in
     // memory — the pilot has one campus and a page of suggestions, not a feed.
     const rows = await fastify.prisma.shopSuggestion.findMany({
-      where: status === "all" ? {} : { status: status as never },
+      where: status === "all" ? scope : { ...scope, status: status as never },
       select: {
         id: true,
         name: true,
@@ -608,12 +762,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
    * Notification is best-effort and deliberately after the commit: the shop is
    * live whether or not Resend and Expo are having a good day.
    */
-  fastify.post("/shop-suggestions/resolve", async (request, reply) => {
+  fastify.post("/shop-suggestions/resolve", { preHandler: fastify.requirePermission("suggestions.manage") }, async (request, reply) => {
     const parsed = resolveShopSuggestionSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
     }
     const { normalizedName, universityId, shopId } = parsed.data;
+    if (!inCampus(request, universityId)) return outsideCampus(reply, "No pending suggestions for that place");
 
     const shop = await fastify.prisma.shop.findUnique({
       where: { id: shopId },
@@ -645,14 +800,25 @@ export async function adminRoutes(fastify: FastifyInstance) {
       shopName: shop.name,
     });
 
+    await request.audit({
+      action: "suggestion.onboarded",
+      category: "suggestion",
+      entityType: "shop",
+      entityId: shop.id,
+      universityId,
+      metadata: { normalizedName, resolved: pending.length, emailed, pushed },
+    });
     return reply.send({ resolved: pending.length, emailed, pushed });
   });
 
   /** Wave won't be carrying this place. Stops it cluttering the ranking. */
-  fastify.post("/shop-suggestions/reject", async (request, reply) => {
+  fastify.post("/shop-suggestions/reject", { preHandler: fastify.requirePermission("suggestions.manage") }, async (request, reply) => {
     const parsed = rejectShopSuggestionSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    if (!inCampus(request, parsed.data.universityId)) {
+      return outsideCampus(reply, "No pending suggestions for that place");
     }
     const result = await fastify.prisma.shopSuggestion.updateMany({
       where: {
@@ -662,6 +828,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
       },
       data: { status: "rejected" },
     });
+    await request.audit({
+      action: "suggestion.rejected",
+      category: "suggestion",
+      universityId: parsed.data.universityId,
+      metadata: { normalizedName: parsed.data.normalizedName, rejected: result.count },
+    });
     return reply.send({ rejected: result.count });
   });
 
@@ -669,8 +841,9 @@ export async function adminRoutes(fastify: FastifyInstance) {
   // Create/update already live on /v1/checkpoints behind requireRole("admin").
   // This is the cross-university listing the admin table needs, with the order
   // count that decides whether a checkpoint may be deactivated rather than kept.
-  fastify.get("/checkpoints", async (_request, reply) => {
+  fastify.get("/checkpoints", { preHandler: fastify.requirePermission("ops.read") }, async (request, reply) => {
     const checkpoints = await fastify.prisma.checkpoint.findMany({
+      where: campusWhere(request),
       orderBy: { name: "asc" },
       include: { _count: { select: { orders: true } } },
     });

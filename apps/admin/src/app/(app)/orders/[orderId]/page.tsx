@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useAdminAuth } from "../../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../../lib/api";
 import { RefundOrderModal, canRefund } from "../../../../components/RefundOrderModal";
+import { RequestRefundModal } from "../../../../components/RequestRefundModal";
 
 interface OrderDetail {
   id: string;
@@ -54,10 +55,13 @@ function formatGhs(amount: number): string {
 
 export default function OrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
-  const { accessToken } = useAdminAuth();
+  const { accessToken, can } = useAdminAuth();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refundOpen, setRefundOpen] = useState(false);
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [openRequest, setOpenRequest] = useState<{ status: string; createdAt: string } | null>(null);
+  const canRequest = can("refunds.request") && !can("refunds.issue");
 
   const load = useCallback(() => {
     if (!accessToken || !orderId) return;
@@ -65,6 +69,18 @@ export default function OrderDetailPage() {
     apiFetch<{ order: OrderDetail }>(`/admin/orders/${orderId}`, accessToken)
       .then((res) => setOrder(res.order))
       .catch(() => setError("Could not load this order."));
+    // Any refund already asked for, so a campus admin doesn't ask twice and HQ
+    // sees one is waiting.
+    if (can("refunds.request") || can("refunds.approve")) {
+      apiFetch<{ requests: { status: string; createdAt: string }[] }>(
+        `/admin/refund-requests?orderId=${orderId}&status=pending`,
+        accessToken,
+      )
+        .then((res) => setOpenRequest(res.requests[0] ?? null))
+        .catch(() => setOpenRequest(null));
+    }
+    // `can` is derived from the profile, which is stable once loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, orderId]);
 
   useEffect(() => {
@@ -109,7 +125,7 @@ export default function OrderDetailPage() {
           >
             {order.status.replace(/_/g, " ")}
           </span>
-          {refundable && accessToken ? (
+          {refundable && accessToken && can("refunds.issue") ? (
             <button
               type="button"
               onClick={() => setRefundOpen(true)}
@@ -118,8 +134,26 @@ export default function OrderDetailPage() {
               Refund
             </button>
           ) : null}
+          {refundable && accessToken && canRequest && !openRequest ? (
+            <button
+              type="button"
+              onClick={() => setRequestOpen(true)}
+              className="rounded-tile border border-danger-text bg-danger-bg px-4 py-2 text-[12px] font-semibold text-danger-text"
+            >
+              Ask HQ for a refund
+            </button>
+          ) : null}
         </div>
       </div>
+
+      {openRequest ? (
+        <div role="status" className="mt-4 max-w-[720px] rounded-control border border-warning-border bg-warning-bg px-4 py-3 text-[13px] text-warning-text">
+          A refund was requested on {new Date(openRequest.createdAt).toLocaleDateString()} and is waiting for HQ.{" "}
+          <Link href="/refunds" className="font-semibold underline">
+            See refund requests
+          </Link>
+        </div>
+      ) : null}
 
       <div className="mt-8 grid grid-cols-2 gap-6">
         <DetailCard title="Student">
@@ -240,6 +274,15 @@ export default function OrderDetailPage() {
           accessToken={accessToken}
           onClose={() => setRefundOpen(false)}
           onRefunded={load}
+        />
+      ) : null}
+      {accessToken ? (
+        <RequestRefundModal
+          open={requestOpen}
+          orderId={order.id}
+          accessToken={accessToken}
+          onClose={() => setRequestOpen(false)}
+          onRequested={load}
         />
       ) : null}
     </div>

@@ -35,6 +35,8 @@ import {
 } from "../../plugins/rateLimit";
 import { riderEarningFor, riderEarningPct } from "../riders/earningRate";
 import { resolveFeature } from "@wave/shared";
+import { pausedFor, pausedReply } from "../switches/routes";
+import { isBetaTester } from "../beta/access";
 
 export async function orderRoutes(fastify: FastifyInstance) {
   // POST /orders — student places a "Buy For Me" order.
@@ -104,9 +106,28 @@ export async function orderRoutes(fastify: FastifyInstance) {
       // The loyalty discount applies to the DELIVERY FEE ONLY, never to the
       // items — see calculateOrderTotal, and Wave_Technical_Document.md §"20%
       // discount applies to delivery fee, not the item purchase price".
+      // One-shot since 2026-09-23: a full stamp card takes the discount off the
+      // NEXT order and is then spent. `rewardStamps` is the spendable number —
+      // `totalDeliveries` is lifetime history and would make the discount
+      // permanent again if it were read here.
+      //
+      // The second condition is the anti-stacking guard. Stamps are only
+      // consumed when an order is *paid*, so without this a student holding one
+      // full card could build three unpaid orders, each priced with the
+      // discount, and then pay all three. One reward, one discounted order in
+      // flight at a time.
+      const rewardHeldOpen = await fastify.prisma.order.findFirst({
+        where: {
+          studentId: request.user!.id,
+          status: "payment_pending",
+          discountApplied: { gt: 0 },
+        },
+        select: { id: true },
+      });
       const discountPct =
+        !rewardHeldOpen &&
         calculateDiscount({
-          totalDeliveries: stats?.totalDeliveries ?? 0,
+          stamps: stats?.rewardStamps ?? 0,
           baseAmount: 1,
           threshold,
           discountPct: configuredDiscountPct,
@@ -123,6 +144,9 @@ export async function orderRoutes(fastify: FastifyInstance) {
       if (!universityId) {
         return reply.code(400).send({ error: "Your profile has no campus set" });
       }
+
+      const paused = await pausedFor(fastify, universityId, input.orderType);
+      if (paused) return reply.code(503).send(pausedReply(paused));
 
       const checkpointIds = [input.checkpointId, input.originCheckpointId].filter(
         (id): id is string => !!id,
@@ -288,9 +312,11 @@ export async function orderRoutes(fastify: FastifyInstance) {
     // contradicts.
     const flagRows = await fastify.prisma.featureFlag.findMany({
       where: { key: "rider_earnings_preview" },
-      select: { key: true, universityId: true, enabled: true },
+      select: { key: true, universityId: true, state: true },
     });
-    const showEarnings = resolveFeature("rider_earnings_preview", rider.universityId, flagRows);
+    const showEarnings = resolveFeature("rider_earnings_preview", rider.universityId, flagRows, {
+      isBetaTester: await isBetaTester(fastify, request.user!.id),
+    });
 
     const pct = showEarnings
       ? await riderEarningPct({ fastify, log: request.log, riderType: rider.riderType })
@@ -817,6 +843,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
         actorId: request.user!.id,
         intent: "cancel",
         failureReason: "student_cancelled",
+        request,
       });
       if (!result.ok) return reply.code(result.code).send({ error: result.error });
 
@@ -857,6 +884,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
       if (order.deliveryPinCiphertext) {
         try {
           const pin = decryptDeliveryPin(order.deliveryPinCiphertext, fastify.config.JWT_SECRET);
+          await request.audit({ action: "order.pin_viewed", category: "order", entityType: "order", entityId: order.id });
           return reply.send({ pin });
         } catch (err) {
           request.log.error({ err }, "Failed to decrypt delivery PIN — re-issuing");
@@ -881,6 +909,13 @@ export async function orderRoutes(fastify: FastifyInstance) {
               },
             })
             .then(() => undefined),
+      });
+      await request.audit({
+        action: "order.pin_reissued",
+        category: "order",
+        entityType: "order",
+        entityId: order.id,
+        metadata: { reason: "legacy order had no readable PIN", smsSent },
       });
       return reply.send({ pin, smsSent });
     },
@@ -1065,6 +1100,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
       // A shop cancelling is nearly always a stock-out; the free-text reason
       // carries the detail, this carries the category.
       failureReason: "shop_rejected",
+      request,
     });
     if (!result.ok) return reply.code(result.code).send({ error: result.error });
 
@@ -1121,10 +1157,12 @@ async function settleDelivery(args: {
     data: { orderId: order.id, status: "delivered", changedBy: closedBy, note },
   });
 
+  // Two counters on purpose: `totalDeliveries` is the account's history and is
+  // never reset, `rewardStamps` is what the one-shot discount spends.
   await fastify.prisma.studentDeliveryStats.upsert({
     where: { studentId: order.studentId },
-    create: { studentId: order.studentId, totalDeliveries: 1 },
-    update: { totalDeliveries: { increment: 1 } },
+    create: { studentId: order.studentId, totalDeliveries: 1, rewardStamps: 1 },
+    update: { totalDeliveries: { increment: 1 }, rewardStamps: { increment: 1 } },
   });
 
   // The rider is paid for the run whichever way it was closed. A delivery that

@@ -2,7 +2,7 @@ import { Platform, SafeAreaView, ScrollView, View, RefreshControl } from "react-
 import { useContext, type ReactNode } from "react";
 import { BottomTabBarHeightContext } from "@react-navigation/bottom-tabs";
 import { useLayout } from "../../hooks/useLayout";
-import { useNavBarStore, useReportNavBarScroll } from "../../hooks/useNavBarScroll";
+import { useReportNavBarScroll } from "../../hooks/useNavBarScroll";
 import { layout } from "../../theme/layout";
 
 /**
@@ -59,9 +59,6 @@ export function Screen({
  */
 export const FLOATING_NAV_CLEARANCE = 88;
 
-/** Extra clearance when the live-order card is riding above the nav. */
-export const LIVE_BAR_CLEARANCE = 72;
-
 export function ScreenBody({
   children,
   bottomInset = 24,
@@ -79,8 +76,6 @@ export function ScreenBody({
 }) {
   const onScroll = useReportNavBarScroll();
   const underFloatingNav = useContext(BottomTabBarHeightContext) !== undefined;
-  // The live-order card floats above the nav, so it owes clearance of its own.
-  const liveBar = useNavBarStore((s) => s.liveBar);
 
   return (
     <ScrollView
@@ -92,10 +87,7 @@ export function ScreenBody({
       // The tab bar floats over the content now rather than sitting under it,
       // so every screen owes it clearance or the last row is unreachable.
       contentContainerStyle={{
-        paddingBottom:
-          bottomInset +
-          (underFloatingNav ? FLOATING_NAV_CLEARANCE : 0) +
-          (underFloatingNav && liveBar ? LIVE_BAR_CLEARANCE : 0),
+        paddingBottom: bottomInset + (underFloatingNav ? FLOATING_NAV_CLEARANCE : 0),
         flexGrow: 1,
       }}
       showsVerticalScrollIndicator={false}

@@ -8,14 +8,12 @@ import {
   Button,
   Field,
   Gutter,
-  Row,
-  RowGroup,
   Screen,
   ScreenBody,
   Sheet,
   TopBar,
 } from "../../components/v6";
-import { CheckIcon } from "../../components/icons";
+import { CalendarIcon, CheckIcon, ChevronRightIcon, PinDotIcon, PinIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useCheckpoints } from "../../lib/checkpoints";
 import { useCreateOrder } from "../../lib/orders";
@@ -31,7 +29,7 @@ import {
 } from "../../lib/pricing";
 
 /**
- * Campus-to-campus package pickup: move something already on campus from one
+ * Checkpoint-to-checkpoint package pickup: move something you already have from one
  * checkpoint to another.
  *
  * This used to be a dead form — `POST /orders` required a `shopId` and an order
@@ -52,8 +50,9 @@ export function PickupRequestScreen() {
   const { data: checkpoints } = useCheckpoints(profile?.universityId ?? undefined);
 
   const [description, setDescription] = useState("");
-  const [fromId, setFromId] = useState<string | null>(null);
-  const [toId, setToId] = useState<string | null>(null);
+  // Pre-chosen when arriving from "Move it again"; both are still editable.
+  const [fromId, setFromId] = useState<string | null>(params?.fromId ?? null);
+  const [toId, setToId] = useState<string | null>(params?.toId ?? null);
   const [dayIndex, setDayIndex] = useState(0);
   const [picker, setPicker] = useState<"from" | "to" | "day" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -104,13 +103,42 @@ export function PickupRequestScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter>
-          <Text className="mb-2 font-sans-bold text-heading text-ink">Move a package</Text>
-          <Text className="mb-8 font-sans text-body text-muted">
-            Get something carried from one checkpoint to another on the next Wave. You pay the
-            delivery fee only — there's nothing to buy.
+          <Text className="mb-1 font-sans-bold text-heading text-ink">Send a package</Text>
+          <Text className="mb-6 font-sans text-body text-muted">
+            Carried between checkpoints on the next Wave. The delivery fee is the whole
+            price.
           </Text>
 
-          <View className="mb-6">
+          {/* Pickup & delivery first: the route is the decision, and the two
+              ends read as one thing when they sit in one card. */}
+          <View className="mb-3 rounded-card bg-surface p-4">
+            <Text className="mb-3 font-sans-medium text-ui text-ink">Pickup &amp; delivery</Text>
+            <PickerRow
+              icon={<PinIcon size={18} color={colors.ink} strokeWidth={1.9} />}
+              label="Collect from"
+              value={from?.name}
+              placeholder="Choose a pickup point"
+              onPress={() => setPicker("from")}
+            />
+            <View className="my-1 ml-4 h-4 border-l border-dashed border-hairline" />
+            <PickerRow
+              icon={<PinDotIcon size={18} color={colors.ink} strokeWidth={1.9} />}
+              label="Deliver to"
+              value={to?.name}
+              placeholder="Choose a drop-off"
+              onPress={() => setPicker("to")}
+            />
+            <View className="my-3 border-t border-hairline" />
+            <PickerRow
+              icon={<CalendarIcon size={18} color={colors.ink} strokeWidth={1.9} />}
+              label={`Delivery fee ${formatGhs(DEFAULT_DELIVERY_FEE_GHS)}`}
+              value={scheduled ? formatFullDay(scheduled) : undefined}
+              placeholder="Choose a day"
+              onPress={chosenDate ? undefined : () => setPicker("day")}
+            />
+          </View>
+
+          <View className="rounded-card bg-surface p-4">
             <Field
               label="What are we moving?"
               value={description}
@@ -119,26 +147,6 @@ export function PickupRequestScreen() {
               multiline
             />
           </View>
-
-          <Text className="mb-2 font-sans-medium text-body text-ink">Route</Text>
-          <RowGroup>
-            <Row
-              title={from?.name ?? "Choose a pickup point"}
-              meta="Collect from"
-              onPress={() => setPicker("from")}
-            />
-            <Row
-              title={to?.name ?? "Choose a drop-off"}
-              meta="Deliver to"
-              onPress={() => setPicker("to")}
-            />
-            <Row
-              title={scheduled ? formatFullDay(scheduled) : "Choose a day"}
-              meta={`Delivery fee ${formatGhs(DEFAULT_DELIVERY_FEE_GHS)}`}
-              onPress={chosenDate ? undefined : () => setPicker("day")}
-              chevron={!chosenDate}
-            />
-          </RowGroup>
         </Gutter>
       </ScreenBody>
 
@@ -220,6 +228,50 @@ function Option({
         {meta ? <Text className="font-sans text-body text-muted">{meta}</Text> : null}
       </View>
       {selected ? <CheckIcon size={18} color={colors.ink} strokeWidth={2.2} /> : null}
+    </Pressable>
+  );
+}
+
+/**
+ * One line of the route card: a glyph, what the line is for, and the choice.
+ *
+ * `Row` was close but wrong here — it is a list item with its own card
+ * background, and three of them inside a card read as three cards. This is a
+ * line inside one card, which is what makes the two ends of the route look
+ * like a route.
+ */
+function PickerRow({
+  icon,
+  label,
+  value,
+  placeholder,
+  onPress,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value?: string;
+  placeholder: string;
+  onPress?: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={`${label}. ${value ?? placeholder}`}
+      className="flex-row items-center gap-3 rounded-input py-1.5 active:bg-hairline"
+    >
+      <View className="h-8 w-8 items-center justify-center rounded-pill bg-lime-faint">{icon}</View>
+      <View className="min-w-0 flex-1">
+        <Text className="font-sans text-meta text-muted">{label}</Text>
+        <Text
+          className={`font-sans-medium text-body ${value ? "text-ink" : "text-muted"}`}
+          numberOfLines={1}
+        >
+          {value ?? placeholder}
+        </Text>
+      </View>
+      {onPress ? <ChevronRightIcon size={18} color={colors.icon} strokeWidth={2} /> : null}
     </Pressable>
   );
 }

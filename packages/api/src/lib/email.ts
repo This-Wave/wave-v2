@@ -1,4 +1,5 @@
 import axios from "axios";
+import { LEGAL_OPERATOR } from "@wave/shared";
 
 const RESEND_SEND_URL = "https://api.resend.com/emails";
 
@@ -117,7 +118,7 @@ export function shopLiveEmail(args: {
     `Hi ${first},\n\n` +
     `You asked us to add ${args.shopName}. It's on Wave now — you can browse ` +
     `its menu and order from it on the next Wave.\n\n` +
-    `Open the app to take a look.\n\n— The Wave team`;
+    `Open the app to take a look.\n\n— The Wave team\n${LEGAL_OPERATOR}`;
   const html =
     `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;` +
     `font-size:16px;line-height:1.5;color:#083400;max-width:480px">` +
@@ -125,7 +126,7 @@ export function shopLiveEmail(args: {
     `<p>You asked us to add <strong>${escapeHtml(args.shopName)}</strong>. ` +
     `It's on Wave now — you can browse its menu and order from it on the next Wave.</p>` +
     `<p>Open the app to take a look.</p>` +
-    `<p style="color:#6a6a6a">— The Wave team</p>` +
+    `<p style="color:#6a6a6a">— The Wave team<br>${LEGAL_OPERATOR}</p>` +
     `</div>`;
   return { subject, html, text };
 }
