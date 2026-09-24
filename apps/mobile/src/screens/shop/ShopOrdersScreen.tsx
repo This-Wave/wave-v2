@@ -123,7 +123,7 @@ function OrderRow({
       <View className="w-28">
         <StatusPill {...statusPill(order.status)} />
       </View>
-      {onPress ? <ChevronRightIcon size={18} color={colors.subtle} strokeWidth={2} /> : null}
+      {onPress ? <ChevronRightIcon size={18} color={colors.icon} strokeWidth={2} /> : null}
     </>
   );
 

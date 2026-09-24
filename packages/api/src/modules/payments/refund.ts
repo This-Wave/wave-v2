@@ -3,6 +3,7 @@ import axios from "axios";
 import { refundPaystackPayment } from "./paystack";
 import { clientSafeOrder } from "../orders/select";
 import { notifyOrderStatus } from "../notifications/dispatch";
+import type { OrderFailureReason } from "@prisma/client";
 
 /**
  * How long a claimed refund may sit before another caller may take it over.
@@ -26,6 +27,11 @@ export interface EndOrderWithRefundArgs {
    * admin action and requires a captured payment.
    */
   intent: "cancel" | "refund";
+  /**
+   * The category this counts as. Free-text `reason` is what the student reads;
+   * this is what the business counts, and the two have different audiences.
+   */
+  failureReason: OrderFailureReason;
 }
 
 export type EndOrderWithRefundResult =
@@ -44,7 +50,7 @@ export type EndOrderWithRefundResult =
 export async function endOrderWithRefund(
   args: EndOrderWithRefundArgs,
 ): Promise<EndOrderWithRefundResult> {
-  const { fastify, log, orderId, reason, actorId, intent } = args;
+  const { fastify, log, orderId, reason, actorId, intent, failureReason } = args;
 
   // Pre-flight checks that do not need the claim. Doing these first keeps a
   // 404 or an already-refunded 409 from taking — and then having to release —
@@ -135,7 +141,7 @@ export async function endOrderWithRefund(
 
     const updated = await fastify.prisma.order.update({
       where: { id: orderId },
-      data: { status: nextStatus, cancellationReason: reason },
+      data: { status: nextStatus, cancellationReason: reason, failureReason },
       select: clientSafeOrder,
     });
     await fastify.prisma.orderStatusHistory.create({

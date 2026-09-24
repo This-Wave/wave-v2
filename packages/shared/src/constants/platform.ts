@@ -143,3 +143,38 @@ export function normalizeShopName(name: string): string {
 
 export const DELIVERY_DAYS = ["sunday", "wednesday", "special"] as const;
 export type DeliveryDay = (typeof DELIVERY_DAYS)[number];
+
+
+/**
+ * How far a student is from the loyalty discount.
+ *
+ * Lives here rather than in the app because the discount is the API's decision
+ * — `estimateOrderTotal` only mirrors it — and a progress line that disagreed
+ * with the discount actually applied would be worse than showing nothing.
+ *
+ * `remaining` is 0 once earned, and the caller decides whether to say so.
+ */
+export function loyaltyProgress(
+  completedDeliveries: number,
+  threshold: number = DEFAULT_LOYALTY_THRESHOLD,
+  discountPct: number = DEFAULT_LOYALTY_DISCOUNT_PCT,
+): { earned: boolean; completed: number; threshold: number; remaining: number; discountPct: number } {
+  const completed = Math.max(0, Math.floor(completedDeliveries));
+  const earned = completed >= threshold;
+  return {
+    earned,
+    completed,
+    threshold,
+    remaining: earned ? 0 : threshold - completed,
+    discountPct,
+  };
+}
+
+/** The one sentence both the profile and the review screen show. */
+export function loyaltyProgressLabel(progress: ReturnType<typeof loyaltyProgress>): string {
+  if (progress.earned) {
+    return `You get ${progress.discountPct}% off delivery on every order.`;
+  }
+  const n = progress.remaining;
+  return `${n} more ${n === 1 ? "delivery" : "deliveries"} for ${progress.discountPct}% off delivery.`;
+}

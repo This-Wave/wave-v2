@@ -7,7 +7,7 @@ import { apiErrorMessage } from "../apiError";
  * something unrenderable, a failed mutation takes the screen down instead of
  * showing a toast — which is worse than the silent failure it replaced.
  */
-const FALLBACK = "Could not accept this order.";
+const FALLBACK = "Couldn't accept this order — another rider may have taken it. Pull down to refresh the feed.";
 
 describe("apiErrorMessage", () => {
   test("returns the API's own message when there is one", () => {

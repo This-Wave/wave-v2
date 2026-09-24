@@ -6,6 +6,7 @@ import { apiFetch, errorMessage } from "../../../lib/api";
 import { PageHeader } from "../../../components/ui/PageHeader";
 import { Button } from "../../../components/ui/Button";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
+import { FeatureFlags } from "../../../components/FeatureFlags";
 
 interface ConfigRow {
   key: string;
@@ -268,6 +269,10 @@ export default function ConfigPage() {
           </p>
         </>
       )}
+
+      <div className="mt-8">
+        <FeatureFlags />
+      </div>
     </div>
   );
 }

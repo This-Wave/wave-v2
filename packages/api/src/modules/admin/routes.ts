@@ -30,6 +30,49 @@ export async function adminRoutes(fastify: FastifyInstance) {
   fastify.addHook("preHandler", fastify.authenticate);
   fastify.addHook("preHandler", fastify.requireRole("admin"));
 
+  /**
+   * Why orders ended without a delivery, over a window.
+   *
+   * The point of the column is that this exists: a count of cancelled orders
+   * tells you there is a problem, and only the breakdown tells you whether to
+   * chase shops about stock, riders about coverage, or Paystack about drop-offs.
+   *
+   * `unrecorded` is orders that failed before the column existed, or through a
+   * path that forgot to set it. Shown rather than hidden — a silently
+   * mis-attributed bucket is worse than an honest gap.
+   */
+  fastify.get("/order-failures", async (request, reply) => {
+    const days = Math.min(90, Math.max(1, Number((request.query as { days?: string })?.days) || 30));
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const [grouped, unrecorded, delivered] = await Promise.all([
+      fastify.prisma.order.groupBy({
+        by: ["failureReason"],
+        where: { createdAt: { gte: since }, failureReason: { not: null } },
+        _count: { _all: true },
+      }),
+      fastify.prisma.order.count({
+        where: {
+          createdAt: { gte: since },
+          status: { in: ["cancelled", "refunded"] },
+          failureReason: null,
+        },
+      }),
+      fastify.prisma.order.count({
+        where: { createdAt: { gte: since }, status: "delivered" },
+      }),
+    ]);
+
+    return reply.send({
+      days,
+      delivered,
+      unrecorded,
+      failures: grouped
+        .map((g) => ({ reason: g.failureReason, count: g._count._all }))
+        .sort((a, b) => b.count - a.count),
+    });
+  });
+
   fastify.get("/stats", async (_request, reply) => {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
@@ -279,6 +322,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       reason: parsed.data.reason,
       actorId: request.user!.id,
       intent: "refund",
+      failureReason: "admin_refunded",
     });
     if (!result.ok) return reply.code(result.code).send({ error: result.error });
 

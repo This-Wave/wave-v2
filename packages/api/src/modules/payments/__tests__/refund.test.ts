@@ -91,6 +91,7 @@ describe("endOrderWithRefund", () => {
       reason: "shop closed",
       actorId: "admin-1",
       intent: "refund",
+      failureReason: "admin_refunded",
     });
 
     expect(result.ok).toBe(true);
@@ -98,7 +99,7 @@ describe("endOrderWithRefund", () => {
     // Paystack is called before the status write, never after.
     expect(h.calls).toEqual(["updateMany", "paystack", "update"]);
     expect(h.update.mock.calls[0]![0]).toMatchObject({
-      data: { status: "refunded", cancellationReason: "shop closed" },
+      data: { status: "refunded", cancellationReason: "shop closed", failureReason: "admin_refunded" },
     });
     expect(h.historyCreate).toHaveBeenCalledTimes(1);
   });
@@ -114,6 +115,7 @@ describe("endOrderWithRefund", () => {
       reason: "student changed mind",
       actorId: "student-1",
       intent: "cancel",
+      failureReason: "student_cancelled",
     });
 
     expect(result).toMatchObject({ ok: false, code: 502 });
@@ -133,6 +135,7 @@ describe("endOrderWithRefund", () => {
       reason: "changed mind",
       actorId: "student-1",
       intent: "cancel",
+      failureReason: "student_cancelled",
     });
 
     expect(result).toMatchObject({ ok: true, refundIssued: false });
@@ -150,6 +153,7 @@ describe("endOrderWithRefund", () => {
       reason: "complaint",
       actorId: "admin-1",
       intent: "refund",
+      failureReason: "admin_refunded",
     });
 
     expect(result).toMatchObject({ ok: false, code: 400 });
@@ -166,6 +170,7 @@ describe("endOrderWithRefund", () => {
       reason: "duplicate",
       actorId: "admin-1",
       intent: "refund",
+      failureReason: "admin_refunded",
     });
 
     expect(result).toMatchObject({ ok: false, code: 409 });
@@ -183,6 +188,7 @@ describe("endOrderWithRefund", () => {
       reason: "too late",
       actorId: "student-1",
       intent: "cancel",
+      failureReason: "student_cancelled",
     });
 
     expect(result).toMatchObject({ ok: false, code: 409 });
@@ -199,6 +205,7 @@ describe("endOrderWithRefund", () => {
       reason: "item was wrong",
       actorId: "admin-1",
       intent: "refund",
+      failureReason: "admin_refunded",
     });
 
     expect(result).toMatchObject({ ok: true, refundIssued: true });
@@ -214,6 +221,7 @@ describe("endOrderWithRefund", () => {
       reason: "x",
       actorId: "admin-1",
       intent: "refund",
+      failureReason: "admin_refunded",
     });
 
     expect(result).toMatchObject({ ok: false, code: 404 });
@@ -238,6 +246,7 @@ describe("endOrderWithRefund", () => {
       reason: "shop closed",
       actorId: "admin-1",
       intent: "refund",
+      failureReason: "admin_refunded",
     });
 
     expect(result.ok).toBe(true);
@@ -262,6 +271,7 @@ describe("endOrderWithRefund", () => {
       reason: "double click",
       actorId: "admin-1",
       intent: "refund" as const,
+      failureReason: "admin_refunded" as const,
     };
 
     const first = endOrderWithRefund(args);
@@ -287,6 +297,7 @@ describe("endOrderWithRefund", () => {
       reason: "double click",
       actorId: "admin-1",
       intent: "refund",
+      failureReason: "admin_refunded",
     });
 
     expect(result).toMatchObject({ ok: false, code: 409 });
@@ -306,6 +317,7 @@ describe("endOrderWithRefund", () => {
       reason: "retry after crash",
       actorId: "admin-1",
       intent: "refund",
+      failureReason: "admin_refunded",
     });
 
     expect(result).toMatchObject({ ok: true, refundIssued: true });
@@ -323,6 +335,7 @@ describe("endOrderWithRefund", () => {
       reason: "shop closed",
       actorId: "admin-1",
       intent: "refund",
+      failureReason: "admin_refunded",
     });
 
     expect(result).toMatchObject({ ok: false, code: 502 });
@@ -344,6 +357,7 @@ describe("endOrderWithRefund", () => {
       reason: "shop closed",
       actorId: "admin-1",
       intent: "refund",
+      failureReason: "admin_refunded",
     });
 
     const releases = h.updateMany.mock.calls.filter(

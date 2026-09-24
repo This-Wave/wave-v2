@@ -69,7 +69,7 @@ export function OrderTrackingScreen() {
       );
       resetStudentTabs(navigation, "Orders");
     } catch (err) {
-      showToast(apiErrorMessage(err, "Could not cancel right now."), "danger");
+      showToast(apiErrorMessage(err, "Couldn't cancel right now. Check your connection and try again."), "danger");
       setConfirmCancel(false);
     }
   }

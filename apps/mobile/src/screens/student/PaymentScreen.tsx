@@ -204,16 +204,23 @@ export function PaymentScreen() {
               isSpecialOrder={order.isSpecialOrder}
             />
           ) : null}
-          <Text className="font-sans text-body text-muted">You're paying</Text>
-          <Text
-            className="mb-10 mt-1 font-sans-bold text-ink"
-            style={{ fontSize: 48, lineHeight: 52 }}
-          >
-            {formatGhsCompact(params.totalAmount)}
-          </Text>
+          <View accessible accessibilityLabel={`You're paying ${formatGhs(params.totalAmount)}`}>
+            <Text className="font-sans text-body text-muted">You&apos;re paying</Text>
+            <Text
+              className="mb-10 mt-1 font-sans-bold text-ink"
+              // Off-scale on purpose: this is the figure the whole screen
+              // exists to state. `formatGhsCompact` drops the decimals for the
+              // display, so the accessible name above uses the exact amount —
+              // "57" and "57.00" are the same number but only one of them is
+              // what the student is agreeing to.
+              style={{ fontSize: 48, lineHeight: 52 }}
+            >
+              {formatGhsCompact(params.totalAmount)}
+            </Text>
+          </View>
 
           <Text className="mb-3 font-sans-medium text-subheading text-ink">How?</Text>
-          <View className="gap-2">
+          <View className="gap-2" accessibilityRole="radiogroup" accessibilityLabel="Payment method">
             <MethodRow
               label="Mobile Money"
               meta={profile?.phone ?? "MTN · Telecel · AirtelTigo"}
@@ -234,7 +241,15 @@ export function PaymentScreen() {
             Paystack handles the payment. You’ll stay in this tab and come straight back when
             you’re done.
           </Text>
-          {error ? <Text className="mt-4 font-sans text-body text-danger">{error}</Text> : null}
+          {error ? (
+            <Text
+              accessibilityLiveRegion="assertive"
+              role="alert"
+              className="mt-4 font-sans text-body text-danger"
+            >
+              {error}
+            </Text>
+          ) : null}
         </Gutter>
       </ScreenBody>
 
@@ -267,8 +282,14 @@ function MethodRow({
     <Pressable
       onPress={onPress}
       accessibilityRole="radio"
-      accessibilityState={{ selected }}
-      className={`flex-row items-center gap-3 rounded-card p-4 ${
+      accessibilityState={{ selected, checked: selected }}
+      // `meta` carries the actual phone number the charge will go to, which is
+      // the thing worth hearing before you commit — and selection was signalled
+      // by a tinted ground and a check glyph, neither of which a screen reader
+      // reports on its own.
+      accessible
+      accessibilityLabel={`${label}, ${meta}`}
+      className={`min-h-[56px] flex-row items-center gap-3 rounded-card p-4 ${
         selected ? "bg-lime-faint" : "bg-surface"
       }`}
     >

@@ -18,8 +18,14 @@ export function IconCircle({
   onPress?: () => void;
   size?: number;
   tone?: "surface" | "lime" | "ink" | "transparent";
+  /** Required when the control is pressable — the glyph inside is decorative
+   *  and announces nothing on its own. */
   accessibilityLabel?: string;
 }) {
+  // The 40px disc is the reference's, and growing it would break the header
+  // rhythm — so the *touch* target is padded out to 44 instead of the visual
+  // one. 2.5.8 measures the target, not the paint.
+  const slop = Math.max(0, Math.ceil((44 - size) / 2));
   const bg =
     tone === "lime"
       ? "bg-lime active:bg-lime-600"
@@ -34,6 +40,7 @@ export function IconCircle({
       disabled={!onPress}
       accessibilityRole={onPress ? "button" : undefined}
       accessibilityLabel={accessibilityLabel}
+      hitSlop={onPress ? slop : undefined}
       style={{ width: size, height: size }}
       className={`items-center justify-center rounded-pill ${bg}`}
     >
@@ -46,6 +53,10 @@ export function IconCircle({
  * Filter chip. Selected = ink fill with white label, NOT lime — lime is
  * reserved for actions, and a rail of six lime chips would spend the accent on
  * navigation. Unselected = white on canvas with a hairline.
+ *
+ * 44px minimum: these sit in a horizontally-scrolling rail, which is already
+ * the hardest thing on the screen to hit accurately, so the old 36px was the
+ * worst target in the app rather than an incidental one.
  */
 export function Chip({
   label,
@@ -61,7 +72,7 @@ export function Chip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: !!selected }}
-      className={`h-9 justify-center rounded-pill px-4 ${
+      className={`min-h-[44px] justify-center rounded-pill px-4 py-2 ${
         selected ? "bg-ink" : "border border-hairline bg-surface"
       }`}
     >
@@ -114,6 +125,11 @@ export function SectionTitle({
     <Pressable
       onPress={onPress}
       disabled={!onPress}
+      // A heading when it is inert, a button when it leads somewhere. The
+      // chevron is the only visual cue for the difference, and a chevron
+      // announces nothing.
+      accessibilityRole={onPress ? "button" : "header"}
+      accessibilityLabel={onPress ? `${title}, see all` : title}
       className={`flex-row items-center gap-1 ${className}`}
     >
       <Text className="font-sans-medium text-heading-sm text-ink">{title}</Text>

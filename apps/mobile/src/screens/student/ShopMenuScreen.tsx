@@ -209,7 +209,7 @@ export function ShopMenuScreen() {
           <Button
             label="Continue"
             onPress={() =>
-              navigation.navigate("DescribeOrder", {
+              navigation.navigate("OrderSummary", {
                 shopId: params.shopId,
                 shopName: params.shopName,
                 scheduledDate: params.scheduledDate,

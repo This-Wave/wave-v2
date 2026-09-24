@@ -2,9 +2,16 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
-import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
+import {
+  ActionBar,
+  Button,
+  Gutter,
+  PhoneField,
+  Screen,
+  ScreenBody,
+  TopBar,
+} from "../../components/v6";
 import { GHANA_LOCAL_PHONE_LENGTH, toGhanaE164 } from "@wave/shared";
-import { PhoneField } from "../../components/ui/PhoneField";
 import { supabase } from "../../lib/supabase";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "PhoneEntry">;
@@ -44,8 +51,12 @@ export function PhoneEntryScreen({ navigation }: Props) {
             We'll text you a six-digit code. No password to remember.
           </Text>
 
-          <PhoneField value={localNumber} onChangeText={setLocalNumber} />
-          {error ? <Text className="mt-3 font-sans text-body text-danger">{error}</Text> : null}
+          <PhoneField
+            value={localNumber}
+            onChangeText={setLocalNumber}
+            label="Phone number"
+            error={error}
+          />
         </Gutter>
       </ScreenBody>
 

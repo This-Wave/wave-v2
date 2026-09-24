@@ -34,7 +34,11 @@ module.exports = {
           bg: "#87ea5c",
         },
         danger: {
-          text: "#B3453A",
+          // Was #B3453A, which measures 4.41:1 on `danger.bg` — under AA by a
+          // margin too small to see and too real to keep. These pills carry
+          // "Cancelled" and "Refunded" at 11px, so they are normal text and owe
+          // 4.5:1. #A63E33 is 5.03:1 on the tint and 6.25:1 on white.
+          text: "#A63E33",
           bg: "#F3E3E1",
           border: "#E0BEB9",
         },

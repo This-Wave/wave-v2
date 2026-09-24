@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { useAdminAuth } from "../providers/AdminAuthProvider";
+import { FOCUS_RING } from "./ui/Field";
 
 interface NavItem {
   href: string;
@@ -51,7 +52,7 @@ export function Sidebar({
         </span>
       </div>
 
-      <nav className="flex-1 px-3">
+      <nav className="flex-1 px-3" aria-label="Admin sections">
         {items.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -59,14 +60,23 @@ export function Sidebar({
             <Link
               key={item.href}
               href={item.href}
-              className={`mb-[3px] flex h-10 items-center gap-2.5 rounded-tile px-3 text-[13.5px] font-medium ${
-                isActive ? "bg-lime text-ink" : "text-ink hover:bg-canvas"
+              // The active route was marked by lime fill alone. 1.4.1 — and a
+              // screen reader had no way to tell where it was.
+              aria-current={isActive ? "page" : undefined}
+              className={`mb-[3px] flex min-h-10 items-center gap-2.5 rounded-tile px-3 py-2 text-[13.5px] font-medium ${FOCUS_RING} ${
+                isActive ? "bg-lime font-semibold text-ink" : "text-ink hover:bg-canvas"
               }`}
             >
-              <Icon size={17} strokeWidth={1.7} className={isActive ? "text-ink" : "text-muted"} />
+              <Icon
+                size={17}
+                strokeWidth={1.7}
+                aria-hidden
+                className={isActive ? "text-ink" : "text-muted"}
+              />
               <span className="flex-1">{item.label}</span>
               {item.badge ? (
                 <span
+                  aria-label={`${item.badge} pending`}
                   className={`rounded-pill border px-2 py-[2px] text-[10px] font-semibold ${
                     isActive
                       ? "border-transparent bg-ink/10 text-ink"
@@ -85,7 +95,10 @@ export function Sidebar({
         <p className="mb-[3px] truncate text-[12.5px] font-semibold text-ink">
           {profile?.fullName ?? "Admin"}
         </p>
-        <button onClick={() => signOut()} className="text-[11px] font-medium text-danger-text">
+        <button
+          onClick={() => signOut()}
+          className={`-mx-1 inline-flex min-h-[24px] items-center rounded-control px-1 text-[11px] font-medium text-danger-text ${FOCUS_RING}`}
+        >
           Log out
         </button>
       </div>

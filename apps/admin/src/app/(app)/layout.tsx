@@ -29,7 +29,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }, [accessToken, profile]);
 
   if (isLoading || !accessToken || !profile) {
-    return <div className="flex min-h-screen items-center justify-center text-[13px] text-muted">Loading…</div>;
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex min-h-screen items-center justify-center text-[13px] text-muted"
+      >
+        Loading…
+      </div>
+    );
   }
 
   if (profile.role !== "admin") {
@@ -45,8 +53,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-surface-muted">
+      {/* The sidebar is eight links deep and sits before the content in the tab
+          order on every page. 2.4.1. */}
+      <a
+        href="#main"
+        className="sr-only rounded-control bg-ink px-4 py-2 text-[13px] font-semibold text-surface focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50"
+      >
+        Skip to content
+      </a>
       <Sidebar pendingVerifications={pendingVerifications} pendingShops={pendingShops} />
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <main id="main" tabIndex={-1} className="flex-1 overflow-y-auto">
+        {children}
+      </main>
     </div>
   );
 }

@@ -164,7 +164,7 @@ function OrderTrackingPanel({ orderId, onClose }: { orderId: string; onClose: ()
             );
             onClose();
           } catch {
-            showToast("Could not cancel right now.", "danger");
+            showToast("Couldn't cancel right now. Check your connection and try again.", "danger");
             setConfirmCancel(false);
           }
         }}

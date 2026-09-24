@@ -87,7 +87,11 @@ export function ShopSetupScreen() {
           <Pressable
             onPress={() => setPicking(true)}
             accessibilityRole="button"
-            className="mb-6 flex-row items-center gap-3 rounded-card bg-surface px-4 py-3.5"
+            // Announced "Choose a category" either way, so a returning owner
+            // could not hear what they had already picked.
+            accessibilityLabel={category ? `Category: ${category}` : "Choose a category"}
+            accessibilityHint="Opens the category list"
+            className="mb-6 min-h-[48px] flex-row items-center gap-3 rounded-card bg-surface px-4 py-3.5"
           >
             <Text
               className={`flex-1 font-sans text-body ${category ? "text-ink" : "text-muted"}`}

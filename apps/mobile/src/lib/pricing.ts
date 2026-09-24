@@ -1,4 +1,6 @@
 import {
+  CUTOFF_HOUR,
+  RUN_DAYS,
   DEFAULT_DELIVERY_FEE_GHS,
   DEFAULT_LOYALTY_DISCOUNT_PCT,
   DEFAULT_LOYALTY_THRESHOLD,
@@ -6,43 +8,24 @@ import {
   DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
 } from "@wave/shared";
 
-export const CUTOFF_HOUR = 12;
-const RUN_DAYS = [0, 3]; // Sunday, Wednesday
+// The Wave schedule lives in @wave/shared so the server's cutoff reminder and
+// the app's countdown cannot drift apart. Re-exported here because these were
+// this module's API for a long time and every caller imports them from it.
+export {
+  CUTOFF_HOUR,
+  RUN_DAYS,
+  nextRunCutoff,
+  isCutoffPassedToday,
+  upcomingRunDays,
+  msUntilCutoff,
+} from "@wave/shared";
 
 // Display-only helpers mirroring the server's pricing rules in
 // packages/api/src/modules/orders/discount.ts — the server always
 // recalculates and is the only source of truth for the actual charge.
 
-export function nextRunCutoff(now: Date = new Date()): Date {
-  for (let offset = 0; offset < 14; offset++) {
-    const candidate = new Date(now);
-    candidate.setDate(now.getDate() + offset);
-    candidate.setHours(CUTOFF_HOUR, 0, 0, 0);
-    if (RUN_DAYS.includes(candidate.getDay()) && candidate.getTime() > now.getTime()) {
-      return candidate;
-    }
-  }
-  return now;
-}
 
-export function isCutoffPassedToday(now: Date = new Date()): boolean {
-  return RUN_DAYS.includes(now.getDay()) && now.getHours() >= CUTOFF_HOUR;
-}
 
-export function upcomingRunDays(now: Date = new Date(), count = 2): Date[] {
-  const results: Date[] = [];
-  for (let offset = 0; results.length < count && offset < 30; offset++) {
-    const candidate = new Date(now);
-    candidate.setDate(now.getDate() + offset);
-    candidate.setHours(0, 0, 0, 0);
-    const cutoff = new Date(candidate);
-    cutoff.setHours(CUTOFF_HOUR, 0, 0, 0);
-    if (RUN_DAYS.includes(candidate.getDay()) && cutoff.getTime() > now.getTime()) {
-      results.push(candidate);
-    }
-  }
-  return results;
-}
 
 export function earliestSpecialOrderDate(now: Date = new Date()): Date {
   return new Date(now.getTime() + DEFAULT_SPECIAL_ORDER_LEAD_HOURS * 60 * 60 * 1000);

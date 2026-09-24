@@ -22,9 +22,21 @@ export function Steps({ steps, currentIndex }: { steps: Step[]; currentIndex: nu
         const done = i < currentIndex;
         const current = i === currentIndex;
         const last = i === steps.length - 1;
+        // The disc's fill is the only thing distinguishing done from current
+        // from upcoming, so on its own this is status by colour and shape
+        // alone. The state has to be said out loud. 1.4.1.
+        const state = done ? "Completed" : current ? "In progress" : "Not started";
         return (
-          <View key={step.label} className="flex-row">
-            <View className="items-center" style={{ width: 28 }}>
+          <View
+            key={step.label}
+            className="flex-row"
+            accessible
+            accessibilityRole="text"
+            accessibilityLabel={[`${step.label}.`, `${state}.`, step.detail]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            <View className="items-center" style={{ width: 28 }} accessibilityElementsHidden>
               <View
                 className={`h-6 w-6 items-center justify-center rounded-pill ${
                   done ? "bg-lime" : current ? "border-2 border-ink bg-surface" : "bg-hairline"
@@ -38,8 +50,11 @@ export function Steps({ steps, currentIndex }: { steps: Step[]; currentIndex: nu
             </View>
             <View className={`flex-1 pl-3 ${last ? "pb-0" : "pb-7"}`}>
               <Text
+                // Upcoming steps are content, not disabled controls — a student
+                // reads ahead to see that "Delivered" is still coming. `subtle`
+                // measured 1.80:1, so this owes 4.5:1 like any other text.
                 className={`font-sans-medium text-body ${
-                  done || current ? "text-ink" : "text-subtle"
+                  done || current ? "text-ink" : "text-muted"
                 }`}
               >
                 {step.label}

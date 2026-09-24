@@ -176,7 +176,11 @@ async function settleOne(args: {
   // cancelled out from under the student. Same shape as the claim in `confirm.ts`.
   const cancelled = await fastify.prisma.order.updateMany({
     where: { id: order.id, status: { in: ["pending", "payment_pending"] }, paidAt: null },
-    data: { status: "cancelled", cancellationReason: ABANDONED_CANCELLATION_REASON },
+    data: {
+      status: "cancelled",
+      cancellationReason: ABANDONED_CANCELLATION_REASON,
+      failureReason: "abandoned_payment",
+    },
   });
   if (cancelled.count === 0) return "skipped";
 

@@ -123,7 +123,11 @@ describe("sweepAbandonedCheckouts — cancelling what was never paid", () => {
     expect(result.cancelled).toBe(1);
     expect(fastify.updateMany).toHaveBeenCalledWith({
       where: { id: "order-1", status: { in: ["pending", "payment_pending"] }, paidAt: null },
-      data: { status: "cancelled", cancellationReason: ABANDONED_CANCELLATION_REASON },
+      data: {
+        status: "cancelled",
+        cancellationReason: ABANDONED_CANCELLATION_REASON,
+        failureReason: "abandoned_payment",
+      },
     });
   });
 

@@ -50,7 +50,12 @@ export function DeliveryPinSnippet({
         </Pressable>
       )}
       {onOpenFull ? (
-        <Pressable onPress={onOpenFull} className="mt-3">
+        <Pressable
+          onPress={onOpenFull}
+          accessibilityRole="button"
+          accessibilityLabel="Full code screen"
+          accessibilityHint="Opens the PIN large enough to read at arm's length"
+          className="mt-3 min-h-[44px] justify-center">
           <Text className="font-sans-medium text-body text-ink">Full code screen</Text>
         </Pressable>
       ) : null}

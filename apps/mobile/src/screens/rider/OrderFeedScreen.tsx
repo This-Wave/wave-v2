@@ -13,11 +13,11 @@ import {
   RowGroup,
   Screen,
   ScreenBody,
+  Switch,
   Thumb,
 } from "../../components/v6";
 import { ChevronRightIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
-import { ToggleSwitch } from "../../components/ui/ToggleSwitch";
 import { useAuthStore } from "../../store/authStore";
 import { useAvailableOrders, useSetAvailability } from "../../lib/rider";
 import { useWave } from "../../lib/wave";
@@ -76,10 +76,11 @@ export function OrderFeedScreen() {
             )}
           </View>
           <View className="items-end gap-1.5">
-            <ToggleSwitch
+            <Switch
               value={online}
               onValueChange={handleToggle}
-              accessibilityLabel={online ? "Available for deliveries" : "Not available for deliveries"}
+              accessibilityLabel="Available for deliveries"
+              accessibilityHint="Turn off to stop new orders appearing in your feed"
             />
             <Text className="font-sans text-meta text-muted">{online ? "Online" : "Offline"}</Text>
           </View>
@@ -161,6 +162,14 @@ function FeedRow({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      accessible
+      accessibilityLabel={[
+        order.shop?.name ?? "Shop",
+        `to ${order.checkpoint?.name ?? "checkpoint"}`,
+        order.estimatedEarning
+          ? `you earn ${formatGhs(Number(order.estimatedEarning))}`
+          : `${formatGhs(Number(order.deliveryFee))} delivery fee`,
+      ].join(", ")}
       className={`flex-row items-center px-5 py-4 active:bg-canvas ${
         last ? "" : "border-b border-hairline"
       }`}
@@ -174,10 +183,22 @@ function FeedRow({
       <Text className="flex-[2] pr-3 font-sans text-body text-muted" numberOfLines={1}>
         {order.shop?.locationText ?? "Off-campus"} → {order.checkpoint?.name ?? "checkpoint"}
       </Text>
-      <Text className="w-28 font-sans-semibold text-body text-ink">
-        {formatGhs(Number(order.deliveryFee))}
-      </Text>
-      <ChevronRightIcon size={18} color={colors.subtle} strokeWidth={2} />
+      <View className="w-28">
+        {/* The fee is what the student pays; the earning is what the rider
+            takes. Showing only the first has meant riders judging a job by a
+            number that is not theirs. Server-computed with the same rate that
+            writes the earning on delivery, so it cannot quote a share the
+            payment then contradicts. */}
+        <Text className="font-sans-semibold text-body text-ink">
+          {order.estimatedEarning
+            ? formatGhs(Number(order.estimatedEarning))
+            : formatGhs(Number(order.deliveryFee))}
+        </Text>
+        {order.estimatedEarning ? (
+          <Text className="font-sans text-meta text-muted">you earn</Text>
+        ) : null}
+      </View>
+      <ChevronRightIcon size={18} color={colors.icon} strokeWidth={2} />
     </Pressable>
   );
 }

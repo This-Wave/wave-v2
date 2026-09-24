@@ -211,7 +211,7 @@ function PastRow({
       <View className="w-28">
         <StatusPill {...statusPill(order.status)} />
       </View>
-      <ChevronRightIcon size={18} color={colors.subtle} strokeWidth={2} />
+      <ChevronRightIcon size={18} color={colors.icon} strokeWidth={2} />
     </Pressable>
   );
 }

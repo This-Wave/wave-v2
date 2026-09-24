@@ -7,32 +7,41 @@ import { useLayout } from "../../hooks/useLayout";
  * The hero of the home screen.
  *
  * The reference's central claim is that Airbnb has no hero image and no
- * headline — the search bar IS the hero. Wave's equivalent has two variables a
- * student actually sets: what they need, and which Wave it goes on. So the
- * capsule is segmented into exactly those two fields.
+ * headline — the search bar IS the hero.
  *
- * Putting the delivery window *inside* the search is the whole idea: v5 gave it
- * a 47-hour countdown occupying a third of the screen. It is a scheduling
- * detail, not an emergency.
+ * It used to carry a second segment for the Wave. That went, for two reasons.
+ * It duplicated the date the Wave banner states directly below, and duplicated
+ * information is the thing to cut before a label is. And it made the capsule
+ * three targets inside 64px, one of which — the action — was an unlabelled
+ * lime disc. One field and one named action is the whole control now; the
+ * banner owns the Wave and offers a better way to change it.
  *
- * This is the only element in the system that carries a shadow.
+ * The action is a labelled pill rather than an icon disc. "Search" costs a few
+ * points of width and removes the guess, which is the trade worth making on
+ * the primary action of the app's first screen.
+ *
+ * This and the floating tab bar are the only elements in the system carrying a
+ * shadow.
  */
 export function SearchCapsule({
   query,
-  waveLabel,
+  mode = "buy",
   onPressQuery,
-  onPressWave,
   onSubmit,
 }: {
   /** Current search text, or undefined for the placeholder state. */
   query?: string;
-  /** e.g. "Sunday 9 Aug" — the Wave this order would join. */
-  waveLabel: string;
+  /** Which service the student is on — changes what the capsule asks for. */
+  mode?: "buy" | "pickup";
   onPressQuery?: () => void;
-  onPressWave?: () => void;
   onSubmit?: () => void;
 }) {
   const { isDesktop } = useLayout();
+  const copy =
+    mode === "pickup"
+      ? { label: "What are we moving", hint: "A bag, a parcel, a document…", cta: "Next" }
+      : { label: "What do you need", hint: "Jollof, printing, airtime…", cta: "Search" };
+
   return (
     <View
       style={[
@@ -41,30 +50,30 @@ export function SearchCapsule({
       ]}
       className="h-16 flex-row items-center rounded-pill bg-surface pl-5 pr-2"
     >
-      <Pressable onPress={onPressQuery} className="flex-1 justify-center" accessibilityRole="search">
-        <Text className="font-sans-semibold text-meta text-ink">What do you need</Text>
+      <Pressable
+        onPress={onPressQuery}
+        className="flex-1 justify-center"
+        accessibilityRole="search"
+        accessibilityLabel={copy.label}
+        accessibilityHint="Opens search"
+      >
+        <Text className="font-sans-semibold text-meta text-ink">{copy.label}</Text>
         <Text
           className={`font-sans text-body ${query ? "text-ink" : "text-muted"}`}
           numberOfLines={1}
         >
-          {query || "Jollof, printing, airtime…"}
+          {query || copy.hint}
         </Text>
-      </Pressable>
-
-      <View className="mx-3 h-7 w-px bg-hairline" />
-
-      <Pressable onPress={onPressWave} className="justify-center" accessibilityRole="button">
-        <Text className="font-sans-semibold text-meta text-ink">Wave</Text>
-        <Text className="font-sans text-body text-muted">{waveLabel}</Text>
       </Pressable>
 
       <Pressable
         onPress={onSubmit}
         accessibilityRole="button"
-        accessibilityLabel="Search"
-        className="ml-3 h-12 w-12 items-center justify-center rounded-pill bg-lime active:bg-lime-600"
+        accessibilityLabel={copy.cta}
+        className="ml-3 h-12 flex-row items-center gap-2 rounded-pill bg-lime px-[18px] active:bg-lime-600"
       >
-        <SearchIcon size={20} color={colors.ink} strokeWidth={2} />
+        <SearchIcon size={18} color={colors.ink} strokeWidth={2.2} />
+        <Text className="font-sans-medium text-ui text-ink">{copy.cta}</Text>
       </Pressable>
     </View>
   );

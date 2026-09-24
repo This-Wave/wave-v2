@@ -79,7 +79,7 @@ export function ShopMenuPanel({
               label="Continue"
               onPress={() => {
                 onClose();
-                navigation.navigate("DescribeOrder", {
+                navigation.navigate("OrderSummary", {
                   shopId,
                   shopName,
                   scheduledDate,
@@ -159,14 +159,29 @@ function MenuLine({
         <View className="flex-row items-center gap-1">
           <Pressable
             onPress={() => onChange(quantity - 1)}
+            accessibilityRole="button"
+            // Icon-only, so without this it announces as an unlabelled button
+            // and there is no way to tell the two steppers apart. Naming the
+            // product matters: the panel shows several of these at once.
+            accessibilityLabel={`Remove one ${product.name}`}
+            hitSlop={8}
             className="h-8 w-8 items-center justify-center rounded-pill bg-surface"
           >
             <MinusIcon size={14} color={colors.ink} />
           </Pressable>
-          <Text className="w-6 text-center font-sans-medium text-body text-ink">{quantity}</Text>
+          <Text
+            accessibilityLabel={`${quantity} in your basket`}
+            className="w-6 text-center font-sans-medium text-body text-ink"
+          >
+            {quantity}
+          </Text>
           <Pressable
             onPress={() => onChange(quantity + 1)}
             disabled={quantity >= MAX_ITEM_QUANTITY}
+            accessibilityRole="button"
+            accessibilityLabel={`Add another ${product.name}`}
+            accessibilityState={{ disabled: quantity >= MAX_ITEM_QUANTITY }}
+            hitSlop={8}
             className="h-8 w-8 items-center justify-center rounded-pill bg-surface"
           >
             <PlusIcon size={14} color={colors.ink} />
@@ -176,7 +191,13 @@ function MenuLine({
         <Pressable
           onPress={() => onChange(1)}
           disabled={!canAdd}
-          className={`h-9 items-center justify-center rounded-pill px-3 ${
+          accessibilityRole="button"
+          // The panel lists a whole menu, so a screen reader hitting a dozen
+          // buttons all called "Add" has no way to tell which item each one
+          // belongs to.
+          accessibilityLabel={`Add ${product.name}`}
+          accessibilityState={{ disabled: !canAdd }}
+          className={`min-h-[44px] items-center justify-center rounded-pill px-4 ${
             canAdd ? "bg-lime" : "bg-surface-muted"
           }`}
         >

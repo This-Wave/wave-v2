@@ -9,8 +9,6 @@ import {
   ListError,
   ListSkeleton,
   PageTitle,
-  Row,
-  RowGroup,
   Screen,
   ScreenBody,
   StatusPill,
@@ -182,20 +180,59 @@ export function MenuScreen() {
             </>
           ) : (
             <>
-              <RowGroup>
+              {/*
+                Two sibling controls, not a row with a decorative pill. Marking
+                something sold out used to take three taps through the edit
+                sheet, and a stock-out that reaches checkout is the worst refund
+                Wave has — the student has already paid. Now it is one tap, from
+                the screen an owner is already looking at.
+
+                Siblings rather than a pressable inside a pressable: nested
+                touchables are ambiguous to assistive tech about which one a tap
+                belongs to.
+              */}
+              <View style={{ gap: 8 }}>
                 {filtered.map((product) => (
-                  <Row
+                  <View
                     key={product.id}
-                    title={product.name}
-                    meta={formatGhs(Number(product.price))}
-                    chevron
-                    trailing={<StatusPill {...STATUS_PILL[product.status]} />}
-                    onPress={() => openEdit(product)}
-                  />
+                    className="flex-row items-center gap-3 rounded-card bg-surface px-4 py-3"
+                  >
+                    <Pressable
+                      onPress={() => openEdit(product)}
+                      accessibilityRole="button"
+                      accessible
+                      accessibilityLabel={`${product.name}, ${formatGhs(Number(product.price))}`}
+                      accessibilityHint="Edit name, price or photo"
+                      className="min-h-[44px] flex-1 justify-center"
+                    >
+                      <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
+                        {product.name}
+                      </Text>
+                      <Text className="font-sans text-body text-muted">
+                        {formatGhs(Number(product.price))}
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() =>
+                        setStatusTarget({
+                          id: product.id,
+                          name: product.name,
+                          status: product.status,
+                        })
+                      }
+                      accessibilityRole="button"
+                      accessibilityLabel={`${product.name} is ${STATUS_PILL[product.status].label}. Change availability.`}
+                      hitSlop={8}
+                      className="min-h-[44px] justify-center"
+                    >
+                      <StatusPill {...STATUS_PILL[product.status]} />
+                    </Pressable>
+                  </View>
                 ))}
-              </RowGroup>
+              </View>
               <Text className="mt-3 font-sans text-meta text-muted">
-                Tap an item to edit. Use “Change menu status” inside the edit sheet.
+                Tap an item to edit it, or tap its status to mark it sold out.
               </Text>
             </>
           )}

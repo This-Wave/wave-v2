@@ -79,6 +79,17 @@ export function MyOrdersScreen() {
                           onPress={() =>
                             navigation.navigate("ActiveDelivery", { orderId: order.id })
                           }
+                          accessibilityRole="button"
+                          // The row is four separate Texts plus a pill; without
+                          // an explicit name a screen reader reads them as five
+                          // unrelated stops and the "Open" at the end belongs to
+                          // nothing.
+                          accessible
+                          accessibilityLabel={[
+                            order.shop?.name ?? "Delivery",
+                            `to ${order.checkpoint?.name ?? "checkpoint"}`,
+                            statusPill(order.status).label,
+                          ].join(", ")}
                           className="flex-row items-center gap-4 rounded-card bg-surface px-5 py-4 active:bg-hairline"
                         >
                           <Thumb uri={order.shop?.logoUrl} size={52} />

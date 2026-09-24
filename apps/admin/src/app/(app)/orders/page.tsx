@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../lib/api";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
+import { FOCUS_RING } from "../../../components/ui/Field";
 
 interface OrderRow {
   id: string;
@@ -94,10 +95,14 @@ export default function OrdersPage() {
           <h1 className="text-[26px] font-semibold tracking-tight text-ink">Orders</h1>
           <p className="mt-0.5 text-[13px] text-muted">{total} total</p>
         </div>
+        {/* The visible cue that this filters by status is the selected option
+            text itself ("All statuses"), which is a value and not a name — so
+            a screen reader announced an unnamed combo box. */}
         <select
           value={status}
           onChange={(e) => handleStatusChange(e.target.value)}
-          className="rounded-control border border-border bg-surface px-3.5 py-2 text-[12px] font-semibold text-ink outline-none"
+          aria-label="Filter orders by status"
+          className={`rounded-control border border-border bg-surface px-3.5 py-2 text-[12px] font-semibold text-ink ${FOCUS_RING}`}
         >
           {STATUS_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
