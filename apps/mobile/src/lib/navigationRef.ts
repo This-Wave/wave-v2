@@ -23,6 +23,13 @@ type OrderRoutes = {
  */
 export const navigationRef = createNavigationContainerRef<OrderRoutes>();
 
+// The web build has no URL linking, so the screenshot harness
+// (e2e/specs/allpages-screenshots.spec.ts) opens deep screens through this
+// handle instead of clicking a path to each one. Dev bundles only.
+if (__DEV__ && typeof window !== "undefined") {
+  (window as unknown as { __waveNav?: typeof navigationRef }).__waveNav = navigationRef;
+}
+
 /**
  * Opens an order, whichever role is signed in.
  *
