@@ -7,13 +7,17 @@
  * `app/+html.tsx` to own the document head — post-processing the export is the
  * supported seam, and it is the same shape as `build-legal-html.cjs`.
  *
- * Two jobs:
+ * Three jobs:
  *
  *  1. Inject the manifest link, theme colour and iOS meta tags into <head>, plus
  *     the service-worker registration. Without the iOS tags specifically, adding
  *     Wave to an iPhone home screen produces a bookmark that opens in Safari
  *     chrome rather than an app window.
- *  2. Stamp a real version into `sw.js`, replacing the `__SHELL_VERSION__`
+ *  2. Write `robots.txt` and `sitemap.xml`, and inject the Open Graph and
+ *     Twitter card tags. All three need the deployed origin, which only exists
+ *     at build time, so they are generated here rather than committed under
+ *     `public/`.
+ *  3. Stamp a real version into `sw.js`, replacing the `__SHELL_VERSION__`
  *     placeholder. The cache name is derived from it, so a deploy that did not
  *     change this value would leave every returning user on the previous shell.
  */
@@ -24,6 +28,30 @@ const path = require("node:path");
 const dist = path.join(__dirname, "..", "dist");
 const indexPath = path.join(dist, "index.html");
 const swPath = path.join(dist, "sw.js");
+
+const DESCRIPTION =
+  "Campus delivery for Ashesi. Order from off-campus shops and collect at a checkpoint.";
+
+/**
+ * The absolute origin this build will be served from.
+ *
+ * Open Graph, Twitter cards and `sitemap.xml` all reject relative URLs — a
+ * relative `og:image` is not a smaller preview, it is no preview at all — so
+ * the origin has to be known here.
+ *
+ * `WAVE_SITE_URL` wins when set. Otherwise Vercel's own
+ * `VERCEL_PROJECT_PRODUCTION_URL` (bare host, no scheme) is used, so preview
+ * deploys still point their cards at the production domain rather than at a
+ * throwaway URL. The literal is the last resort and matches
+ * `apps/mobile/.env.example`; set `WAVE_SITE_URL` the day a custom domain
+ * lands.
+ */
+const siteUrl = (
+  process.env.WAVE_SITE_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "https://wave-liart-pi.vercel.app")
+).replace(/\/+$/, "");
 
 if (!fs.existsSync(indexPath)) {
   console.error(`build-pwa: ${indexPath} not found — run \`expo export --platform web\` first.`);
@@ -60,8 +88,25 @@ if (html.includes('rel="manifest"')) {
   );
   parts.push(
     '<link rel="manifest" href="/manifest.webmanifest" />',
-    '<meta name="description" content="Campus delivery for Ashesi. Order from off-campus shops and collect at a checkpoint." />',
+    `<meta name="description" content="${DESCRIPTION}" />`,
     '<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />',
+    // Wave spreads by students forwarding a link on WhatsApp. Without these,
+    // that link previews as a bare URL, which reads as spam. WhatsApp needs
+    // og:image to be absolute and reads og:title/og:description only.
+    `<link rel="canonical" href="${siteUrl}/" />`,
+    '<meta property="og:type" content="website" />',
+    '<meta property="og:site_name" content="Wave" />',
+    '<meta property="og:title" content="Wave — campus delivery for Ashesi" />',
+    `<meta property="og:description" content="${DESCRIPTION}" />`,
+    `<meta property="og:url" content="${siteUrl}/" />`,
+    `<meta property="og:image" content="${siteUrl}/og.png" />`,
+    '<meta property="og:image:width" content="1200" />',
+    '<meta property="og:image:height" content="630" />',
+    '<meta property="og:image:alt" content="The Wave mark beside the words Wave, campus delivery for Ashesi." />',
+    '<meta property="og:locale" content="en_GH" />',
+    // summary_large_image is what turns the card from a thumbnail into the
+    // full-width image; the same og: tags supply its content.
+    '<meta name="twitter:card" content="summary_large_image" />',
     // iOS reads none of the manifest. These three tags are the whole of its
     // standalone support: without them "Add to Home Screen" yields a Safari
     // bookmark, not an app window.
@@ -103,7 +148,30 @@ if (!html.includes("serviceWorker")) {
 }
 
 fs.writeFileSync(indexPath, html, "utf8");
-console.log("build-pwa: injected manifest, icons, iOS meta and SW registration into dist/index.html");
+console.log("build-pwa: injected manifest, icons, iOS meta, OG tags and SW registration into dist/index.html");
+
+// robots.txt and sitemap.xml. Only three URLs are worth listing: everything
+// else in this build is behind sign-in and rendered client-side, so a crawler
+// following it would index an empty shell. `/_expo/` is disallowed for the same
+// reason — those are JS chunks, not pages.
+//
+// Both files carry absolute URLs, which is why they are written here instead of
+// being committed under `public/`.
+const SITEMAP_PATHS = ["/", "/legal/terms.html", "/legal/privacy.html"];
+
+fs.writeFileSync(
+  path.join(dist, "robots.txt"),
+  ["User-agent: *", "Allow: /", "Disallow: /_expo/", "", `Sitemap: ${siteUrl}/sitemap.xml`, ""].join("\n"),
+  "utf8",
+);
+
+const urls = SITEMAP_PATHS.map((p) => `  <url><loc>${siteUrl}${p}</loc></url>`).join("\n");
+fs.writeFileSync(
+  path.join(dist, "sitemap.xml"),
+  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
+  "utf8",
+);
+console.log(`build-pwa: wrote robots.txt and sitemap.xml for ${siteUrl}`);
 
 if (!fs.existsSync(swPath)) {
   console.error("build-pwa: dist/sw.js missing — is public/sw.js still there?");

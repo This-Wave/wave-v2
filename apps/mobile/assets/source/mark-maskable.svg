@@ -4,7 +4,7 @@
     and is only guaranteed to keep the centre 80% — so the mark is scaled to
     ~62% and the ink ground is allowed to take the crop instead.
   -->
-  <rect width="1024" height="1024" fill="#083400"/>
+  <rect width="1024" height="1024" fill="#154b3e"/>
   <g transform="translate(512 512) scale(0.62) translate(-512 -512)">
     <g fill="none" stroke="#87ea5c" stroke-width="76" stroke-linecap="round">
       <path d="M 192 412 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"/>
