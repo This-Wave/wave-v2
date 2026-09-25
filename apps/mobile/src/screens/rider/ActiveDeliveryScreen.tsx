@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { STEP_RANK, stepFor, type Step } from "../../lib/deliveryStep";
 import { Linking, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -40,9 +41,16 @@ export function ActiveDeliveryScreen() {
   const { params } = useRoute<Route>();
   const { data: order } = useOrder(params.orderId);
   const updateStatus = useUpdateOrderStatus();
-  const [step, setStep] = useState<"at_shop" | "en_route">("at_shop");
+  // Where the delivery is comes from the server, not from this screen's memory:
+  // reopening an en-route or at-checkpoint job used to start again at "Go and
+  // collect it". `advanced` only bridges the moment between a transition
+  // succeeding and the order refetching, and never outranks the server.
+  const [advanced, setAdvanced] = useState<Step | null>(null);
+  const fromServer = stepFor(order?.status);
+  const step = advanced && STEP_RANK[advanced] > STEP_RANK[fromServer] ? advanced : fromServer;
 
   const isShopPickup = order?.orderType === "shop_pickup";
+  const isPickup = order?.orderType === "pickup";
   /**
    * Where the runner is going. A `shop_pickup` has no `Shop` row at all — the
    * place lives on the suggestion the student wrote — so reading only
@@ -50,7 +58,9 @@ export function ActiveDeliveryScreen() {
    */
   const origin = isShopPickup
     ? { name: order?.suggestion?.name, locationText: order?.suggestion?.locationText }
-    : { name: order?.shop?.name, locationText: order?.shop?.locationText };
+    : isPickup
+      ? { name: order?.originCheckpoint?.name, locationText: order?.originCheckpoint?.description }
+      : { name: order?.shop?.name, locationText: order?.shop?.locationText };
 
   // Shops have no coordinates, only free text — so the map opens on a search.
   // Name and location together disambiguate; empty disables the button.
@@ -88,10 +98,18 @@ export function ActiveDeliveryScreen() {
       : []),
     {
       label: `Carry to ${order?.checkpoint?.name ?? "the checkpoint"}`,
-      detail: step === "en_route" ? "On the way" : "Not yet",
+      detail: step === "at_checkpoint" ? "Arrived" : step === "en_route" ? "On the way" : "Not yet",
     },
     { label: "Take the student's PIN", detail: "Closes the delivery" },
   ];
+  const currentIndex =
+    step === "at_checkpoint"
+      ? steps.length - 1
+      : step === "en_route"
+        ? steps.length - 2
+        : isShopPickup && costRecorded
+          ? 2
+          : 1;
 
   async function handleAdvance() {
     // A shop_pickup cannot leave the shop as "picked up" until the till total
@@ -106,14 +124,20 @@ export function ActiveDeliveryScreen() {
     // nothing move, and has no way to tell whether it worked (review
     // 08-mobile, H4). `setStep` stays *after* the await deliberately: local
     // state must not claim a transition the server rejected.
+    // Already at the checkpoint: the only thing left is the PIN, and sending
+    // `at_checkpoint` again would be refused as a repeat transition.
+    if (step === "at_checkpoint") {
+      navigation.navigate("PinEntry", { orderId: params.orderId });
+      return;
+    }
     try {
       if (step === "at_shop") {
         await updateStatus.mutateAsync({
           orderId: params.orderId,
           status: "en_route",
-          note: "Picked up from shop",
+          note: isPickup ? "Collected from checkpoint" : "Picked up from shop",
         });
-        setStep("en_route");
+        setAdvanced("en_route");
         return;
       }
       await updateStatus.mutateAsync({
@@ -121,6 +145,7 @@ export function ActiveDeliveryScreen() {
         status: "at_checkpoint",
         note: "Arrived at checkpoint",
       });
+      setAdvanced("at_checkpoint");
       navigation.navigate("PinEntry", { orderId: params.orderId });
     } catch (err) {
       showToast(apiErrorMessage(err, "Couldn't update — check your connection."), "danger");
@@ -134,14 +159,14 @@ export function ActiveDeliveryScreen() {
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-2">
           <Text className="mb-8 font-sans-bold text-heading text-ink">
-            {step === "at_shop" ? "Go and collect it" : "Take it to the checkpoint"}
+            {step === "at_shop" ? "Go and collect it" : step === "en_route" ? "Take it to the checkpoint" : "Hand it over"}
           </Text>
 
           <View className="mb-7 rounded-card bg-surface p-5">
-            <Steps steps={steps} currentIndex={step === "at_shop" ? 1 : 2} />
+            <Steps steps={steps} currentIndex={currentIndex} />
           </View>
 
-          <Text className="mb-2 font-sans-medium text-body text-ink">What to buy</Text>
+          <Text className="mb-2 font-sans-medium text-body text-ink">{isPickup ? "What to carry" : "What to buy"}</Text>
           <View className="mb-7 rounded-card bg-surface p-4">
             {order?.items?.length ? (
               order.items.map((item, i) => (
@@ -245,7 +270,9 @@ export function ActiveDeliveryScreen() {
               ? "Record what you paid"
               : step === "at_shop"
                 ? "I've picked it up"
-                : "I'm at the checkpoint"
+                : step === "en_route"
+                  ? "I'm at the checkpoint"
+                  : "Enter the student's PIN"
           }
           onPress={handleAdvance}
           loading={updateStatus.isPending}
