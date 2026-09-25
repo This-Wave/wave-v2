@@ -81,7 +81,7 @@ export function LoyaltyStamps({
             >
               <BoxIcon
                 size={24}
-                color={collected ? colors.ink : colors.icon}
+                color={collected ? colors.onAccent : colors.icon}
                 strokeWidth={collected ? 1.9 : 1.6}
               />
             </View>

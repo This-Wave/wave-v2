@@ -82,7 +82,7 @@ export default function RidersPage() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`rounded-tile px-4 py-2 text-[12px] font-semibold ${
-              tab === t.key ? "bg-ink text-white" : "text-muted"
+              tab === t.key ? "bg-ink text-on-ink" : "text-muted"
             }`}
           >
             {t.label}
@@ -122,7 +122,7 @@ export default function RidersPage() {
                 <tr key={v.id} className={i < verifications.length - 1 ? "border-b border-border" : ""}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-lime text-[11px] font-bold text-ink">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-lime text-[11px] font-bold text-admin-text">
                         {initials(v.rider.fullName)}
                       </div>
                       <span className="font-medium text-ink">{v.rider.fullName}</span>
@@ -187,7 +187,7 @@ export default function RidersPage() {
                     <span
                       className={`rounded-pill px-[11px] py-[5px] text-[11px] font-semibold ${
                         v.status === "approved"
-                          ? "bg-success-bg text-ink"
+                          ? "bg-success-bg text-admin-text"
                           : v.status === "rejected"
                             ? "bg-danger-bg text-danger-text"
                             : "bg-warning-bg text-warning-text"
@@ -209,7 +209,7 @@ export default function RidersPage() {
                         <button
                           onClick={() => handleReview(v.id, "approved")}
                           disabled={actioning === v.id}
-                          className="rounded-tile bg-lime px-3 py-1.5 text-[11px] font-semibold text-ink disabled:opacity-50"
+                          className="rounded-tile bg-lime px-3 py-1.5 text-[11px] font-semibold text-admin-text disabled:opacity-50"
                         >
                           Approve
                         </button>

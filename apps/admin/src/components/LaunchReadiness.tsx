@@ -46,6 +46,9 @@ export function LaunchReadiness() {
     ? (data.verifiedShops[data.campus] ?? 0)
     : Object.values(data.verifiedShops).reduce((a, b) => a + b, 0);
   const ready = shops >= data.minShopsToOpen;
+  // On the lime banner the text is the accent's label colour, which stays dark
+  // in dark mode; on the plain card it is ordinary ink.
+  const ink = ready ? "text-admin-text" : "text-ink";
 
   return (
     <div
@@ -55,17 +58,17 @@ export function LaunchReadiness() {
       }`}
     >
       <div className="min-w-0">
-        <p className="text-[14px] font-semibold text-ink">
+        <p className={`text-[14px] font-semibold ${ink}`}>
           {ready ? "Buy for me is ready to open" : "Buy for me hasn't launched yet"}
         </p>
-        <p className="mt-0.5 text-[12.5px] leading-5 text-ink">
+        <p className={`mt-0.5 text-[12.5px] leading-5 ${ink}`}>
           {shops} of {data.minShopsToOpen} shops verified{data.campus ? " at your campus" : ""}. Students see Pickup
           only, and shop browsing is closed until you open it.
         </p>
       </div>
       <Link
         href="/config"
-        className={`shrink-0 rounded-control border border-ink px-4 py-2 text-[12.5px] font-semibold text-ink ${FOCUS_RING}`}
+        className={`shrink-0 rounded-control border px-4 py-2 text-[12.5px] font-semibold ${ready ? "border-admin-text text-admin-text" : "border-ink text-ink"} ${FOCUS_RING}`}
       >
         {ready ? "Open it" : "See the switch"}
       </Link>

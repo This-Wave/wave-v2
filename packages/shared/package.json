@@ -18,6 +18,8 @@
     "vitest": "^2.0.5"
   },
   "files": [
-    "dist"
+    "dist",
+    "palettes.cjs",
+    "palettes.d.cts"
   ]
 }

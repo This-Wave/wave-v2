@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#f7f7f7"
+      "backgroundColor": "#ffffff"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -47,8 +47,8 @@
       "bundler": "metro",
       "name": "Wave",
       "shortName": "Wave",
-      "themeColor": "#f7f7f7",
-      "backgroundColor": "#f7f7f7",
+      "themeColor": "#ffffff",
+      "backgroundColor": "#ffffff",
       "display": "standalone",
       "orientation": "portrait",
       "lang": "en-GH",

@@ -42,7 +42,7 @@ export function Steps({ steps, currentIndex }: { steps: Step[]; currentIndex: nu
                   done ? "bg-lime" : current ? "border-2 border-ink bg-surface" : "bg-hairline"
                 }`}
               >
-                {done ? <CheckIcon size={14} color={colors.ink} strokeWidth={2.4} /> : null}
+                {done ? <CheckIcon size={14} color={colors.onAccent} strokeWidth={2.4} /> : null}
               </View>
               {!last ? (
                 <View className={`w-0.5 flex-1 ${done ? "bg-lime" : "bg-hairline"}`} />

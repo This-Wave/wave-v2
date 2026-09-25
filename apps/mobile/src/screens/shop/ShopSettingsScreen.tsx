@@ -28,6 +28,7 @@ import {
   openSupportContact,
   supportContactLabel,
 } from "../../lib/support";
+import { AppearanceSettings } from "../../components/AppearanceSettings";
 
 export function ShopSettingsScreen() {
   const { shop, shops, selectShop } = useSelectedShop();
@@ -129,6 +130,8 @@ export function ShopSettingsScreen() {
                   ) : null}
                 </SettingsGroup>
               ) : null}
+
+              <AppearanceSettings />
 
               <SettingsGroup title="Account">
                 <SettingsRow

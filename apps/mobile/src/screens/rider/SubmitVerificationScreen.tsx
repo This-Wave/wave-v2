@@ -178,7 +178,7 @@ export function SubmitVerificationScreen() {
         <ScreenBody bottomInset={16}>
           <Gutter className="pt-12">
             <View className="mb-6 h-14 w-14 items-center justify-center rounded-pill bg-lime">
-              <CheckIcon size={28} color={colors.ink} strokeWidth={2.4} />
+              <CheckIcon size={28} color={colors.onAccent} strokeWidth={2.4} />
             </View>
             <Text className="mb-2 font-sans-bold text-heading text-ink">Sent for review</Text>
             <Text className="font-sans text-body text-muted">

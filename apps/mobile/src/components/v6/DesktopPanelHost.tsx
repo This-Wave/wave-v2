@@ -124,7 +124,7 @@ function OrderTrackingPanel({ orderId, onClose }: { orderId: string; onClose: ()
               accessibilityLabel={`Call ${rider.fullName}`}
               onPress={() => Linking.openURL(`tel:${rider.phone}`)}
             >
-              <PhoneIcon size={18} color={colors.ink} strokeWidth={1.8} />
+              <PhoneIcon size={18} color={colors.onAccent} strokeWidth={1.8} />
             </IconCircle>
           ) : null}
         </View>

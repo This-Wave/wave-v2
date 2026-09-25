@@ -41,7 +41,7 @@ export class ErrorBoundary extends Component<Props, State> {
             onPress={this.reset}
             className="mt-6 rounded-pill bg-lime px-6 py-3"
           >
-            <Text className="font-sans-semibold text-ui text-ink">Try again</Text>
+            <Text className="font-sans-semibold text-ui text-on-accent">Try again</Text>
           </Pressable>
         </View>
       );

@@ -12,7 +12,7 @@ export function SplashScreen() {
     <View className="flex-1 items-center justify-center bg-canvas">
       <View className="flex-row items-center gap-2.5">
         <View className="h-10 w-10 items-center justify-center rounded-pill bg-lime">
-          <Text className="font-sans-bold text-subheading text-ink">W</Text>
+          <Text className="font-sans-bold text-subheading text-on-accent">W</Text>
         </View>
         <Text className="font-sans-bold text-ink" style={{ fontSize: 34, lineHeight: 38 }}>
           wave

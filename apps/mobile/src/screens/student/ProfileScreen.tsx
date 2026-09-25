@@ -39,6 +39,7 @@ import {
 } from "../../lib/support";
 import { BetaProgram } from "../../components/BetaProgram";
 import { describeWave } from "../../lib/wave";
+import { AppearanceSettings } from "../../components/AppearanceSettings";
 
 /**
  * Profile. Web uses a two-panel account page; native keeps the phone layout.
@@ -120,7 +121,7 @@ function ProfileMobile() {
                   }}
                   className="mt-3 self-start rounded-pill bg-lime px-4 py-2"
                 >
-                  <Text className="font-sans-semibold text-ui text-ink">
+                  <Text className="font-sans-semibold text-ui text-on-accent">
                     {emailSaving ? "Saving…" : "Save email"}
                   </Text>
                 </Pressable>
@@ -186,6 +187,8 @@ function ProfileMobile() {
               ) : null}
             </SettingsGroup>
           ) : null}
+
+          <AppearanceSettings />
 
           <SettingsGroup title="Account">
             <SettingsRow

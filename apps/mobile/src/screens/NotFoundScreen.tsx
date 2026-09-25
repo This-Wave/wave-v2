@@ -46,7 +46,7 @@ export function NotFoundScreen() {
           accessibilityLabel="Go to Wave"
           className="mt-7 min-h-[48px] justify-center rounded-pill bg-lime px-6 active:bg-lime-600"
         >
-          <Text className="font-sans-semibold text-ui text-ink">Go to Wave</Text>
+          <Text className="font-sans-semibold text-ui text-on-accent">Go to Wave</Text>
         </Pressable>
       </View>
     </View>

@@ -6,9 +6,9 @@ import { useReportNavBarScroll } from "../../hooks/useNavBarScroll";
 import { layout } from "../../theme/layout";
 
 /**
- * Every v6 screen sits on the canvas (#f7f7f7), never on white. White is a
- * *card* colour — the value step between the two is what separates content in
- * this system, so a white screen background would flatten every card on it.
+ * Every screen sits on the canvas, never on the card colour. Cards are a step
+ * off the canvas — and, in light mode where that step is near nothing (white
+ * page, #fdfcf8 card), the web build adds a hairline stroke. PLAN-THEMES.md.
  *
  * On wide desktop, `narrow` caps checkout stacks. Phone + responsive web stay
  * full-bleed.

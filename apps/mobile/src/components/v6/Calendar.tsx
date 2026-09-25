@@ -138,10 +138,12 @@ function DayCell({
         : "bg-surface";
 
   const label = selected
-    ? "text-surface"
+    ? "text-on-ink"
     : disabled
       ? "text-subtle"
-      : "text-ink";
+      : day.kind === "standard"
+        ? "text-on-accent"
+        : "text-ink";
 
   return (
     <View style={{ width: `${100 / 7}%` }} className="aspect-square p-0.5">

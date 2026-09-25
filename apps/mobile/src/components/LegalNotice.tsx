@@ -43,7 +43,7 @@ export function LegalNotice({
           accepted ? "border-ink bg-lime" : "border-icon bg-surface"
         }`}
       >
-        {accepted ? <CheckIcon size={14} color={colors.ink} strokeWidth={2.6} /> : null}
+        {accepted ? <CheckIcon size={14} color={colors.onAccent} strokeWidth={2.6} /> : null}
       </View>
 
       {/* Hidden from assistive tech: the Pressable above carries the whole

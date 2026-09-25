@@ -201,7 +201,7 @@ function MenuLine({
             canAdd ? "bg-lime" : "bg-surface-muted"
           }`}
         >
-          <Text className="font-sans-medium text-body text-ink">Add</Text>
+          <Text className="font-sans-medium text-body text-on-accent">Add</Text>
         </Pressable>
       )}
     </View>

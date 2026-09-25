@@ -68,7 +68,7 @@ export function RefundOrderModal({
             type="button"
             onClick={handleRefund}
             disabled={loading}
-            className="rounded-tile bg-danger-text px-4 py-2 text-[12px] font-semibold text-white disabled:opacity-40"
+            className="rounded-tile bg-danger-text px-4 py-2 text-[12px] font-semibold text-on-danger disabled:opacity-40"
           >
             {loading ? "Refunding…" : "Issue refund"}
           </button>

@@ -1,4 +1,6 @@
 import "./global.css";
+// Stamps the theme on <html> at import, before the first render (web only).
+import "./src/store/themeStore";
 import { useCallback, useEffect, useState } from "react";
 import { Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";

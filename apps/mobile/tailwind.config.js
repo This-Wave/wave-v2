@@ -27,26 +27,26 @@ module.exports = {
         },
         // Near-black green. Text, icons, inverse surfaces.
         ink: {
-          DEFAULT: "#083400",
-          900: "#083400",
-          700: "#2c4f26", // ink on tinted grounds where full ink is too heavy
+          DEFAULT: "#154b3e",
+          900: "#154b3e",
+          700: "#30473f", // ink on tinted grounds where full ink is too heavy
         },
 
         // --- neutrals, straight from the reference ---
-        canvas: "#f7f7f7", // page ground (Faint)
+        canvas: "#ffffff", // page ground
         surface: {
-          DEFAULT: "#ffffff", // cards, inputs, sheets (White)
-          muted: "#dddddd", // skeletons, disabled cards (Deco)
+          DEFAULT: "#fdfcf8", // cards, inputs, sheets — near white; web adds a hairline stroke
+          muted: "#f2f1ec", // skeletons, disabled cards
         },
-        muted: "#6a6a6a", // secondary text, metadata (Foggy). 5.05:1 on canvas.
+        muted: "#5e6d66", // secondary text, metadata. 5.45:1 on canvas.
         // Icon-only neutral for chevrons and decorative strokes. 3.45:1 on
         // white, 3.22:1 on canvas — clears 1.4.11's 3:1 for meaningful glyphs.
         // Never put text in it.
-        icon: "#8a8a8a",
+        icon: "#7d8a83",
         // Disabled FILLS only. At 1.80:1 on white this is not a text colour and
         // not an icon colour; placeholders moved to `muted`. See UX-A11Y-PLAN.md.
-        subtle: "#c1c1c1",
-        hairline: "#ebebeb", // dividers, input underlines (Bebe)
+        subtle: "#d6d5cf",
+        hairline: "#eeede7", // dividers, input underlines, card strokes
 
         // --- semantic ---
         // Success reads as the accent itself; there is no second green.
@@ -57,6 +57,19 @@ module.exports = {
         warning: {
           DEFAULT: "#8a6017",
           bg: "#fbf3d6",
+        },
+
+        // --- roles that diverge in dark mode (PLAN-THEMES.md §2) ---
+        // `ink` is text, but it is also a fill (selected chips, the focused tab)
+        // and the label on lime. Dark mode flips text light while a label on the
+        // accent must stay dark, so each job gets its own name. These are v6's
+        // values exactly: on native, and in v6 light on web, nothing moves.
+        "on-accent": "#0b2a21", // text and icons on a lime fill
+        "on-ink": "#fdfcf8", // text and icons on an ink fill
+        "on-danger": "#ffffff", // text on a danger fill
+        panel: {
+          DEFAULT: "#154b3e", // the brand header panel; stays dark in both modes
+          on: "#fdfcf8", // text and icons on it
         },
 
       },

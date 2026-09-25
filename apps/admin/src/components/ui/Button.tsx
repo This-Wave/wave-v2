@@ -4,7 +4,7 @@ import { FOCUS_RING } from "./Field";
 type Variant = "primary" | "secondary" | "danger";
 
 const VARIANT: Record<Variant, string> = {
-  primary: "bg-lime text-ink",
+  primary: "bg-lime text-admin-text",
   secondary: "border border-border bg-surface text-ink",
   danger: "border border-danger-border bg-surface text-danger-text",
 };

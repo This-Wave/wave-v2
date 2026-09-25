@@ -20,11 +20,11 @@ interface OrderRow {
 }
 
 const STATUS_STYLE: Record<string, string> = {
-  en_route: "bg-success-bg text-wave-700",
+  en_route: "bg-success-bg text-admin-text",
   confirmed: "bg-admin-bg text-admin-text",
   rider_assigned: "bg-admin-bg text-admin-text",
-  at_checkpoint: "bg-success-bg text-wave-700",
-  delivered: "bg-success-bg text-wave-700",
+  at_checkpoint: "bg-success-bg text-admin-text",
+  delivered: "bg-success-bg text-admin-text",
   cancelled: "bg-danger-bg text-danger-text",
   refunded: "bg-danger-bg text-danger-text",
   pending: "bg-surface-muted text-ink",

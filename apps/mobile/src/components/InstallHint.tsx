@@ -144,7 +144,7 @@ export function InstallHint() {
                 paddingHorizontal: 18,
               }}
             >
-              <Text className="font-sans-medium text-caption" style={{ color: colors.ink }}>
+              <Text className="font-sans-medium text-caption" style={{ color: colors.onAccent }}>
                 Install
               </Text>
             </Pressable>

@@ -24,6 +24,7 @@ import {
   supportContactLabel,
 } from "../../../lib/support";
 import { BetaProgram } from "../../../components/BetaProgram";
+import { AppearanceSettings } from "../../../components/AppearanceSettings";
 import {
   CardIcon,
   LogoutIcon,
@@ -162,6 +163,8 @@ export function StudentProfileWeb() {
                   ) : null}
                 </SettingsGroup>
               ) : null}
+
+              <AppearanceSettings />
 
               <SettingsGroup title="Account">
                 <SettingsRow

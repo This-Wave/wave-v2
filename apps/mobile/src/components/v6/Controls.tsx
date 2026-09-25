@@ -76,7 +76,7 @@ export function Chip({
         selected ? "bg-ink" : "border border-hairline bg-surface"
       }`}
     >
-      <Text className={`font-sans-medium text-body ${selected ? "text-white" : "text-ink"}`}>
+      <Text className={`font-sans-medium text-body ${selected ? "text-on-ink" : "text-ink"}`}>
         {label}
       </Text>
     </Pressable>
@@ -99,7 +99,7 @@ export function StatusPill({ label, tone = "neutral" }: { label: string; tone?: 
         : tone === "danger"
           ? "bg-danger-bg"
           : "bg-hairline";
-  const ink = tone === "danger" ? "text-danger" : "text-ink";
+  const ink = tone === "danger" ? "text-danger" : tone === "active" ? "text-on-accent" : "text-ink";
   return (
     <View className={`self-start rounded-pill px-3 py-1 ${skin}`}>
       <Text className={`font-sans-semibold text-meta ${ink}`}>{label}</Text>

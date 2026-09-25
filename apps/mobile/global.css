@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The page behind the app follows the theme too, so overscroll and the gap
+   before the first render are not a white flash in dark mode. The variables
+   come from tailwind.web.config.js (PLAN-THEMES.md). */
+html,
+body {
+  background-color: rgb(var(--wave-canvas));
+}
+
+/* Light mode: near-white cards sit on a white page at ~1.03:1, so they carry
+   the hairline stroke the inputs already have (owner, 2026-09-25). An inset
+   ring rather than a border, so no card changes size; cards that already draw
+   a border are left alone. Dark cards separate by value and need none.
+   PLAN-THEMES.md. */
+:root:not([data-wave-mode="dark"]) .bg-surface:not([class*="border"]) {
+  box-shadow: inset 0 0 0 1px rgb(var(--wave-hairline));
+}
+
 @keyframes wave-panel-in {
   from {
     transform: translateX(100%);
