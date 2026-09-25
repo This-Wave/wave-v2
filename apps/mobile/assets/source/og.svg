@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!--
+    Social preview card (og:image / twitter:image), 1200x630 — the size both
+    WhatsApp and Twitter crop to, so anything outside it is not "safe area",
+    it simply does not exist.
+
+    Same rules as every other asset: Sacramento #154b3e ground, lime #87ea5c on
+    the mark only, no gradient, no emoji. Lime is fill-only, so the words are
+    white on Sacramento (9.96:1) rather than lime on it; the two tints below
+    measure 8.15:1 and 6.21:1.
+
+    Text is rendered by rsvg-convert against whatever fontconfig has, so the
+    stack ends in a generic `sans-serif`: a machine without DM Sans produces a
+    slightly different card, not an empty one. The PNG is committed, so this
+    only matters on the machine that runs `npm run build:icons`.
+  -->
+  <rect width="1200" height="630" fill="#154b3e"/>
+
+  <!-- The mark, on its own lighter tile so it reads as the app icon rather
+       than as decoration painted onto the background. -->
+  <g transform="translate(96 195) scale(0.234)">
+    <rect width="1024" height="1024" rx="180" fill="#1f6352"/>
+    <g fill="none" stroke="#87ea5c" stroke-width="76" stroke-linecap="round">
+      <path d="M 192 412 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"/>
+      <path d="M 192 612 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"/>
+    </g>
+  </g>
+
+  <g font-family="DM Sans, Helvetica Neue, Helvetica, Arial, sans-serif" fill="#ffffff">
+    <text x="392" y="290" font-size="108" font-weight="700" letter-spacing="-3">Wave</text>
+    <text x="392" y="360" font-size="40" font-weight="500" fill="#c8f5b4">Campus delivery for Ashesi</text>
+    <text x="392" y="424" font-size="34" font-weight="400" fill="#b4d3c7">Order from off-campus shops.</text>
+    <text x="392" y="470" font-size="34" font-weight="400" fill="#b4d3c7">Collect at a checkpoint.</text>
+  </g>
+</svg>

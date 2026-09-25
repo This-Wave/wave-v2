@@ -1,0 +1,6 @@
+# Wave Admin is a private, sign-in-only dashboard. Nothing here should ever
+# appear in a search result, so the whole origin is disallowed. The `noindex`
+# in src/app/layout.tsx is the belt to this file's braces: robots.txt asks a
+# crawler not to fetch, `noindex` tells one that fetched anyway not to list.
+User-agent: *
+Disallow: /

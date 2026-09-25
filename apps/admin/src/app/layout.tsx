@@ -6,6 +6,9 @@ import { THEME_BOOT_SCRIPT } from "../lib/theme";
 export const metadata: Metadata = {
   title: "Wave Admin",
   description: "Wave — campus delivery platform admin dashboard",
+  // Sign-in-only, so it must never be indexed. `public/robots.txt` asks
+  // crawlers not to fetch; this tells any that fetched anyway not to list.
+  robots: { index: false, follow: false },
 };
 
 // Admin is auth-gated; skip static prerender so builds don't need a live session.

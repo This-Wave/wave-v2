@@ -38,6 +38,16 @@ const TARGETS = [
   // iOS ignores the manifest's icons entirely and reads this one tag instead.
   { from: "mark.svg", to: "public/icons/apple-touch-icon.png", size: 180 },
   { from: "mark.svg", to: "public/favicon.png", size: 48 },
+  // Admin has no artwork of its own and is the same product, so it shares the
+  // mark rather than owning a second copy of it. These land in `src/app/`, not
+  // `public/`: Next's App Router treats `icon.png`/`apple-icon.png` there as a
+  // file convention and emits the <link> tags itself, so nothing in the layout
+  // has to reference them.
+  { from: "mark.svg", to: "../admin/src/app/icon.png", size: 192 },
+  { from: "mark.svg", to: "../admin/src/app/apple-icon.png", size: 180 },
+  // The social card is the one non-square target: 1200x630 is what WhatsApp
+  // and Twitter crop link previews to.
+  { from: "og.svg", to: "public/og.png", width: 1200, height: 630 },
 ];
 
 function have(cmd) {
@@ -60,16 +70,21 @@ if (!have("rsvg-convert")) {
 }
 
 for (const t of TARGETS) {
+  // `size` is the square shorthand; `width`/`height` is the long form. Every
+  // icon here is square except the social card, and writing `size: 512` eight
+  // times reads better than `width: 512, height: 512`.
+  const width = t.width ?? t.size;
+  const height = t.height ?? t.size;
   const out = path.join(root, t.to);
   fs.mkdirSync(path.dirname(out), { recursive: true });
   execFileSync("rsvg-convert", [
-    "--width", String(t.size),
-    "--height", String(t.size),
+    "--width", String(width),
+    "--height", String(height),
     "--output", out,
     src(t.from),
   ]);
   const kb = (fs.statSync(out).size / 1024).toFixed(1);
-  console.log(`icons: ${t.to} (${t.size}px, ${kb}kB)`);
+  console.log(`icons: ${t.to} (${width}x${height}, ${kb}kB)`);
 }
 
 console.log(`icons: wrote ${TARGETS.length} files from assets/source/`);

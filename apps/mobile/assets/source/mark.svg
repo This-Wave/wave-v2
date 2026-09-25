@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <!--
-    Wave app mark. Derived from the v6 tokens in src/theme/tokens.ts, not
-    invented here: ink #083400 is the only dark, lime #87ea5c is the only
+    Wave app mark. Derived from packages/shared/palettes.cjs, not
+    invented here: Sacramento #154b3e is the only dark, lime #87ea5c is the only
     accent, and lime is fill-only — it never carries text. Two strokes rather
     than three because the third stops reading at 32px.
 
@@ -9,7 +9,7 @@
     `npm run build:icons (in apps/mobile)`; replacing this one SVG
     replaces every icon in the project.
   -->
-  <rect width="1024" height="1024" fill="#083400"/>
+  <rect width="1024" height="1024" fill="#154b3e"/>
   <g fill="none" stroke="#87ea5c" stroke-width="76" stroke-linecap="round">
     <path d="M 192 412 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"/>
     <path d="M 192 612 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"/>
