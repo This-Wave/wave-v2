@@ -47,7 +47,7 @@ export function GreetingHeader({
 
   return (
     <View
-      className="rounded-b-card bg-ink px-gutter pb-5"
+      className="rounded-b-card bg-panel px-gutter pb-5"
       style={{ paddingTop: Math.max(insets.top, 12) + 12 }}
     >
       {/* The greeting rides the avatar row rather than sitting under it. On its
@@ -60,18 +60,18 @@ export function GreetingHeader({
           onPress={onPressAvatar}
           accessibilityRole="button"
           accessibilityLabel={`${name}. Open your profile`}
-          className="h-11 w-11 items-center justify-center overflow-hidden rounded-pill bg-white/15 active:opacity-80"
+          className="h-11 w-11 items-center justify-center overflow-hidden rounded-pill bg-panel-on/15 active:opacity-80"
         >
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={{ width: 44, height: 44 }} resizeMode="cover" />
           ) : (
-            <UserIcon size={22} color={colors.white} strokeWidth={1.8} />
+            <UserIcon size={22} color={colors.onPanel} strokeWidth={1.8} />
           )}
         </Pressable>
 
         <View className="min-w-0 flex-1 px-3">
-          <Text className="font-sans text-meta text-white/70">Hello,</Text>
-          <Text className="font-sans-bold text-subheading text-white" numberOfLines={1}>
+          <Text className="font-sans text-meta text-panel-on/70">Hello,</Text>
+          <Text className="font-sans-bold text-subheading text-panel-on" numberOfLines={1}>
             {shown}
           </Text>
         </View>
@@ -80,9 +80,9 @@ export function GreetingHeader({
           onPress={onPressBell}
           accessibilityRole="button"
           accessibilityLabel={alert ? "Your orders. You have an order in progress" : "Your orders"}
-          className="h-11 w-11 items-center justify-center rounded-pill bg-white/15 active:opacity-80"
+          className="h-11 w-11 items-center justify-center rounded-pill bg-panel-on/15 active:opacity-80"
         >
-          <BellIcon size={20} color={colors.white} strokeWidth={1.8} />
+          <BellIcon size={20} color={colors.onPanel} strokeWidth={1.8} />
           {alert ? (
             // Lime on ink is the one pairing that works at this size; a dot
             // carries no text, so the state is in the label above.

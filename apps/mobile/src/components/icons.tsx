@@ -129,7 +129,7 @@ export const MessageIcon: Icon = ({ size = 17, color = colors.ink, strokeWidth =
   </Svg>
 );
 
-export const PhoneIcon: Icon = ({ size = 17, color = colors.white, strokeWidth = 1.6 }) => (
+export const PhoneIcon: Icon = ({ size = 17, color = colors.onAccent, strokeWidth = 1.6 }) => (
   <Svg {...box({ size })} fill="none">
     <Path
       d="M6 3h3l2 5-2.5 1.5a11 11 0 0 0 5 5L15 12l5 2v3a2 2 0 0 1-2 2C10.5 19 5 13.5 5 6a2 2 0 0 1 1-3Z"
@@ -280,6 +280,14 @@ export const SettingsIcon: Icon = ({ size = 18, color = colors.muted, strokeWidt
   </Svg>
 );
 
+/** Appearance: a half-filled disc — light and dark in one glyph. */
+export const ContrastIcon: Icon = ({ size = 18, color = colors.ink, strokeWidth = 1.7 }) => (
+  <Svg {...box({ size })} fill="none">
+    <Circle cx={12} cy={12} r={8.5} stroke={color} strokeWidth={strokeWidth} />
+    <Path d="M12 3.5a8.5 8.5 0 0 1 0 17Z" fill={color} />
+  </Svg>
+);
+
 /**
  * The Wave app mark: ink ground, two lime strokes.
  *
@@ -297,7 +305,7 @@ export const SettingsIcon: Icon = ({ size = 18, color = colors.muted, strokeWidt
  */
 export const WaveMarkIcon = ({ size = 28 }: { size?: number }) => (
   <Svg width={size} height={size} viewBox="0 0 1024 1024">
-    <Rect width={1024} height={1024} fill={colors.ink} />
+    <Rect width={1024} height={1024} fill={colors.panel} />
     <Path
       d="M 192 412 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"
       fill="none"

@@ -42,12 +42,22 @@ if (html.includes('rel="manifest"')) {
   const parts = [];
   if (!html.includes('name="theme-color"')) {
     // The canvas, not the ink: it paints the browser surround, and the app's
-    // own ground is #f7f7f7. Ink here would put a dark band above a light app.
-    parts.push('<meta name="theme-color" content="#f7f7f7" />');
+    // own ground is white. Ink here would put a dark band above a light app.
+    parts.push('<meta name="theme-color" content="#ffffff" />');
   }
   if (!html.includes('rel="icon"') && !html.includes('rel="shortcut icon"')) {
     parts.push('<link rel="icon" href="/favicon.png" type="image/png" />');
   }
+  // Theme before first paint (PLAN-THEMES.md). The bundle's theme store does
+  // the same on load, but a dark-mode user would first see a light page for
+  // as long as the bundle takes. Same storage key as src/store/themeStore.ts.
+  parts.push(
+    "<script>(function(){try{var d=document.documentElement," +
+      'm=localStorage.getItem("wave_theme_mode")||"system",' +
+      'k=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);' +
+      'if(k)d.setAttribute("data-wave-mode","dark");' +
+      'd.style.colorScheme=k?"dark":"light"}catch(e){}})();</script>',
+  );
   parts.push(
     '<link rel="manifest" href="/manifest.webmanifest" />',
     '<meta name="description" content="Campus delivery for Ashesi. Order from off-campus shops and collect at a checkpoint." />',

@@ -30,7 +30,7 @@ export function ToastHost() {
         ? colors.surface
         : colors.ink;
 
-  const textColor = toast.tone === "success" ? colors.ink : colors.surface;
+  const textColor = toast.tone === "success" ? colors.onAccent : colors.surface;
 
   return (
     <View

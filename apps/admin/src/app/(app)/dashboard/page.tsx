@@ -41,11 +41,11 @@ interface RecentOrder {
 }
 
 const STATUS_STYLE: Record<string, string> = {
-  en_route: "bg-success-bg text-wave-700",
+  en_route: "bg-success-bg text-admin-text",
   confirmed: "bg-admin-bg text-admin-text",
   rider_assigned: "bg-admin-bg text-admin-text",
-  at_checkpoint: "bg-success-bg text-wave-700",
-  delivered: "bg-success-bg text-wave-700",
+  at_checkpoint: "bg-success-bg text-admin-text",
+  delivered: "bg-success-bg text-admin-text",
   cancelled: "bg-danger-bg text-danger-text",
   refunded: "bg-danger-bg text-danger-text",
   pending: "bg-surface-muted text-ink",
@@ -98,7 +98,7 @@ export default function DashboardPage() {
             {profile?.campus ? "Today at your campus" : "Today across all Wave activity"}
           </p>
         </div>
-        <span className="rounded-full bg-success-bg px-3 py-1.5 text-[11px] font-bold text-wave-700">
+        <span className="rounded-full bg-success-bg px-3 py-1.5 text-[11px] font-bold text-admin-text">
           Run Day Active
         </span>
       </div>

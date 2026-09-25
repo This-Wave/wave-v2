@@ -89,7 +89,7 @@ export function ActiveDeliveryCard({
                 className={`h-5 w-5 items-center justify-center rounded-pill ${done ? "bg-ink" : "border border-hairline bg-surface"}`}
               >
                 {done && stop < reached ? (
-                  <CheckIcon size={12} color={colors.white} strokeWidth={2.4} />
+                  <CheckIcon size={12} color={colors.onInk} strokeWidth={2.4} />
                 ) : done ? (
                   <View className="h-2 w-2 rounded-pill bg-lime" />
                 ) : null}

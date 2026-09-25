@@ -147,13 +147,13 @@ function HomeScreenMobile() {
             actions={[
               {
                 label: "Send a package",
-                icon: <BoxIcon size={21} color={colors.ink} strokeWidth={1.9} />,
+                icon: <BoxIcon size={21} color={colors.onAccent} strokeWidth={1.9} />,
                 disabled: !!paused?.paused,
                 onPress: () => navigation.navigate("PickupRequest", waveDate),
               },
               {
                 label: "Suggest a shop",
-                icon: <PlusIcon size={21} color={colors.ink} strokeWidth={2} />,
+                icon: <PlusIcon size={21} color={colors.onAccent} strokeWidth={2} />,
                 onPress: () => navigation.navigate("SuggestShop", waveDate),
               },
             ]}

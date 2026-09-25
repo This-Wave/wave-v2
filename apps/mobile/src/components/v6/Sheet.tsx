@@ -108,7 +108,7 @@ export function Confirm({
               accessibilityLabel={confirmLabel}
               className="h-12 items-center justify-center rounded-pill bg-danger"
             >
-              <Text className="font-sans-medium text-ui text-white">{confirmLabel}</Text>
+              <Text className="font-sans-medium text-ui text-on-danger">{confirmLabel}</Text>
             </Pressable>
             <Pressable
               onPress={onCancel}

@@ -66,7 +66,7 @@ export function WaveStrip({ wave, onPress }: { wave: WaveInfo | null; onPress: (
                 hours, "later" has stopped being a safe assumption. */}
             {wave.closingSoon ? (
               <View className="mt-1 rounded-pill bg-lime px-2 py-0.5">
-                <Text className="font-sans-medium text-meta text-ink">closing soon</Text>
+                <Text className="font-sans-medium text-meta text-on-accent">closing soon</Text>
               </View>
             ) : null}
           </View>

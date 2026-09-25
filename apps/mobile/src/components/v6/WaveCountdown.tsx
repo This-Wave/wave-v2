@@ -74,7 +74,7 @@ export function WaveCountdown({ wave }: { wave: WaveInfo }) {
           <View className="ml-1 flex-1" accessibilityElementsHidden>
             {wave.closingSoon ? (
               <View className="self-start rounded-pill bg-lime px-2.5 py-1">
-                <Text className="font-sans-medium text-meta text-ink">closing soon</Text>
+                <Text className="font-sans-medium text-meta text-on-accent">closing soon</Text>
               </View>
             ) : (
               <Text className="font-sans text-body text-muted">to order</Text>

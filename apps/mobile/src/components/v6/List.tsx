@@ -87,7 +87,7 @@ export function ListError({ message, onRetry }: { message?: string; onRetry: () 
         accessibilityRole="button"
         className="min-h-[44px] justify-center self-start rounded-pill bg-lime px-4 active:bg-lime-600"
       >
-        <Text className="font-sans-medium text-body text-ink">Retry</Text>
+        <Text className="font-sans-medium text-body text-on-accent">Retry</Text>
       </Pressable>
     </View>
   );

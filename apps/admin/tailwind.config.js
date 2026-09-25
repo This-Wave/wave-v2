@@ -1,61 +1,19 @@
+/**
+ * Admin colours read CSS variables so Light / Dark can change at runtime
+ * (PLAN-THEMES.md). The variables and both themes come from
+ * `src/theme/adminTheme.cjs`.
+ */
+const { adminTailwindColors, adminThemeCss } = require("./src/theme/adminTheme.cjs");
+
+const ADMIN_COLORS = adminTailwindColors();
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ["class"],
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
-      colors: {
-        // Wave v6 — ink + lime (aligns with mobile student system)
-        wave: {
-          DEFAULT: "#87ea5c",
-          50: "#f7f7f7",
-          100: "#eefce6",
-          200: "#d9f7c8",
-          500: "#87ea5c",
-          600: "#6fd943",
-          700: "#083400",
-          lime: "#87ea5c",
-        },
-        ink: "#083400",
-        canvas: "#f7f7f7",
-        muted: "#6a6a6a",
-        faint: "#a8a8a8",
-        border: {
-          DEFAULT: "#ebebeb",
-          divider: "#ebebeb",
-        },
-        surface: {
-          DEFAULT: "#FFFFFF",
-          muted: "#f7f7f7",
-          subtle: "#f7f7f7",
-        },
-        success: {
-          text: "#083400",
-          bg: "#87ea5c",
-        },
-        danger: {
-          // Was #B3453A, which measures 4.41:1 on `danger.bg` — under AA by a
-          // margin too small to see and too real to keep. These pills carry
-          // "Cancelled" and "Refunded" at 11px, so they are normal text and owe
-          // 4.5:1. #A63E33 is 5.03:1 on the tint and 6.25:1 on white.
-          text: "#A63E33",
-          bg: "#F3E3E1",
-          border: "#E0BEB9",
-        },
-        warning: {
-          text: "#8A6A24",
-          bg: "#FDF4E3",
-          border: "#EFE0C2",
-        },
-        admin: {
-          text: "#083400",
-          bg: "#87ea5c",
-        },
-        lime: {
-          DEFAULT: "#87ea5c",
-          faint: "#eefce6",
-        },
-      },
+      colors: ADMIN_COLORS,
       fontFamily: {
         sans: ["Geist", "sans-serif"],
         mono: ["Geist", "monospace"],
@@ -73,5 +31,5 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [({ addBase }) => addBase(adminThemeCss())],
 };

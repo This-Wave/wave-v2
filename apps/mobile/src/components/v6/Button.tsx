@@ -57,8 +57,13 @@ export function Button({
           ? "border border-ink bg-transparent active:bg-hairline"
           : "bg-transparent";
 
-  const labelColor =
-    variant === "inverse" ? (inert ? "text-subtle" : "text-white") : inert ? "text-subtle" : "text-ink";
+  const labelColor = inert
+    ? "text-subtle"
+    : variant === "inverse"
+      ? "text-on-ink"
+      : variant === "primary"
+        ? "text-on-accent"
+        : "text-ink";
 
   return (
     <Pressable
@@ -74,7 +79,7 @@ export function Button({
       }`}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={variant === "inverse" ? colors.white : colors.ink} />
+        <ActivityIndicator size="small" color={colors.ink} />
       ) : (
         <>
           {icon ? <View>{icon}</View> : null}

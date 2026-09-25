@@ -24,7 +24,7 @@ export function HowPickupWorks() {
           {/* Ink disc, white numeral: lime is fill-only and white on lime fails
               contrast, so the accent cannot carry a number. */}
           <View className="mr-3 h-6 w-6 items-center justify-center rounded-pill bg-ink">
-            <Text className="font-sans-semibold text-caption text-surface">{i + 1}</Text>
+            <Text className="font-sans-semibold text-caption text-on-ink">{i + 1}</Text>
           </View>
           <View className="flex-1">
             <Text className="font-sans-medium text-body text-ink">{step.title}</Text>

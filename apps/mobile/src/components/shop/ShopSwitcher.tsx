@@ -46,7 +46,7 @@ export function ShopSwitcher({ shops, selectedId, onSelect }: ShopSwitcherProps)
           >
             <Text
               numberOfLines={1}
-              className={`font-sans-semibold text-meta ${active ? "text-white" : "text-ink"}`}
+              className={`font-sans-semibold text-meta ${active ? "text-on-ink" : "text-ink"}`}
             >
               {shop.name}
               {shop.isActive === false ? " · Closed" : ""}

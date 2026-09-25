@@ -20,6 +20,7 @@ import {
 import { LEGAL_OPERATOR, staffRoleLabel, type Permission } from "@wave/shared";
 import { useAdminAuth } from "../providers/AdminAuthProvider";
 import { FOCUS_RING } from "./ui/Field";
+import { ThemeControl } from "./ThemeControl";
 
 interface NavItem {
   href: string;
@@ -88,7 +89,7 @@ export function Sidebar({
                   // screen reader had no way to tell where it was.
                   aria-current={isActive ? "page" : undefined}
                   className={`mb-[3px] flex min-h-10 items-center gap-2.5 rounded-tile px-3 py-2 text-[13.5px] font-medium ${FOCUS_RING} ${
-                    isActive ? "bg-lime font-semibold text-ink" : "text-ink hover:bg-canvas"
+                    isActive ? "bg-lime font-semibold text-admin-text" : "text-ink hover:bg-canvas"
                   }`}
                 >
                   <Icon
@@ -131,6 +132,7 @@ export function Sidebar({
         >
           Log out
         </button>
+        <ThemeControl />
         <p className="mt-3 text-[10.5px] leading-4 text-muted">{LEGAL_OPERATOR}</p>
       </div>
     </aside>

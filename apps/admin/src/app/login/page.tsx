@@ -27,7 +27,7 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center px-6">
       <div className="w-full max-w-[380px] rounded-[14px] border border-border bg-surface p-8 shadow-sm">
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-admin-text">Wave Admin</p>
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-ink">Wave Admin</p>
         <h1 className="mb-6 text-[22px] font-extrabold tracking-tight text-ink">Sign in</h1>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <div>
@@ -63,7 +63,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 h-[44px] rounded-[12px] bg-lime text-[14px] font-semibold text-ink disabled:opacity-60"
+            className="mt-2 h-[44px] rounded-[12px] bg-lime text-[14px] font-semibold text-admin-text disabled:opacity-60"
           >
             {loading ? "Signing in…" : "Sign in"}
           </button>

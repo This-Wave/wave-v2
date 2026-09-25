@@ -231,7 +231,7 @@ export function ActiveDeliveryScreen() {
                     accessibilityLabel={`Call ${order.student.fullName}`}
                     onPress={() => Linking.openURL(`tel:${order.student!.phone}`)}
                   >
-                    <PhoneIcon size={18} color={colors.ink} strokeWidth={1.8} />
+                    <PhoneIcon size={18} color={colors.onAccent} strokeWidth={1.8} />
                   </IconCircle>
                 }
               />

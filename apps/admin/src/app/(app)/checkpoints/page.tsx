@@ -183,9 +183,9 @@ export default function CheckpointsPage() {
       />
 
       <div className="mt-5 flex max-w-[720px] gap-3 rounded-control border border-border bg-surface p-4">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0">
-          <circle cx="12" cy="12" r="9" stroke="#6B7D63" strokeWidth="1.7" />
-          <path d="M12 11v5.5M12 7.8v.4" stroke="#6B7D63" strokeWidth="1.9" strokeLinecap="round" />
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0 text-muted">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" />
+          <path d="M12 11v5.5M12 7.8v.4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
         </svg>
         <p className="text-[12.5px] leading-5 text-muted">
           A checkpoint with past orders is deactivated, never deleted — historical orders keep pointing

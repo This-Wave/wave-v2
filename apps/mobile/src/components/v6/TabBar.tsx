@@ -137,7 +137,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             >
               <Icon
                 size={20}
-                color={focused ? colors.white : colors.muted}
+                color={focused ? colors.onInk : colors.muted}
                 strokeWidth={1.8}
               />
               {/* Height animates to zero rather than unmounting, so the pill
@@ -146,7 +146,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 <Text
                   numberOfLines={1}
                   className={`text-caption ${
-                    focused ? "font-sans-semibold text-white" : "font-sans text-muted"
+                    focused ? "font-sans-semibold text-on-ink" : "font-sans text-muted"
                   }`}
                 >
                   {label}
@@ -159,7 +159,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                   accessibilityElementsHidden
                   importantForAccessibility="no-hide-descendants"
                 >
-                  <Text className="font-sans-semibold text-caption text-ink">
+                  <Text className="font-sans-semibold text-caption text-on-accent">
                     {String(options.tabBarBadge)}
                   </Text>
                 </View>

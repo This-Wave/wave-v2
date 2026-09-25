@@ -21,7 +21,7 @@ export default function GlobalError({
         <p className="mt-2 text-muted">The admin dashboard hit an unexpected error.</p>
         <button
           type="button"
-          className="mt-4 rounded-pill bg-lime px-4 py-2 text-sm font-medium text-ink"
+          className="mt-4 rounded-pill bg-lime px-4 py-2 text-sm font-medium text-admin-text"
           onClick={() => reset()}
         >
           Try again

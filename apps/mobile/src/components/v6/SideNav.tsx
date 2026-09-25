@@ -93,7 +93,7 @@ export function SideNav({ role }: { role: AppRole }) {
       <View>
         <View className="mb-12 flex-row items-center gap-2.5 px-2">
           <View className="h-9 w-9 items-center justify-center rounded-pill bg-lime">
-            <Text className="font-sans-bold text-ui text-ink">W</Text>
+            <Text className="font-sans-bold text-ui text-on-accent">W</Text>
           </View>
           <View>
             <Text className="font-sans-bold text-subheading text-ink">wave</Text>

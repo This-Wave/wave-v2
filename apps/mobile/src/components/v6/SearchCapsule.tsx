@@ -72,8 +72,8 @@ export function SearchCapsule({
         accessibilityLabel={copy.cta}
         className="ml-3 h-12 flex-row items-center gap-2 rounded-pill bg-lime px-[18px] active:bg-lime-600"
       >
-        <SearchIcon size={18} color={colors.ink} strokeWidth={2.2} />
-        <Text className="font-sans-medium text-ui text-ink">{copy.cta}</Text>
+        <SearchIcon size={18} color={colors.onAccent} strokeWidth={2.2} />
+        <Text className="font-sans-medium text-ui text-on-accent">{copy.cta}</Text>
       </Pressable>
     </View>
   );

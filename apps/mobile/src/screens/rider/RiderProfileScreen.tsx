@@ -26,6 +26,7 @@ import {
   supportContactLabel,
 } from "../../lib/support";
 import { BetaProgram } from "../../components/BetaProgram";
+import { AppearanceSettings } from "../../components/AppearanceSettings";
 
 function verificationPill(status?: string): {
   label: string;
@@ -125,6 +126,8 @@ export function RiderProfileScreen() {
               ) : null}
 
               <BetaProgram />
+
+              <AppearanceSettings />
 
               <SettingsGroup title="Account">
                 <SettingsRow

@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Light mode: near-white cards sit on a white page at ~1.03:1, so they carry
+   a hairline stroke (owner, 2026-09-25). An inset ring rather than a border,
+   so no card changes size; cards that already draw a border are left alone.
+   PLAN-THEMES.md. */
+:root:not([data-wave-mode="dark"]) .bg-surface:not([class*="border"]) {
+  box-shadow: inset 0 0 0 1px rgb(var(--wa-border));
+}
+
 :root {
   --wave-lime: #87ea5c;
   --wave-ink: #083400;

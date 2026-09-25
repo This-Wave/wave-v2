@@ -6,8 +6,8 @@ import { useLayout } from "../../hooks/useLayout";
  * The repeating content card — the workhorse of the whole redesign.
  *
  * Three rules from the reference, all of them load-bearing:
- *  1. No border and no shadow. Separation comes from the white image and text
- *     sitting on the #f7f7f7 canvas, nothing else.
+ *  1. No shadow. Separation comes from the image and text sitting on the
+ *     canvas, nothing else.
  *  2. The image is full-bleed inside its own 12px frame — no padding, no inset,
  *     no decorative ring.
  *  3. Text sits directly beneath at a 12px gutter: title 14/500 ink, metadata

@@ -273,7 +273,7 @@ export default function AuditPage() {
               onClick={toggleLive}
               aria-pressed={live}
               className={`inline-flex min-h-[42px] items-center gap-2 rounded-pill border px-4 text-[13px] font-semibold ${FOCUS_RING} ${
-                live ? "border-transparent bg-lime text-ink" : "border-border bg-surface text-ink"
+                live ? "border-transparent bg-lime text-admin-text" : "border-border bg-surface text-ink"
               }`}
             >
               <span

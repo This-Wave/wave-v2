@@ -311,7 +311,7 @@ function MenuRow({
             canAdd ? "bg-lime active:bg-lime-600" : "bg-surface-muted"
           }`}
         >
-          <Text className={`font-sans-medium text-body ${canAdd ? "text-ink" : "text-subtle"}`}>
+          <Text className={`font-sans-medium text-body ${canAdd ? "text-on-accent" : "text-subtle"}`}>
             Add
           </Text>
         </Pressable>

@@ -105,8 +105,8 @@ export function MenuScreen() {
                 shop ? "bg-lime active:bg-lime-600" : "bg-surface-muted"
               }`}
             >
-              <PlusIcon size={16} color={colors.ink} strokeWidth={2.2} />
-              <Text className="font-sans-medium text-body text-ink">Add</Text>
+              <PlusIcon size={16} color={colors.onAccent} strokeWidth={2.2} />
+              <Text className="font-sans-medium text-body text-on-accent">Add</Text>
             </Pressable>
           </View>
         </Gutter>
