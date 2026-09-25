@@ -33,6 +33,12 @@ import { currentStepIndex, orderSteps, shortOrderRef, statusPill } from "./order
 type Route = RouteProp<StudentStackParamList, "OrderTracking">;
 
 const STUDENT_CANCELLABLE = ["confirmed", "rider_assigned", "pending", "payment_pending"];
+/**
+ * Statuses with a live delivery PIN: issued at payment, spent at handover.
+ * A delivered, cancelled or refunded order has nothing left to show, and an
+ * unpaid one has no PIN yet — the button used to sit on all of them.
+ */
+const HAS_LIVE_PIN = ["confirmed", "rider_assigned", "en_route", "at_checkpoint"];
 
 export function OrderTrackingScreen() {
   const confirmReceipt = useConfirmReceipt();
@@ -173,12 +179,14 @@ export function OrderTrackingScreen() {
         </Gutter>
       </ScreenBody>
 
-      <ActionBar>
-        <Button
-          label="Show pickup code"
-          onPress={() => navigation.navigate("PickupPin", { orderId: params.orderId })}
-        />
-      </ActionBar>
+      {order && HAS_LIVE_PIN.includes(order.status) ? (
+        <ActionBar>
+          <Button
+            label="Show pickup code"
+            onPress={() => navigation.navigate("PickupPin", { orderId: params.orderId })}
+          />
+        </ActionBar>
+      ) : null}
 
       <Confirm
         visible={confirmCancel}

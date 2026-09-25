@@ -18,6 +18,7 @@ import { useAcceptOrder } from "../../lib/rider";
 import { apiErrorMessage } from "../../lib/apiError";
 import { showToast } from "../../store/toastStore";
 import { formatGhs } from "../../lib/pricing";
+import { jobPay } from "../../lib/jobOrigin";
 
 type Route = RouteProp<RiderStackParamList, "OrderDetail">;
 
@@ -27,15 +28,16 @@ type Route = RouteProp<RiderStackParamList, "OrderDetail">;
  * The fee is the headline because it is the entire decision. v5 put it in a
  * green panel at the bottom, below the fold on a small phone.
  *
- * Note the student's name and number are deliberately NOT shown here — this
- * screen is reachable before the order is claimed. See `debug.md`: the API
- * currently sends them anyway, which is an open defect.
+ * Reachable before the order is claimed, so the API answers with the feed's
+ * view of it (`findFeedOrderForRider`): route, goods and fee, and never the
+ * student's name, phone or ID.
  */
 export function OrderDetailScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RiderStackParamList>>();
   const { params } = useRoute<Route>();
   const { data: order } = useOrder(params.orderId);
   const acceptOrder = useAcceptOrder();
+  const pay = order ? jobPay(order) : null;
 
   async function handleAccept() {
     // Two riders tapping Accept on the same feed entry is ordinary contention,
@@ -61,22 +63,22 @@ export function OrderDetailScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-2">
-          <Text className="font-sans text-body text-muted">You'd earn</Text>
+          {/* "You'd earn" only when the server quotes the rider's share; the
+              delivery fee is what the student pays, and calling it earnings
+              promised riders money they would not be paid. */}
+          <Text className="font-sans text-body text-muted">
+            {pay?.isEarning ? "You'd earn" : "Delivery fee"}
+          </Text>
           <Text
             className="mb-8 mt-1 font-sans-bold text-ink"
             style={{ fontSize: 48, lineHeight: 52 }}
           >
-            {order ? formatGhs(Number(order.deliveryFee)) : "—"}
+            {pay ? formatGhs(pay.amount) : "—"}
           </Text>
 
           <Text className="mb-2 font-sans-medium text-body text-ink">The job</Text>
           <RowGroup>
-            <Row
-              title={order?.shop?.name ?? "Shop"}
-              meta={order?.shop?.locationText ?? "Buy from here"}
-              leading={<Thumb uri={order?.shop?.logoUrl} />}
-              chevron={false}
-            />
+            <Row {...collectFrom(order)} chevron={false} />
             <Row
               title={order?.checkpoint?.name ?? "Checkpoint"}
               meta="Hand over here"
@@ -89,7 +91,9 @@ export function OrderDetailScreen() {
             />
           </RowGroup>
 
-          <Text className="mb-2 mt-7 font-sans-medium text-body text-ink">What to buy</Text>
+          <Text className="mb-2 mt-7 font-sans-medium text-body text-ink">
+            {order?.orderType === "pickup" ? "What to carry" : "What to buy"}
+          </Text>
           <View className="rounded-card bg-surface p-4">
             <Text className="font-sans text-body text-ink">{order?.itemDescription ?? "—"}</Text>
           </View>
@@ -115,6 +119,25 @@ export function OrderDetailScreen() {
       </ActionBar>
     </Screen>
   );
+}
+
+/**
+ * Where the job starts. A package pickup starts at a checkpoint and a
+ * suggested-shop run at a shop that is not on Wave yet; only a Buy for me order
+ * has a Wave shop. Showing "Shop" for all three sent riders to the wrong place.
+ */
+function collectFrom(order: ReturnType<typeof useOrder>["data"]) {
+  if (order?.orderType === "pickup") {
+    return { title: order.originCheckpoint?.name ?? "Checkpoint", meta: "Collect the package here" };
+  }
+  if (order?.orderType === "shop_pickup") {
+    return { title: order.suggestion?.name ?? "Shop", meta: order.suggestion?.locationText ?? "Not on Wave yet — ask around" };
+  }
+  return {
+    title: order?.shop?.name ?? "Shop",
+    meta: order?.shop?.locationText ?? "Buy from here",
+    leading: <Thumb uri={order?.shop?.logoUrl} />,
+  };
 }
 
 function capitalise(s: string): string {

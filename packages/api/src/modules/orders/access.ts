@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@wave/db";
 import type { Role } from "../../plugins/auth";
-import { clientSafeOrder } from "./select";
+import { clientSafeOrder, feedOrder } from "./select";
 
 export type OrderAccessUser = { id: string; role: Role };
 
@@ -66,4 +66,38 @@ export async function canUserAccessOrder(
     return !!shop;
   }
   return false;
+}
+
+/**
+ * Which unclaimed jobs a rider may see: paid, unassigned, on their campus, and —
+ * for a rider from outside the university — only at checkpoints opened to them.
+ * The feed and the job's own detail screen share this, so a rider can never
+ * open a job the feed would not have shown them.
+ */
+export function feedWhere(rider: { universityId: string; riderType: string | null }) {
+  return {
+    status: "confirmed" as const,
+    riderId: null,
+    universityId: rider.universityId,
+    ...(rider.riderType === "external" ? { checkpoint: { externalRidersAllowed: true } } : {}),
+  };
+}
+
+/**
+ * An unclaimed job, for the rider deciding whether to take it.
+ *
+ * `canUserAccessOrder` grants nothing here — the rider has no relationship to
+ * the order yet — so the detail screen used to 404 and riders accepted jobs
+ * sight unseen. This returns the job through `feedOrder`, exactly as the feed
+ * does: route, goods and fee, never the student's name, phone or ID.
+ */
+export async function findFeedOrderForRider(prisma: PrismaClient, orderId: string, riderId: string) {
+  const rider = await prisma.profile.findUnique({
+    where: { id: riderId },
+    select: { isVerified: true, universityId: true, riderType: true },
+  });
+  if (!rider?.isVerified || !rider.universityId) return null;
+  const scope = { universityId: rider.universityId, riderType: rider.riderType };
+  const job = await prisma.order.findFirst({ where: { id: orderId, ...feedWhere(scope) }, select: feedOrder });
+  return job ? { job, rider: scope } : null;
 }

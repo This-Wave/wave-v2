@@ -25,6 +25,7 @@ import { useWave } from "../../lib/wave";
 import { useLayout } from "../../hooks/useLayout";
 import { openRiderClaim } from "../../lib/desktopNavigate";
 import { formatGhs } from "../../lib/pricing";
+import { jobOrigin, jobPay } from "../../lib/jobOrigin";
 import type { Order } from "../../types";
 
 /**
@@ -127,7 +128,7 @@ export function OrderFeedScreen() {
             <Text className="mb-3 font-sans-medium text-heading-sm text-ink">On this run</Text>
             <ActiveDeliveryCard
               order={activeRun}
-              title={activeRun.shop?.name ?? "Package pickup"}
+              title={jobOrigin(activeRun).title}
               trailing={formatGhs(Number(activeRun.deliveryFee))}
               onPress={() => navigation.navigate("ActiveDelivery", { orderId: activeRun.id })}
             />
@@ -182,20 +183,25 @@ export function OrderFeedScreen() {
             </View>
           ) : (
             <RowGroup>
-              {orders.map((order) => (
-                <Row
-                  key={order.id}
-                  title={order.shop?.name ?? "Shop"}
-                  meta={`${order.shop?.locationText ?? "Off-campus"} → ${order.checkpoint?.name ?? "checkpoint"}`}
-                  leading={<Thumb uri={order.shop?.logoUrl} />}
-                  trailing={
-                    <Text className="font-sans-semibold text-body text-ink">
-                      {formatGhs(Number(order.deliveryFee))}
-                    </Text>
-                  }
-                  onPress={() => openRiderClaim(navigation, order.id)}
-                />
-              ))}
+              {orders.map((order) => {
+                const origin = jobOrigin(order);
+                const pay = jobPay(order);
+                return (
+                  <Row
+                    key={order.id}
+                    title={origin.title}
+                    meta={`${origin.from} → ${order.checkpoint?.name ?? "checkpoint"}`}
+                    leading={<Thumb uri={origin.logoUrl} />}
+                    trailing={
+                      <View className="items-end">
+                        <Text className="font-sans-semibold text-body text-ink">{formatGhs(pay.amount)}</Text>
+                        {pay.isEarning ? <Text className="font-sans text-meta text-muted">you earn</Text> : null}
+                      </View>
+                    }
+                    onPress={() => openRiderClaim(navigation, order.id)}
+                  />
+                );
+              })}
             </RowGroup>
           )}
         </Gutter>
@@ -213,13 +219,14 @@ function FeedRow({
   last: boolean;
   onPress: () => void;
 }) {
+  const origin = jobOrigin(order);
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessible
       accessibilityLabel={[
-        order.shop?.name ?? "Shop",
+        origin.title,
         `to ${order.checkpoint?.name ?? "checkpoint"}`,
         order.estimatedEarning
           ? `you earn ${formatGhs(Number(order.estimatedEarning))}`
@@ -230,13 +237,13 @@ function FeedRow({
       }`}
     >
       <View className="flex-[2] flex-row items-center gap-3 pr-3">
-        <Thumb uri={order.shop?.logoUrl} size={40} />
+        <Thumb uri={origin.logoUrl} size={40} />
         <Text className="flex-1 font-sans-medium text-body text-ink" numberOfLines={1}>
-          {order.shop?.name ?? "Shop"}
+          {origin.title}
         </Text>
       </View>
       <Text className="flex-[2] pr-3 font-sans text-body text-muted" numberOfLines={1}>
-        {order.shop?.locationText ?? "Off-campus"} → {order.checkpoint?.name ?? "checkpoint"}
+        {origin.from} → {order.checkpoint?.name ?? "checkpoint"}
       </Text>
       <View className="w-28">
         {/* The fee is what the student pays; the earning is what the rider

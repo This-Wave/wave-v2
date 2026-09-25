@@ -22,7 +22,7 @@ import { verifyDeliveryPin } from "./pin";
 import { issueDeliveryPin } from "./issuePin";
 import { decryptDeliveryPin } from "./pinCrypto";
 import { redactClosedOrderContacts, redactClosedOrderContactsAll } from "./redact";
-import { findOrderForUser, redactStudentContactForShop } from "./access";
+import { feedWhere, findFeedOrderForRider, findOrderForUser, redactStudentContactForShop } from "./access";
 import { allowedPredecessors } from "./transitions";
 import { clientSafeOrder, feedOrder } from "./select";
 import { endOrderWithRefund } from "../payments/refund";
@@ -37,6 +37,27 @@ import { riderEarningFor, riderEarningPct } from "../riders/earningRate";
 import { resolveFeature } from "@wave/shared";
 import { pausedFor, pausedReply } from "../switches/routes";
 import { isBetaTester } from "../beta/access";
+
+/**
+ * The share of a delivery fee a rider would be paid, or null when the
+ * `rider_earnings_preview` flag is off for them. Resolved exactly as the payout
+ * is, so a preview never quotes a rate the payment then contradicts. Used by
+ * the feed and by a job's detail, which must agree.
+ */
+async function earningPreviewPct(
+  fastify: FastifyInstance,
+  request: { user?: { id: string } | null; log: FastifyBaseLogger },
+  rider: { universityId: string; riderType: Parameters<typeof riderEarningPct>[0]["riderType"] },
+): Promise<number | null> {
+  const flagRows = await fastify.prisma.featureFlag.findMany({
+    where: { key: "rider_earnings_preview" },
+    select: { key: true, universityId: true, state: true },
+  });
+  const show = resolveFeature("rider_earnings_preview", rider.universityId, flagRows, {
+    isBetaTester: await isBetaTester(fastify, request.user!.id),
+  });
+  return show ? await riderEarningPct({ fastify, log: request.log, riderType: rider.riderType }) : null;
+}
 
 export async function orderRoutes(fastify: FastifyInstance) {
   // POST /orders — student places a "Buy For Me" order.
@@ -292,16 +313,12 @@ export async function orderRoutes(fastify: FastifyInstance) {
     // at all, both because offering it and refusing it is the behaviour this
     // whole gate exists to stop, and because the feed carries the drop-off
     // location of orders they have no business knowing about.
-    const externalOnly =
-      rider.riderType === "external"
-        ? { checkpoint: { externalRidersAllowed: true } }
-        : {};
-
+    //
     // feedOrder, NOT clientSafeOrder — these orders are unclaimed, so the rider
     // reading them has no relationship to the student yet and must not receive
     // their name, phone or student ID. See select.ts.
     const orders = await fastify.prisma.order.findMany({
-      where: { status: "confirmed", riderId: null, universityId: rider.universityId, ...externalOnly },
+      where: feedWhere({ universityId: rider.universityId, riderType: rider.riderType }),
       select: feedOrder,
     });
     // What each job pays, when the flag is on. Rider supply is what limits
@@ -310,17 +327,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
     // server-side with the same rate resolution that writes the earning on
     // delivery, so the preview cannot quote a percentage the payment then
     // contradicts.
-    const flagRows = await fastify.prisma.featureFlag.findMany({
-      where: { key: "rider_earnings_preview" },
-      select: { key: true, universityId: true, state: true },
-    });
-    const showEarnings = resolveFeature("rider_earnings_preview", rider.universityId, flagRows, {
-      isBetaTester: await isBetaTester(fastify, request.user!.id),
-    });
-
-    const pct = showEarnings
-      ? await riderEarningPct({ fastify, log: request.log, riderType: rider.riderType })
-      : null;
+    const pct = await earningPreviewPct(fastify, request, { universityId: rider.universityId, riderType: rider.riderType });
 
     return reply.send({
       orders:
@@ -376,8 +383,22 @@ export async function orderRoutes(fastify: FastifyInstance) {
   fastify.get("/:id", { preHandler: fastify.authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const order = await findOrderForUser(fastify.prisma, id, request.user!);
-    if (!order) return reply.code(404).send({ error: "Order not found" });
-    return reply.send({ order: redactClosedOrderContacts(order, request.user!.role) });
+    if (order) return reply.send({ order: redactClosedOrderContacts(order, request.user!.role) });
+    // A rider looking at a job before claiming it: the feed's view, no student,
+    // with the same pay estimate the feed row showed.
+    if (request.user!.role === "rider") {
+      const found = await findFeedOrderForRider(fastify.prisma, id, request.user!.id);
+      if (found) {
+        const pct = await earningPreviewPct(fastify, request, found.rider);
+        return reply.send({
+          order:
+            pct === null
+              ? found.job
+              : { ...found.job, estimatedEarning: riderEarningFor(Number(found.job.deliveryFee), pct).toFixed(2) },
+        });
+      }
+    }
+    return reply.code(404).send({ error: "Order not found" });
   });
 
   fastify.patch("/:id/accept", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {
