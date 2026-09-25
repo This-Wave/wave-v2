@@ -6,9 +6,7 @@ import { colors } from "../theme/tokens";
 import { canTheme, useThemeStore, type ThemeMode } from "../store/themeStore";
 
 /**
- * Profile → Appearance: Light, Dark or System. PLAN-THEMES.md §3.
- *
- * Renders nothing on native — those builds cannot change colour at runtime yet.
+ * Profile → Appearance: Light, Dark or System, on every platform. PLAN-THEMES.md.
  */
 export function AppearanceSettings() {
   const { mode, setMode } = useThemeStore();

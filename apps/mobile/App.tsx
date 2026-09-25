@@ -1,6 +1,9 @@
 import "./global.css";
-// Stamps the theme on <html> at import, before the first render (web only).
-import "./src/store/themeStore";
+// Lets non-core components (Animated.View) take className under NativeWind v4.
+import "./src/theme/cssInterop";
+// Resolves Light / Dark at import, before the first render.
+import { useThemeStore } from "./src/store/themeStore";
+import { ThemeRoot } from "./src/theme/ThemeRoot";
 import { useCallback, useEffect, useState } from "react";
 import { Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
@@ -79,6 +82,8 @@ function App() {
   // Read once. The path cannot change without a reload — nothing here calls
   // pushState except the payment return, which only strips query params.
   const [unknownPath] = useState(() => isUnknownWebPath());
+  // Light text on the dark theme's canvas, dark text on the light one.
+  const statusBarStyle = useThemeStore((t) => (t.resolved === "dark" ? "light" : "dark"));
 
   if (!fontsSettled) {
     return null;
@@ -92,8 +97,10 @@ function App() {
   if (unknownPath) {
     return (
       <SafeAreaProvider>
-        <NotFoundScreen />
-        <StatusBar style="dark" />
+        <ThemeRoot>
+          <NotFoundScreen />
+        </ThemeRoot>
+        <StatusBar style={statusBarStyle} />
       </SafeAreaProvider>
     );
   }
@@ -110,11 +117,13 @@ function App() {
                   requestAnimationFrame(() => clearSkipTransition());
                 }}
               >
-                <RootNavigator />
-                <PaymentReturnListener />
-                <ToastHost />
-                <InstallHint />
-                <StatusBar style="dark" />
+                <ThemeRoot>
+                  <RootNavigator />
+                  <PaymentReturnListener />
+                  <ToastHost />
+                  <InstallHint />
+                </ThemeRoot>
+                <StatusBar style={statusBarStyle} />
               </NavigationContainer>
             </NotificationProvider>
           </AuthProvider>
