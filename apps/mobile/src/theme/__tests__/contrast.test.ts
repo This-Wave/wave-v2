@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { colors } from "../tokens";
+import { colors } from "../tokens.base";
 
 /**
  * Contrast is the one part of the v6 palette that can regress silently: a

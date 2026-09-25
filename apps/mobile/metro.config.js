@@ -1,4 +1,5 @@
 const { getDefaultConfig } = require("expo/metro-config");
+const { withNativeWind } = require("nativewind/metro");
 const path = require("path");
 
 const projectRoot = __dirname;
@@ -14,4 +15,9 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, "node_modules"),
 ];
 
-module.exports = config;
+// `.cjs` so Metro can load @wave/shared/palettes.cjs, the one colour table.
+if (!config.resolver.sourceExts.includes("cjs")) config.resolver.sourceExts.push("cjs");
+
+// NativeWind v4 compiles global.css (Tailwind + the theme variables) for
+// native as well as web.
+module.exports = withNativeWind(config, { input: "./global.css" });

@@ -1,77 +1,37 @@
 /** @type {import('tailwindcss').Config} */
-// Wave v6 design tokens — Airbnb-derived structure on Wave's own two greens.
+// Wave design tokens. Colours come from packages/shared/palettes.cjs — change
+// them there, never here — and are CSS variables on every platform, so Light /
+// Dark switch at runtime (NativeWind v4 `vars()`). PLAN-THEMES.md.
 //
-// The system is achromatic by default: a #f7f7f7 canvas, #ffffff cards, and a
-// near-black ink, with exactly ONE accent. Separation comes from whitespace,
-// hairlines and canvas-vs-card value contrast — never from borders or shadows
-// on content cards.
-//
-// The two brand colours and why they sit where they do:
-//   ink  #083400 — very dark green. ~15.6:1 on white, so it carries every piece
-//                  of text, every icon stroke, and the inverse surface.
-//   lime #87ea5c — the single accent. Bright: white text on it is ~1.8:1 and
-//                  fails outright, so it is ALWAYS a fill with `ink` on top.
-//                  Primary CTA = lime pill + ink label. Never lime text.
+//   ink  #154b3e — Sacramento. Text, icon strokes, the header panel.
+//   lime #87ea5c — the single accent. Fill-only: white on it is ~1.5:1, so it
+//                  always carries `on-accent` (#0b2a21). Never lime text.
+const { themeCss, twColor: c } = require("@wave/shared/palettes.cjs");
+
 module.exports = {
+  presets: [require("nativewind/preset")],
   content: ["./App.tsx", "./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
+      // Every colour is a CSS variable (packages/shared/palettes.cjs), on every
+      // platform: NativeWind v4 resolves `var()` natively, and the app root sets
+      // the light or dark set with `vars()` (src/theme/ThemeRoot.tsx). The
+      // role split — on-accent, on-ink, panel — is explained in PLAN-THEMES.md.
       colors: {
-        // --- v6 identity ---
-        // The only accent. Fill-only; pair with `ink` for anything on top.
-        lime: {
-          DEFAULT: "#87ea5c",
-          500: "#87ea5c",
-          600: "#6fd544", // pressed/active state
-          faint: "#eafbe3", // tinted wash for selected rows and success grounds
-        },
-        // Near-black green. Text, icons, inverse surfaces.
-        ink: {
-          DEFAULT: "#154b3e",
-          900: "#154b3e",
-          700: "#30473f", // ink on tinted grounds where full ink is too heavy
-        },
-
-        // --- neutrals, straight from the reference ---
-        canvas: "#ffffff", // page ground
-        surface: {
-          DEFAULT: "#fdfcf8", // cards, inputs, sheets — near white; web adds a hairline stroke
-          muted: "#f2f1ec", // skeletons, disabled cards
-        },
-        muted: "#5e6d66", // secondary text, metadata. 5.45:1 on canvas.
-        // Icon-only neutral for chevrons and decorative strokes. 3.45:1 on
-        // white, 3.22:1 on canvas — clears 1.4.11's 3:1 for meaningful glyphs.
-        // Never put text in it.
-        icon: "#7d8a83",
-        // Disabled FILLS only. At 1.80:1 on white this is not a text colour and
-        // not an icon colour; placeholders moved to `muted`. See UX-A11Y-PLAN.md.
-        subtle: "#d6d5cf",
-        hairline: "#eeede7", // dividers, input underlines, card strokes
-
-        // --- semantic ---
-        // Success reads as the accent itself; there is no second green.
-        danger: {
-          DEFAULT: "#c1341f",
-          bg: "#fdecea",
-        },
-        warning: {
-          DEFAULT: "#8a6017",
-          bg: "#fbf3d6",
-        },
-
-        // --- roles that diverge in dark mode (PLAN-THEMES.md §2) ---
-        // `ink` is text, but it is also a fill (selected chips, the focused tab)
-        // and the label on lime. Dark mode flips text light while a label on the
-        // accent must stay dark, so each job gets its own name. These are v6's
-        // values exactly: on native, and in v6 light on web, nothing moves.
-        "on-accent": "#0b2a21", // text and icons on a lime fill
-        "on-ink": "#fdfcf8", // text and icons on an ink fill
-        "on-danger": "#ffffff", // text on a danger fill
-        panel: {
-          DEFAULT: "#154b3e", // the brand header panel; stays dark in both modes
-          on: "#fdfcf8", // text and icons on it
-        },
-
+        lime: { DEFAULT: c("lime"), 500: c("lime"), 600: c("limePressed"), faint: c("limeFaint") },
+        ink: { DEFAULT: c("ink"), 900: c("ink"), 700: c("inkSoft") },
+        canvas: c("canvas"),
+        surface: { DEFAULT: c("surface"), muted: c("surfaceMuted") },
+        muted: c("muted"),
+        icon: c("icon"),
+        subtle: c("subtle"),
+        hairline: c("hairline"),
+        danger: { DEFAULT: c("danger"), bg: c("dangerBg") },
+        warning: { DEFAULT: c("warning"), bg: c("warningBg") },
+        "on-accent": c("onAccent"),
+        "on-ink": c("onInk"),
+        "on-danger": c("onDanger"),
+        panel: { DEFAULT: c("panel"), on: c("onPanel") },
       },
       fontFamily: {
         // DM Sans — the reference names it as a substitute for Airbnb Cereal.
@@ -119,5 +79,7 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  // The theme variables, on bare :root (light) and under data-wave-mode="dark"
+  // for the web page itself; the app root re-applies them with vars().
+  plugins: [({ addBase }) => addBase(themeCss())],
 };
