@@ -96,6 +96,8 @@ export const PERMISSIONS = [
   "campus_admins.manage",
   /** Delivery companies: create them, their roster, their rate, and the company/independent switch. */
   "companies.manage",
+  /** Wave's packing point: mark company orders received and ready. */
+  "hub.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -114,6 +116,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<StaffRole, readonly Permission[]>
     "switches.manage",
     "orders.force_deliver",
     "companies.manage",
+    "hub.manage",
   ],
   support: [
     "ops.read",
@@ -140,6 +143,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<StaffRole, readonly Permission[]>
     "suggestions.manage",
     "beta.review",
     "refunds.request",
+    "hub.manage",
   ],
 };
 

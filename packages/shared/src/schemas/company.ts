@@ -58,3 +58,10 @@ export const statementQuerySchema = z.object({
   from: z.string().date(),
   to: z.string().date(),
 });
+
+/** Move a batch of packing-point orders on one stage. */
+export const hubAdvanceSchema = z
+  .object({
+    orderIds: z.array(z.string().uuid()).min(1).max(500),
+  })
+  .strict();

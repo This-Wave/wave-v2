@@ -1,3 +1,4 @@
+import { hubRoutes } from "./modules/hub/routes";
 import { companyListRoutes } from "./modules/companyList/routes";
 import { companyRoutes } from "./modules/companies/routes";
 import { dispatchRoutes } from "./modules/dispatch/routes";
@@ -101,6 +102,7 @@ export function buildApp(): FastifyInstance {
   app.register(companyRoutes, { prefix: "/v1/admin" });
   app.register(dispatchRoutes, { prefix: "/v1/dispatch" });
   app.register(companyListRoutes, { prefix: "/v1/company-list" });
+  app.register(hubRoutes, { prefix: "/v1/admin" });
 
   setupSentryFastify(app);
 

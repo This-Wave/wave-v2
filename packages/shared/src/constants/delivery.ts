@@ -15,6 +15,23 @@ export type DeliveryMode = (typeof DELIVERY_MODES)[number];
 
 export const DELIVERY_MODE_KEY = "delivery_mode";
 export const DELIVERY_COMPANY_KEY = "delivery_company_id";
+/** Where the company brings every order for packing. Shown on the company's list. */
+export const HUB_ADDRESS_KEY = "hub_address";
+export const DEFAULT_HUB_ADDRESS = "the Wave packing point";
+
+/**
+ * The stages of an order that goes through Wave's packing point, in the words
+ * the student sees. Mapped onto the existing statuses so nothing downstream
+ * (refunds, cancellation, force-deliver) needs a new state:
+ *  - rider_assigned — the company is collecting it from the shop
+ *  - en_route       — it has reached Wave and is being packed
+ *  - at_checkpoint  — packed in a Wave bag and waiting at the checkpoint
+ */
+export const HUB_STAGE_COPY = {
+  rider_assigned: { title: "Collecting your order", body: "We're picking it up from the shop." },
+  en_route: { title: "Packing your order", body: "It's at Wave, going into your bag." },
+  at_checkpoint: { title: "Ready for you", body: "Your Wave bag is at {checkpoint}." },
+} as const;
 export const DEFAULT_DELIVERY_MODE: DeliveryMode = "independent";
 
 export function isDeliveryMode(value: unknown): value is DeliveryMode {
