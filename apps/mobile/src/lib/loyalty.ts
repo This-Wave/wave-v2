@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useIsGuest } from "../store/authStore";
 import { api } from "./api";
 
 export interface LoyaltyState {
@@ -28,7 +29,9 @@ export interface LoyaltyState {
  * and spent the moment a payment lands, and both happen while the app is open.
  */
 export function useLoyalty() {
+  const isGuest = useIsGuest();
   return useQuery({
+    enabled: !isGuest,
     queryKey: ["loyalty"],
     queryFn: async () => {
       const { data } = await api.get<LoyaltyState>("/loyalty");

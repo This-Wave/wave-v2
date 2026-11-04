@@ -22,6 +22,8 @@ import { CutoffPassedScreen } from "../screens/student/CutoffPassedScreen";
 import { PaymentFailedScreen } from "../screens/student/PaymentFailedScreen";
 import { PaymentReturnScreen } from "../screens/student/PaymentReturnScreen";
 import { FirstRunTour } from "../components/FirstRunTour";
+import { ResumeAfterSignup } from "../components/ResumeAfterSignup";
+import { useIsGuest } from "../store/authStore";
 
 /**
  * A chosen basket line, as it travels between screens.
@@ -57,7 +59,12 @@ export type StudentStackParamList = {
   // placeholder promises typing — see ShopSelectionScreen.
   ShopSelection: (WaveParams & { focusSearch?: boolean }) | undefined;
   ShopMenu: { shopId: string; shopName: string } & WaveParams;
-  SuggestShop: { initialQuery?: string } & WaveParams;
+  SuggestShop: {
+    initialQuery?: string;
+    /** Restored after a guest signs up mid-form (see GuestAccountSheet). */
+    initialLocation?: string;
+    initialItems?: { name: string; quantity: number }[];
+  } & WaveParams;
   SuggestOrderSummary: {
     suggestionId: string;
     shopName: string;
@@ -89,7 +96,7 @@ export type StudentStackParamList = {
    * again" hands over a route the student has sent before. The form still has
    * to be filled in and submitted.
    */
-  PickupRequest: (WaveParams & { fromId?: string; toId?: string }) | undefined;
+  PickupRequest: (WaveParams & { fromId?: string; toId?: string; description?: string }) | undefined;
   OrderTracking: { orderId: string };
   OrderDetail: { orderId: string };
   PickupPin: { orderId: string };
@@ -100,6 +107,7 @@ export type StudentStackParamList = {
 const Stack = createNativeStackNavigator<StudentStackParamList>();
 
 export function StudentNavigator() {
+  const isGuest = useIsGuest();
   return (
     <AppWebShell role="student">
       <Stack.Navigator screenOptions={() => stackScreenOptions("checkout")}>
@@ -123,7 +131,9 @@ export function StudentNavigator() {
         <Stack.Screen name="CutoffPassed" component={CutoffPassedScreen} />
         <Stack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
       </Stack.Navigator>
-      <FirstRunTour role="student" />
+      {/* The tour belongs to a new account; a guest has none to mark it seen on. */}
+      {isGuest ? null : <FirstRunTour role="student" />}
+      <ResumeAfterSignup />
     </AppWebShell>
   );
 }

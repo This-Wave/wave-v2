@@ -7,14 +7,14 @@ import {
   Skeleton,
 } from "../../../components/v6";
 import { useDropoffPoints } from "../../../lib/checkpoints";
-import { useAuthStore } from "../../../store/authStore";
+import { useViewerUniversityId } from "../../../store/authStore";
 import { useLayout } from "../../../hooks/useLayout";
 import { PinIcon } from "../../../components/icons";
 import { colors } from "../../../theme/tokens";
 
 /** Desktop checkpoints — card grid instead of a phone list. */
 export function StudentCheckpointsWeb() {
-  const universityId = useAuthStore((s) => s.profile?.universityId);
+  const universityId = useViewerUniversityId();
   const { data: checkpoints, isLoading, isError } = useDropoffPoints(universityId ?? undefined);
   const { contentWidth, gutter } = useLayout();
   const cols = contentWidth >= 1100 ? 3 : 2;

@@ -57,7 +57,9 @@ export function Screen({
  * undefined outside a tab navigator, where the `useBottomTabBarHeight` hook
  * would throw.
  */
-export const FLOATING_NAV_CLEARANCE = 88;
+// The tab bar is docked now (it takes its own space in the layout), so a tab
+// screen only needs breathing room above it, not room for a bar on top of it.
+export const FLOATING_NAV_CLEARANCE = 16;
 
 export function ScreenBody({
   children,

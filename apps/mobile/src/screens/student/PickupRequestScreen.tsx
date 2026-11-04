@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { GuestAccountSheet } from "../../components/GuestAccountSheet";
+import type { ResumeTarget } from "../../store/authStore";
 import { Pressable, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -17,7 +19,7 @@ import { CalendarIcon, CheckIcon, ChevronRightIcon, PinDotIcon, PinIcon } from "
 import { colors } from "../../theme/tokens";
 import { pickupFeeFor, useCheckpoints } from "../../lib/checkpoints";
 import { useCreateOrder } from "../../lib/orders";
-import { useAuthStore } from "../../store/authStore";
+import { useIsGuest, useViewerUniversityId } from "../../store/authStore";
 import type { Checkpoint } from "../../types";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
 import {
@@ -47,10 +49,12 @@ type Route = RouteProp<StudentStackParamList, "PickupRequest">;
 export function PickupRequestScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
-  const profile = useAuthStore((s) => s.profile);
-  const { data: checkpoints } = useCheckpoints(profile?.universityId ?? undefined);
+  const viewerUniversityId = useViewerUniversityId();
+  const { data: checkpoints } = useCheckpoints(viewerUniversityId);
 
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(params?.description ?? "");
+  const isGuest = useIsGuest();
+  const [accountPrompt, setAccountPrompt] = useState<ResumeTarget | null>(null);
   // Pre-chosen when arriving from "Move it again"; both are still editable.
   const [fromId, setFromId] = useState<string | null>(params?.fromId ?? null);
   const [toId, setToId] = useState<string | null>(params?.toId ?? null);
@@ -87,6 +91,13 @@ export function PickupRequestScreen() {
     }
     if (!scheduled) return;
     setError(null);
+    if (isGuest) {
+      setAccountPrompt({
+        route: "PickupRequest",
+        params: { ...params, fromId: from.id, toId: to.id, description },
+      });
+      return;
+    }
     try {
       const order = await createOrder.mutateAsync({
         orderType: "pickup",
@@ -164,7 +175,7 @@ export function PickupRequestScreen() {
           <Text className="mb-3 font-sans text-body text-danger">{error}</Text>
         ) : null}
         <Button
-          label="Review pickup"
+          label={`${isGuest ? "Continue to pay" : "Pay"} ${formatGhs(fee)}`}
           onPress={handleContinue}
           loading={createOrder.isPending}
           disabled={description.trim().length < 3 || !from || !to || from.id === to.id || !scheduled}
@@ -212,6 +223,7 @@ export function PickupRequestScreen() {
           ))}
         </View>
       </Sheet>
+      <GuestAccountSheet target={accountPrompt} onClose={() => setAccountPrompt(null)} />
     </Screen>
   );
 }

@@ -19,7 +19,7 @@ import { colors } from "../../theme/tokens";
 import { useDropoffPoints } from "../../lib/checkpoints";
 import { useCreateOrder } from "../../lib/orders";
 import { useLoyalty } from "../../lib/loyalty";
-import { useAuthStore } from "../../store/authStore";
+import { useViewerUniversityId } from "../../store/authStore";
 import { useLastCheckpoint } from "../../hooks/useLastCheckpoint";
 import {
   deliveryDayFor,
@@ -46,8 +46,8 @@ type Route = RouteProp<StudentStackParamList, "SuggestOrderSummary">;
 export function SuggestOrderSummaryScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
-  const profile = useAuthStore((s) => s.profile);
-  const { data: checkpoints } = useDropoffPoints(profile?.universityId ?? undefined);
+  const viewerUniversityId = useViewerUniversityId();
+  const { data: checkpoints } = useDropoffPoints(viewerUniversityId);
   const createOrder = useCreateOrder();
   const { data: loyalty } = useLoyalty();
 

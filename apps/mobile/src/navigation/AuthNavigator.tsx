@@ -26,18 +26,27 @@ export function AuthNavigator() {
   // they had already got to, so resume where they stopped instead. A signed-out
   // visitor has no token and still starts at Welcome.
   const resumingSignup = useAuthStore((s) => !!s.accessToken && !s.profile);
+  // A guest who pressed Pay has already seen Welcome and chosen to order as a
+  // student, so they start at the phone number and skip choosing a role.
+  const fromGuest = useAuthStore((s) => s.signingUpFromGuest);
 
   return (
     <WebShell>
       <Stack.Navigator
         screenOptions={() => stackScreenOptions("auth")}
-        initialRouteName={resumingSignup ? "RoleSelect" : "Welcome"}
+        initialRouteName={
+          resumingSignup ? (fromGuest ? "ProfileSetup" : "RoleSelect") : fromGuest ? "PhoneEntry" : "Welcome"
+        }
       >
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="PhoneEntry" component={PhoneEntryScreen} />
         <Stack.Screen name="OtpVerify" component={OtpVerifyScreen} />
         <Stack.Screen name="RoleSelect" component={RoleSelectScreen} />
-        <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+        <Stack.Screen
+          name="ProfileSetup"
+          component={ProfileSetupScreen}
+          initialParams={fromGuest ? { role: "student" } : undefined}
+        />
       </Stack.Navigator>
     </WebShell>
   );

@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIsGuest } from "../store/authStore";
 import type { CreateShopSuggestionInput } from "@wave/shared";
 import { api } from "./api";
 import type { ShopSuggestion } from "../types";
 
 export function useMySuggestions() {
+  const isGuest = useIsGuest();
   return useQuery({
+    enabled: !isGuest,
     queryKey: ["suggestions", "mine"],
     queryFn: async () => {
       const { data } = await api.get<{ suggestions: ShopSuggestion[] }>("/shop-suggestions/mine");

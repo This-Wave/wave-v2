@@ -6,6 +6,15 @@ import { OrderHistoryScreen } from "../screens/student/OrderHistoryScreen";
 import { ProfileScreen } from "../screens/student/ProfileScreen";
 import { TabBar } from "../components/v6";
 import { LIVE_ORDER_STATUSES, useMyOrders } from "../lib/orders";
+import { GuestTabScreen } from "../screens/student/GuestTabScreen";
+import { useIsGuest } from "../store/authStore";
+
+function GuestOrders() {
+  return <GuestTabScreen tab="Orders" />;
+}
+function GuestProfile() {
+  return <GuestTabScreen tab="Profile" />;
+}
 
 export type StudentTabParamList = {
   Home: undefined;
@@ -18,6 +27,7 @@ const Tab = createBottomTabNavigator<StudentTabParamList>();
 
 export function StudentTabNavigator() {
   const { data: orders } = useMyOrders();
+  const isGuest = useIsGuest();
 
   const ordersBadge = useMemo(() => {
     const list = orders ?? [];
@@ -33,7 +43,7 @@ export function StudentTabNavigator() {
         <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: "Home" }} />
         <Tab.Screen
           name="Orders"
-          component={OrderHistoryScreen}
+          component={isGuest ? GuestOrders : OrderHistoryScreen}
           options={{ tabBarLabel: "Orders", tabBarBadge: ordersBadge }}
         />
         <Tab.Screen
@@ -41,7 +51,7 @@ export function StudentTabNavigator() {
           component={CheckpointsTab}
           options={{ tabBarLabel: "Checkpoints" }}
         />
-        <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: "Profile" }} />
+        <Tab.Screen name="Profile" component={isGuest ? GuestProfile : ProfileScreen} options={{ tabBarLabel: "Profile" }} />
       </Tab.Navigator>
     </View>
   );

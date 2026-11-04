@@ -1,11 +1,11 @@
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { ActionBar, Button, Gutter, Row, RowGroup, Screen, ScreenBody } from "../../components/v6";
+import { Button, Gutter, Row, RowGroup, Screen, ScreenBody } from "../../components/v6";
 import { CheckIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
-import { useDeliveryPin, useOrder } from "../../lib/orders";
+import { useOrder } from "../../lib/orders";
 import { formatFullDay } from "../../lib/pricing";
 import {
   resetAfterOrderConfirmed,
@@ -16,87 +16,69 @@ import { shortOrderRef } from "./orderPresenters";
 type Route = RouteProp<StudentStackParamList, "OrderConfirmed">;
 
 /**
- * The moment after paying.
+ * The moment after paying (canvas board 12): a green celebration, the same
+ * shape as the rider's Delivered, so the peak of the flow feels like one
+ * (Peak-End rule).
  *
- * No confetti, no illustration — the reference has no such vocabulary. A lime
- * disc with an ink check is the entire celebration, and the screen spends its
- * space on the two things a student needs next: when the run is, and their
- * delivery code (also texted as backup).
+ * The delivery code is deliberately NOT here any more. It is needed at the
+ * checkpoint, hours later, and lives on Tracking, where the student will be
+ * when they need it. Showing it now taught people to screenshot it.
  */
 export function OrderConfirmedScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
   const { data: order } = useOrder(params.orderId);
-  const { data: pin } = useDeliveryPin(params.orderId, { pollUntilReady: true });
 
   return (
-    <Screen narrow>
-      <ScreenBody bottomInset={16}>
-        <Gutter className="pt-12">
-          <View className="mb-6 h-14 w-14 items-center justify-center rounded-pill bg-lime">
-            <CheckIcon size={28} color={colors.ink} strokeWidth={2.4} />
-          </View>
-
-          <Text className="mb-2 font-sans-bold text-heading text-ink">You're on the run</Text>
-          <Text className="mb-9 font-sans text-body text-muted">
-            {order?.scheduledDate
-              ? `We'll bring it on ${formatFullDay(new Date(order.scheduledDate))}.`
-              : "We'll bring it on the next run."}
-          </Text>
-
-          <RowGroup>
-            <Row title={shortOrderRef(params.orderId)} meta="Your order reference" chevron={false} />
-            <Row
-              title={order?.shop?.name ?? "Your shop"}
-              meta={order?.itemDescription}
-              chevron={false}
-            />
-            <Row
-              title={order?.checkpoint?.name ?? "Your checkpoint"}
-              meta="Meet your runner here"
-              chevron={false}
-            />
-          </RowGroup>
-
-          {pin ? (
-            <View className="mt-6 items-center rounded-card bg-surface px-5 py-6">
-              <Text className="mb-2 font-sans-semibold text-meta text-muted">YOUR DELIVERY CODE</Text>
-              <Text
-                className="font-sans-bold text-ink"
-                style={{ fontSize: 36, letterSpacing: 10 }}
-                accessibilityLabel={`Delivery code ${pin.split("").join(" ")}`}
-              >
-                {pin}
-              </Text>
-              <Text className="mt-3 text-center font-sans text-body text-muted">
-                Read this to your runner at the checkpoint. We also texted it to your phone.
-              </Text>
+    <Screen narrow className="bg-ink">
+      <View className="flex-1 bg-ink">
+        <ScreenBody bottomInset={16}>
+          <Gutter className="pt-16">
+            <View className="mb-8 h-20 w-20 items-center justify-center rounded-pill bg-lime">
+              <CheckIcon size={40} color={colors.ink} strokeWidth={2.6} />
             </View>
-          ) : (
-            <View className="mt-6 rounded-card bg-surface p-5">
-              <Text className="mb-1 font-sans-semibold text-meta text-muted">NEXT</Text>
-              <Text className="font-sans text-body text-ink">
-                Your six-digit delivery code is ready under Track → Show pickup code. We also text
-                it to your phone.
-              </Text>
-            </View>
-          )}
-        </Gutter>
-      </ScreenBody>
 
-      <ActionBar>
-        <View className="gap-2">
+            <Text
+              accessibilityRole="header"
+              className="mb-2 font-sans-bold text-white"
+              style={{ fontSize: 40, lineHeight: 44, letterSpacing: -1.2 }}
+            >
+              Order placed
+            </Text>
+            <Text className="mb-10 font-sans text-white" style={{ fontSize: 18, lineHeight: 24, opacity: 0.85 }}>
+              {order?.scheduledDate ? formatFullDay(new Date(order.scheduledDate)) : "On the next Wave"}
+            </Text>
+
+            <RowGroup>
+              <Row
+                title={order?.shop?.name ?? "Your order"}
+                meta={order?.itemDescription}
+                chevron={false}
+              />
+              <Row
+                title={order?.checkpoint?.name ?? "Your checkpoint"}
+                meta={shortOrderRef(params.orderId)}
+                chevron={false}
+              />
+            </RowGroup>
+          </Gutter>
+        </ScreenBody>
+
+        <View className="gap-3 px-gutter pb-8 pt-3">
           <Button
             label="Track this order"
             onPress={() => resetAfterOrderConfirmed(navigation, params.orderId, "tracking")}
           />
-          <Button
-            label="Back to home"
-            variant="quiet"
+          <Pressable
             onPress={() => resetStudentTabs(navigation, "Home")}
-          />
+            accessibilityRole="button"
+            className="min-h-[52px] items-center justify-center rounded-pill active:opacity-80"
+            style={{ borderWidth: 1.5, borderColor: "rgba(255,255,255,0.7)" }}
+          >
+            <Text className="font-sans-medium text-ui text-white">Back to home</Text>
+          </Pressable>
         </View>
-      </ActionBar>
+      </View>
     </Screen>
   );
 }

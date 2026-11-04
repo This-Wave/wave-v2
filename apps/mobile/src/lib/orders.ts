@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIsGuest } from "../store/authStore";
 import type { CreateOrderInput } from "@wave/shared";
 import { recentPickupRoutes } from "@wave/shared";
 import { api } from "./api";
@@ -14,7 +15,10 @@ export function useRecentPickupRoutes(limit = 3) {
 }
 
 export function useMyOrders() {
+  const isGuest = useIsGuest();
   return useQuery({
+    // A guest has no orders, and asking would only be refused.
+    enabled: !isGuest,
     queryKey: ["orders", "my"],
     queryFn: async () => {
       const { data } = await api.get<{ orders: Order[] }>("/orders/my");

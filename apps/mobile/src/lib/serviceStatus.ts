@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ServiceStatus } from "@wave/shared";
 import { api } from "./api";
-import { useAuthStore } from "../store/authStore";
+import { useViewerUniversityId } from "../store/authStore";
 
 /**
  * Whether Wave is taking new orders at this student's campus.
@@ -14,7 +14,7 @@ import { useAuthStore } from "../store/authStore";
  * because a status check timed out would be the app inventing an outage.
  */
 export function useServiceStatus() {
-  const universityId = useAuthStore((s) => s.profile?.universityId ?? null);
+  const universityId = useViewerUniversityId() ?? null;
   return useQuery({
     queryKey: ["service-status", universityId],
     queryFn: async () => {
