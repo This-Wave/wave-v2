@@ -1,3 +1,4 @@
+import { companyListRoutes } from "./modules/companyList/routes";
 import { companyRoutes } from "./modules/companies/routes";
 import { dispatchRoutes } from "./modules/dispatch/routes";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -99,6 +100,7 @@ export function buildApp(): FastifyInstance {
   app.register(refundRequestRoutes, { prefix: "/v1/admin/refund-requests" });
   app.register(companyRoutes, { prefix: "/v1/admin" });
   app.register(dispatchRoutes, { prefix: "/v1/dispatch" });
+  app.register(companyListRoutes, { prefix: "/v1/company-list" });
 
   setupSentryFastify(app);
 

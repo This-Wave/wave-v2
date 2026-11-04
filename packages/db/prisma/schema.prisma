@@ -778,6 +778,10 @@ model DeliveryCompany {
   isActive     Boolean          @default(true) @map("is_active")
   rateType     CompanyRateType? @map("rate_type")
   rateValue    Decimal?         @map("rate_value") @db.Decimal(10, 2)
+  /// SHA-256 of the company's private list link. The link itself is shown to
+  /// staff once and never stored, so a database read cannot reveal it. Null =
+  /// no link, or it was turned off.
+  listTokenHash String?         @unique @map("list_token_hash")
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
 

@@ -106,6 +106,8 @@ export const ROUTE_AUDIT: Record<string, RouteAudit> = {
   "PATCH /v1/admin/companies/:id": { action: "company.update_attempted", category: "rider", entityType: "delivery_company", entityParam: "id", body: ["isActive", "rateType", "rateValue"] },
   "POST /v1/admin/companies/:id/members": { action: "company.member_add_attempted", category: "rider", entityType: "delivery_company", entityParam: "id", body: ["as"] },
   "DELETE /v1/admin/companies/:id/members/:profileId": { action: "company.member_remove_attempted", category: "rider", entityType: "profile", entityParam: "profileId" },
+  "POST /v1/admin/companies/:id/list-link": { action: "company.list_link_attempted", category: "rider", entityType: "delivery_company", entityParam: "id" },
+  "DELETE /v1/admin/companies/:id/list-link": { action: "company.list_link_disable_attempted", category: "rider", entityType: "delivery_company", entityParam: "id" },
   "PUT /v1/admin/delivery-mode": { action: "delivery_mode.change_attempted", category: "config", body: ["mode", "companyId"] },
   "POST /v1/dispatch/orders/:id/assign": { action: "order.assign_attempted", category: "order", entityType: "order", entityParam: "id", body: ["riderId"] },
   "POST /v1/dispatch/orders/:id/unassign": { action: "order.unassign_attempted", category: "order", entityType: "order", entityParam: "id" },

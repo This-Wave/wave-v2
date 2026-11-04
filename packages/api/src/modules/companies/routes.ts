@@ -11,6 +11,7 @@ import {
   updateCompanySchema,
 } from "@wave/shared";
 import { activeDelivery } from "./mode";
+import { hashListToken, newListToken } from "../companyList/token";
 
 const COMPANY_SELECT = {
   id: true,
@@ -90,10 +91,12 @@ export async function companyRoutes(fastify: FastifyInstance) {
   });
 
   fastify.get("/companies", async (_request, reply) => {
-    const companies = await fastify.prisma.deliveryCompany.findMany({
-      select: COMPANY_SELECT,
+    const rows = await fastify.prisma.deliveryCompany.findMany({
+      select: { ...COMPANY_SELECT, listTokenHash: true },
       orderBy: { name: "asc" },
     });
+    // Never the hash itself: only whether a list link is live.
+    const companies = rows.map(({ listTokenHash, ...c }) => ({ ...c, hasListLink: !!listTokenHash }));
     return reply.send({ companies, ...(await activeDelivery(fastify)) });
   });
 
@@ -283,5 +286,42 @@ export async function companyRoutes(fastify: FastifyInstance) {
       ? Math.round(lines.reduce((s, l) => s + (l.owed ?? 0), 0) * 100) / 100
       : null;
     return reply.send({ company, from: parsed.data.from, to: parsed.data.to, delivered: lines.length, feesTotal, owedTotal, lines });
+  });
+
+  /**
+   * Make (or replace) the company's private list link. The token is returned
+   * once and only its hash is kept, so making a new one is also how a leaked
+   * link is retired: the old one stops working immediately.
+   */
+  fastify.post("/companies/:id/list-link", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const company = await fastify.prisma.deliveryCompany.findUnique({ where: { id }, select: { id: true, name: true, listTokenHash: true } });
+    if (!company) return reply.code(404).send({ error: "Company not found" });
+    const token = newListToken();
+    await fastify.prisma.deliveryCompany.update({ where: { id }, data: { listTokenHash: hashListToken(token) } });
+    await request.audit({
+      action: company.listTokenHash ? "company.list_link_replaced" : "company.list_link_created",
+      category: "rider",
+      entityType: "delivery_company",
+      entityId: id,
+      metadata: { company: company.name },
+    });
+    return reply.code(201).send({ token, path: `/list/${token}` });
+  });
+
+  /** Turn the link off. Anyone holding it sees "this link doesn't work". */
+  fastify.delete("/companies/:id/list-link", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const company = await fastify.prisma.deliveryCompany.findUnique({ where: { id }, select: { id: true, name: true } });
+    if (!company) return reply.code(404).send({ error: "Company not found" });
+    await fastify.prisma.deliveryCompany.update({ where: { id }, data: { listTokenHash: null } });
+    await request.audit({
+      action: "company.list_link_disabled",
+      category: "rider",
+      entityType: "delivery_company",
+      entityId: id,
+      metadata: { company: company.name },
+    });
+    return reply.send({ ok: true });
   });
 }
