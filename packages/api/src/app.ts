@@ -1,3 +1,5 @@
+import { companyRoutes } from "./modules/companies/routes";
+import { dispatchRoutes } from "./modules/dispatch/routes";
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
@@ -95,6 +97,8 @@ export function buildApp(): FastifyInstance {
   app.register(auditRoutes, { prefix: "/v1/admin" });
   app.register(campusAdminRoutes, { prefix: "/v1/admin/campus-admins" });
   app.register(refundRequestRoutes, { prefix: "/v1/admin/refund-requests" });
+  app.register(companyRoutes, { prefix: "/v1/admin" });
+  app.register(dispatchRoutes, { prefix: "/v1/dispatch" });
 
   setupSentryFastify(app);
 

@@ -24,6 +24,19 @@ enum ProfileRole {
   rider
   shop_owner
   admin
+  /// A delivery company's dispatcher: sees its company's run sheet and assigns
+  /// jobs to its riders, nothing else. Deliberately not a staff role — several
+  /// admin routes only check "is staff", and a dispatcher must reach none of them.
+  dispatcher
+}
+
+/// How a delivery company is paid. Null on the company until the contract is
+/// signed; statements then show counts and fees but no amount owed.
+enum CompanyRateType {
+  /// `rateValue` GH₵ per delivered order.
+  flat
+  /// `rateValue` percent of each order's delivery fee.
+  percent
 }
 
 /// Which kind of staff an `admin` profile is. Permissions per role live in
@@ -191,11 +204,16 @@ model Profile {
   /// admin themselves — `universityId` is self-editable on the profile, so it
   /// cannot be what decides whose data they see.
   adminUniversityId String?     @map("admin_university_id")
+  /// Riders and dispatchers who work for a delivery company. A company rider is
+  /// vouched for by the company (its roster), so Wave's own ID check is skipped.
+  companyId         String?     @map("company_id")
   createdAt         DateTime    @default(now()) @map("created_at")
   updatedAt         DateTime    @updatedAt @map("updated_at")
 
   university      University? @relation("ProfileUniversity", fields: [universityId], references: [id])
   adminUniversity University? @relation("AdminUniversity", fields: [adminUniversityId], references: [id])
+  company         DeliveryCompany? @relation("CompanyMembers", fields: [companyId], references: [id])
+  assignedOrders  Order[]          @relation("OrderAssignedBy")
 
   shops                 Shop[]
   studentOrders         Order[]               @relation("StudentOrders")
@@ -395,6 +413,12 @@ model Order {
   // Where the order is handed to the student. Always set, for both kinds.
   checkpointId       String  @map("checkpoint_id")
   universityId       String  @map("university_id")
+  /// The delivery company that ran this order. Set when its dispatcher assigns
+  /// it; a company order earns no per-rider `RiderEarning` — the company is
+  /// paid on its statement instead.
+  companyId          String? @map("company_id")
+  assignedAt         DateTime? @map("assigned_at")
+  assignedById       String? @map("assigned_by_id")
 
   orderType OrderType @default(buy_for_me) @map("order_type")
 
@@ -464,6 +488,8 @@ model Order {
   university       University      @relation(fields: [universityId], references: [id])
   product          Product?        @relation(fields: [productId], references: [id])
   suggestion       ShopSuggestion? @relation(fields: [suggestionId], references: [id])
+  company          DeliveryCompany? @relation(fields: [companyId], references: [id])
+  assignedBy       Profile?         @relation("OrderAssignedBy", fields: [assignedById], references: [id])
 
   items          OrderItem[]
   statusHistory  OrderStatusHistory[]
@@ -476,6 +502,7 @@ model Order {
   /// feature-flag migration did exactly that. Declared here so the schema and
   /// the database agree and it stops being silently removed.
   @@index([orderType])
+  @@index([companyId, scheduledDate])
   @@map("orders")
 }
 
@@ -737,6 +764,27 @@ model BetaFeedback {
 
   @@index([createdAt])
   @@map("beta_feedback")
+}
+
+/// A delivery company Wave contracts to run deliveries. Which one is active, and
+/// whether deliveries go to a company at all, is `platform_config.delivery_mode`
+/// and `delivery_company_id` — so the switch back to independent riders is one
+/// setting, not a data migration.
+model DeliveryCompany {
+  id           String           @id @default(uuid())
+  name         String
+  contactName  String?          @map("contact_name")
+  contactPhone String?          @map("contact_phone")
+  isActive     Boolean          @default(true) @map("is_active")
+  rateType     CompanyRateType? @map("rate_type")
+  rateValue    Decimal?         @map("rate_value") @db.Decimal(10, 2)
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  members Profile[] @relation("CompanyMembers")
+  orders  Order[]
+
+  @@map("delivery_companies")
 }
 
 model PlatformConfig {

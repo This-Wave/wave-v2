@@ -24,7 +24,7 @@ export interface HarnessOptions {
    * without a `staffRole` is treated as an owner, which is what every existing
    * admin became in the add_staff_role migration.
    */
-  user?: { id: string; role: Role; staffRole?: string | null; campusId?: string | null } | null;
+  user?: { id: string; role: Role; staffRole?: string | null; campusId?: string | null; companyId?: string | null } | null;
   env?: Partial<Env>;
   prefix?: string;
   /**
@@ -77,6 +77,11 @@ export async function buildTestApp(
   if (prisma && typeof prisma === "object" && !("serviceSwitch" in prisma)) {
     prisma.serviceSwitch = { findMany: async () => [] };
   }
+  // Same for the delivery-mode lookup (`companies/mode.ts`): a test that does
+  // not mention it runs in independent mode, which is the default.
+  const pc = prisma.platformConfig as Record<string, unknown> | undefined;
+  if (!pc) prisma.platformConfig = { findMany: async () => [], findUnique: async () => null };
+  else if (!("findMany" in pc)) pc.findMany = async () => [];
   app.decorate("prisma", prisma as never);
 
   const audits = options.audits ?? [];

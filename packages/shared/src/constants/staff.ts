@@ -94,6 +94,8 @@ export const PERMISSIONS = [
   "audit.read_all",
   "staff.manage",
   "campus_admins.manage",
+  /** Delivery companies: create them, their roster, their rate, and the company/independent switch. */
+  "companies.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -104,7 +106,15 @@ export const ROLE_PERMISSIONS: Readonly<Record<StaffRole, readonly Permission[]>
   owner: ALL,
   accountant: ["ops.read", "payments.read", "payments.sweep", "config.write", "refunds.approve"],
   claims_officer: ["ops.read", "pii.read", "payments.read", "refunds.issue", "refunds.approve", "orders.force_deliver"],
-  logistics_head: ["ops.read", "pii.read", "riders.verify", "checkpoints.manage", "switches.manage", "orders.force_deliver"],
+  logistics_head: [
+    "ops.read",
+    "pii.read",
+    "riders.verify",
+    "checkpoints.manage",
+    "switches.manage",
+    "orders.force_deliver",
+    "companies.manage",
+  ],
   support: [
     "ops.read",
     "pii.read",

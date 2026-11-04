@@ -38,6 +38,7 @@ import { riderEarningFor, riderEarningPct } from "../riders/earningRate";
 import { resolveFeature } from "@wave/shared";
 import { pausedFor, pausedReply } from "../switches/routes";
 import { isBetaTester } from "../beta/access";
+import { activeDelivery } from "../companies/mode";
 
 export async function orderRoutes(fastify: FastifyInstance) {
   // POST /orders — student places a "Buy For Me" order.
@@ -297,8 +298,23 @@ export async function orderRoutes(fastify: FastifyInstance) {
     if (!rider?.isVerified) {
       return reply.code(403).send({ error: "Your rider account is not verified yet" });
     }
+
+    // Company mode: there is no open feed. The company's dispatcher assigns
+    // each job, and a rider's work arrives on /my-deliveries. Returned as an
+    // empty feed with the reason, so the app can say "Jobs are assigned by
+    // <company>" instead of "No jobs right now".
+    const delivery = await activeDelivery(fastify);
+    if (delivery.mode === "company") {
+      return reply.send({
+        orders: [],
+        riderType: rider.riderType,
+        deliveryMode: "company",
+        companyName: delivery.company?.name ?? null,
+      });
+    }
+
     if (!rider.universityId) {
-      return reply.send({ orders: [] });
+      return reply.send({ orders: [], deliveryMode: "independent" });
     }
 
     // A rider from outside the university may only deliver to checkpoints an
@@ -349,6 +365,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
       // empty. "No jobs right now" and "you are not allowed at any checkpoint"
       // look identical otherwise, and only one of them resolves by waiting.
       riderType: rider.riderType,
+      deliveryMode: "independent",
     });
   });
 
@@ -404,6 +421,17 @@ export async function orderRoutes(fastify: FastifyInstance) {
     });
     if (!rider?.isVerified) {
       return reply.code(403).send({ error: "Your rider account is not verified yet" });
+    }
+
+    // A company's riders are assigned by its dispatcher, never self-claimed:
+    // the company decides who carries what, and is paid for the run as a whole.
+    const delivery = await activeDelivery(fastify);
+    if (delivery.mode === "company") {
+      return reply.code(409).send({
+        error: delivery.company
+          ? `Jobs are assigned by ${delivery.company.name}`
+          : "Jobs are assigned by the delivery company",
+      });
     }
 
     const candidate = await fastify.prisma.order.findUnique({
@@ -1206,6 +1234,17 @@ async function recordRiderEarning(args: {
 }): Promise<void> {
   const { fastify, log, orderId, riderId, deliveryFee } = args;
   try {
+    // A company order is paid to the company on its statement, never per
+    // rider. Writing a RiderEarning too would pay the same run twice.
+    const ran = await fastify.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { companyId: true },
+    });
+    if (ran?.companyId) {
+      log.info({ orderId, companyId: ran.companyId }, "Company delivery — no per-rider earning");
+      return;
+    }
+
     // Student and external riders are paid at separate rates, so the rate to
     // apply depends on this rider. A rider with no type set is paid the student
     // rate rather than nothing — the two are identical by default, and refusing

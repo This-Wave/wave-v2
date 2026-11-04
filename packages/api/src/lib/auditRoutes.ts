@@ -102,6 +102,13 @@ export const ROUTE_AUDIT: Record<string, RouteAudit> = {
   "DELETE /v1/admin/switches": { action: "switch.clear_attempted", category: "switch", body: ["key", "universityId"] },
   "PUT /v1/admin/features": { action: "flag.change_attempted", category: "flag", body: ["key", "universityId", "state"] },
   "DELETE /v1/admin/features": { action: "flag.clear_attempted", category: "flag", body: ["key", "universityId"] },
+  "POST /v1/admin/companies": { action: "company.create_attempted", category: "rider", body: ["name"] },
+  "PATCH /v1/admin/companies/:id": { action: "company.update_attempted", category: "rider", entityType: "delivery_company", entityParam: "id", body: ["isActive", "rateType", "rateValue"] },
+  "POST /v1/admin/companies/:id/members": { action: "company.member_add_attempted", category: "rider", entityType: "delivery_company", entityParam: "id", body: ["as"] },
+  "DELETE /v1/admin/companies/:id/members/:profileId": { action: "company.member_remove_attempted", category: "rider", entityType: "profile", entityParam: "profileId" },
+  "PUT /v1/admin/delivery-mode": { action: "delivery_mode.change_attempted", category: "config", body: ["mode", "companyId"] },
+  "POST /v1/dispatch/orders/:id/assign": { action: "order.assign_attempted", category: "order", entityType: "order", entityParam: "id", body: ["riderId"] },
+  "POST /v1/dispatch/orders/:id/unassign": { action: "order.unassign_attempted", category: "order", entityType: "order", entityParam: "id" },
   "POST /v1/beta/apply": { action: "beta.apply_attempted", category: "beta" },
   "POST /v1/beta/feedback": { action: "beta.feedback_attempted", category: "beta" },
   "POST /v1/admin/beta/:id/review": { action: "beta.review_attempted", category: "beta", entityType: "beta_application", entityParam: "id", body: ["decision"] },
@@ -112,7 +119,7 @@ export function categoryForPath(path: string): AuditCategory {
   const p = path.replace(/^\/v1\//, "");
   if (p.startsWith("orders")) return "order";
   if (p.startsWith("payments")) return "payment";
-  if (p.startsWith("riders")) return "rider";
+  if (p.startsWith("riders") || p.startsWith("dispatch") || p.startsWith("admin/companies")) return "rider";
   if (p.startsWith("shops") || p.startsWith("products")) return "shop";
   if (p.startsWith("shop-suggestions")) return "suggestion";
   if (p.startsWith("group-baskets")) return "basket";
