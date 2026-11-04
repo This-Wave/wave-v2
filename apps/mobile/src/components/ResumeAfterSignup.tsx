@@ -3,17 +3,18 @@ import { navigationRef } from "../lib/navigationRef";
 import { useAuthStore } from "../store/authStore";
 
 /**
- * Puts a guest who just created an account back where they pressed Pay.
+ * Puts a guest back where they pressed Pay: after creating an account, or
+ * after backing out of sign-up to keep browsing.
  *
- * Mounted inside the student navigator. The resume target is taken (and so
- * cleared) once, the first time the navigator is ready with a real profile.
+ * Mounted inside the student navigator, which is unmounted while sign-up runs.
+ * The resume target is taken (and so cleared) once, when it mounts again.
  */
 export function ResumeAfterSignup() {
-  const hasProfile = useAuthStore((s) => !!s.profile);
+  const canResume = useAuthStore((s) => !!s.profile || (!!s.guestUniversityId && !s.signingUpFromGuest));
   const pending = useAuthStore((s) => !!s.resume);
 
   useEffect(() => {
-    if (!hasProfile || !pending) return;
+    if (!canResume || !pending) return;
     let tries = 0;
     const timer = setInterval(() => {
       tries += 1;
@@ -28,7 +29,7 @@ export function ResumeAfterSignup() {
       }
     }, 50);
     return () => clearInterval(timer);
-  }, [hasProfile, pending]);
+  }, [canResume, pending]);
 
   return null;
 }

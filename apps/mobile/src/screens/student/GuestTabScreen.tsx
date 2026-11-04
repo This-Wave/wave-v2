@@ -20,13 +20,15 @@ export function GuestTabScreen({ tab }: { tab: "Orders" | "Profile" }) {
           <Text className="mb-8 font-sans text-body text-muted">
             {tab === "Orders" ? "They show here once you have an account." : "Sign in with your phone number."}
           </Text>
-          <View className="gap-3">
+          <View>
             <Button
               label="Continue with phone number"
               onPress={() => beginSignupFromGuest({ route: "Tabs", params: { screen: tab } })}
             />
             {tab === "Profile" ? (
-              <Button label="Back to the welcome screen" variant="quiet" onPress={endGuest} />
+              <View className="mt-3">
+                <Button label="Back to the welcome screen" variant="quiet" onPress={endGuest} />
+              </View>
             ) : null}
           </View>
         </Gutter>

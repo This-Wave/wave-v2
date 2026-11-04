@@ -4,8 +4,6 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
-import { HistoryIcon } from "../../components/icons";
-import { colors } from "../../theme/tokens";
 import { formatGhsCompact, upcomingRunDays } from "../../lib/pricing";
 import { DEFAULT_DELIVERY_FEE_GHS, isCutoffPassedToday } from "@wave/shared";
 import { useWave } from "../../lib/wave";
@@ -63,9 +61,8 @@ export function WaveCalendarScreen() {
             {todayClosed ? (
               <View
                 accessibilityLabel="Today, closed at noon"
-                className="flex-row items-center gap-3.5 rounded-card border border-hairline bg-canvas p-4"
+                className="rounded-card border border-hairline bg-canvas p-4"
               >
-                <HistoryIcon size={22} color={colors.muted} strokeWidth={1.8} />
                 <View>
                   <Text className="font-sans-medium text-ui text-muted">Today</Text>
                   <Text className="mt-0.5 font-sans text-body text-muted">Closed at noon</Text>

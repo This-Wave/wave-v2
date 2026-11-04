@@ -35,7 +35,11 @@ interface AuthState {
   startGuest: (universityId: string) => void;
   /** A guest pressed Pay: remember where, and open sign-up. */
   beginSignupFromGuest: (resume: ResumeTarget) => void;
-  /** Back out of that sign-up and keep browsing as a guest. */
+  /**
+   * Back out of that sign-up and keep browsing as a guest. `resume` is kept:
+   * the student navigator was unmounted during sign-up, so it is also how the
+   * guest gets back to the basket they left rather than to Home.
+   */
   cancelSignupFromGuest: () => void;
   takeResume: () => ResumeTarget | null;
   endGuest: () => void;
@@ -66,7 +70,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setHydrating: (isHydrating) => set({ isHydrating }),
   startGuest: (universityId) => set({ guestUniversityId: universityId, signingUpFromGuest: false }),
   beginSignupFromGuest: (resume) => set({ resume, signingUpFromGuest: true }),
-  cancelSignupFromGuest: () => set({ signingUpFromGuest: false, resume: null }),
+  cancelSignupFromGuest: () => set({ signingUpFromGuest: false }),
   takeResume: () => {
     const resume = get().resume;
     if (resume) set({ resume: null });
