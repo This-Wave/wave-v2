@@ -29,7 +29,7 @@ import { useMyOrders } from "../../../lib/orders";
 import { useWave } from "../../../lib/wave";
 import { useBuyForMeStatus, useServiceStatus } from "../../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../../lib/pricing";
-import { useCheckpoints } from "../../../lib/checkpoints";
+import { useDropoffPoints } from "../../../lib/checkpoints";
 import { useAuthStore } from "../../../store/authStore";
 import {
   openOrderTracking,
@@ -56,7 +56,7 @@ export function StudentHomeWeb() {
   const [category, setCategory] = useState<string | null>(null);
   const { data: service } = useServiceStatus();
   const universityId = useAuthStore((state) => state.profile?.universityId ?? undefined);
-  const { data: checkpoints } = useCheckpoints(universityId);
+  const { data: checkpoints } = useDropoffPoints(universityId);
   const checkpointCount = checkpoints?.length ?? 0;
 
   const categories = useMemo(
@@ -151,8 +151,8 @@ export function StudentHomeWeb() {
         ) : (
           <Gutter className="mb-10">
             <Text className="mb-4 font-sans text-body text-muted">
-              Flat {formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)} between checkpoints
-              {checkpointCount ? ` · ${checkpointCount} checkpoints to choose from` : ""}.
+              From {formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)}, priced by the Accra zone we collect from
+              {checkpointCount ? ` · ${checkpointCount} drop-off ${checkpointCount === 1 ? "point" : "points"} on campus` : ""}.
             </Text>
             <Button
               label="Start a pickup"

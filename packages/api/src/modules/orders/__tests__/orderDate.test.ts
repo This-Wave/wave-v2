@@ -47,7 +47,7 @@ function makePrisma() {
     platformConfig: { findUnique: vi.fn().mockResolvedValue(null) },
     studentDeliveryStats: { findUnique: vi.fn().mockResolvedValue(null) },
     profile: { findUnique: vi.fn().mockResolvedValue({ universityId: "uni-1" }) },
-    checkpoint: { count: vi.fn().mockResolvedValue(1) },
+    checkpoint: { findMany: vi.fn().mockResolvedValue([{ id: CHECKPOINT, zone: null }]) },
     shop: { findFirst: vi.fn().mockResolvedValue({ id: SHOP }) },
     product: {
       findMany: vi

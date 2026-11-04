@@ -18,7 +18,7 @@ import {
 } from "../../components/v6";
 import { CheckIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
-import { useCheckpoints } from "../../lib/checkpoints";
+import { useDropoffPoints } from "../../lib/checkpoints";
 import { useAuthStore } from "../../store/authStore";
 import { useLastCheckpoint } from "../../hooks/useLastCheckpoint";
 import { useCreateOrder } from "../../lib/orders";
@@ -70,7 +70,7 @@ export function OrderSummaryScreen() {
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const profile = useAuthStore((s) => s.profile);
-  const { data: checkpoints } = useCheckpoints(profile?.universityId ?? undefined);
+  const { data: checkpoints } = useDropoffPoints(profile?.universityId ?? undefined);
   const checkpointIds = checkpoints?.map((c) => c.id);
   const { checkpointId, selectCheckpoint } = useLastCheckpoint(checkpointIds);
 

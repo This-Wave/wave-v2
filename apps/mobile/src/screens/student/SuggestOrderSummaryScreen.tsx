@@ -16,7 +16,7 @@ import {
 } from "../../components/v6";
 import { CheckIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
-import { useCheckpoints } from "../../lib/checkpoints";
+import { useDropoffPoints } from "../../lib/checkpoints";
 import { useCreateOrder } from "../../lib/orders";
 import { useLoyalty } from "../../lib/loyalty";
 import { useAuthStore } from "../../store/authStore";
@@ -47,7 +47,7 @@ export function SuggestOrderSummaryScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
   const profile = useAuthStore((s) => s.profile);
-  const { data: checkpoints } = useCheckpoints(profile?.universityId ?? undefined);
+  const { data: checkpoints } = useDropoffPoints(profile?.universityId ?? undefined);
   const createOrder = useCreateOrder();
   const { data: loyalty } = useLoyalty();
 

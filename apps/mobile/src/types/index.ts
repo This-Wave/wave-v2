@@ -43,6 +43,19 @@ export interface Checkpoint {
   latitude: string | null;
   longitude: string | null;
   isActive: boolean;
+  /**
+   * Set = a pickup point in an Accra zone, priced at the zone's fee. Null = a
+   * drop-off point on campus. Only campus checkpoints can end a delivery.
+   */
+  zone: CheckpointZone | null;
+}
+
+export interface CheckpointZone {
+  id: string;
+  code: string;
+  name: string;
+  /** Decimal as a string over JSON, like every other amount. */
+  deliveryFee: string;
 }
 
 export interface Shop {

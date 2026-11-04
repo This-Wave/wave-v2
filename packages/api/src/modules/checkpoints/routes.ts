@@ -11,10 +11,24 @@ export async function universityRoutes(fastify: FastifyInstance) {
 
   fastify.get("/universities/:id/checkpoints", async (request, reply) => {
     const { id } = request.params as { id: string };
+    // Each checkpoint carries its zone, if any: that is how the app tells a
+    // city pickup point from a campus drop-off, and what it quotes the fee from.
     const checkpoints = await fastify.prisma.checkpoint.findMany({
       where: { universityId: id, isActive: true },
+      include: { zone: { select: { id: true, code: true, name: true, deliveryFee: true, isActive: true } } },
+      orderBy: [{ zone: { sortOrder: "asc" } }, { name: "asc" }],
     });
-    return reply.send({ checkpoints });
+    return reply.send({
+      checkpoints: checkpoints.filter((c) => !c.zone || c.zone.isActive),
+    });
+  });
+
+  fastify.get("/zones", async (_request, reply) => {
+    const zones = await fastify.prisma.zone.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+    });
+    return reply.send({ zones });
   });
 
   fastify.post(

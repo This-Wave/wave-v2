@@ -8,6 +8,7 @@ import { Button } from "../../../components/ui/Button";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 import { FeatureFlags } from "../../../components/FeatureFlags";
 import { ServiceSwitches } from "../../../components/ServiceSwitches";
+import { ZoneFees } from "../../../components/ZoneFees";
 
 interface ConfigRow {
   key: string;
@@ -28,7 +29,7 @@ const GROUPS: { title: string; keys: { key: string; label: string; suffix?: stri
         key: "delivery_fee_base",
         label: "Base delivery fee",
         suffix: "GH₵",
-        hint: "Applied to every order.",
+        hint: "Every order except a pickup from an Accra zone, which uses the zone fee below.",
       },
       {
         key: "special_order_surcharge_pct",
@@ -281,6 +282,10 @@ export default function ConfigPage() {
           </p>
         </>
       )}
+
+      <div className="mt-8">
+        <ZoneFees />
+      </div>
 
       <div className="mt-8">
         <FeatureFlags />
