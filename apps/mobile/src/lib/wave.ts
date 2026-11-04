@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { nextRunCutoff, upcomingRunDays } from "./pricing";
 
 /**
- * A "Wave" is one scheduled delivery run — Sundays and Wednesdays, orders
+ * A "Wave" is one scheduled delivery run — every day since 2026-11-04, orders
  * locking at noon on the day. The product name for it is the Wave; `run` is
  * only ever an internal word now.
  */
@@ -38,21 +38,31 @@ export interface WaveInfo {
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+/** "Today" / "Tomorrow" / weekday — daily Waves make the relative word clearer. */
+function relativeDayName(date: Date, now: Date): string {
+  const a = new Date(date); a.setHours(0, 0, 0, 0);
+  const b = new Date(now); b.setHours(0, 0, 0, 0);
+  const diff = Math.round((a.getTime() - b.getTime()) / 86400000);
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Tomorrow";
+  return DAY_NAMES[date.getDay()];
+}
+
 export function describeWave(now: Date = new Date()): WaveInfo | null {
   const date = upcomingRunDays(now, 1)[0];
   if (!date) return null;
   const cutoff = nextRunCutoff(now);
   const msLeft = cutoff.getTime() - now.getTime();
 
-  // The window opens when the previous Wave closes — 3.5 days earlier — which
-  // is what makes the rail mean something rather than just counting down.
-  const WINDOW_MS = 3.5 * 24 * 60 * 60 * 1000;
+  // The window opens when the previous Wave closes — a day earlier now that
+  // Wave runs daily — which is what makes the rail mean something.
+  const WINDOW_MS = 24 * 60 * 60 * 1000;
   const elapsed = Math.max(0, Math.min(1, 1 - msLeft / WINDOW_MS));
 
   return {
     date,
     cutoff,
-    name: `${DAY_NAMES[date.getDay()]}'s Wave`,
+    name: `${relativeDayName(date, now)}'s Wave`,
     dateLabel: `${DAY_NAMES[date.getDay()]} ${date.getDate()} ${MONTHS[date.getMonth()]}`,
     msLeft,
     countdown: formatCountdown(msLeft),

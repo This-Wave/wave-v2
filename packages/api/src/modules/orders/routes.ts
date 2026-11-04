@@ -8,8 +8,9 @@ import {
   DEFAULT_DELIVERY_FEE_GHS,
   DEFAULT_LOYALTY_DISCOUNT_PCT,
   DEFAULT_LOYALTY_THRESHOLD,
-  DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
   DEFAULT_GOODS_COST_MAX_GHS,
+  deliveryDayOf,
+  isDayClosed,
 } from "@wave/shared";
 import { calculateDiscount, calculateOrderTotal, isStandardDeliveryDay } from "./discount";
 import {
@@ -73,21 +74,21 @@ export async function orderRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: "That delivery date has already passed" });
       }
 
-      if (!input.isSpecialOrder && !isStandardDeliveryDay(scheduledDate)) {
+      // Every day is a delivery day since 2026-11-04, so there is no rush
+      // order any more: `isSpecialOrder` from an older client is accepted and
+      // ignored rather than charged. What remains is the noon cutoff, which
+      // was only ever enforced in the app.
+      if (!isStandardDeliveryDay(scheduledDate)) {
+        return reply.code(400).send({ error: "Wave does not deliver on that day" });
+      }
+      if (isDayClosed(scheduledDate)) {
         return reply.code(400).send({
-          error: "Non-standard delivery day requires a special order (24h advance notice)",
+          error: "Ordering for today closed at noon. Pick tomorrow.",
         });
       }
-      if (input.isSpecialOrder) {
-        const leadTimeMs = scheduledDate.getTime() - Date.now();
-        if (leadTimeMs < 24 * 60 * 60 * 1000) {
-          return reply.code(400).send({ error: "Special orders require 24 hours advance notice" });
-        }
-      }
 
-      const [feeConfig, surchargeConfig, discountConfig, thresholdConfig, stats] = await Promise.all([
+      const [feeConfig, discountConfig, thresholdConfig, stats] = await Promise.all([
         fastify.prisma.platformConfig.findUnique({ where: { key: "delivery_fee_base" } }),
-        fastify.prisma.platformConfig.findUnique({ where: { key: "special_order_surcharge_pct" } }),
         fastify.prisma.platformConfig.findUnique({ where: { key: "loyalty_discount_pct" } }),
         fastify.prisma.platformConfig.findUnique({ where: { key: "loyalty_threshold" } }),
         fastify.prisma.studentDeliveryStats.findUnique({ where: { studentId: request.user!.id } }),
@@ -98,9 +99,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
       // here, which meant the base fee lived as an unlabelled `5` in the middle
       // of the money path and could silently disagree with every other copy.
       const baseDeliveryFee = Number(feeConfig?.value ?? DEFAULT_DELIVERY_FEE_GHS);
-      const surchargePct = input.isSpecialOrder
-        ? Number(surchargeConfig?.value ?? DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT)
-        : 0;
+      const surchargePct = 0;
       const threshold = Number(thresholdConfig?.value ?? DEFAULT_LOYALTY_THRESHOLD);
       const configuredDiscountPct = Number(discountConfig?.value ?? DEFAULT_LOYALTY_DISCOUNT_PCT);
       // The loyalty discount applies to the DELIVERY FEE ONLY, never to the
@@ -254,9 +253,9 @@ export async function orderRoutes(fastify: FastifyInstance) {
           discountApplied: discountPct,
           surchargeApplied: surchargePct,
           totalAmount,
-          deliveryDay: input.isSpecialOrder ? "special" : (scheduledDate.getDay() === 0 ? "sunday" : "wednesday"),
+          deliveryDay: deliveryDayOf(scheduledDate),
           scheduledDate,
-          isSpecialOrder: input.isSpecialOrder,
+          isSpecialOrder: false,
           status: "payment_pending",
           notes: input.notes,
           items: basket.lines.length

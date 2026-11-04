@@ -62,7 +62,7 @@ export function WelcomeScreen({ navigation }: Props) {
               <Text className="mb-1 font-sans-semibold text-meta text-muted">NEXT WAVE</Text>
               <Text className="font-sans-medium text-subheading text-ink">{wave.dateLabel}</Text>
               <Text className="mt-1 font-sans text-body text-muted">
-                Ordering closes in {wave.countdown}. Wave runs Sundays and Wednesdays.
+                Ordering closes in {wave.countdown}. Wave delivers every day.
               </Text>
             </View>
           ) : null}

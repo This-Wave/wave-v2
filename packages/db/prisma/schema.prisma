@@ -48,7 +48,13 @@ enum ProductStatus {
 
 enum DeliveryDay {
   sunday
+  monday
+  tuesday
   wednesday
+  thursday
+  friday
+  saturday
+  /// Legacy: rush orders before every day became a delivery day (2026-11-04).
   special
 }
 

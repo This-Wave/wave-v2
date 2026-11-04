@@ -24,8 +24,8 @@ describe("Delivery Day Validation", () => {
     expect(isStandardDeliveryDay(new Date("2026-07-01"))).toBe(true);
   });
 
-  test("Monday requires special order flag", () => {
-    expect(isStandardDeliveryDay(new Date("2026-06-29"))).toBe(false);
+  test("Monday is a delivery day too (every day since 2026-11-04)", () => {
+    expect(isStandardDeliveryDay(new Date("2026-06-29"))).toBe(true);
   });
 });
 

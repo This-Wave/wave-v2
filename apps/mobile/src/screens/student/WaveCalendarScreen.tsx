@@ -59,8 +59,7 @@ export function WaveCalendarScreen() {
         <Gutter>
           <Text className="mb-2 font-sans-bold text-heading text-ink">When do you need it?</Text>
           <Text className="mb-5 font-sans text-body text-muted">
-            Wave runs every Sunday and Wednesday. Orders close at noon on the day itself. Any other
-            day is a rush order.
+            Every day. Order by noon for the same day.
           </Text>
 
           {/* The counter belongs on this screen rather than Home: Home says
@@ -90,7 +89,7 @@ export function WaveCalendarScreen() {
               <Text className="mt-1 font-sans text-body text-muted">
                 {isRush
                   ? `Rush order — ${DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT}% more on the delivery fee, and we need a day's notice.`
-                  : "Standard Wave. No surcharge."}
+                  : "Order by noon that day."}
               </Text>
             </View>
           ) : null}

@@ -29,7 +29,7 @@ type NavItem = {
 const MENUS: Record<AppRole, { subtitle: string; footer: string; items: NavItem[] }> = {
   student: {
     subtitle: "Campus delivery",
-    footer: "Ashesi · Sunday & Wednesday Waves",
+    footer: "Ashesi · Delivering every day",
     items: [
       { label: "Home", tab: "Home", Icon: HomeIcon },
       { label: "Orders", tab: "Orders", Icon: BoxIcon },

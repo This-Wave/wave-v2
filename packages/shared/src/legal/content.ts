@@ -18,7 +18,6 @@ import {
   DEFAULT_DELIVERY_FEE_GHS,
   DEFAULT_LOYALTY_DISCOUNT_PCT,
   DEFAULT_LOYALTY_THRESHOLD,
-  DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
 } from "../constants/platform";
 
 export type LegalBlock =
@@ -177,7 +176,7 @@ export const TERMS: LegalDoc = {
         },
         {
           kind: "p",
-          text: `Standard delivery days are Sunday and Wednesday. An order requested outside those days is a special order and carries a surcharge of ${DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT}% on the delivery fee. The base delivery fee is GH₵${fee}. Fees may change; the fee shown at checkout is the fee for that order.`,
+          text: `Wave delivers every day. Orders placed before noon are delivered the same day; orders placed after noon are delivered on a later day you choose. The base delivery fee is GH₵${fee}. Fees may change; the fee shown at checkout is the fee for that order.`,
         },
         {
           kind: "p",
