@@ -1,5 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import {
+  DEFAULT_HUB_ADDRESS,
+  HUB_ADDRESS_KEY,
   DELIVERY_COMPANY_KEY,
   DELIVERY_MODE_KEY,
   addCompanyMemberSchema,
@@ -41,8 +43,13 @@ export async function companyRoutes(fastify: FastifyInstance) {
   fastify.addHook("preHandler", fastify.authenticate);
   fastify.addHook("preHandler", fastify.requirePermission("companies.manage"));
 
+  async function hubAddress(): Promise<string> {
+    const row = await fastify.prisma.platformConfig.findUnique({ where: { key: HUB_ADDRESS_KEY } });
+    return row?.value?.trim() || DEFAULT_HUB_ADDRESS;
+  }
+
   fastify.get("/delivery-mode", async (_request, reply) => {
-    return reply.send(await activeDelivery(fastify));
+    return reply.send({ ...(await activeDelivery(fastify)), hubAddress: await hubAddress() });
   });
 
   fastify.put("/delivery-mode", async (request, reply) => {
@@ -50,16 +57,14 @@ export async function companyRoutes(fastify: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid payload" });
     }
-    const { mode, companyId } = parsed.data;
+    const { mode, companyId, hubAddress: newHub } = parsed.data;
     if (mode === "company") {
+      // No rider accounts needed: the company works from its list link.
       const company = await fastify.prisma.deliveryCompany.findUnique({
         where: { id: companyId! },
-        select: { isActive: true, members: { where: { role: "rider", isActive: true }, select: { id: true } } },
+        select: { isActive: true },
       });
       if (!company?.isActive) return reply.code(400).send({ error: "That company is not active" });
-      if (company.members.length === 0) {
-        return reply.code(400).send({ error: "Add at least one rider to the company first" });
-      }
     }
     const before = await activeDelivery(fastify);
     await fastify.prisma.$transaction([
@@ -77,6 +82,15 @@ export async function companyRoutes(fastify: FastifyInstance) {
             }),
           ]
         : []),
+      ...(newHub
+        ? [
+            fastify.prisma.platformConfig.upsert({
+              where: { key: HUB_ADDRESS_KEY },
+              create: { key: HUB_ADDRESS_KEY, value: newHub, description: "Where the delivery company brings orders" },
+              update: { value: newHub },
+            }),
+          ]
+        : []),
     ]);
     const after = await activeDelivery(fastify);
     await request.audit({
@@ -85,9 +99,9 @@ export async function companyRoutes(fastify: FastifyInstance) {
       entityType: "platform_config",
       entityId: DELIVERY_MODE_KEY,
       before: { mode: before.mode, company: before.company?.name ?? null },
-      after: { mode: after.mode, company: after.company?.name ?? null },
+      after: { mode: after.mode, company: after.company?.name ?? null, hubAddress: newHub ?? undefined },
     });
-    return reply.send(after);
+    return reply.send({ ...after, hubAddress: await hubAddress() });
   });
 
   fastify.get("/companies", async (_request, reply) => {
@@ -97,7 +111,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
     });
     // Never the hash itself: only whether a list link is live.
     const companies = rows.map(({ listTokenHash, ...c }) => ({ ...c, hasListLink: !!listTokenHash }));
-    return reply.send({ companies, ...(await activeDelivery(fastify)) });
+    return reply.send({ companies, ...(await activeDelivery(fastify)), hubAddress: await hubAddress() });
   });
 
   fastify.post("/companies", async (request, reply) => {

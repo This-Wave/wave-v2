@@ -41,6 +41,8 @@ export const setDeliveryModeSchema = z
   .object({
     mode: z.enum(DELIVERY_MODES),
     companyId: z.string().uuid().nullable().optional(),
+    /** Where the company brings orders; shown on its list. */
+    hubAddress: z.string().trim().min(3, "Give the packing point an address").max(200).optional(),
   })
   .strict()
   .refine((v) => v.mode !== "company" || !!v.companyId, {

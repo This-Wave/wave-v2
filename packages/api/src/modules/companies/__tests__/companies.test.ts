@@ -29,6 +29,7 @@ describe("the company / independent switch", () => {
     return {
       platformConfig: {
         findMany: vi.fn().mockResolvedValue([]),
+        findUnique: vi.fn().mockResolvedValue(null),
         upsert: vi.fn((x) => x),
       },
       deliveryCompany: { findUnique: vi.fn().mockResolvedValue(company) },
@@ -42,11 +43,10 @@ describe("the company / independent switch", () => {
     expect(res.statusCode).toBe(400);
   });
 
-  test("refuses a company with no riders, so orders never sit with nobody to carry them", async () => {
-    const app = await buildTestApp(companyRoutes, { prisma: prisma({ isActive: true, members: [] }), user: owner });
+  test("refuses a deactivated company", async () => {
+    const app = await buildTestApp(companyRoutes, { prisma: prisma({ isActive: false }), user: owner });
     const res = await app.inject({ method: "PUT", url: "/delivery-mode", payload: { mode: "company", companyId: CO } });
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/at least one rider/);
   });
 
   test("switches when the company has a rider, and back to independent any time", async () => {
@@ -56,6 +56,13 @@ describe("the company / independent switch", () => {
     expect(p.$transaction.mock.calls[0]?.[0]).toHaveLength(2);
     expect((await app.inject({ method: "PUT", url: "/delivery-mode", payload: { mode: "independent" } })).statusCode).toBe(200);
     expect(p.$transaction.mock.calls[1]?.[0]).toHaveLength(1);
+  });
+
+  test("saves the packing point address with the switch", async () => {
+    const p = prisma({ isActive: true, members: [{ id: "r" }] });
+    const app = await buildTestApp(companyRoutes, { prisma: p, user: owner });
+    await app.inject({ method: "PUT", url: "/delivery-mode", payload: { mode: "independent", hubAddress: "Wave hub, Berekuso" } });
+    expect(p.$transaction.mock.calls[0]?.[0]).toHaveLength(2);
   });
 });
 
