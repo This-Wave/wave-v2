@@ -42,8 +42,10 @@ export function estimateOrderTotal(input: {
    * Guessing locally would quote a total the server then disagreed with.
    */
   rewardReady: boolean;
+  /** A zone pickup's fee; the base fee when omitted. */
+  deliveryFee?: number;
 }) {
-  const deliveryFee = DEFAULT_DELIVERY_FEE_GHS;
+  const deliveryFee = input.deliveryFee ?? DEFAULT_DELIVERY_FEE_GHS;
   const surchargePct = input.isSpecialOrder ? DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT : 0;
   const discountPct = input.rewardReady ? DEFAULT_LOYALTY_DISCOUNT_PCT : 0;
 

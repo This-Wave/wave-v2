@@ -15,9 +15,10 @@ import {
 } from "../../components/v6";
 import { CalendarIcon, CheckIcon, ChevronRightIcon, PinDotIcon, PinIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
-import { useCheckpoints } from "../../lib/checkpoints";
+import { pickupFeeFor, useCheckpoints } from "../../lib/checkpoints";
 import { useCreateOrder } from "../../lib/orders";
 import { useAuthStore } from "../../store/authStore";
+import type { Checkpoint } from "../../types";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
 import {
   deliveryDayFor,
@@ -29,8 +30,8 @@ import {
 } from "../../lib/pricing";
 
 /**
- * Checkpoint-to-checkpoint package pickup: move something you already have from one
- * checkpoint to another.
+ * Package pickup: collect something from an Accra zone (or elsewhere on campus)
+ * and bring it to a campus checkpoint.
  *
  * This used to be a dead form — `POST /orders` required a `shopId` and an order
  * carried only one checkpoint, so there was nothing to submit to. The
@@ -67,8 +68,16 @@ export function PickupRequestScreen() {
   const days = useMemo(() => upcomingRunDays(new Date(), 4), []);
   const scheduled = chosenDate ?? days[dayIndex];
   const isSpecialOrder = params?.isSpecialOrder ?? (scheduled ? !isStandardRunDay(scheduled) : false);
-  const from = checkpoints?.find((c) => c.id === fromId) ?? checkpoints?.[0];
-  const to = checkpoints?.find((c) => c.id === toId) ?? checkpoints?.[1] ?? checkpoints?.[0];
+  // Collection can be an Accra zone or the campus; a delivery always ends on
+  // campus, so "Deliver to" only ever offers campus checkpoints.
+  const zonePoints = (checkpoints ?? []).filter((c) => c.zone);
+  const campusPoints = (checkpoints ?? []).filter((c) => !c.zone);
+  const from = checkpoints?.find((c) => c.id === fromId) ?? zonePoints[0] ?? campusPoints[0];
+  const to =
+    campusPoints.find((c) => c.id === toId) ??
+    campusPoints.find((c) => c.id !== from?.id) ??
+    campusPoints[0];
+  const fee = pickupFeeFor(from, DEFAULT_DELIVERY_FEE_GHS);
 
   async function handleContinue() {
     if (!from || !to) return;
@@ -105,8 +114,8 @@ export function PickupRequestScreen() {
         <Gutter>
           <Text className="mb-1 font-sans-bold text-heading text-ink">Send a package</Text>
           <Text className="mb-6 font-sans text-body text-muted">
-            Carried between checkpoints on the next Wave. The delivery fee is the whole
-            price.
+            Collected anywhere in our Accra zones and brought to campus on the next Wave.
+            The zone sets the fee, and the fee is the whole price.
           </Text>
 
           {/* Pickup & delivery first: the route is the decision, and the two
@@ -116,7 +125,7 @@ export function PickupRequestScreen() {
             <PickerRow
               icon={<PinIcon size={18} color={colors.ink} strokeWidth={1.9} />}
               label="Collect from"
-              value={from?.name}
+              value={from ? checkpointLabel(from) : undefined}
               placeholder="Choose a pickup point"
               onPress={() => setPicker("from")}
             />
@@ -131,7 +140,7 @@ export function PickupRequestScreen() {
             <View className="my-3 border-t border-hairline" />
             <PickerRow
               icon={<CalendarIcon size={18} color={colors.ink} strokeWidth={1.9} />}
-              label={`Delivery fee ${formatGhs(DEFAULT_DELIVERY_FEE_GHS)}`}
+              label={`Delivery fee ${formatGhs(fee)}`}
               value={scheduled ? formatFullDay(scheduled) : undefined}
               placeholder="Choose a day"
               onPress={chosenDate ? undefined : () => setPicker("day")}
@@ -168,11 +177,15 @@ export function PickupRequestScreen() {
         title={picker === "from" ? "Collect from" : "Deliver to"}
       >
         <View className="gap-1">
-          {(checkpoints ?? []).map((c) => (
+          {(picker === "from" ? [...zonePoints, ...campusPoints] : campusPoints).map((c) => (
             <Option
               key={c.id}
-              title={c.name}
-              meta={c.description ?? undefined}
+              title={checkpointLabel(c)}
+              meta={
+                picker === "from"
+                  ? `${c.zone ? `Accra zone ${c.zone.code}` : "On campus"} · ${formatGhs(pickupFeeFor(c, DEFAULT_DELIVERY_FEE_GHS))}`
+                  : (c.description ?? undefined)
+              }
               selected={(picker === "from" ? from?.id : to?.id) === c.id}
               onPress={() => {
                 if (picker === "from") setFromId(c.id);
@@ -201,6 +214,11 @@ export function PickupRequestScreen() {
       </Sheet>
     </Screen>
   );
+}
+
+/** "Zone A · Legon & East Legon" for a zone point, the plain name on campus. */
+function checkpointLabel(c: Checkpoint): string {
+  return c.zone ? `Zone ${c.zone.code} · ${c.name}` : c.name;
 }
 
 function Option({

@@ -4,7 +4,7 @@ export type ServiceMode = "buy" | "pickup";
 
 const TABS: { key: ServiceMode; label: string; hint: string }[] = [
   { key: "buy", label: "Buy for me", hint: "Browse shops and we buy for you" },
-  { key: "pickup", label: "Pickup", hint: "Move something between checkpoints" },
+  { key: "pickup", label: "Pickup", hint: "Collect from anywhere in Accra" },
 ];
 
 /**

@@ -10,7 +10,7 @@ import {
   ScreenBody,
   Skeleton,
 } from "../../components/v6";
-import { useCheckpoints } from "../../lib/checkpoints";
+import { useDropoffPoints } from "../../lib/checkpoints";
 import { useAuthStore } from "../../store/authStore";
 import { useLayout } from "../../hooks/useLayout";
 import { StudentCheckpointsWeb } from "./web/StudentCheckpointsWeb";
@@ -27,7 +27,7 @@ export function CheckpointsScreen() {
 
 function CheckpointsMobile() {
   const universityId = useAuthStore((s) => s.profile?.universityId);
-  const { data: checkpoints, isLoading, isError } = useCheckpoints(universityId ?? undefined);
+  const { data: checkpoints, isLoading, isError } = useDropoffPoints(universityId ?? undefined);
 
   return (
     <Screen>

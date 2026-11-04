@@ -97,7 +97,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
       // are the fallback for a row that has not been seeded. They were literals
       // here, which meant the base fee lived as an unlabelled `5` in the middle
       // of the money path and could silently disagree with every other copy.
-      const deliveryFee = Number(feeConfig?.value ?? DEFAULT_DELIVERY_FEE_GHS);
+      const baseDeliveryFee = Number(feeConfig?.value ?? DEFAULT_DELIVERY_FEE_GHS);
       const surchargePct = input.isSpecialOrder
         ? Number(surchargeConfig?.value ?? DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT)
         : 0;
@@ -151,14 +151,30 @@ export async function orderRoutes(fastify: FastifyInstance) {
       const checkpointIds = [input.checkpointId, input.originCheckpointId].filter(
         (id): id is string => !!id,
       );
-      const validCheckpoints = await fastify.prisma.checkpoint.count({
+      const validCheckpoints = await fastify.prisma.checkpoint.findMany({
         where: { id: { in: checkpointIds }, universityId, isActive: true },
+        select: { id: true, zone: { select: { deliveryFee: true, isActive: true } } },
       });
-      if (validCheckpoints !== checkpointIds.length) {
+      if (validCheckpoints.length !== checkpointIds.length) {
         return reply
           .code(400)
           .send({ error: "That checkpoint is not active on your campus" });
       }
+      const dropoff = validCheckpoints.find((c) => c.id === input.checkpointId);
+      const origin = validCheckpoints.find((c) => c.id === input.originCheckpointId);
+      // Zone checkpoints are pickup points out in the city. A delivery always
+      // ends on campus, so one can never be the destination.
+      if (dropoff?.zone) {
+        return reply
+          .code(400)
+          .send({ error: "Deliveries drop off at a campus checkpoint, not a pickup zone" });
+      }
+      if (origin?.zone && !origin.zone.isActive) {
+        return reply.code(400).send({ error: "Wave isn't collecting from that zone right now" });
+      }
+      // A pickup collected in a zone costs that zone's fee, which replaces the
+      // base fee. Everything else, and a campus-to-campus move, is the base fee.
+      const deliveryFee = origin?.zone ? Number(origin.zone.deliveryFee) : baseDeliveryFee;
 
       // --- The basket, and with it the price -------------------------------
       //

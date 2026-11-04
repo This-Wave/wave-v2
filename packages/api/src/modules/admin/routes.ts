@@ -9,6 +9,7 @@ import {
   rejectShopSuggestionSchema,
   resolveShopSuggestionSchema,
   updateConfigSchema,
+  updateZoneSchema,
   updateUserRoleSchema,
   updateUserStatusSchema,
 } from "@wave/shared";
@@ -378,6 +379,34 @@ export async function adminRoutes(fastify: FastifyInstance) {
       after: { value: config.value },
     });
     return reply.send({ config });
+  });
+
+  // Zones are city-wide, so only HQ (config.write) edits them. Every campus
+  // reads the same fee for the same stretch of the city.
+  fastify.get("/zones", { preHandler: fastify.requirePermission("ops.read") }, async (_request, reply) => {
+    const zones = await fastify.prisma.zone.findMany({ orderBy: { sortOrder: "asc" } });
+    return reply.send({ zones });
+  });
+
+  fastify.put("/zones/:id", { preHandler: fastify.requirePermission("config.write") }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = updateZoneSchema.safeParse(request.body);
+    if (!parsed.success) {
+      const first = parsed.error.issues[0]?.message ?? "Invalid payload";
+      return reply.code(400).send({ error: first, details: parsed.error.flatten() });
+    }
+    const previous = await fastify.prisma.zone.findUnique({ where: { id } });
+    if (!previous) return reply.code(404).send({ error: "Zone not found" });
+    const zone = await fastify.prisma.zone.update({ where: { id }, data: parsed.data });
+    await request.audit({
+      action: "zone.changed",
+      category: "config",
+      entityType: "zone",
+      entityId: id,
+      before: { name: previous.name, deliveryFee: previous.deliveryFee.toString(), isActive: previous.isActive },
+      after: { name: zone.name, deliveryFee: zone.deliveryFee.toString(), isActive: zone.isActive },
+    });
+    return reply.send({ zone });
   });
 
   fastify.post("/refund/:orderId", { preHandler: fastify.requirePermission("refunds.issue") }, async (request, reply) => {
