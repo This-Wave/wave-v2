@@ -321,7 +321,7 @@ function ShopTile({
 }
 
 function LiveStrip({ order, onTrack }: { order: Order; onTrack: () => void }) {
-  const pill = statusPill(order.status);
+  const pill = statusPill(order.status, !!order.companyId);
   return (
     <View className="flex-row items-center gap-4 rounded-card bg-surface px-5 py-4">
       <Thumb uri={order.shop?.logoUrl} size={52} />

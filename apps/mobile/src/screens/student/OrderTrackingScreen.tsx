@@ -43,14 +43,17 @@ export function OrderTrackingScreen() {
   const cancelOrder = useCancelOrder();
   const [confirmCancel, setConfirmCancel] = useState(false);
 
-  const pill = order ? statusPill(order.status) : null;
+  const pill = order ? statusPill(order.status, !!order.companyId) : null;
   const rider = order?.rider;
   // Only once a rider is actually carrying it. Offering this earlier would let a
   // student close an order nobody has collected, and still be counted a delivery
   // towards their loyalty discount — the server refuses, but the button should
   // not be there to press.
-  const canConfirmReceipt =
-    !!order?.riderId && ["rider_assigned", "en_route", "at_checkpoint"].includes(order.status);
+  // A Wave-packed order has no Wave rider; it can be received once its bag is
+  // waiting at the checkpoint.
+  const canConfirmReceipt = order?.companyId
+    ? order.status === "at_checkpoint"
+    : !!order?.riderId && ["rider_assigned", "en_route", "at_checkpoint"].includes(order.status);
   const ledger = order ? buildOrderLedger(order) : null;
   const canCancel = order && STUDENT_CANCELLABLE.includes(order.status);
 

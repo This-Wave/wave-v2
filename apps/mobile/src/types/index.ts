@@ -152,6 +152,8 @@ export interface Order {
   id: string;
   studentId: string;
   riderId: string | null;
+  /** Set when Wave packs and delivers this order (company mode). Opaque. */
+  companyId?: string | null;
   orderType: OrderType;
   originCheckpointId: string | null;
   originCheckpoint?: Checkpoint | null;

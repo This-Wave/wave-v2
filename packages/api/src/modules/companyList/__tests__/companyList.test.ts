@@ -79,7 +79,7 @@ describe("the company's private list link", () => {
     expect(pushed).not.toMatch(/Swift|company/i);
     const body = res.json();
     expect(body.counts).toEqual({ toCollect: 1, done: 0, cancelled: 1 });
-    expect(body.orders[0]).toMatchObject({ ref: "DDDDDDDD", from: "Fresh Mart", items: "Water" });
+    expect(body.orders[0]).toMatchObject({ ref: "#WV-DDDDDD", from: "Fresh Mart", items: "Water" });
     expect(body.bringTo).toBe("the Wave packing point");
   });
 

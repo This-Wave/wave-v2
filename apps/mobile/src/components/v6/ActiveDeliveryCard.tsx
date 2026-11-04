@@ -51,7 +51,7 @@ export function ActiveDeliveryCard({
   /** An extra line under the title: the fee on a rider's run, for instance. */
   trailing?: string;
 }) {
-  const pill = statusPill(order.status);
+  const pill = statusPill(order.status, !!order.companyId);
   const reached = stopReached(order);
   const to = order.checkpoint?.name ?? "your checkpoint";
   const from = fromLabel(order);
