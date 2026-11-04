@@ -1,11 +1,22 @@
 import type { Step } from "../../components/v6";
 import type { Order, OrderStatus } from "../../types";
+import { orderRef } from "@wave/shared";
 
 /** Shared status mapping, so Home / History / Tracking / Detail never disagree. */
-export function statusPill(status: OrderStatus): {
+/**
+ * `packedByWave`: the order goes through Wave's packing point (company mode).
+ * Its stages are told in Wave's words. Students never see that a delivery
+ * company collects it.
+ */
+export function statusPill(status: OrderStatus, packedByWave = false): {
   label: string;
   tone: "neutral" | "active" | "done" | "danger";
 } {
+  if (packedByWave) {
+    if (status === "rider_assigned") return { label: "Collecting", tone: "active" };
+    if (status === "en_route") return { label: "Packing", tone: "active" };
+    if (status === "at_checkpoint") return { label: "Ready for you", tone: "active" };
+  }
   switch (status) {
     case "delivered":
       return { label: "Delivered", tone: "done" };
@@ -55,6 +66,28 @@ export function orderSteps(order: Order): Step[] {
   const delivered = order.deliveredAt ? timeOf(order.deliveredAt) : undefined;
   const idx = currentStepIndex(order.status);
 
+  if (order.companyId) {
+    // Wave's packing point: collected, packed into a Wave bag, then waiting
+    // at the checkpoint. Four steps the student can follow without knowing
+    // who carried it from the shop.
+    return [
+      { label: "Order confirmed", detail: paid ?? placed },
+      {
+        label:
+          order.orderType === "pickup"
+            ? `Collecting from ${order.originCheckpoint?.name ?? "the pickup point"}`
+            : `Collecting from ${order.shop?.name ?? order.suggestion?.name ?? "the shop"}`,
+        detail: idx < 1 ? "Not yet" : undefined,
+      },
+      { label: "Packing at Wave", detail: idx < 2 ? "Not yet" : undefined },
+      {
+        label: `Ready at ${order.checkpoint?.name ?? "your checkpoint"}`,
+        detail: idx < 3 ? "Not yet" : undefined,
+      },
+      { label: "Delivered", detail: delivered ?? (idx < 4 ? "Pending" : undefined) },
+    ];
+  }
+
   return [
     { label: "Order confirmed", detail: paid ?? placed },
     {
@@ -85,8 +118,7 @@ export function orderSteps(order: Order): Step[] {
  * useless to support looking it up.
  */
 export function shortOrderRef(orderId: string): string {
-  const clean = orderId.replace(/[^a-zA-Z0-9]/g, "");
-  return `#WV-${clean.slice(-6).toUpperCase()}`;
+  return orderRef(orderId);
 }
 
 export function initialsOf(name: string): string {

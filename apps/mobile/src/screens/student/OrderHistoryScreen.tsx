@@ -198,7 +198,7 @@ function OrderHistoryMobile() {
                       accessible
                       accessibilityLabel={`${o.shop.name}, ${dayOf(o)}, ${formatGhsCompact(
                         Number(o.totalAmount ?? 0),
-                      )}, ${statusPill(o.status).label}`}
+                      )}, ${statusPill(o.status, !!o.companyId).label}`}
                       className="min-h-[44px] flex-1 flex-row items-center gap-3"
                     >
                       <Thumb uri={o.shop.logoUrl} />
@@ -236,7 +236,7 @@ function OrderHistoryMobile() {
                     title={o.shop?.name ?? "Package pickup"}
                     meta={`${dayOf(o)} · ${formatGhsCompact(Number(o.totalAmount ?? 0))}`}
                     leading={<Thumb uri={o.shop?.logoUrl} />}
-                    trailing={<StatusPill {...statusPill(o.status)} />}
+                    trailing={<StatusPill {...statusPill(o.status, !!o.companyId)} />}
                     onPress={() => openOrderDetail(navigation, o.id)}
                   />
                 ),
@@ -250,7 +250,7 @@ function OrderHistoryMobile() {
 }
 
 function LiveRow({ order, navigation }: { order: Order; navigation: Nav }) {
-  const pill = statusPill(order.status);
+  const pill = statusPill(order.status, !!order.companyId);
   return (
     <View className="rounded-card bg-surface p-4">
       <View className="mb-3 flex-row items-center gap-3">

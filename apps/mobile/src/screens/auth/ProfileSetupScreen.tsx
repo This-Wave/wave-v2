@@ -42,11 +42,14 @@ const COPY: Record<
   SelfServeProfileRole,
   { title: string; blurb: string; cta: string; askStudentId: boolean; emailHint: string }
 > = {
+  // Name, campus, terms: nothing else stands between a student and their first
+  // order (canvas board 26). Student ID and email are optional and live on
+  // Profile, where they can be added later.
   student: {
-    title: "Who are you?",
-    blurb: "Your runner needs a name to look for at the checkpoint.",
+    title: "What's your name?",
+    blurb: "",
     cta: "Start using Wave",
-    askStudentId: true,
+    askStudentId: false,
     emailHint: "Optional — we'll email you when a shop you suggested goes live.",
   },
   rider: {
@@ -90,7 +93,10 @@ export function ProfileSetupScreen({ route }: Props) {
   const [fullName, setFullName] = useState("");
   const [studentId, setStudentId] = useState("");
   const [email, setEmail] = useState("");
-  const [universityId, setUniversityId] = useState<string | null>(null);
+  // A guest already chose a campus to browse; start from it.
+  const [universityId, setUniversityId] = useState<string | null>(
+    () => useAuthStore.getState().guestUniversityId,
+  );
   const [picking, setPicking] = useState(false);
   // Starts unticked on purpose. A pre-ticked consent box is a dark pattern and
   // is not consent anyone could evidence later.
@@ -133,7 +139,11 @@ export function ProfileSetupScreen({ route }: Props) {
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-12">
           <Text className="mb-2 font-sans-bold text-heading text-ink">{copy.title}</Text>
-          <Text className="mb-10 font-sans text-body text-muted">{copy.blurb}</Text>
+          {copy.blurb ? (
+            <Text className="mb-10 font-sans text-body text-muted">{copy.blurb}</Text>
+          ) : (
+            <View className="mb-8" />
+          )}
 
           {role === "rider" ? (
             <View className="mb-8">
@@ -192,6 +202,7 @@ export function ProfileSetupScreen({ route }: Props) {
             </View>
           ) : null}
 
+          {role !== "student" ? (
           <View className="mb-6">
             <Field
               label="Email"
@@ -202,6 +213,7 @@ export function ProfileSetupScreen({ route }: Props) {
               keyboardType="email-address"
             />
           </View>
+          ) : null}
 
           <Text className="mb-2 font-sans-medium text-body text-ink">Campus</Text>
           <RowGroup>

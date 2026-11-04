@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { DEFAULT_HUB_ADDRESS, HUB_ADDRESS_KEY, HUB_STAGE_COPY, runSheetQuerySchema } from "@wave/shared";
+import { orderRef, DEFAULT_HUB_ADDRESS, HUB_ADDRESS_KEY, HUB_STAGE_COPY, runSheetQuerySchema } from "@wave/shared";
 import { activeDelivery } from "../companies/mode";
 import { pushToProfiles } from "../notifications/dispatch";
 import { COMPANY_LIST_RATE_LIMIT } from "../../plugins/rateLimit";
@@ -113,7 +113,7 @@ export async function companyListRoutes(fastify: FastifyInstance) {
       const hub = await fastify.prisma.platformConfig.findUnique({ where: { key: HUB_ADDRESS_KEY } });
       const bringTo = hub?.value?.trim() || DEFAULT_HUB_ADDRESS;
       const rows = orders.map((o) => ({
-        ref: o.id.slice(0, 8).toUpperCase(),
+        ref: orderRef(o.id),
         cancelled: o.status === "cancelled" || o.status === "refunded",
         // The company's part ends when Wave receives it at the packing point.
         delivered: o.status === "en_route" || o.status === "at_checkpoint" || o.status === "delivered",

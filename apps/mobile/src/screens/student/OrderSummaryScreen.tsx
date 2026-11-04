@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { GuestAccountSheet } from "../../components/GuestAccountSheet";
+import type { ResumeTarget } from "../../store/authStore";
 import { Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -19,7 +21,7 @@ import {
 import { CheckIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useDropoffPoints } from "../../lib/checkpoints";
-import { useAuthStore } from "../../store/authStore";
+import { useIsGuest, useViewerUniversityId } from "../../store/authStore";
 import { useLastCheckpoint } from "../../hooks/useLastCheckpoint";
 import { useCreateOrder } from "../../lib/orders";
 import { useLoyalty } from "../../lib/loyalty";
@@ -68,9 +70,11 @@ export function OrderSummaryScreen() {
   const { data: loyalty } = useLoyalty();
   const [error, setError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const isGuest = useIsGuest();
+  const [accountPrompt, setAccountPrompt] = useState<ResumeTarget | null>(null);
 
-  const profile = useAuthStore((s) => s.profile);
-  const { data: checkpoints } = useDropoffPoints(profile?.universityId ?? undefined);
+  const viewerUniversityId = useViewerUniversityId();
+  const { data: checkpoints } = useDropoffPoints(viewerUniversityId);
   const checkpointIds = checkpoints?.map((c) => c.id);
   const { checkpointId, selectCheckpoint } = useLastCheckpoint(checkpointIds);
 
@@ -98,6 +102,15 @@ export function OrderSummaryScreen() {
 
   async function handleConfirm() {
     setError(null);
+    // Everything up to here works without an account; paying does not. The
+    // sheet keeps the order on screen and brings the student back to it.
+    if (isGuest) {
+      setAccountPrompt({
+        route: "OrderSummary",
+        params: { ...params, checkpointId: checkpoint?.id, checkpointName: checkpoint?.name },
+      });
+      return;
+    }
     try {
       const order = await createOrder.mutateAsync({
         orderType: "buy_for_me",
@@ -241,7 +254,7 @@ export function OrderSummaryScreen() {
 
       <ActionBar>
         <Button
-          label="Place order"
+          label={`${isGuest ? "Continue to pay" : "Pay"} ${formatGhs(estimate.total)}`}
           onPress={handleConfirm}
           disabled={!checkpoint}
           loading={createOrder.isPending}
@@ -268,6 +281,7 @@ export function OrderSummaryScreen() {
           ))}
         </View>
       </Sheet>
+      <GuestAccountSheet target={accountPrompt} onClose={() => setAccountPrompt(null)} />
     </Screen>
   );
 }

@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { HUB_STAGE_COPY, hubAdvanceSchema, runSheetQuerySchema } from "@wave/shared";
+import { orderRef, HUB_STAGE_COPY, hubAdvanceSchema, runSheetQuerySchema } from "@wave/shared";
 import { pushToProfiles } from "../notifications/dispatch";
 
 /**
@@ -51,7 +51,7 @@ export async function hubRoutes(fastify: FastifyInstance) {
       select: HUB_SELECT,
       orderBy: [{ checkpointId: "asc" }, { createdAt: "asc" }],
     });
-    const rows = orders.map(({ studentId: _s, ...o }) => ({ ...o, ref: o.id.slice(0, 8).toUpperCase() }));
+    const rows = orders.map(({ studentId: _s, ...o }) => ({ ...o, ref: orderRef(o.id) }));
     return reply.send({
       date,
       collecting: rows.filter((o) => o.status === "rider_assigned"),

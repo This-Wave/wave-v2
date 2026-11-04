@@ -30,7 +30,7 @@ import { useWave } from "../../../lib/wave";
 import { useBuyForMeStatus, useServiceStatus } from "../../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../../lib/pricing";
 import { useDropoffPoints } from "../../../lib/checkpoints";
-import { useAuthStore } from "../../../store/authStore";
+import { useViewerUniversityId } from "../../../store/authStore";
 import {
   openOrderTracking,
   openShopMenu,
@@ -55,7 +55,7 @@ export function StudentHomeWeb() {
   const wave = useWave();
   const [category, setCategory] = useState<string | null>(null);
   const { data: service } = useServiceStatus();
-  const universityId = useAuthStore((state) => state.profile?.universityId ?? undefined);
+  const universityId = useViewerUniversityId();
   const { data: checkpoints } = useDropoffPoints(universityId);
   const checkpointCount = checkpoints?.length ?? 0;
 
@@ -321,7 +321,7 @@ function ShopTile({
 }
 
 function LiveStrip({ order, onTrack }: { order: Order; onTrack: () => void }) {
-  const pill = statusPill(order.status);
+  const pill = statusPill(order.status, !!order.companyId);
   return (
     <View className="flex-row items-center gap-4 rounded-card bg-surface px-5 py-4">
       <Thumb uri={order.shop?.logoUrl} size={52} />

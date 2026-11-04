@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useIsGuest } from "../store/authStore";
 import { allFeaturesOff, type FeatureKey } from "@wave/shared";
 import { api } from "./api";
 
@@ -13,7 +14,9 @@ import { api } from "./api";
  * render either.
  */
 export function useFeatures() {
+  const isGuest = useIsGuest();
   return useQuery({
+    enabled: !isGuest,
     queryKey: ["features"],
     queryFn: async () => {
       const { data } = await api.get<{ features: Record<FeatureKey, boolean> }>("/features");

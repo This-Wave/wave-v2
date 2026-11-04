@@ -11,7 +11,7 @@ import {
   Skeleton,
 } from "../../components/v6";
 import { useDropoffPoints } from "../../lib/checkpoints";
-import { useAuthStore } from "../../store/authStore";
+import { useViewerUniversityId } from "../../store/authStore";
 import { useLayout } from "../../hooks/useLayout";
 import { StudentCheckpointsWeb } from "./web/StudentCheckpointsWeb";
 
@@ -26,7 +26,7 @@ export function CheckpointsScreen() {
 }
 
 function CheckpointsMobile() {
-  const universityId = useAuthStore((s) => s.profile?.universityId);
+  const universityId = useViewerUniversityId();
   const { data: checkpoints, isLoading, isError } = useDropoffPoints(universityId ?? undefined);
 
   return (

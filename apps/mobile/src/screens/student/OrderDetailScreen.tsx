@@ -57,7 +57,7 @@ export function OrderDetailScreen() {
     );
   }
 
-  const pill = statusPill(order.status);
+  const pill = statusPill(order.status, !!order.companyId);
   const ledger = buildOrderLedger(order);
 
   return (

@@ -68,7 +68,7 @@ function OrderTrackingPanel({ orderId, onClose }: { orderId: string; onClose: ()
   const { data: order } = useOrder(orderId, { poll: true });
   const cancelOrder = useCancelOrder();
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const pill = order ? statusPill(order.status) : null;
+  const pill = order ? statusPill(order.status, !!order.companyId) : null;
   const rider = order?.rider;
   const ledger = order ? buildOrderLedger(order) : null;
   const canCancel =
@@ -184,7 +184,7 @@ function OrderDetailPanel({ orderId, onClose }: { orderId: string; onClose: () =
       </RightPanel>
     );
   }
-  const pill = statusPill(order.status);
+  const pill = statusPill(order.status, !!order.companyId);
   const ledger = buildOrderLedger(order);
 
   return (

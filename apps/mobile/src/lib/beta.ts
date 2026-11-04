@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIsGuest } from "../store/authStore";
 import { api } from "./api";
 
 export type BetaStatus = "pending" | "approved" | "rejected" | "revoked";
@@ -13,7 +14,9 @@ export interface BetaApplication {
 
 /** This person's beta application, or null if they never applied. */
 export function useBetaApplication() {
+  const isGuest = useIsGuest();
   return useQuery({
+    enabled: !isGuest,
     queryKey: ["beta", "me"],
     queryFn: async () => {
       const { data } = await api.get<{ application: BetaApplication | null }>("/beta/me");

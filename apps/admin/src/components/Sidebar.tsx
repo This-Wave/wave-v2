@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   Banknote,
+  Boxes,
+  Truck,
   Bike,
   Building2,
   FlaskConical,
@@ -43,11 +45,13 @@ export function Sidebar({
   const operate: NavItem[] = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "ops.read" },
     { href: "/orders", label: "Orders", icon: Package, permission: "ops.read" },
+    { href: "/packing", label: "Packing point", icon: Boxes, permission: "hub.manage" },
     { href: "/riders", label: "Riders", icon: Bike, badge: pendingVerifications, permission: "pii.read" },
     { href: "/shops", label: "Shops", icon: Store, badge: pendingShops, permission: "ops.read" },
     { href: "/suggestions", label: "Suggested", icon: Lightbulb, permission: "ops.read" },
     { href: "/users", label: "Users", icon: Users, permission: "ops.read" },
     { href: "/checkpoints", label: "Checkpoints", icon: MapPin, permission: "ops.read" },
+    { href: "/delivery-company", label: "Delivery company", icon: Truck, permission: "companies.manage" },
     { href: "/config", label: "Config", icon: Settings2, permission: "ops.read" },
   ];
   const control: NavItem[] = [

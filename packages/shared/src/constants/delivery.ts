@@ -62,3 +62,14 @@ export function companyPayFor(
   const raw = rate.rateType === "flat" ? rate.rateValue : (deliveryFee * rate.rateValue) / 100;
   return Math.round(raw * 100) / 100;
 }
+
+/**
+ * The order number people say and write: "#WV-3F9A21". The same everywhere
+ * (student app, company list, packing point, bag label), so a bag can be
+ * matched to its order by eye. Last six characters of the UUID, because every
+ * seeded id starts with zeros.
+ */
+export function orderRef(orderId: string): string {
+  const clean = orderId.replace(/[^a-zA-Z0-9]/g, "");
+  return `#WV-${clean.slice(-6).toUpperCase()}`;
+}
