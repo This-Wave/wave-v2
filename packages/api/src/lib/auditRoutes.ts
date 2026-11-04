@@ -108,6 +108,8 @@ export const ROUTE_AUDIT: Record<string, RouteAudit> = {
   "DELETE /v1/admin/companies/:id/members/:profileId": { action: "company.member_remove_attempted", category: "rider", entityType: "profile", entityParam: "profileId" },
   "POST /v1/admin/companies/:id/list-link": { action: "company.list_link_attempted", category: "rider", entityType: "delivery_company", entityParam: "id" },
   "DELETE /v1/admin/companies/:id/list-link": { action: "company.list_link_disable_attempted", category: "rider", entityType: "delivery_company", entityParam: "id" },
+  "POST /v1/admin/hub/received": { action: "hub.received_attempted", category: "order", body: ["orderIds"] },
+  "POST /v1/admin/hub/ready": { action: "hub.ready_attempted", category: "order", body: ["orderIds"] },
   "PUT /v1/admin/delivery-mode": { action: "delivery_mode.change_attempted", category: "config", body: ["mode", "companyId"] },
   "POST /v1/dispatch/orders/:id/assign": { action: "order.assign_attempted", category: "order", entityType: "order", entityParam: "id", body: ["riderId"] },
   "POST /v1/dispatch/orders/:id/unassign": { action: "order.unassign_attempted", category: "order", entityType: "order", entityParam: "id" },

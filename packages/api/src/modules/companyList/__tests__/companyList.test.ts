@@ -24,6 +24,7 @@ function prisma(opts: { mode?: "company" | "independent"; companyActive?: boolea
   const fresh = opts.fresh ?? [];
   return {
     platformConfig: {
+      findUnique: vi.fn().mockResolvedValue(null),
       findMany: vi.fn().mockResolvedValue(
         mode === "company"
           ? [{ key: "delivery_mode", value: "company" }, { key: "delivery_company_id", value: CO }]
@@ -73,15 +74,23 @@ describe("the company's private list link", () => {
       data: { companyId: CO, status: "rider_assigned" },
     });
     expect(pushToProfiles).toHaveBeenCalledOnce();
+    // Wave's voice only: the student is never told a company exists.
+    const pushed = JSON.stringify((pushToProfiles as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]);
+    expect(pushed).not.toMatch(/Swift|company/i);
     const body = res.json();
-    expect(body.counts).toEqual({ toDeliver: 1, delivered: 0, cancelled: 1 });
-    expect(body.orders[0]).toMatchObject({ ref: "DDDDDDDD", student: "Ama", to: "Quad" });
+    expect(body.counts).toEqual({ toCollect: 1, done: 0, cancelled: 1 });
+    expect(body.orders[0]).toMatchObject({ ref: "DDDDDDDD", from: "Fresh Mart", items: "Water" });
+    expect(body.bringTo).toBe("the Wave packing point");
   });
 
-  test("never carries a phone number", async () => {
-    const app = await buildTestApp(companyListRoutes, { prisma: prisma(), user: null });
+  test("carries nothing about the student: no name, phone or checkpoint", async () => {
+    const p = prisma();
+    const app = await buildTestApp(companyListRoutes, { prisma: p, user: null });
     const res = await app.inject({ method: "GET", url: `/${TOKEN}` });
-    expect(res.body).not.toMatch(/phone/i);
+    expect(res.body).not.toMatch(/phone|Ama|Quad|student/i);
+    const select = p.order.findMany.mock.calls.at(-1)?.[0].select;
+    expect(select).not.toHaveProperty("student");
+    expect(select).not.toHaveProperty("checkpoint");
   });
 
   test("hands nothing over once Wave switches back to independent riders", async () => {
@@ -98,7 +107,7 @@ describe("the company's private list link", () => {
     const app = await buildTestApp(companyListRoutes, { prisma: prisma(), user: null });
     const res = await app.inject({ method: "GET", url: `/${TOKEN}?format=csv` });
     expect(res.headers["content-type"]).toMatch(/text\/csv/);
-    expect(res.body).toMatch(/CANCELLED - do not deliver/);
+    expect(res.body).toMatch(/CANCELLED - do not collect/);
   });
 });
 

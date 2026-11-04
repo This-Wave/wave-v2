@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { runSheetQuerySchema } from "@wave/shared";
+import { DEFAULT_HUB_ADDRESS, HUB_ADDRESS_KEY, HUB_STAGE_COPY, runSheetQuerySchema } from "@wave/shared";
 import { activeDelivery } from "../companies/mode";
 import { pushToProfiles } from "../notifications/dispatch";
 import { COMPANY_LIST_RATE_LIMIT } from "../../plugins/rateLimit";
@@ -17,9 +17,11 @@ import { hashListToken } from "./token";
  * Cancelled orders stay on the list, marked, so a printed copy can be checked
  * against it.
  *
- * Because the link has no login it carries the least data that still lets a
- * run happen: shop, checkpoint, items, the student's first name and the order
- * number they will show. No phone numbers.
+ * The company only collects: everything goes to Wave's packing point, where
+ * Wave packs it into Wave bags and delivers it (owner, 2026-11-04). So the
+ * list carries what a collection needs and nothing about the student at all:
+ * where to collect, what, and the order number to write on it. No names, no
+ * phone numbers, no checkpoints. Students are never told a company exists.
  */
 
 const LIST_STATUSES = ["rider_assigned", "en_route", "at_checkpoint", "delivered", "cancelled", "refunded"] as const;
@@ -33,9 +35,7 @@ const LIST_SELECT = {
   shop: { select: { name: true, locationText: true } },
   suggestion: { select: { name: true, locationText: true } },
   originCheckpoint: { select: { name: true } },
-  checkpoint: { select: { name: true } },
   university: { select: { name: true } },
-  student: { select: { fullName: true } },
 } as const;
 
 function todayUtc(): string {
@@ -92,17 +92,14 @@ export async function companyListRoutes(fastify: FastifyInstance) {
                 orderId: o.id,
                 status: "rider_assigned" as const,
                 changedBy: null,
-                note: `Handed to ${company.name} (list opened)`,
+                note: "Collecting (company list opened)",
               })),
             });
             await pushToProfiles({
               fastify,
               log: request.log,
               profileIds: [...new Set(taken.map((o) => o.studentId))],
-              payload: {
-                title: "With the delivery company",
-                body: `${company.name} has your order.`,
-              },
+              payload: { ...HUB_STAGE_COPY.rider_assigned },
             });
           }
         }
@@ -111,28 +108,29 @@ export async function companyListRoutes(fastify: FastifyInstance) {
       const orders = await fastify.prisma.order.findMany({
         where: { scheduledDate, companyId: company.id, status: { in: [...LIST_STATUSES] } },
         select: LIST_SELECT,
-        orderBy: [{ checkpointId: "asc" }, { createdAt: "asc" }],
+        orderBy: [{ shopId: "asc" }, { originCheckpointId: "asc" }, { createdAt: "asc" }],
       });
+      const hub = await fastify.prisma.platformConfig.findUnique({ where: { key: HUB_ADDRESS_KEY } });
+      const bringTo = hub?.value?.trim() || DEFAULT_HUB_ADDRESS;
       const rows = orders.map((o) => ({
         ref: o.id.slice(0, 8).toUpperCase(),
         cancelled: o.status === "cancelled" || o.status === "refunded",
-        delivered: o.status === "delivered",
+        // The company's part ends when Wave receives it at the packing point.
+        delivered: o.status === "en_route" || o.status === "at_checkpoint" || o.status === "delivered",
         from:
           o.shop?.name ?? o.suggestion?.name ?? o.originCheckpoint?.name ?? "",
         fromDetail: o.shop?.locationText ?? o.suggestion?.locationText ?? null,
-        to: o.checkpoint?.name ?? "",
         campus: o.university?.name ?? "",
         items: o.itemDescription,
-        student: (o.student?.fullName ?? "").trim().split(/\s+/)[0] ?? "",
         kind: o.orderType,
       }));
 
       if (format === "csv") {
         const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
         const lines = [
-          ["Order", "From", "To", "Campus", "Items", "Student", "Status"].map(esc).join(","),
+          ["Order", "Collect from", "Where", "Items", "Bring to", "Status"].map(esc).join(","),
           ...rows.map((r) =>
-            [r.ref, r.from, r.to, r.campus, r.items, r.student, r.cancelled ? "CANCELLED - do not deliver" : r.delivered ? "Delivered" : "To deliver"]
+            [r.ref, r.from, r.fromDetail ?? "", r.items, bringTo, r.cancelled ? "CANCELLED - do not collect" : r.delivered ? "Brought in" : "To collect"]
               .map(esc)
               .join(","),
           ),
@@ -147,10 +145,11 @@ export async function companyListRoutes(fastify: FastifyInstance) {
       return reply.header("cache-control", "no-store").send({
         company: { name: company.name },
         date,
+        bringTo,
         receivingOrders: delivery.mode === "company" && delivery.company?.id === company.id,
         counts: {
-          toDeliver: rows.filter((r) => !r.cancelled && !r.delivered).length,
-          delivered: rows.filter((r) => r.delivered).length,
+          toCollect: rows.filter((r) => !r.cancelled && !r.delivered).length,
+          done: rows.filter((r) => r.delivered).length,
           cancelled: rows.filter((r) => r.cancelled).length,
         },
         orders: rows,
