@@ -800,7 +800,10 @@ export async function orderRoutes(fastify: FastifyInstance) {
       if (order.studentId !== request.user!.id) {
         return reply.code(403).send({ error: "Not your order" });
       }
-      if (!order.riderId) {
+      // A company order has no Wave rider: the company's riders work from the
+      // list link, so the student's "I have my order" is how it closes.
+      const companyOrder = !!order.companyId;
+      if (!order.riderId && !companyOrder) {
         // Nobody has collected it, so there is nothing to have received. Without
         // this a student could close an order that no rider ever touched, and
         // still be counted a delivery towards their loyalty discount.
@@ -811,7 +814,14 @@ export async function orderRoutes(fastify: FastifyInstance) {
       }
 
       const deliverable = await fastify.prisma.order.updateMany({
-        where: { id, status: { in: allowedPredecessors("delivered") } },
+        where: {
+          id,
+          status: {
+            in: companyOrder
+              ? ["rider_assigned", "en_route", "at_checkpoint"]
+              : allowedPredecessors("delivered"),
+          },
+        },
         data: { status: "delivered", deliveredAt: new Date(), deliveryPinAttempts: 0 },
       });
       if (deliverable.count === 0) {
