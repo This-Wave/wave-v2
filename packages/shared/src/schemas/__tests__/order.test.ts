@@ -181,8 +181,9 @@ describe("createOrderSchema — shared rules", () => {
       .toBe(false);
   });
 
-  test("rejects a delivery day outside the standard two", () => {
-    expect(createOrderSchema.safeParse(buyForMe({ deliveryDay: "tuesday" })).success).toBe(false);
+  test("accepts every weekday, rejects anything else", () => {
+    expect(createOrderSchema.safeParse(buyForMe({ deliveryDay: "tuesday" })).success).toBe(true);
+    expect(createOrderSchema.safeParse(buyForMe({ deliveryDay: "someday" })).success).toBe(false);
   });
 
   test("rejects an unknown order type", () => {

@@ -28,7 +28,7 @@ const DECKS: Record<SelfServeProfileRole, Card[]> = {
   student: [
     {
       title: "Wave runs on a schedule",
-      body: "Wave isn't on-demand. Runs go out on Sundays and Wednesdays, and you order before the cutoff for the next one. Anything outside those days costs more.",
+      body: "Wave delivers every day. Order by noon for the same day; after noon it goes tomorrow.",
     },
     {
       title: "Ask for anything",

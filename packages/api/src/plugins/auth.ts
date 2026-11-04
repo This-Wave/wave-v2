@@ -29,7 +29,7 @@ function sessionIdFromJwt(token: string): string | null {
 }
 
 // Roles mirror `profiles.role` in packages/db/prisma/schema.prisma.
-export type Role = "student" | "rider" | "shop_owner" | "admin";
+export type Role = "student" | "rider" | "shop_owner" | "admin" | "dispatcher";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -41,6 +41,8 @@ declare module "fastify" {
       staffRole?: string | null;
       /** Campus admins: the only university they may act on. Null for HQ and customers. */
       campusId?: string | null;
+      /** Company riders and dispatchers: the delivery company they work for. */
+      companyId?: string | null;
     };
   }
 }
@@ -73,6 +75,7 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
           universityId: true,
           staffRole: true,
           adminUniversityId: true,
+          companyId: true,
         },
       });
       if (!profile) {
@@ -85,6 +88,7 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
         universityId: profile.universityId,
         staffRole: profile.role === "admin" ? profile.staffRole : null,
         campusId: profile.role === "admin" && isCampusRole(profile.staffRole) ? profile.adminUniversityId : null,
+        companyId: profile.role === "rider" || profile.role === "dispatcher" ? profile.companyId : null,
       };
       if (!profile.isActive) {
         // Attributed, so the log shows *which* banned account keeps trying.

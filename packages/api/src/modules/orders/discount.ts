@@ -1,4 +1,5 @@
 import type { OrderTotalInput } from "@wave/shared";
+import { RUN_DAYS } from "@wave/shared";
 
 // Never trust a client-sent total — this is the single source of truth,
 // called only with server-loaded prices/fees/config.
@@ -33,6 +34,5 @@ export function calculateDiscount({
 }
 
 export function isStandardDeliveryDay(date: Date): boolean {
-  const day = date.getDay(); // 0 = Sunday, 3 = Wednesday
-  return day === 0 || day === 3;
+  return RUN_DAYS.includes(date.getUTCDay());
 }

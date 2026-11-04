@@ -4,8 +4,9 @@ import {
   DEFAULT_DELIVERY_FEE_GHS,
   DEFAULT_LOYALTY_DISCOUNT_PCT,
   DEFAULT_SPECIAL_ORDER_LEAD_HOURS,
-  DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
+  deliveryDayOf,
 } from "@wave/shared";
+import type { DeliveryDay } from "../types";
 
 // The Wave schedule lives in @wave/shared so the server's cutoff reminder and
 // the app's countdown cannot drift apart. Re-exported here because these were
@@ -16,6 +17,7 @@ export {
   nextRunCutoff,
   isCutoffPassedToday,
   upcomingRunDays,
+  deliveryDayOf,
   msUntilCutoff,
 } from "@wave/shared";
 
@@ -46,7 +48,8 @@ export function estimateOrderTotal(input: {
   deliveryFee?: number;
 }) {
   const deliveryFee = input.deliveryFee ?? DEFAULT_DELIVERY_FEE_GHS;
-  const surchargePct = input.isSpecialOrder ? DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT : 0;
+  // No rush surcharge since every day became a delivery day (2026-11-04).
+  const surchargePct = 0;
   const discountPct = input.rewardReady ? DEFAULT_LOYALTY_DISCOUNT_PCT : 0;
 
   const surchargeAmount = (deliveryFee * surchargePct) / 100;
@@ -141,9 +144,10 @@ export function isStandardRunDay(date: Date): boolean {
 }
 
 /** The `deliveryDay` value the API expects for a chosen date. */
-export function deliveryDayFor(date: Date, isSpecialOrder: boolean): "sunday" | "wednesday" | "special" {
-  if (isSpecialOrder) return "special";
-  return date.getDay() === 0 ? "sunday" : "wednesday";
+export function deliveryDayFor(date: Date, _isSpecialOrder?: boolean): DeliveryDay {
+  // Every day is a delivery day; the second argument is kept so existing
+  // callers compile, and ignored.
+  return deliveryDayOf(date);
 }
 
 /**

@@ -96,7 +96,15 @@ export type OrderStatus =
   | "cancelled"
   | "refunded";
 
-export type DeliveryDay = "sunday" | "wednesday" | "special";
+export type DeliveryDay =
+  | "sunday"
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "special";
 
 export type OrderType = "buy_for_me" | "pickup" | "shop_pickup";
 

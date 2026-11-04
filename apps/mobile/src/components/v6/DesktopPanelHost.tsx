@@ -257,7 +257,7 @@ function WaveCalendarPanel({ onClose }: { onClose: () => void }) {
       }
     >
       <Text className="mb-4 font-sans text-body text-muted">
-        Sunday and Wednesday are standard. Any other day is rush.
+        Every day. Order by noon for the same day.
       </Text>
       <Calendar
         month={month}
@@ -274,7 +274,7 @@ function WaveCalendarPanel({ onClose }: { onClose: () => void }) {
           <Text className="mt-1 font-sans text-body text-muted">
             {isRush
               ? `Rush — ${DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT}% more on the fee.`
-              : "Standard Wave. No surcharge."}
+              : "Order by noon that day."}
           </Text>
         </View>
       ) : null}

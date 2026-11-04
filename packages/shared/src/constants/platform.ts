@@ -90,7 +90,15 @@ export const ALLOWED_ID_TYPES_BY_RIDER_TYPE: Record<RiderType, readonly string[]
   external: ["ghana_card", "passport"],
 };
 
-export const STANDARD_DELIVERY_DAYS = ["sunday", "wednesday"] as const;
+export const STANDARD_DELIVERY_DAYS = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+] as const;
 
 export const PROFILE_ROLES = ["student", "rider", "shop_owner", "admin"] as const;
 export type ProfileRole = (typeof PROFILE_ROLES)[number];
@@ -148,7 +156,19 @@ export function normalizeShopName(name: string): string {
   );
 }
 
-export const DELIVERY_DAYS = ["sunday", "wednesday", "special"] as const;
+// `special` stays accepted so a client built before 2026-11-04 (when every day
+// became a delivery day) can still place an order; the server stores the real
+// weekday instead and charges no surcharge.
+export const DELIVERY_DAYS = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "special",
+] as const;
 export type DeliveryDay = (typeof DELIVERY_DAYS)[number];
 
 

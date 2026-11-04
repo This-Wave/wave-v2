@@ -17,13 +17,34 @@
 export const CUTOFF_HOUR = 12;
 
 /**
- * Sunday and Wednesday, as `Date#getDay` numbers.
+ * Every day of the week, as `Date#getDay` numbers (since 2026-11-04; it was
+ * Sunday and Wednesday only). Kept as a list rather than deleted so a day can
+ * be taken out again by editing one line.
  *
  * Typed `readonly number[]` rather than the literal tuple: callers test
- * membership with `RUN_DAYS.includes(date.getDay())`, and a `readonly [0, 3]`
+ * membership with `RUN_DAYS.includes(date.getDay())`, and a literal tuple
  * makes that a type error because `getDay()` returns a plain number.
  */
-export const RUN_DAYS: readonly number[] = [0, 3];
+export const RUN_DAYS: readonly number[] = [0, 1, 2, 3, 4, 5, 6];
+
+const DAY_ENUM = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
+
+/** The `deliveryDay` enum value for a date, e.g. `"monday"`. */
+export function deliveryDayOf(date: Date): (typeof DAY_ENUM)[number] {
+  return DAY_ENUM[date.getDay()] ?? "sunday";
+}
+
+/**
+ * Has ordering for `day` already closed at `now`? True for any day before
+ * today and for today from noon on. Compared on UTC calendar days because
+ * the API parses `YYYY-MM-DD` as UTC midnight and Ghana is UTC+0.
+ */
+export function isDayClosed(day: Date, now: Date = new Date()): boolean {
+  const dayUtc = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate());
+  const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  if (dayUtc < todayUtc) return true;
+  return dayUtc === todayUtc && now.getUTCHours() >= CUTOFF_HOUR;
+}
 
 /** The next moment ordering closes, strictly in the future. */
 export function nextRunCutoff(now: Date = new Date()): Date {

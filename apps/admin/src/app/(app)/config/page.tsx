@@ -31,12 +31,6 @@ const GROUPS: { title: string; keys: { key: string; label: string; suffix?: stri
         suffix: "GH₵",
         hint: "Every order except a pickup from an Accra zone, which uses the zone fee below.",
       },
-      {
-        key: "special_order_surcharge_pct",
-        label: "Special order surcharge",
-        suffix: "%",
-        hint: "Added to the delivery fee for special orders.",
-      },
     ],
   },
   {
@@ -77,20 +71,13 @@ const GROUPS: { title: string; keys: { key: string; label: string; suffix?: stri
       },
     ],
   },
-  {
-    title: "Scheduling",
-    keys: [
-      {
-        key: "special_order_lead_hours",
-        label: "Special order lead time",
-        suffix: "hours",
-        hint: "Minimum notice before a special order's delivery date.",
-      },
-    ],
-  },
 ];
 
-const KNOWN_KEYS = GROUPS.flatMap((g) => g.keys.map((k) => k.key));
+// Retired 2026-11-04 when every day became a delivery day: no rush orders, so
+// no surcharge or lead time. Rows may still exist in the table; keep them off
+// the page so nobody edits a setting that does nothing.
+const RETIRED_KEYS = ["special_order_surcharge_pct", "special_order_lead_hours"];
+const KNOWN_KEYS = [...GROUPS.flatMap((g) => g.keys.map((k) => k.key)), ...RETIRED_KEYS];
 
 export default function ConfigPage() {
   const { accessToken, can } = useAdminAuth();

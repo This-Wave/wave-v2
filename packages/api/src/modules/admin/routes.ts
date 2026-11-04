@@ -518,7 +518,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
     const order = await fastify.prisma.order.findUnique({ where: { id: orderId } });
     if (!order || !inCampus(request, order.universityId)) return outsideCampus(reply, "Order not found");
-    if (!order.riderId) {
+    if (!order.riderId && !order.companyId) {
       return reply.code(409).send({ error: "No rider has picked this order up" });
     }
     if (order.status === "delivered") {

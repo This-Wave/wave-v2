@@ -40,6 +40,10 @@ const orderScalars = {
   shopAcceptedAt: true,
   deliveredAt: true,
   notes: true,
+  // Set when the order goes through Wave's packing point (company mode). An
+  // opaque id: the app uses it only to show Wave's own stages (Collecting,
+  // Packing, Ready). Students are never told a delivery company exists.
+  companyId: true,
   cancellationReason: true,
   createdAt: true,
   updatedAt: true,
