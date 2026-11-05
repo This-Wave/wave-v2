@@ -1,0 +1,115 @@
+# DigitalOcean App Platform — Wave API (production).
+# Create:  doctl apps create --spec .do/api.yaml
+# Runbook: docs/digitalocean-hosting.md
+#
+# `fra` because Neon is in eu-central-1 (Frankfurt); the API queries it on
+# nearly every request.
+#
+# SECRET values are never committed: fill them in the dashboard after creating
+# the app. Once it exists, update from `doctl apps spec get` rather than this
+# file, which has no secret values and can wipe the live ones.
+name: wave-api
+region: fra
+
+envs:
+  # App-level so the migrate job and the service read the same database.
+  - key: DATABASE_URL # Neon pooled connection string
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: DIRECT_URL # Neon direct (non-pooled) string; migrations cannot use the pooler
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+
+jobs:
+  # Runs after the build, before the new version takes traffic. A failed
+  # migration stops the deploy and the old version keeps serving.
+  - name: migrate
+    kind: PRE_DEPLOY
+    github:
+      repo: This-Wave/wave-v2
+      branch: main
+      deploy_on_push: true
+    source_dir: /
+    environment_slug: node-js
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    build_command: npm ci --include=dev
+    run_command: npm run migrate:deploy --workspace @wave/db
+
+services:
+  - name: api
+    github:
+      repo: This-Wave/wave-v2
+      branch: main
+      deploy_on_push: true
+    # Repo root: the API imports @wave/shared and @wave/db, which build first.
+    source_dir: /
+    environment_slug: node-js
+    # Always on. Paystack posts the payment webhook here and does not wait for a
+    # cold start, and the abandoned-checkout sweep is an in-process timer.
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    instance_count: 1
+    build_command: npm ci --include=dev && npm run build --workspace packages/api
+    run_command: npm start --workspace packages/api
+    http_port: 8080
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 20
+    alerts:
+      - rule: MEM_UTILIZATION
+        operator: GREATER_THAN
+        value: 85
+        window: FIVE_MINUTES
+      - rule: RESTART_COUNT
+        operator: GREATER_THAN
+        value: 3
+        window: FIVE_MINUTES
+    envs:
+      - key: NODE_ENV
+        scope: RUN_TIME
+        value: production
+      # Must be this app's own public URL WITH https:// — the env schema rejects
+      # a bare hostname and the API will not boot. Paystack sends payers' browsers
+      # to ${APP_URL}/v1/payments/callback.
+      - key: APP_URL
+        scope: RUN_TIME
+        value: https://CHANGE-ME.ondigitalocean.app
+      # Comma-separated: admin URL, student web URL, http://localhost:8081
+      - key: CORS_ORIGINS
+        scope: RUN_TIME
+        value: https://CHANGE-ME-admin.ondigitalocean.app,https://CHANGE-ME-web.ondigitalocean.app
+      - key: SUPABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: SUPABASE_ANON_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: JWT_SECRET # encrypts delivery-PIN ciphertext; must match Render's or in-app PINs stop decrypting
+        scope: RUN_TIME
+        type: SECRET
+      - key: PAYSTACK_SECRET_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: MNOTIFY_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: MNOTIFY_SENDER_ID # `Wave` is declined by mNotify
+        scope: RUN_TIME
+        value: TACCBooking
+      - key: SMS_HOOK_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: SENTRY_DSN
+        scope: RUN_TIME
+        type: SECRET
+      - key: RESEND_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: RESEND_FROM
+        scope: RUN_TIME
+        value: Wave <notifications@wave.app>
+      - key: SWEEP_ENABLED
+        scope: RUN_TIME
+        value: "true"

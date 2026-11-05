@@ -1,0 +1,48 @@
+# DigitalOcean App Platform — Wave student web app / PWA (production).
+# Create:  doctl apps create --spec .do/web.yaml
+# Runbook: docs/digitalocean-hosting.md
+#
+# A static site: no server, no cold start, and static sites sit in App
+# Platform's free allowance. Replaces apps/mobile/vercel.json.
+name: wave-web
+region: fra
+
+static_sites:
+  - name: web
+    github:
+      repo: This-Wave/wave-v2
+      branch: main
+      deploy_on_push: true
+    source_dir: /
+    environment_slug: node-js
+    build_command: npm ci --include=dev && npm run build --workspace @wave/shared && npm run build:web --workspace apps/mobile
+    output_dir: apps/mobile/dist
+    # Client-side routing: every unknown path loads the app shell.
+    catchall_document: index.html
+    # EXPO_PUBLIC_* are inlined at BUILD time. Changing one needs a rebuild.
+    envs:
+      - key: EXPO_PUBLIC_API_URL # with https:// and the /v1 suffix
+        scope: BUILD_TIME
+        value: https://CHANGE-ME.ondigitalocean.app/v1
+      - key: EXPO_PUBLIC_SUPABASE_URL
+        scope: BUILD_TIME
+        type: SECRET
+      - key: EXPO_PUBLIC_SUPABASE_ANON_KEY
+        scope: BUILD_TIME
+        type: SECRET
+      - key: EXPO_PUBLIC_TERMS_URL
+        scope: BUILD_TIME
+        value: https://CHANGE-ME-web.ondigitalocean.app/legal/terms.html
+      - key: EXPO_PUBLIC_PRIVACY_URL
+        scope: BUILD_TIME
+        value: https://CHANGE-ME-web.ondigitalocean.app/legal/privacy.html
+      - key: EXPO_PUBLIC_SENTRY_DSN
+        scope: BUILD_TIME
+        type: SECRET
+      # Copy from Vercel's project settings; empty hides that contact option.
+      - key: EXPO_PUBLIC_SUPPORT_EMAIL
+        scope: BUILD_TIME
+        value: ""
+      - key: EXPO_PUBLIC_SUPPORT_WHATSAPP
+        scope: BUILD_TIME
+        value: ""
