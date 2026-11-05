@@ -299,8 +299,9 @@ feature/my-thing → PR into develop → tested → develop → PR into main →
 
 ## Deployment
 
-**Moving to DigitalOcean (2026-11):** production API, admin and student web are
-specced in [`.do/`](.do/) as App Platform apps; staging stays on Render free.
+**Moving to DigitalOcean (2026-11):** production API, admin and student web run
+as Docker containers on one droplet, behind Caddy
+([`deploy/droplet/`](deploy/droplet/)); staging stays on Render free.
 Follow [`docs/digitalocean-hosting.md`](docs/digitalocean-hosting.md). Until the
 cutover in that runbook is done, the hosts below are still live.
 

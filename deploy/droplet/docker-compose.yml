@@ -1,0 +1,80 @@
+# Lives on the droplet at /opt/wave/docker-compose.yml, next to .env (secrets,
+# never committed), Caddyfile and deploy.sh. The deploy workflow copies this
+# file, the Caddyfile and deploy.sh over on every deploy. Run ./deploy.sh rather
+# than `docker compose` directly: it sets IMAGE_TAG.
+#
+# Only `web` (Caddy) publishes ports. Docker's published ports bypass ufw, and
+# the API trusts one proxy hop for client IPs, so publishing api or admin would
+# expose them directly and let callers spoof their address.
+
+name: wave
+
+x-logging: &logging
+  # The default json-file driver never rotates, and would fill the disk.
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  migrate:
+    image: ghcr.io/this-wave/wave-api:${IMAGE_TAG:?run ./deploy.sh <tag>}
+    command: ["npm", "run", "migrate:deploy", "--workspace", "@wave/db"]
+    env_file: .env
+    restart: "no"
+    logging: *logging
+
+  api:
+    image: ghcr.io/this-wave/wave-api:${IMAGE_TAG:?run ./deploy.sh <tag>}
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      TRUST_PROXY_HOPS: "1"
+    depends_on:
+      # A failed migration stops here, and the running API is left in place.
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *logging
+
+  admin:
+    image: ghcr.io/this-wave/wave-admin:${IMAGE_TAG:?run ./deploy.sh <tag>}
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    restart: unless-stopped
+    logging: *logging
+
+  web:
+    image: ghcr.io/this-wave/wave-web:${IMAGE_TAG:?run ./deploy.sh <tag>}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+      API_HOST: ${API_HOST:?set API_HOST in .env}
+      ADMIN_HOST: ${ADMIN_HOST:?set ADMIN_HOST in .env}
+      WEB_HOST: ${WEB_HOST:?set WEB_HOST in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates. Losing this volume means re-issuing every certificate,
+      # and Let's Encrypt rate-limits that.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - admin
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  caddy_data:
+  caddy_config:
