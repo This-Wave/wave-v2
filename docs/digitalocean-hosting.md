@@ -1,8 +1,12 @@
 # Moving production to a DigitalOcean droplet
 
-Production runs on one DigitalOcean droplet (a virtual server) in Amsterdam
-(`ams3`), a few milliseconds from Neon in Frankfurt, with each part of Wave in
-its own Docker container. Frankfurt (`fra1`) doesn't offer the $4 or $6 sizes. The
+Production runs on one DigitalOcean droplet (a virtual server) in New York
+(`nyc3`), next to the production Neon database in `us-east-2` (Ohio), with each
+part of Wave in its own Docker container. Put the droplet in the region closest
+to the database, not the users: every API request makes several database round
+trips in a row, so that distance is paid many times per request, while the
+user's distance is paid once. Not every region offers the $4 and $6 sizes (`fra1`
+doesn't); `doctl compute region list -o json` shows which do. The
 database stays on Neon and auth/storage stay on Supabase; only the hosting
 moves.
 
@@ -72,7 +76,7 @@ From the repo root:
 
 ```
 doctl compute droplet create wave-prod \
-  --region ams3 --size s-1vcpu-512mb-10gb --image ubuntu-24-04-x64 \
+  --region nyc3 --size s-1vcpu-512mb-10gb --image ubuntu-24-04-x64 \
   --ssh-keys <ssh-key-id> \
   --user-data-file deploy/droplet/cloud-init.yaml \
   --enable-backups --enable-monitoring --wait
