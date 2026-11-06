@@ -11,6 +11,7 @@ import { loadEnv, type Env } from "./config/env";
 import { parseCorsOrigins } from "./config/cors";
 import prismaPlugin from "./plugins/prisma";
 import authPlugin from "./plugins/auth";
+import watchPlugin from "./plugins/watch";
 import auditPlugin from "./plugins/audit";
 import rateLimitPlugin from "./plugins/rateLimit";
 import sweeperPlugin from "./plugins/sweeper";
@@ -64,6 +65,7 @@ export function buildApp(): FastifyInstance {
 
   app.register(prismaPlugin);
   app.register(rateLimitPlugin);
+  app.register(watchPlugin);
   app.register(authPlugin);
   // Global hooks: every mutation and every refusal lands in audit_event.
   app.register(auditPlugin);

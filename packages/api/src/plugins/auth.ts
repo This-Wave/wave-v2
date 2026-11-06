@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import type { Env } from "../config/env";
+import { watchLabel } from "./watch";
 import { createServerSupabaseClient } from "../lib/supabaseServer";
 import { recordAudit } from "../lib/audit";
 import { hasPermission, isCampusRole, type Permission } from "@wave/shared";
@@ -43,6 +44,8 @@ declare module "fastify" {
       campusId?: string | null;
       /** Company riders and dispatchers: the delivery company they work for. */
       companyId?: string | null;
+      /** A reviewer's test account. See `Profile.isTest`. */
+      isTest?: boolean;
     };
   }
 }
@@ -76,6 +79,7 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
           staffRole: true,
           adminUniversityId: true,
           companyId: true,
+          isTest: true,
         },
       });
       if (!profile) {
@@ -89,6 +93,7 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
         staffRole: profile.role === "admin" ? profile.staffRole : null,
         campusId: profile.role === "admin" && isCampusRole(profile.staffRole) ? profile.adminUniversityId : null,
         companyId: profile.role === "rider" || profile.role === "dispatcher" ? profile.companyId : null,
+        isTest: profile.isTest,
       };
       if (!profile.isActive) {
         // Attributed, so the log shows *which* banned account keeps trying.
@@ -117,6 +122,12 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
           );
           // The session event is not this request's event.
           request.auditRecorded = false;
+          if (profile.isTest) {
+            void fastify.activityWatch?.sendNow(
+              watchLabel(request.user),
+              `Signed in (IP ${request.ip}, ${request.headers["user-agent"] ?? "unknown device"})`,
+            );
+          }
         }
       }
     },

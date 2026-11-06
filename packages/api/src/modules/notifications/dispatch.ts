@@ -213,6 +213,7 @@ export async function notifyOrderStatus(args: {
         status: true,
         cancellationReason: true,
         orderType: true,
+        isTest: true,
         // ownerId, so the shop owner can be told what is happening to an order
         // they are fulfilling. Nothing before this ever notified them.
         shop: { select: { name: true, ownerId: true } },
@@ -242,6 +243,9 @@ export async function notifyOrderStatus(args: {
         payload: { ...student, data },
       });
     }
+
+    // A test order is the reviewer's alone; the shop and riders never hear of it.
+    if (order.isTest) return;
 
     const riderCopyFor = RIDER_COPY[status as NotifiableStatus];
     if (riderCopyFor && order.riderId) {

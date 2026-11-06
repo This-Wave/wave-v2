@@ -207,6 +207,10 @@ model Profile {
   /// Riders and dispatchers who work for a delivery company. A company rider is
   /// vouched for by the company (its roster), so Wave's own ID check is skipped.
   companyId         String?     @map("company_id")
+  /// An account handed to an outside reviewer (a payment provider's compliance
+  /// team, say). Its orders are stamped `Order.isTest`, it is left out of every
+  /// count, and with Telegram configured each thing it does is reported live.
+  isTest            Boolean     @default(false) @map("is_test")
   createdAt         DateTime    @default(now()) @map("created_at")
   updatedAt         DateTime    @updatedAt @map("updated_at")
 
@@ -471,6 +475,11 @@ model Order {
   refundStartedAt DateTime? @map("refund_started_at")
   // Last delivery-PIN resend, for the per-order cooldown. Each send costs money.
   lastPinResendAt DateTime? @map("last_pin_resend_at")
+
+  /// Copied from the student's `Profile.isTest` when the order is placed, so
+  /// every shop, rider, dispatch and stats query can drop it with one column
+  /// rather than a join. A test order is never offered to a real shop or rider.
+  isTest Boolean @default(false) @map("is_test")
 
   notes              String?
   cancellationReason String?             @map("cancellation_reason")
