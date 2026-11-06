@@ -258,6 +258,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
           scheduledDate,
           isSpecialOrder: false,
           status: "payment_pending",
+          isTest: request.user!.isTest ?? false,
           notes: input.notes,
           items: basket.lines.length
             ? {
@@ -332,7 +333,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
     // reading them has no relationship to the student yet and must not receive
     // their name, phone or student ID. See select.ts.
     const orders = await fastify.prisma.order.findMany({
-      where: { status: "confirmed", riderId: null, universityId: rider.universityId, ...externalOnly },
+      where: { status: "confirmed", riderId: null, isTest: false, universityId: rider.universityId, ...externalOnly },
       select: feedOrder,
     });
     // What each job pays, when the flag is on. Rider supply is what limits
@@ -393,7 +394,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
   // group these without a second request.
   fastify.get("/shop", { preHandler: [fastify.authenticate, fastify.requireRole("shop_owner")] }, async (request, reply) => {
     const orders = await fastify.prisma.order.findMany({
-      where: { shop: { ownerId: request.user!.id } },
+      where: { shop: { ownerId: request.user!.id }, isTest: false },
       select: clientSafeOrder,
       orderBy: { createdAt: "desc" },
     });
@@ -921,6 +922,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
           status: true,
           deliveryPinHash: true,
           deliveryPinCiphertext: true,
+          isTest: true,
           student: { select: { phone: true } },
         },
       });
@@ -949,6 +951,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
         fastify,
         log: request.log,
         phone: order.student.phone,
+        isTest: order.isTest,
         persist: ({ hash, ciphertext }) =>
           fastify.prisma.order
             .update({
@@ -999,6 +1002,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
           studentId: true,
           status: true,
           lastPinResendAt: true,
+          isTest: true,
           student: { select: { phone: true } },
         },
       });
@@ -1036,6 +1040,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
         fastify,
         log: request.log,
         phone: order.student.phone,
+        isTest: order.isTest,
         persist: ({ hash, ciphertext }) =>
           fastify.prisma.order
             .update({

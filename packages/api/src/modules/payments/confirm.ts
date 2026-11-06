@@ -124,6 +124,7 @@ export async function confirmDeliveryFeePaid(args: {
     fastify,
     log,
     phone: order.student.phone,
+    isTest: order.isTest,
     persist: ({ hash, ciphertext }) =>
       fastify.prisma.order
         .update({
@@ -140,7 +141,7 @@ export async function confirmDeliveryFeePaid(args: {
         .then(() => undefined),
   });
 
-  if (!smsSent) {
+  if (!smsSent && !order.isTest) {
     // The order is paid and confirmed either way — never fail the caller. A
     // non-2xx to the webhook makes Paystack retry, and the idempotency guard
     // above would then strand the retry as a no-op. The student recovers via
@@ -153,13 +154,15 @@ export async function confirmDeliveryFeePaid(args: {
 
   // Both are best-effort and never throw.
   await notifyOrderStatus({ fastify, log, orderId: order.id, status: "confirmed" });
-  await announceNewOrderToRiders({
-    fastify,
-    log,
-    orderId: order.id,
-    universityId: order.universityId,
-    shopName: order.shop?.name ?? "a nearby shop",
-  });
+  if (!order.isTest) {
+    await announceNewOrderToRiders({
+      fastify,
+      log,
+      orderId: order.id,
+      universityId: order.universityId,
+      shopName: order.shop?.name ?? "a nearby shop",
+    });
+  }
 
   await recordAudit(fastify, {
     action: "payment.confirmed",

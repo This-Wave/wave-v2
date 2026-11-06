@@ -45,6 +45,11 @@ const envSchema = z.object({
   MNOTIFY_API_KEY: z.string().optional(),
   MNOTIFY_SENDER_ID: z.string().max(11).default("Wave"),
 
+  // Live reports of what test accounts (`Profile.isTest`) do. Both unset = off.
+  // The chat id comes from the bot's getUpdates after you message it once.
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_CHAT_ID: z.string().optional(),
+
   // Transactional email (Resend). Optional like mNotify: unset means every send
   // is a silent no-op, which is what keeps tests and local dev offline. The
   // from-address must be on a domain verified in the Resend dashboard.

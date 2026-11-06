@@ -9,6 +9,11 @@ export interface IssueDeliveryPinArgs {
   /** E.164 phone of the student who placed the order. */
   phone: string;
   /**
+   * A test account's number is made up and may belong to a stranger, so the
+   * PIN is only shown in the app.
+   */
+  isTest?: boolean;
+  /**
    * Writes the bcrypt hash + encrypted PIN to the order. Awaited *before* the
    * SMS goes out, so a PIN in a student's hand is always one the DB can verify.
    */
@@ -28,6 +33,8 @@ export async function issueDeliveryPin(
   const { pin, hash } = await generateDeliveryPin();
   const ciphertext = encryptDeliveryPin(pin, args.fastify.config.JWT_SECRET);
   await args.persist({ hash, ciphertext });
+
+  if (args.isTest) return { smsSent: false, pin };
 
   const apiKey = args.fastify.config.MNOTIFY_API_KEY;
   if (!apiKey) {

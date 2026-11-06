@@ -71,7 +71,7 @@ export async function companyListRoutes(fastify: FastifyInstance) {
       const delivery = await activeDelivery(fastify);
       if (delivery.mode === "company" && delivery.company?.id === company.id) {
         const fresh = await fastify.prisma.order.findMany({
-          where: { scheduledDate, status: "confirmed", companyId: null, riderId: null },
+          where: { scheduledDate, status: "confirmed", companyId: null, riderId: null, isTest: false },
           select: { id: true, studentId: true },
         });
         if (fresh.length) {
@@ -106,7 +106,7 @@ export async function companyListRoutes(fastify: FastifyInstance) {
       }
 
       const orders = await fastify.prisma.order.findMany({
-        where: { scheduledDate, companyId: company.id, status: { in: [...LIST_STATUSES] } },
+        where: { scheduledDate, companyId: company.id, isTest: false, status: { in: [...LIST_STATUSES] } },
         select: LIST_SELECT,
         orderBy: [{ shopId: "asc" }, { originCheckpointId: "asc" }, { createdAt: "asc" }],
       });

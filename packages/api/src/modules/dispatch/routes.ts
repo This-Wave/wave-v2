@@ -64,6 +64,7 @@ export async function dispatchRoutes(fastify: FastifyInstance) {
     const orders = await fastify.prisma.order.findMany({
       where: {
         scheduledDate,
+        isTest: false,
         status: { in: [...RUN_SHEET_STATUSES] },
         OR: [
           { companyId },

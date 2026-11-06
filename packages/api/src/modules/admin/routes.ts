@@ -79,19 +79,20 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const [grouped, unrecorded, delivered] = await Promise.all([
       fastify.prisma.order.groupBy({
         by: ["failureReason"],
-        where: { ...campusWhere(request), createdAt: { gte: since }, failureReason: { not: null } },
+        where: { ...campusWhere(request), isTest: false, createdAt: { gte: since }, failureReason: { not: null } },
         _count: { _all: true },
       }),
       fastify.prisma.order.count({
         where: {
           ...campusWhere(request),
+          isTest: false,
           createdAt: { gte: since },
           status: { in: ["cancelled", "refunded"] },
           failureReason: null,
         },
       }),
       fastify.prisma.order.count({
-        where: { ...campusWhere(request), createdAt: { gte: since }, status: "delivered" },
+        where: { ...campusWhere(request), isTest: false, createdAt: { gte: since }, status: "delivered" },
       }),
     ]);
 
@@ -124,8 +125,8 @@ export async function adminRoutes(fastify: FastifyInstance) {
       activeRiders,
       revenueTodayResult,
     ] = await Promise.all([
-      fastify.prisma.order.count({ where: uni }),
-      fastify.prisma.profile.count({ where: uni }),
+      fastify.prisma.order.count({ where: { ...uni, isTest: false } }),
+      fastify.prisma.profile.count({ where: { ...uni, isTest: false } }),
       fastify.prisma.shop.count({ where: uni }),
       fastify.prisma.riderVerification.count({ where: { status: "pending", ...riderUni } }),
       // Shops a shop owner registered in the app that no admin has approved.
@@ -146,11 +147,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
         orderBy: { createdAt: "asc" },
         select: { createdAt: true },
       }),
-      fastify.prisma.order.count({ where: { createdAt: { gte: startOfToday }, ...uni } }),
+      fastify.prisma.order.count({ where: { createdAt: { gte: startOfToday }, isTest: false, ...uni } }),
       fastify.prisma.profile.count({ where: { role: "rider", isActive: true, ...uni } }),
       fastify.prisma.order.aggregate({
         where: {
           ...uni,
+          isTest: false,
           createdAt: { gte: startOfToday },
           status: { notIn: ["cancelled", "refunded", "payment_pending", "pending"] },
         },
@@ -175,6 +177,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
   const ADMIN_ORDER_SELECT = {
     id: true,
     status: true,
+    isTest: true,
     totalAmount: true,
     createdAt: true,
     student: { select: { fullName: true, phone: true } },
@@ -647,7 +650,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       orderBy: { createdAt: "desc" },
       include: {
         owner: { select: { id: true, fullName: true, phone: true } },
-        _count: { select: { products: true, orders: true } },
+        _count: { select: { products: true, orders: { where: { isTest: false } } } },
       },
     });
     return reply.send({ shops: maskPhonesUnlessAllowed(request, shops) });
