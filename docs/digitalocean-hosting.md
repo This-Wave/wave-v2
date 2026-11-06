@@ -1,7 +1,8 @@
 # Moving production to a DigitalOcean droplet
 
-Production runs on one DigitalOcean droplet (a virtual server) in Frankfurt
-(`fra1`), next to Neon, with each part of Wave in its own Docker container. The
+Production runs on one DigitalOcean droplet (a virtual server) in Amsterdam
+(`ams3`), a few milliseconds from Neon in Frankfurt, with each part of Wave in
+its own Docker container. Frankfurt (`fra1`) doesn't offer the $4 or $6 sizes. The
 database stays on Neon and auth/storage stay on Supabase; only the hosting
 moves.
 
@@ -18,10 +19,24 @@ stores them in GitHub's container registry (GHCR), then SSHes into the droplet
 and runs [`deploy.sh`](../deploy/droplet/deploy.sh). The droplet never builds
 anything, so a small one is enough.
 
-**Size and cost.** `s-1vcpu-2gb` (about $12/month, plus 20% for backups) leaves
-room for a second app. Wave alone fits in `s-1vcpu-1gb` (about $6). Check
-digitalocean.com/pricing before creating it. Staging stays on Render's free
-plan (`render.yaml`).
+**Size and cost.** Wave runs on the smallest droplet, `s-1vcpu-512mb-10gb`
+($4/month, plus $0.80 for weekly backups). Measured in the images: the API uses
+about 110 MB of memory and the admin about 80 MB, which with Caddy, Docker and
+Ubuntu comes to roughly 430 MB of the 512. That works, but leaves little
+headroom: compose caps each Node heap, and 1 GB of swap absorbs spikes.
+
+Move up a size when monitoring (droplet → Graphs) shows memory above ~90% most
+of the time, swap in steady use, or before adding a second app:
+
+| Size | RAM / disk | $/month |
+|---|---|---|
+| `s-1vcpu-512mb-10gb` | 512 MB / 10 GB | 4 |
+| `s-1vcpu-1gb` | 1 GB / 25 GB | 6 |
+| `s-1vcpu-2gb` | 2 GB / 50 GB | 12 |
+
+Resize from the dashboard (droplet → Resize, about a minute of downtime). Pick
+**CPU and RAM only** to keep the option of resizing back down; growing the disk
+is one-way. Staging stays on Render's free plan (`render.yaml`).
 
 **You look after the server.** Security updates install themselves, but a
 reboot after a kernel update, disk space and Docker upgrades are yours. Weekly
@@ -57,7 +72,7 @@ From the repo root:
 
 ```
 doctl compute droplet create wave-prod \
-  --region fra1 --size s-1vcpu-2gb --image ubuntu-24-04-x64 \
+  --region ams3 --size s-1vcpu-512mb-10gb --image ubuntu-24-04-x64 \
   --ssh-keys <ssh-key-id> \
   --user-data-file deploy/droplet/cloud-init.yaml \
   --enable-backups --enable-monitoring --wait
@@ -65,7 +80,7 @@ doctl compute droplet list --format Name,PublicIPv4
 ```
 
 [`cloud-init.yaml`](../deploy/droplet/cloud-init.yaml) installs Docker, opens
-only SSH, 80 and 443 in the firewall, turns off password logins, adds 2 GB of
+only SSH, 80 and 443 in the firewall, turns off password logins, adds 1 GB of
 swap, and creates a `deploy` user with your SSH key. It takes a few minutes
 after the droplet is up; it's done when this prints a version:
 

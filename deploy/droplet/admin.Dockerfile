@@ -15,12 +15,17 @@ ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ARG NEXT_PUBLIC_SENTRY_DSN
+ENV NEXT_STANDALONE=1
 RUN npm run build --workspace @wave/shared && npm run build --workspace apps/admin
 
+# Standalone output: server.js plus only the node_modules files it imports.
 FROM node:22-bookworm-slim
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000
+# Docker sets HOSTNAME to the container ID, and the standalone server binds to it.
+ENV HOSTNAME=0.0.0.0
 WORKDIR /app
-COPY --from=build /app /app
+COPY --from=build --chown=node:node /app/apps/admin/.next/standalone ./
+COPY --from=build --chown=node:node /app/apps/admin/.next/static ./apps/admin/.next/static
 USER node
 EXPOSE 3000
-CMD ["npm", "start", "--workspace", "apps/admin"]
+CMD ["node", "apps/admin/server.js"]

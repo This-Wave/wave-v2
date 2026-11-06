@@ -19,7 +19,7 @@ x-logging: &logging
 services:
   migrate:
     image: ghcr.io/this-wave/wave-api:${IMAGE_TAG:?run ./deploy.sh <tag>}
-    command: ["npm", "run", "migrate:deploy", "--workspace", "@wave/db"]
+    command: ["prisma", "migrate", "deploy", "--schema", "packages/db/prisma/schema.prisma"]
     env_file: .env
     restart: "no"
     logging: *logging
@@ -31,6 +31,9 @@ services:
       NODE_ENV: production
       PORT: "4000"
       TRUST_PROXY_HOPS: "1"
+      # Node sizes its heap from the host's memory, not what's free. On the
+      # 512 MB droplet that would let one process push the others into swap.
+      NODE_OPTIONS: --max-old-space-size=192
     depends_on:
       # A failed migration stops here, and the running API is left in place.
       migrate:
@@ -49,6 +52,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: "3000"
+      NODE_OPTIONS: --max-old-space-size=128
     restart: unless-stopped
     logging: *logging
 
