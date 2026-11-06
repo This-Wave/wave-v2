@@ -11,7 +11,7 @@ const { notifyOrderStatus, endOrderWithRefund } = vi.hoisted(() => ({
   endOrderWithRefund: vi.fn(),
 }));
 
-vi.mock("../../notifications/dispatch", () => ({ notifyOrderStatus }));
+vi.mock("../../notifications/dispatch", () => ({ notifyOrderStatus, notifyLoyaltyProgress: vi.fn() }));
 vi.mock("../../payments/refund", () => ({ endOrderWithRefund }));
 
 import { orderRoutes } from "../routes";

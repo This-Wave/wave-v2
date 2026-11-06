@@ -4,6 +4,7 @@ import type { Role } from "../../../plugins/auth";
 vi.mock("../../notifications/dispatch", () => ({
   notifyOrderStatus: vi.fn(),
   notifyGoodsCostRecorded: vi.fn(),
+  notifyLoyaltyProgress: vi.fn(),
   pushToProfiles: vi.fn().mockResolvedValue({ sent: 0 }),
 }));
 vi.mock("../../payments/refund", () => ({ endOrderWithRefund: vi.fn() }));
@@ -136,7 +137,7 @@ describe("the student closes a company order", () => {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
       orderStatusHistory: { create: vi.fn() },
-      studentDeliveryStats: { upsert: vi.fn() },
+      studentDeliveryStats: { upsert: vi.fn().mockResolvedValue({ rewardStamps: 1 }) },
     };
     const app = await buildTestApp(orderRoutes, { prisma: p, user: { id: "s1", role: "student" as Role } });
     const res = await app.inject({ method: "POST", url: `/${ORDER}/confirm-receipt` });

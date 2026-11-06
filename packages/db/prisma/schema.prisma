@@ -233,8 +233,30 @@ model Profile {
   groupBasketItems      GroupBasketItem[]     @relation("GroupBasketItems")
   betaApplication       BetaApplication?      @relation("BetaApplications")
   betaFeedback          BetaFeedback[]        @relation("BetaFeedback")
+  webPushSubscriptions  WebPushSubscription[]
 
   @@map("profiles")
+}
+
+/// A browser's push subscription, for the web app added to a home screen.
+/// Separate from `Profile.pushToken` (Expo, native only) because one person can
+/// have several: a phone's home-screen app and a laptop browser, say.
+model WebPushSubscription {
+  id        String   @id @default(uuid())
+  profileId String   @map("profile_id")
+  /// Unique per browser install. Re-subscribing from the same browser under a
+  /// different account moves the row rather than notifying both people.
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("web_push_subscriptions")
 }
 
 model Checkpoint {

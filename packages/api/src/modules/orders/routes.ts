@@ -27,7 +27,7 @@ import { findOrderForUser, redactStudentContactForShop } from "./access";
 import { allowedPredecessors } from "./transitions";
 import { clientSafeOrder, feedOrder } from "./select";
 import { endOrderWithRefund } from "../payments/refund";
-import { notifyGoodsCostRecorded, notifyOrderStatus } from "../notifications/dispatch";
+import { notifyLoyaltyProgress, notifyGoodsCostRecorded, notifyOrderStatus } from "../notifications/dispatch";
 import {
   ORDER_CREATE_RATE_LIMIT,
   PIN_RESEND_RATE_LIMIT,
@@ -1217,7 +1217,7 @@ async function settleDelivery(args: {
 
   // Two counters on purpose: `totalDeliveries` is the account's history and is
   // never reset, `rewardStamps` is what the one-shot discount spends.
-  await fastify.prisma.studentDeliveryStats.upsert({
+  const stats = await fastify.prisma.studentDeliveryStats.upsert({
     where: { studentId: order.studentId },
     create: { studentId: order.studentId, totalDeliveries: 1, rewardStamps: 1 },
     update: { totalDeliveries: { increment: 1 }, rewardStamps: { increment: 1 } },
@@ -1237,6 +1237,7 @@ async function settleDelivery(args: {
   }
 
   await notifyOrderStatus({ fastify, log, orderId: order.id, status: "delivered" });
+  await notifyLoyaltyProgress({ fastify, log, studentId: order.studentId, stamps: stats.rewardStamps });
   return updated;
 }
 

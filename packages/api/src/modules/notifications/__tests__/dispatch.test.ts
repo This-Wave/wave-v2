@@ -293,7 +293,7 @@ describe("announceNewOrderToRiders", () => {
         isActive: true,
         isVerified: true,
         universityId: "uni-1",
-        pushToken: { not: null },
+        OR: [{ pushToken: { not: null } }, { webPushSubscriptions: { some: {} } }],
       },
     });
   });
