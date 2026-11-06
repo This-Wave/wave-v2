@@ -11,7 +11,7 @@ import {
   MAX_REMINDERS_PER_DAY,
   type FeatureKey,
 } from "@wave/shared";
-import { pushToProfiles } from "./dispatch";
+import { HAS_PUSH, pushToProfiles } from "./dispatch";
 
 /**
  * The reminder sweep: cutoff reminders and abandoned-order nudges.
@@ -51,8 +51,10 @@ async function flagFor(
 
 /** How many reminders this person has already had in the last rolling day. */
 async function sentInLastDay(fastify: FastifyInstance, profileId: string, now: Date) {
+  // Only the nudges count; a "your rider is waiting" must not use up the day's
+  // allowance for them.
   return fastify.prisma.reminderLog.count({
-    where: { profileId, sentAt: { gte: new Date(now.getTime() - DAY_MS) } },
+    where: { profileId, kind: { in: ["cutoff", "abandoned"] }, sentAt: { gte: new Date(now.getTime() - DAY_MS) } },
   });
 }
 
@@ -97,7 +99,7 @@ export async function sweepCutoffReminders(ctx: Ctx): Promise<{ sent: number }> 
   const candidates = await fastify.prisma.profile.findMany({
     where: {
       role: "student",
-      pushToken: { not: null },
+      ...HAS_PUSH,
       // Has ordered before…
       studentOrders: { some: { status: "delivered" } },
       // …but not onto the Wave this reminder is about.
@@ -180,6 +182,58 @@ export async function sweepAbandonedNudges(ctx: Ctx): Promise<{ sent: number }> 
   }
 
   if (sent > 0) log.info({ sent }, "Abandoned-order nudges sent");
+  return { sent };
+}
+
+/** How long a rider stands at the checkpoint before the student is chased. */
+export const RIDER_WAITING_AFTER_MS = 5 * 60 * 1000;
+
+/**
+ * "Your rider is still waiting."
+ *
+ * The arrival push goes out the moment the rider marks the checkpoint; this is
+ * the one follow-up, a few minutes on, if the handover still hasn't happened.
+ * Not a reminder in the marketing sense: no feature flag, no daily cap, no
+ * quiet hours — someone is physically standing there with the student's order.
+ * Once per order (`dedupeKey` is the order id).
+ */
+export async function sweepRiderWaiting(ctx: Ctx): Promise<{ sent: number }> {
+  const { fastify, log } = ctx;
+  const now = ctx.now ?? new Date();
+
+  const waiting = await fastify.prisma.order.findMany({
+    where: {
+      status: "at_checkpoint",
+      statusHistory: {
+        some: {
+          status: "at_checkpoint",
+          // The lower bound keeps an order that has been stuck for hours from
+          // being "discovered" and pushed long after anyone was waiting.
+          createdAt: { lte: new Date(now.getTime() - RIDER_WAITING_AFTER_MS), gte: new Date(now.getTime() - 2 * 60 * 60 * 1000) },
+        },
+      },
+    },
+    select: { id: true, studentId: true, checkpoint: { select: { name: true } }, rider: { select: { fullName: true } } },
+    take: 100,
+  });
+
+  let sent = 0;
+  for (const order of waiting) {
+    if (!(await claim(fastify, order.studentId, "rider_waiting", order.id))) continue;
+    await pushToProfiles({
+      fastify,
+      log,
+      profileIds: [order.studentId],
+      payload: {
+        title: "Your rider is waiting",
+        body: `${order.rider?.fullName ?? "Your rider"} is still at ${order.checkpoint?.name ?? "the checkpoint"} with your order. Head over with your delivery PIN.`,
+        data: { kind: "rider_waiting", orderId: order.id },
+      },
+    });
+    sent += 1;
+  }
+
+  if (sent > 0) log.info({ sent }, "Rider-waiting reminders sent");
   return { sent };
 }
 

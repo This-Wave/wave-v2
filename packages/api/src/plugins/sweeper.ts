@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import { sweepAbandonedCheckouts } from "../modules/payments/sweepAbandoned";
-import { sweepReminders } from "../modules/notifications/reminders";
+import { sweepReminders, sweepRiderWaiting } from "../modules/notifications/reminders";
 import { resumeExpiredPauses } from "../modules/switches/routes";
 import { archiveAuditEvents } from "../modules/audit/archive";
 
@@ -23,6 +23,13 @@ export const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
  * window, which is most days.
  */
 export const AUDIT_ARCHIVE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * How often to look for riders left waiting at a checkpoint. Short, unlike the
+ * sweep above: the student should hear within minutes, and the query is one
+ * indexed lookup that usually finds nothing.
+ */
+export const RIDER_WAITING_INTERVAL_MS = 2 * 60 * 1000;
 
 /**
  * Runs the abandoned-checkout sweep on a timer.
@@ -94,7 +101,23 @@ export default fp(async function sweeperPlugin(fastify: FastifyInstance) {
     }
   }
 
+  let checkingWaits = false;
+
+  async function waitingTick() {
+    if (checkingWaits) return;
+    checkingWaits = true;
+    try {
+      await sweepRiderWaiting({ fastify, log: fastify.log });
+    } catch (err) {
+      fastify.log.error({ err }, "Rider-waiting check failed");
+    } finally {
+      checkingWaits = false;
+    }
+  }
+
   const timer = setInterval(() => void tick(), SWEEP_INTERVAL_MS);
+  const waitingTimer = setInterval(() => void waitingTick(), RIDER_WAITING_INTERVAL_MS);
+  waitingTimer.unref();
   const archiveTimer = setInterval(() => void archiveTick(), AUDIT_ARCHIVE_INTERVAL_MS);
   archiveTimer.unref();
   // Do not hold the event loop open: `index.ts` drains and exits on SIGTERM, and
@@ -104,6 +127,7 @@ export default fp(async function sweeperPlugin(fastify: FastifyInstance) {
   fastify.addHook("onClose", async () => {
     clearInterval(timer);
     clearInterval(archiveTimer);
+    clearInterval(waitingTimer);
   });
 
   fastify.log.info({ intervalMs: SWEEP_INTERVAL_MS }, "Abandoned-checkout sweep scheduled");

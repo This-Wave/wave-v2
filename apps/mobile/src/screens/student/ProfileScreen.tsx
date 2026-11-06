@@ -39,6 +39,7 @@ import {
 } from "../../lib/support";
 import { BetaProgram } from "../../components/BetaProgram";
 import { describeWave } from "../../lib/wave";
+import { NotificationSettings } from "../../components/NotificationSettings";
 
 /**
  * Profile. Web uses a two-panel account page; native keeps the phone layout.
@@ -127,6 +128,8 @@ function ProfileMobile() {
               ) : null}
             </View>
           </SettingsGroup>
+
+          <NotificationSettings />
 
           <SettingsGroup title="Deliveries">
             <SettingsRow

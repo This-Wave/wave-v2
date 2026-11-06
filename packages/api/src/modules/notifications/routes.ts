@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { registerPushTokenSchema } from "@wave/shared";
+import { registerPushTokenSchema, webPushSubscriptionSchema, webPushUnsubscribeSchema } from "@wave/shared";
+import { webPushEnabled } from "./webPush";
 
 export async function notificationRoutes(fastify: FastifyInstance) {
   // Registers this device against the signed-in profile. Idempotent — the app
@@ -38,5 +39,44 @@ export async function notificationRoutes(fastify: FastifyInstance) {
       data: { pushToken: null },
     });
     return reply.send({ registered: false });
+  });
+
+  // Public: the app needs the key before anyone signs in to know whether to
+  // offer notifications at all. `null` means web push is off on this server.
+  fastify.get("/web-push/key", async (_request, reply) => {
+    const config = fastify.config;
+    return reply.send({ publicKey: webPushEnabled(config) ? config.VAPID_PUBLIC_KEY : null });
+  });
+
+  // Idempotent, like `/token`: the app re-sends its subscription on every
+  // launch, and a browser can rotate one without telling the page.
+  fastify.post("/web-push", { preHandler: fastify.authenticate }, async (request, reply) => {
+    const parsed = webPushSubscriptionSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid subscription", details: parsed.error.flatten() });
+    }
+    const { endpoint, keys } = parsed.data;
+    const profileId = request.user!.id;
+    const userAgent = request.headers["user-agent"]?.slice(0, 300) ?? null;
+
+    // Upsert on the endpoint: a browser that signs in as someone else moves to
+    // them, so the previous account stops getting pushes on this device.
+    await fastify.prisma.webPushSubscription.upsert({
+      where: { endpoint },
+      create: { endpoint, p256dh: keys.p256dh, auth: keys.auth, profileId, userAgent },
+      update: { p256dh: keys.p256dh, auth: keys.auth, profileId, userAgent },
+    });
+    return reply.send({ subscribed: true });
+  });
+
+  fastify.delete("/web-push", { preHandler: fastify.authenticate }, async (request, reply) => {
+    const parsed = webPushUnsubscribeSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+    await fastify.prisma.webPushSubscription.deleteMany({
+      where: { endpoint: parsed.data.endpoint, profileId: request.user!.id },
+    });
+    return reply.send({ subscribed: false });
   });
 }

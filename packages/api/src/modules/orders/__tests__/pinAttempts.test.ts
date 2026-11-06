@@ -11,6 +11,7 @@ const { notifyOrderStatus, verifyDeliveryPin } = vi.hoisted(() => ({
 vi.mock("../../notifications/dispatch", () => ({
   notifyOrderStatus,
   notifyGoodsCostRecorded: vi.fn(),
+  notifyLoyaltyProgress: vi.fn(),
 }));
 vi.mock("../../payments/refund", () => ({ endOrderWithRefund: vi.fn() }));
 vi.mock("../pin", () => ({ verifyDeliveryPin, generateDeliveryPin: vi.fn() }));

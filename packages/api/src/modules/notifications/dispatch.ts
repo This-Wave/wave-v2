@@ -1,5 +1,8 @@
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
+import type { Prisma } from "@prisma/client";
+import { DEFAULT_LOYALTY_DISCOUNT_PCT, DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
 import { DEVICE_NOT_REGISTERED, isExpoPushToken, sendExpoPush, type ExpoPushMessage } from "./expo";
+import { sendWebPush, webPushEnabled } from "./webPush";
 
 /**
  * Android requires notifications to name a channel the app created, or they
@@ -32,6 +35,59 @@ export async function pushToProfiles(args: {
   const profileIds = args.profileIds.filter(Boolean);
   if (profileIds.length === 0) return { sent: 0 };
 
+  const [expo, web] = await Promise.all([
+    pushToExpo({ fastify, log, profileIds, payload }),
+    pushToWeb({ fastify, log, profileIds, payload }),
+  ]);
+  return { sent: expo + web };
+}
+
+/**
+ * Who can be reached by push at all: a native device token or a browser
+ * subscription. For queries that pick recipients before sending.
+ */
+export const HAS_PUSH = {
+  OR: [{ pushToken: { not: null } }, { webPushSubscriptions: { some: {} } }],
+} satisfies Prisma.ProfileWhereInput;
+
+async function pushToWeb(args: {
+  fastify: FastifyInstance;
+  log: FastifyBaseLogger;
+  profileIds: string[];
+  payload: PushPayload;
+}): Promise<number> {
+  const { fastify, log, profileIds, payload } = args;
+  if (!webPushEnabled(fastify.config)) return 0;
+  try {
+    const targets = await fastify.prisma.webPushSubscription.findMany({
+      where: { profileId: { in: profileIds } },
+      select: { id: true, endpoint: true, p256dh: true, auth: true },
+    });
+    if (targets.length === 0) return 0;
+
+    const { sent, failed, gone } = await sendWebPush(targets, payload);
+    if (gone.length > 0) {
+      await fastify.prisma.webPushSubscription.deleteMany({ where: { id: { in: gone } } });
+      log.info({ count: gone.length }, "Removed expired web push subscriptions");
+    }
+    if (failed > 0) log.warn({ failed, total: targets.length }, "Some web push notifications were rejected");
+    return sent;
+  } catch (err) {
+    log.error(
+      { err: err instanceof Error ? err.message : "unknown", profileCount: profileIds.length },
+      "Web push dispatch failed",
+    );
+    return 0;
+  }
+}
+
+async function pushToExpo(args: {
+  fastify: FastifyInstance;
+  log: FastifyBaseLogger;
+  profileIds: string[];
+  payload: PushPayload;
+}): Promise<number> {
+  const { fastify, log, profileIds, payload } = args;
   try {
     const profiles = await fastify.prisma.profile.findMany({
       where: { id: { in: profileIds }, pushToken: { not: null } },
@@ -39,7 +95,7 @@ export async function pushToProfiles(args: {
     });
 
     const recipients = profiles.filter((p) => isExpoPushToken(p.pushToken!));
-    if (recipients.length === 0) return { sent: 0 };
+    if (recipients.length === 0) return 0;
 
     const messages: ExpoPushMessage[] = recipients.map((p) => ({
       to: p.pushToken!,
@@ -75,14 +131,14 @@ export async function pushToProfiles(args: {
       );
     }
 
-    return { sent: tickets.filter((t) => t.status === "ok").length };
+    return tickets.filter((t) => t.status === "ok").length;
   } catch (err) {
     // Curated log only — see PushSendError. Swallowed on purpose.
     log.error(
       { err: err instanceof Error ? err.message : "unknown", profileCount: profileIds.length },
       "Push dispatch failed",
     );
-    return { sent: 0 };
+    return 0;
   }
 }
 
@@ -315,7 +371,7 @@ export async function announceNewOrderToRiders(args: {
         isAvailable: true,
         isVerified: true,
         universityId,
-        pushToken: { not: null },
+        ...HAS_PUSH,
       },
       select: { id: true },
     });
@@ -432,5 +488,47 @@ export async function notifyGoodsPaid(args: {
       { err: err instanceof Error ? err.message : "unknown", orderId },
       "Goods-paid notification failed",
     );
+  }
+}
+
+/**
+ * The two loyalty moments worth a push: one delivery away from the discount,
+ * and the discount ready to use. Called once per completed delivery with the
+ * stamp count it produced, so each fires at most once per card.
+ */
+export async function notifyLoyaltyProgress(args: {
+  fastify: FastifyInstance;
+  log: FastifyBaseLogger;
+  studentId: string;
+  stamps: number;
+}): Promise<void> {
+  const { fastify, log, studentId, stamps } = args;
+  try {
+    const [thresholdRow, pctRow] = await Promise.all([
+      fastify.prisma.platformConfig.findUnique({ where: { key: "loyalty_threshold" } }),
+      fastify.prisma.platformConfig.findUnique({ where: { key: "loyalty_discount_pct" } }),
+    ]);
+    const threshold = Number(thresholdRow?.value ?? DEFAULT_LOYALTY_THRESHOLD);
+    const pct = Number(pctRow?.value ?? DEFAULT_LOYALTY_DISCOUNT_PCT);
+
+    const payload: PushPayload | null =
+      stamps === threshold - 1
+        ? {
+            title: "One more delivery",
+            body: `Your next completed delivery earns you ${pct}% off a delivery fee.`,
+            data: { kind: "loyalty", stamps },
+          }
+        : stamps === threshold
+          ? {
+              title: `${pct}% off your next delivery`,
+              body: "Your loyalty card is full. The discount comes off the delivery fee on your next order.",
+              data: { kind: "loyalty", stamps },
+            }
+          : null;
+    if (!payload) return;
+
+    await pushToProfiles({ fastify, log, profileIds: [studentId], payload });
+  } catch (err) {
+    log.error({ err: err instanceof Error ? err.message : "unknown", studentId }, "Loyalty notification failed");
   }
 }

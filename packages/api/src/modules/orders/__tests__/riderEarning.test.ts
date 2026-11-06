@@ -8,6 +8,7 @@ const { notifyOrderStatus } = vi.hoisted(() => ({ notifyOrderStatus: vi.fn() }))
 vi.mock("../../notifications/dispatch", () => ({
   notifyOrderStatus,
   notifyGoodsCostRecorded: vi.fn(),
+  notifyLoyaltyProgress: vi.fn(),
 }));
 vi.mock("../../payments/refund", () => ({ endOrderWithRefund: vi.fn() }));
 // The real one is bcrypt and this suite is about what happens *after* the PIN
