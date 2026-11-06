@@ -31,7 +31,9 @@ export function Row({
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? "button" : undefined}
-      accessibilityLabel={accessibilityLabel ?? title}
+      // `meta` carries the price, the date, the status — dropping it left rows
+      // announcing a bare shop name. Explicit overrides still win.
+      accessibilityLabel={accessibilityLabel ?? [title, meta].filter(Boolean).join(", ")}
       className="flex-row items-center gap-3 rounded-card bg-surface px-4 py-3.5 active:bg-hairline"
     >
       {leading}
@@ -47,7 +49,7 @@ export function Row({
       </View>
       {trailing}
       {onPress && chevron && !trailing ? (
-        <ChevronRightIcon size={18} color={colors.subtle} strokeWidth={2} />
+        <ChevronRightIcon size={18} color={colors.icon} strokeWidth={2} />
       ) : null}
     </Pressable>
   );
@@ -70,7 +72,12 @@ export function RowGroup({ children }: { children: ReactNode }) {
 export function ListError({ message, onRetry }: { message?: string; onRetry: () => void }) {
   const { gutter } = useLayout();
   return (
-    <View className="rounded-card bg-surface p-5" style={{ marginHorizontal: gutter }}>
+    <View
+      className="rounded-card bg-surface p-5"
+      style={{ marginHorizontal: gutter }}
+      accessibilityLiveRegion="assertive"
+      role="alert"
+    >
       <Text className="mb-1 font-sans-medium text-body text-ink">Couldn&apos;t load</Text>
       <Text className="mb-4 font-sans text-body text-muted">
         {message ?? "Check your connection and try again."}
@@ -78,7 +85,7 @@ export function ListError({ message, onRetry }: { message?: string; onRetry: () 
       <Pressable
         onPress={onRetry}
         accessibilityRole="button"
-        className="self-start rounded-pill bg-lime px-4 py-2.5 active:bg-lime-600"
+        className="min-h-[44px] justify-center self-start rounded-pill bg-lime px-4 active:bg-lime-600"
       >
         <Text className="font-sans-medium text-body text-ink">Retry</Text>
       </Pressable>
@@ -104,6 +111,10 @@ export function Thumb({ uri, size = 44 }: { uri?: string | null; size?: number }
     <View
       style={{ width: size, height: size }}
       className="overflow-hidden rounded-input bg-surface-muted"
+      // The row's own label already carries the shop name; letting the image
+      // through only adds an unlabelled stop to the swipe order.
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
     >
       {uri ? <Image source={{ uri }} className="h-full w-full" resizeMode="cover" /> : null}
     </View>

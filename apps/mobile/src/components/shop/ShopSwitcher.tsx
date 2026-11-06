@@ -36,13 +36,17 @@ export function ShopSwitcher({ shops, selectedId, onSelect }: ShopSwitcherProps)
             onPress={() => onSelect(shop.id)}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
-            className={`rounded-chip border px-3.5 py-2 ${
-              active ? "border-wave-500 bg-wave-500" : "border-border bg-surface"
+            accessibilityLabel={`${shop.name}${shop.isActive === false ? ", closed" : ""}`}
+            // 44 minimum: these are the only way to change which storefront
+            // every other screen is talking about, and they sit in a
+            // side-scrolling rail. 2.5.8.
+            className={`min-h-[44px] justify-center rounded-pill border px-4 ${
+              active ? "border-ink bg-ink" : "border-hairline bg-surface"
             }`}
           >
             <Text
               numberOfLines={1}
-              className={`font-sans-semibold text-[12px] ${active ? "text-white" : "text-ink"}`}
+              className={`font-sans-semibold text-meta ${active ? "text-white" : "text-ink"}`}
             >
               {shop.name}
               {shop.isActive === false ? " · Closed" : ""}

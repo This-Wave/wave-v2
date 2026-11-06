@@ -4,9 +4,17 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { HomeScreen } from "../screens/student/HomeScreen";
 import { OrderHistoryScreen } from "../screens/student/OrderHistoryScreen";
 import { ProfileScreen } from "../screens/student/ProfileScreen";
-import { TabBar, LiveOrderBar } from "../components/v6";
-import { useLayout } from "../hooks/useLayout";
-import { useMyOrders } from "../lib/orders";
+import { TabBar } from "../components/v6";
+import { LIVE_ORDER_STATUSES, useMyOrders } from "../lib/orders";
+import { GuestTabScreen } from "../screens/student/GuestTabScreen";
+import { useIsGuest } from "../store/authStore";
+
+function GuestOrders() {
+  return <GuestTabScreen tab="Orders" />;
+}
+function GuestProfile() {
+  return <GuestTabScreen tab="Profile" />;
+}
 
 export type StudentTabParamList = {
   Home: undefined;
@@ -17,15 +25,13 @@ export type StudentTabParamList = {
 
 const Tab = createBottomTabNavigator<StudentTabParamList>();
 
-const LIVE = ["confirmed", "rider_assigned", "en_route", "at_checkpoint"];
-
 export function StudentTabNavigator() {
-  const { isDesktop } = useLayout();
   const { data: orders } = useMyOrders();
+  const isGuest = useIsGuest();
 
   const ordersBadge = useMemo(() => {
     const list = orders ?? [];
-    const live = list.filter((o) => LIVE.includes(o.status)).length;
+    const live = list.filter((o) => LIVE_ORDER_STATUSES.includes(o.status)).length;
     const unpaid = list.filter((o) => o.status === "payment_pending").length;
     const total = live + unpaid;
     return total > 0 ? total : undefined;
@@ -37,7 +43,7 @@ export function StudentTabNavigator() {
         <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: "Home" }} />
         <Tab.Screen
           name="Orders"
-          component={OrderHistoryScreen}
+          component={isGuest ? GuestOrders : OrderHistoryScreen}
           options={{ tabBarLabel: "Orders", tabBarBadge: ordersBadge }}
         />
         <Tab.Screen
@@ -45,9 +51,8 @@ export function StudentTabNavigator() {
           component={CheckpointsTab}
           options={{ tabBarLabel: "Checkpoints" }}
         />
-        <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: "Profile" }} />
+        <Tab.Screen name="Profile" component={isGuest ? GuestProfile : ProfileScreen} options={{ tabBarLabel: "Profile" }} />
       </Tab.Navigator>
-      {!isDesktop ? <LiveOrderBar /> : null}
     </View>
   );
 }

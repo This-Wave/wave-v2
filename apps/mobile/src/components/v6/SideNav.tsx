@@ -29,7 +29,7 @@ type NavItem = {
 const MENUS: Record<AppRole, { subtitle: string; footer: string; items: NavItem[] }> = {
   student: {
     subtitle: "Campus delivery",
-    footer: "Ashesi · Sunday & Wednesday Waves",
+    footer: "Ashesi · Delivering every day",
     items: [
       { label: "Home", tab: "Home", Icon: HomeIcon },
       { label: "Orders", tab: "Orders", Icon: BoxIcon },
@@ -130,7 +130,7 @@ export function SideNav({ role }: { role: AppRole }) {
         </View>
       </View>
 
-      <Text className="px-2 font-sans text-caption text-subtle">{menu.footer}</Text>
+      <Text className="px-2 font-sans text-caption text-muted">{menu.footer}</Text>
     </View>
   );
 }

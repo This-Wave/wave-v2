@@ -78,7 +78,7 @@ export function StudentOrdersWeb() {
                     <Text className="font-sans-medium text-ui text-ink" numberOfLines={1}>
                       {o.shop?.name ?? "Package pickup"}
                     </Text>
-                    <StatusPill {...statusPill(o.status)} />
+                    <StatusPill {...statusPill(o.status, !!o.companyId)} />
                   </View>
                   <Text className="mb-2 font-sans text-body text-muted" numberOfLines={1}>
                     {o.itemDescription}
@@ -209,9 +209,9 @@ function PastRow({
         {formatGhsCompact(Number(order.totalAmount ?? 0))}
       </Text>
       <View className="w-28">
-        <StatusPill {...statusPill(order.status)} />
+        <StatusPill {...statusPill(order.status, !!order.companyId)} />
       </View>
-      <ChevronRightIcon size={18} color={colors.subtle} strokeWidth={2} />
+      <ChevronRightIcon size={18} color={colors.icon} strokeWidth={2} />
     </Pressable>
   );
 }

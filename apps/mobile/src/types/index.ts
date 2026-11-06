@@ -43,6 +43,19 @@ export interface Checkpoint {
   latitude: string | null;
   longitude: string | null;
   isActive: boolean;
+  /**
+   * Set = a pickup point in an Accra zone, priced at the zone's fee. Null = a
+   * drop-off point on campus. Only campus checkpoints can end a delivery.
+   */
+  zone: CheckpointZone | null;
+}
+
+export interface CheckpointZone {
+  id: string;
+  code: string;
+  name: string;
+  /** Decimal as a string over JSON, like every other amount. */
+  deliveryFee: string;
 }
 
 export interface Shop {
@@ -83,7 +96,15 @@ export type OrderStatus =
   | "cancelled"
   | "refunded";
 
-export type DeliveryDay = "sunday" | "wednesday" | "special";
+export type DeliveryDay =
+  | "sunday"
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "special";
 
 export type OrderType = "buy_for_me" | "pickup" | "shop_pickup";
 
@@ -131,6 +152,8 @@ export interface Order {
   id: string;
   studentId: string;
   riderId: string | null;
+  /** Set when Wave packs and delivers this order (company mode). Opaque. */
+  companyId?: string | null;
   orderType: OrderType;
   originCheckpointId: string | null;
   originCheckpoint?: Checkpoint | null;
@@ -164,6 +187,8 @@ export interface Order {
   shop?: Shop | null;
   suggestion?: Pick<ShopSuggestion, "id" | "name" | "locationText" | "category" | "status"> | null;
   items?: OrderItem[];
+  /** Only on the rider feed, and only when `rider_earnings_preview` is on. */
+  estimatedEarning?: string;
   checkpoint?: Checkpoint | null;
   student?: Profile | null;
   rider?: Profile | null;

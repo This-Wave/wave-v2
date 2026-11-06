@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { LEGAL_OPERATOR } from "@wave/shared";
 
 /**
  * Public shell for /legal/*.
@@ -31,7 +32,9 @@ export default function LegalLayout({ children }: { children: ReactNode }) {
           </nav>
         </header>
         <main className="rounded-card bg-surface px-6 py-8">{children}</main>
-        <p className="mt-6 text-[12px] text-muted">Wave — campus delivery, Ashesi University, Berekuso, Ghana.</p>
+        <p className="mt-6 text-[12px] text-muted">
+          Wave is operated by {LEGAL_OPERATOR} — campus delivery, Ashesi University, Berekuso, Ghana.
+        </p>
       </div>
     </div>
   );

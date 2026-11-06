@@ -23,7 +23,7 @@ interface Checkpoint {
 }
 
 export default function CheckpointsPage() {
-  const { accessToken } = useAdminAuth();
+  const { accessToken, can } = useAdminAuth();
   const [checkpoints, setCheckpoints] = useState<Checkpoint[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
@@ -130,26 +130,27 @@ export default function CheckpointsPage() {
       header: "",
       width: "w-[230px]",
       align: "right",
-      render: (cp) => (
-        <div className="flex justify-end gap-2">
-          <RowAction
-            label={cp.latitude != null ? "Location" : "Set location"}
-            disabled={actioning === cp.id}
-            onClick={() => setLocating(cp)}
-          />
-          <RowAction
-            label={cp.externalRidersAllowed ? "Close to outsiders" : "Open to outsiders"}
-            disabled={actioning === cp.id}
-            onClick={() => toggleExternal(cp)}
-          />
-          <RowAction
-            label={cp.isActive ? "Deactivate" : "Reactivate"}
-            tone={cp.isActive ? "danger" : "default"}
-            disabled={actioning === cp.id}
-            onClick={() => toggleActive(cp)}
-          />
-        </div>
-      ),
+      render: (cp) =>
+        can("checkpoints.manage") ? (
+          <div className="flex justify-end gap-2">
+            <RowAction
+              label={cp.latitude != null ? "Location" : "Set location"}
+              disabled={actioning === cp.id}
+              onClick={() => setLocating(cp)}
+            />
+            <RowAction
+              label={cp.externalRidersAllowed ? "Close to outsiders" : "Open to outsiders"}
+              disabled={actioning === cp.id}
+              onClick={() => toggleExternal(cp)}
+            />
+            <RowAction
+              label={cp.isActive ? "Deactivate" : "Reactivate"}
+              tone={cp.isActive ? "danger" : "default"}
+              disabled={actioning === cp.id}
+              onClick={() => toggleActive(cp)}
+            />
+          </div>
+        ) : null,
     },
   ];
 
@@ -158,7 +159,11 @@ export default function CheckpointsPage() {
       <PageHeader
         title="Checkpoints"
         subtitle="Campus drop-off points"
-        action={<Button label="Add checkpoint" onClick={() => setCreating(true)} />}
+        action={
+          can("checkpoints.manage") ? (
+            <Button label="Add checkpoint" onClick={() => setCreating(true)} />
+          ) : undefined
+        }
       />
 
       {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}

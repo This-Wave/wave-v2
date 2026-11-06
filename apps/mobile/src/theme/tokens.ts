@@ -15,6 +15,16 @@ export const colors = {
   surface: "#ffffff",
   surfaceMuted: "#dddddd",
   muted: "#6a6a6a",
+  /**
+   * Icon-only neutral: chevrons, decorative strokes. 3.45:1 on white and
+   * 3.22:1 on canvas, so it clears WCAG 1.4.11's 3:1 for meaningful glyphs.
+   * Not a text colour — text at this size needs 4.5:1, use `muted`.
+   */
+  icon: "#8a8a8a",
+  /**
+   * Disabled fills only. 1.80:1 on white — it is not legible as text or as an
+   * icon, and placeholders that used to sit here moved to `muted`.
+   */
   subtle: "#c1c1c1",
   hairline: "#ebebeb",
 
@@ -25,20 +35,6 @@ export const colors = {
 
   white: "#ffffff",
 
-  // --- v5 legacy aliases -----------------------------------------------------
-  // Rider and shop-owner screens still run on `components/ui/*` and will until
-  // their own design pass. These keep them compiling and rendering in v6
-  // neutrals rather than unstyled. Do NOT use them in new code.
-  /** @deprecated v5 accent. Use `ink` for strokes, `lime` for fills. */
-  primary: "#083400",
-  /** @deprecated v5 tertiary text. Use `subtle`. */
-  faint: "#c1c1c1",
-  /** @deprecated v5 card border. Use `hairline`. */
-  border: "#ebebeb",
-  /** @deprecated v5 skeleton. Use `surfaceMuted`. */
-  skeleton: "#dddddd",
-  /** @deprecated v5 scrim. */
-  overlay: "#083400",
 } as const;
 
 export const radii = {
@@ -64,19 +60,6 @@ export const shadowFloating: ViewStyle = {
   shadowRadius: 8,
   shadowOffset: { width: 0, height: 4 },
   elevation: 4,
-};
-
-/**
- * @deprecated v5 card elevation. v6 content cards carry no shadow at all —
- * they separate by sitting white on the canvas. Kept only so `components/ui/*`
- * compiles until the rider and shop-owner passes land.
- */
-export const shadowCard: ViewStyle = {
-  shadowColor: "#000000",
-  shadowOpacity: 0.06,
-  shadowRadius: 3,
-  shadowOffset: { width: 0, height: 1 },
-  elevation: 2,
 };
 
 /** Overlay scrim for sheets and dialogs. */

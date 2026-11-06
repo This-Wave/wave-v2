@@ -6,6 +6,9 @@ import { apiFetch, errorMessage } from "../../../lib/api";
 import { PageHeader } from "../../../components/ui/PageHeader";
 import { Button } from "../../../components/ui/Button";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
+import { FeatureFlags } from "../../../components/FeatureFlags";
+import { ServiceSwitches } from "../../../components/ServiceSwitches";
+import { ZoneFees } from "../../../components/ZoneFees";
 
 interface ConfigRow {
   key: string;
@@ -26,13 +29,7 @@ const GROUPS: { title: string; keys: { key: string; label: string; suffix?: stri
         key: "delivery_fee_base",
         label: "Base delivery fee",
         suffix: "GH₵",
-        hint: "Applied to every order.",
-      },
-      {
-        key: "special_order_surcharge_pct",
-        label: "Special order surcharge",
-        suffix: "%",
-        hint: "Added to the delivery fee for special orders.",
+        hint: "Every order except a pickup from an Accra zone, which uses the zone fee below.",
       },
     ],
   },
@@ -74,23 +71,17 @@ const GROUPS: { title: string; keys: { key: string; label: string; suffix?: stri
       },
     ],
   },
-  {
-    title: "Scheduling",
-    keys: [
-      {
-        key: "special_order_lead_hours",
-        label: "Special order lead time",
-        suffix: "hours",
-        hint: "Minimum notice before a special order's delivery date.",
-      },
-    ],
-  },
 ];
 
-const KNOWN_KEYS = GROUPS.flatMap((g) => g.keys.map((k) => k.key));
+// Retired 2026-11-04 when every day became a delivery day: no rush orders, so
+// no surcharge or lead time. Rows may still exist in the table; keep them off
+// the page so nobody edits a setting that does nothing.
+const RETIRED_KEYS = ["special_order_surcharge_pct", "special_order_lead_hours"];
+const KNOWN_KEYS = [...GROUPS.flatMap((g) => g.keys.map((k) => k.key)), ...RETIRED_KEYS];
 
 export default function ConfigPage() {
-  const { accessToken } = useAdminAuth();
+  const { accessToken, can } = useAdminAuth();
+  const canEdit = can("config.write");
   const [rows, setRows] = useState<ConfigRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -170,7 +161,12 @@ export default function ConfigPage() {
 
   return (
     <div className="px-10 py-8">
-      <PageHeader title="Config" subtitle="Platform pricing and scheduling" />
+      <PageHeader title="Config" subtitle="Ordering, pricing and scheduling" />
+
+      {/* First on the page: when something is on fire, this is what you came for. */}
+      <div className="mb-8 max-w-[720px]">
+        <ServiceSwitches />
+      </div>
 
       <div className="mb-7 flex max-w-[720px] gap-3 rounded-control bg-wave-lime p-4">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0">
@@ -238,6 +234,7 @@ export default function ConfigPage() {
                     id={r.key}
                     value={draft[r.key] ?? ""}
                     onChange={(e) => setDraft((d) => ({ ...d, [r.key]: e.target.value }))}
+                    readOnly={!canEdit}
                     className="h-[46px] w-full max-w-[320px] rounded-control border border-border bg-surface px-4 text-[14px] text-ink outline-none focus:border-wave-500"
                   />
                 </div>
@@ -245,19 +242,23 @@ export default function ConfigPage() {
             </div>
           ) : null}
 
-          <div className="mt-3 flex gap-3">
-            <Button
-              label={saving ? "Saving…" : "Save changes"}
-              onClick={handleSave}
-              disabled={saving || dirtyKeys.length === 0}
-            />
-            <Button
-              label="Discard"
-              variant="secondary"
-              onClick={handleDiscard}
-              disabled={saving || dirtyKeys.length === 0}
-            />
-          </div>
+          {canEdit ? (
+            <div className="mt-3 flex gap-3">
+              <Button
+                label={saving ? "Saving…" : "Save changes"}
+                onClick={handleSave}
+                disabled={saving || dirtyKeys.length === 0}
+              />
+              <Button
+                label="Discard"
+                variant="secondary"
+                onClick={handleDiscard}
+                disabled={saving || dirtyKeys.length === 0}
+              />
+            </div>
+          ) : (
+            <p className="mt-3 text-[12.5px] text-muted">Your role can see pricing but not change it.</p>
+          )}
 
           <p className="mt-[22px] text-[12px] text-muted">
             {dirtyKeys.length > 0
@@ -268,6 +269,14 @@ export default function ConfigPage() {
           </p>
         </>
       )}
+
+      <div className="mt-8">
+        <ZoneFees />
+      </div>
+
+      <div className="mt-8">
+        <FeatureFlags />
+      </div>
     </div>
   );
 }

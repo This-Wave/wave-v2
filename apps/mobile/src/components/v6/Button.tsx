@@ -27,8 +27,10 @@ interface ButtonProps {
  * - `ghost`    hairline ink border, transparent. Secondary actions.
  * - `quiet`    text only. Tertiary — "Not now", "Skip".
  *
- * Pill radius throughout, per the reference. 52px tall: the reference's desktop
- * controls are shorter, but this is a thumb target on a phone.
+ * Pill radius throughout, per the reference. 52px minimum: the reference's
+ * desktop controls are shorter, but this is a thumb target on a phone. It is a
+ * minimum rather than a fixed height so the label can still grow with the OS
+ * text-size setting instead of clipping (1.4.4).
  */
 export function Button({
   label,
@@ -63,8 +65,11 @@ export function Button({
       onPress={inert ? undefined : onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled: !!inert }}
-      className={`h-[52px] flex-row items-center justify-center gap-2 rounded-pill px-6 ${surface} ${
+      accessibilityState={{ disabled: !!inert, busy: !!loading }}
+      // Without this the spinner is silent — the label vanishes and a screen
+      // reader has nothing to report while the request is in flight.
+      accessibilityValue={loading ? { text: "Working" } : undefined}
+      className={`min-h-[52px] flex-row items-center justify-center gap-2 rounded-pill px-6 py-3 ${surface} ${
         full ? "w-full" : ""
       }`}
     >

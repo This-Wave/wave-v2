@@ -3,8 +3,18 @@ import type { SubmitVerificationInput } from "@wave/shared";
 import { api } from "./api";
 import type { Order, RiderEarning, RiderVerification } from "../types";
 
-export function useAvailableOrders() {
+/**
+ * The unclaimed orders this rider could take.
+ *
+ * `enabled` is how the feed honours the availability switch. The switch's own
+ * hint reads "turn off to stop new orders appearing in your feed", and it did
+ * not: going offline hid the section heading but still listed — and still let a
+ * rider claim — every order, while polling for more every 10s. Offline now
+ * means offline on both sides.
+ */
+export function useAvailableOrders({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
+    enabled,
     queryKey: ["orders", "available"],
     queryFn: async () => {
       const { data } = await api.get<{ orders: Order[] }>("/orders/available");

@@ -136,11 +136,23 @@ export function useShopCancelOrder() {
   });
 }
 
+/**
+ * The owner's own menu.
+ *
+ * Reads `/products/manage`, not the public `/products`: the public route closes
+ * with Buy for me, so before launch this screen showed "Couldn't load" — an
+ * owner could add items and never see them back, during the very window the
+ * launch gate exists to give them. Same payload, authenticated and
+ * ownership-checked.
+ *
+ * The query key stays `["products", shopId]` so the create/update/delete
+ * mutations in this module keep invalidating it.
+ */
 export function useShopProducts(shopId: string | undefined) {
   return useQuery({
     queryKey: ["products", shopId],
     queryFn: async () => {
-      const { data } = await api.get<{ products: Product[] }>(`/shops/${shopId}/products`);
+      const { data } = await api.get<{ products: Product[] }>(`/shops/${shopId}/products/manage`);
       return data.products;
     },
     enabled: !!shopId,

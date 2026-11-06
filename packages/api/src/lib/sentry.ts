@@ -58,3 +58,12 @@ export function captureSmsError(err: unknown, meta: { phase: string }): void {
     Sentry.captureException(err instanceof Error ? err : new Error(String(err)));
   });
 }
+
+/** An audit row that could not be written — the action happened, the record of it did not. */
+export function captureAuditError(err: unknown, action: string): void {
+  Sentry.withScope((scope) => {
+    scope.setTag("area", "audit");
+    scope.setExtra("action", action);
+    Sentry.captureException(err instanceof Error ? err : new Error(String(err)));
+  });
+}

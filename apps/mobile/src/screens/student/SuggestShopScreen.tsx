@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { GuestAccountSheet } from "../../components/GuestAccountSheet";
+import { useIsGuest, type ResumeTarget } from "../../store/authStore";
 import { Pressable, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -46,8 +48,12 @@ export function SuggestShopScreen() {
   const suggest = useSuggestShop();
 
   const [name, setName] = useState(params?.initialQuery ?? "");
-  const [locationText, setLocationText] = useState("");
-  const [items, setItems] = useState<Draft[]>([{ name: "", quantity: 1 }]);
+  const [locationText, setLocationText] = useState(params?.initialLocation ?? "");
+  const [items, setItems] = useState<Draft[]>(
+    params?.initialItems?.length ? params.initialItems : [{ name: "", quantity: 1 }],
+  );
+  const isGuest = useIsGuest();
+  const [accountPrompt, setAccountPrompt] = useState<ResumeTarget | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const filled = items.filter((i) => i.name.trim().length > 0);
@@ -59,6 +65,20 @@ export function SuggestShopScreen() {
 
   async function handleSubmit() {
     setError(null);
+    // A suggestion is saved against an account, so a guest signs up here and
+    // comes back to the same form, filled in.
+    if (isGuest) {
+      setAccountPrompt({
+        route: "SuggestShop",
+        params: {
+          ...params,
+          initialQuery: name,
+          initialLocation: locationText,
+          initialItems: filled.map((i) => ({ name: i.name.trim(), quantity: i.quantity })),
+        },
+      });
+      return;
+    }
     try {
       const suggestion = await suggest.mutateAsync({
         name: name.trim(),
@@ -182,6 +202,7 @@ export function SuggestShopScreen() {
           disabled={!canSubmit}
         />
       </ActionBar>
+      <GuestAccountSheet target={accountPrompt} onClose={() => setAccountPrompt(null)} />
     </Screen>
   );
 }

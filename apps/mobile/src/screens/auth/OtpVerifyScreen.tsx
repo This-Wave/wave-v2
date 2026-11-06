@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
-import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
-import { CodeInput } from "../../components/ui/CodeInput";
+import {
+  CodeInput,
+  Gutter,
+  Screen,
+  ScreenBody,
+  TopBar,
+} from "../../components/v6";
 import { supabase } from "../../lib/supabase";
+import { useAuthStore } from "../../store/authStore";
+import { colors } from "../../theme/tokens";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "OtpVerify">;
 
@@ -23,7 +30,17 @@ export function OtpVerifyScreen({ navigation, route }: Props) {
     return () => clearInterval(timer);
   }, [secondsLeft]);
 
+  const fromGuest = useAuthStore((st) => st.signingUpFromGuest);
+
+  // The sixth digit submits (canvas board 24): there is no Confirm button to
+  // reach for, and a pasted or auto-filled code goes through on its own.
+  useEffect(() => {
+    if (code.length === 6 && !loading) void handleConfirm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code]);
+
   async function handleConfirm() {
+    if (loading) return;
     setLoading(true);
     setError(null);
     const { error: verifyError } = await supabase.auth.verifyOtp({
@@ -41,6 +58,11 @@ export function OtpVerifyScreen({ navigation, route }: Props) {
     // has already put them in their role's navigator by now — so this path is
     // only ever a brand-new account, and it has to pick a role before there is
     // anything sensible to ask it for.
+    // A guest who started at checkout is ordering as a student already.
+    if (fromGuest) {
+      navigation.replace("ProfileSetup", { role: "student" });
+      return;
+    }
     navigation.replace("RoleSelect");
   }
 
@@ -55,18 +77,29 @@ export function OtpVerifyScreen({ navigation, route }: Props) {
 
   return (
     <Screen>
-      <TopBar onBack={() => navigation.goBack()} />
+      <TopBar onBack={() => navigation.replace("PhoneEntry")} />
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-4">
-          <Text className="mb-2 font-sans-bold text-heading text-ink">Check your texts</Text>
+          <Text className="mb-2 font-sans-bold text-heading text-ink">Enter the code</Text>
           <Text className="mb-10 font-sans text-body text-muted">
             We sent six digits to <Text className="font-sans-medium text-ink">{phone}</Text>.
           </Text>
 
-          <CodeInput value={code} onChangeText={setCode} state={error ? "error" : "default"} />
+          <CodeInput
+            value={code}
+            onChangeText={setCode}
+            state={error ? "error" : "default"}
+            accessibilityLabel="6-digit sign-in code"
+          />
           {error ? (
-            <Text className="mt-4 text-center font-sans text-body text-danger">{error}</Text>
+            <Text
+              accessibilityLiveRegion="assertive"
+              role="alert"
+              className="mt-4 text-center font-sans text-body text-danger"
+            >
+              {error}
+            </Text>
           ) : null}
 
           <View className="mt-6 items-center">
@@ -87,14 +120,12 @@ export function OtpVerifyScreen({ navigation, route }: Props) {
         </Gutter>
       </ScreenBody>
 
-      <ActionBar>
-        <Button
-          label="Confirm"
-          onPress={handleConfirm}
-          loading={loading}
-          disabled={code.length < 6}
-        />
-      </ActionBar>
+      {loading ? (
+        <View className="items-center pb-8" accessibilityLiveRegion="polite">
+          <ActivityIndicator color={colors.ink} />
+          <Text className="mt-2 font-sans text-body text-muted">Checking the code</Text>
+        </View>
+      ) : null}
     </Screen>
   );
 }

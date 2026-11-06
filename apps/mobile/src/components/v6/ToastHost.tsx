@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Platform, Pressable, Text, View } from "react-native";
+import { AccessibilityInfo, Platform, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../theme/tokens";
 import { useToastStore } from "../../store/toastStore";
@@ -12,6 +12,11 @@ export function ToastHost() {
 
   useEffect(() => {
     if (!toast) return;
+    // The toast is the app's whole feedback channel — order placed, payment
+    // failed, retry succeeded — and it renders without moving focus. Without an
+    // explicit announcement a screen-reader user places an order and hears
+    // nothing at all. 4.1.3.
+    AccessibilityInfo.announceForAccessibility(toast.message);
     const timer = setTimeout(dismiss, 3800);
     return () => clearTimeout(timer);
   }, [toast, dismiss]);
@@ -30,6 +35,10 @@ export function ToastHost() {
   return (
     <View
       pointerEvents="box-none"
+      // Belt and braces alongside the announce above: RN Web maps this to
+      // aria-live, where announceForAccessibility is a no-op.
+      accessibilityLiveRegion={toast.tone === "danger" ? "assertive" : "polite"}
+      role={toast.tone === "danger" ? "alert" : "status"}
       style={{
         position: "absolute",
         top: insets.top + (Platform.OS === "web" ? 12 : 8),
@@ -42,7 +51,7 @@ export function ToastHost() {
       <Pressable
         onPress={dismiss}
         accessibilityRole="button"
-        accessibilityLabel="Dismiss message"
+        accessibilityLabel={`${toast.message}. Dismiss.`}
         className="max-w-lg rounded-pill px-5 py-3"
         style={{
           backgroundColor: bg,

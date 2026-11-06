@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Platform, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FULL, NAV_BOTTOM_GAP } from "./v6/TabBar";
 import { colors, radii } from "../theme/tokens";
 import { useAuthStore } from "../store/authStore";
 import {
@@ -99,7 +100,11 @@ export function InstallHint() {
         position: "absolute",
         left: 16,
         right: 16,
-        bottom: insets.bottom + 16,
+        // Clears the floating nav pill rather than sitting on top of it. This
+        // card appears on a delay, so before this it slid over the tab bar
+        // mid-task: the student reached for Orders, nothing happened, and there
+        // was no reason to connect the two events. Finding G.
+        bottom: Math.max(insets.bottom, NAV_BOTTOM_GAP) + FULL + 12,
         zIndex: 9998,
         alignItems: "center",
       }}

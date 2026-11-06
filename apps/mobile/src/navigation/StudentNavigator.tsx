@@ -9,7 +9,6 @@ import { ShopSelectionScreen } from "../screens/student/ShopSelectionScreen";
 import { ShopMenuScreen } from "../screens/student/ShopMenuScreen";
 import { SuggestShopScreen } from "../screens/student/SuggestShopScreen";
 import { SuggestOrderSummaryScreen } from "../screens/student/SuggestOrderSummaryScreen";
-import { DescribeOrderScreen } from "../screens/student/DescribeOrderScreen";
 import { OrderSummaryScreen } from "../screens/student/OrderSummaryScreen";
 import { PaymentScreen } from "../screens/student/PaymentScreen";
 import { PaymentMethodsScreen } from "../screens/student/PaymentMethodsScreen";
@@ -23,6 +22,8 @@ import { CutoffPassedScreen } from "../screens/student/CutoffPassedScreen";
 import { PaymentFailedScreen } from "../screens/student/PaymentFailedScreen";
 import { PaymentReturnScreen } from "../screens/student/PaymentReturnScreen";
 import { FirstRunTour } from "../components/FirstRunTour";
+import { ResumeAfterSignup } from "../components/ResumeAfterSignup";
+import { useIsGuest } from "../store/authStore";
 
 /**
  * A chosen basket line, as it travels between screens.
@@ -58,27 +59,30 @@ export type StudentStackParamList = {
   // placeholder promises typing — see ShopSelectionScreen.
   ShopSelection: (WaveParams & { focusSearch?: boolean }) | undefined;
   ShopMenu: { shopId: string; shopName: string } & WaveParams;
-  SuggestShop: { initialQuery?: string } & WaveParams;
+  SuggestShop: {
+    initialQuery?: string;
+    /** Restored after a guest signs up mid-form (see GuestAccountSheet). */
+    initialLocation?: string;
+    initialItems?: { name: string; quantity: number }[];
+  } & WaveParams;
   SuggestOrderSummary: {
     suggestionId: string;
     shopName: string;
     locationText?: string;
     manualItems: { name: string; quantity: number }[];
   } & WaveParams;
-  DescribeOrder: {
-    shopId: string;
-    shopName: string;
-    items: BasketLine[];
-    itemsPreview: BasketPreviewLine[];
-    notes?: string;
-  } & WaveParams;
+  /**
+   * Step 2 of 2 before payment. Absorbed the old `DescribeOrder` screen, which
+   * asked which checkpoint and had already answered it — so the checkpoint is
+   * optional here and the screen resolves it the same way that one did.
+   */
   OrderSummary: {
     shopId: string;
     shopName: string;
     items: BasketLine[];
     itemsPreview: BasketPreviewLine[];
-    checkpointId: string;
-    checkpointName: string;
+    checkpointId?: string;
+    checkpointName?: string;
     notes?: string;
   } & WaveParams;
   Payment: { orderId: string; totalAmount: number };
@@ -87,7 +91,12 @@ export type StudentStackParamList = {
   PaymentMethods: undefined;
   Checkpoints: undefined;
   OrderConfirmed: { orderId: string };
-  PickupRequest: WaveParams | undefined;
+  /**
+   * `fromId`/`toId` pre-choose the two ends of the route — Home's "Move it
+   * again" hands over a route the student has sent before. The form still has
+   * to be filled in and submitted.
+   */
+  PickupRequest: (WaveParams & { fromId?: string; toId?: string; description?: string }) | undefined;
   OrderTracking: { orderId: string };
   OrderDetail: { orderId: string };
   PickupPin: { orderId: string };
@@ -98,6 +107,7 @@ export type StudentStackParamList = {
 const Stack = createNativeStackNavigator<StudentStackParamList>();
 
 export function StudentNavigator() {
+  const isGuest = useIsGuest();
   return (
     <AppWebShell role="student">
       <Stack.Navigator screenOptions={() => stackScreenOptions("checkout")}>
@@ -108,7 +118,6 @@ export function StudentNavigator() {
         <Stack.Screen name="ShopMenu" component={ShopMenuScreen} />
         <Stack.Screen name="SuggestShop" component={SuggestShopScreen} />
         <Stack.Screen name="SuggestOrderSummary" component={SuggestOrderSummaryScreen} />
-        <Stack.Screen name="DescribeOrder" component={DescribeOrderScreen} />
         <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
         <Stack.Screen name="Payment" component={PaymentScreen} />
         <Stack.Screen name="PaymentReturn" component={PaymentReturnScreen} />
@@ -122,7 +131,9 @@ export function StudentNavigator() {
         <Stack.Screen name="CutoffPassed" component={CutoffPassedScreen} />
         <Stack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
       </Stack.Navigator>
-      <FirstRunTour role="student" />
+      {/* The tour belongs to a new account; a guest has none to mark it seen on. */}
+      {isGuest ? null : <FirstRunTour role="student" />}
+      <ResumeAfterSignup />
     </AppWebShell>
   );
 }

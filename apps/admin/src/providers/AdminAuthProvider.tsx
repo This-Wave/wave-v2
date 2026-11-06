@@ -3,12 +3,17 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "../lib/supabase";
 import { apiFetch } from "../lib/api";
+import { hasPermission, type Permission } from "@wave/shared";
 
 interface AdminProfile {
   id: string;
   fullName: string;
   phone: string;
   role: string;
+  /** Which kind of staff. Null for non-staff and for a half-created admin. */
+  staffRole: string | null;
+  /** Campus admins only: the university they run. Null means HQ (every campus). */
+  campus: { id: string; name: string } | null;
 }
 
 interface AdminAuthState {
@@ -16,6 +21,11 @@ interface AdminAuthState {
   profile: AdminProfile | null;
   isLoading: boolean;
   signOut: () => Promise<void>;
+  /**
+   * Whether this staff role may do something. For hiding controls only — the
+   * API checks the same table and refuses regardless of what is drawn.
+   */
+  can: (permission: Permission) => boolean;
 }
 
 const AdminAuthContext = createContext<AdminAuthState>({
@@ -23,6 +33,7 @@ const AdminAuthContext = createContext<AdminAuthState>({
   profile: null,
   isLoading: true,
   signOut: async () => {},
+  can: () => false,
 });
 
 export function useAdminAuth() {
@@ -31,8 +42,14 @@ export function useAdminAuth() {
 
 async function fetchProfile(token: string): Promise<AdminProfile | null> {
   try {
-    const { profile } = await apiFetch<{ profile: AdminProfile }>("/profile/me", token);
-    return profile;
+    const { profile } = await apiFetch<{ profile: Omit<AdminProfile, "campus"> }>("/profile/me", token);
+    if (profile.role !== "admin") return { ...profile, campus: null };
+    // The campus name comes from the staff endpoint, which resolves it from the
+    // same column the API scopes by — not from the self-editable profile.
+    const me = await apiFetch<{ campus: { id: string; name: string } | null }>("/admin/staff/me", token).catch(
+      () => ({ campus: null }),
+    );
+    return { ...profile, campus: me.campus };
   } catch {
     return null;
   }
@@ -101,7 +118,15 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AdminAuthContext.Provider value={{ accessToken, profile, isLoading, signOut }}>
+    <AdminAuthContext.Provider
+      value={{
+        accessToken,
+        profile,
+        isLoading,
+        signOut,
+        can: (permission) => profile?.role === "admin" && hasPermission(profile.staffRole, permission),
+      }}
+    >
       {children}
     </AdminAuthContext.Provider>
   );

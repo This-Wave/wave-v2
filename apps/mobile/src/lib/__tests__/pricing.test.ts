@@ -15,8 +15,6 @@ import {
 import {
   DEFAULT_DELIVERY_FEE_GHS,
   DEFAULT_LOYALTY_DISCOUNT_PCT,
-  DEFAULT_LOYALTY_THRESHOLD,
-  DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
 } from "@wave/shared";
 
 /**
@@ -33,10 +31,10 @@ const SUNDAY_1PM = new Date(2026, 8, 6, 13, 0, 0);
 const MONDAY_9AM = new Date(2026, 8, 7, 9, 0, 0);
 
 describe("run days", () => {
-  test("Sunday and Wednesday are the standing run days", () => {
-    expect(isStandardRunDay(new Date(2026, 8, 6))).toBe(true); // Sun
-    expect(isStandardRunDay(new Date(2026, 8, 9))).toBe(true); // Wed
-    expect(isStandardRunDay(new Date(2026, 8, 7))).toBe(false); // Mon
+  test("every day of the week is a run day (since 2026-11-04)", () => {
+    for (let d = 6; d <= 12; d++) {
+      expect(isStandardRunDay(new Date(2026, 8, d))).toBe(true);
+    }
   });
 
   test("the cutoff has not passed on a run-day morning", () => {
@@ -47,9 +45,9 @@ describe("run days", () => {
     expect(isCutoffPassedToday(SUNDAY_1PM)).toBe(true);
   });
 
-  test("a non-run day is never 'past cutoff'", () => {
-    // Monday has no cutoff to pass — it is not a Wave day at all.
-    expect(isCutoffPassedToday(new Date(2026, 8, 7, 23, 0))).toBe(false);
+  test("a Monday has a noon cutoff too", () => {
+    expect(isCutoffPassedToday(new Date(2026, 8, 7, 11, 0))).toBe(false);
+    expect(isCutoffPassedToday(new Date(2026, 8, 7, 23, 0))).toBe(true);
   });
 
   test("exactly noon counts as passed", () => {
@@ -64,10 +62,11 @@ describe("nextRunCutoff", () => {
     expect(cutoff.getHours()).toBe(CUTOFF_HOUR);
   });
 
-  test("skips to Wednesday once Sunday noon has passed", () => {
+  test("skips to tomorrow noon once today's noon has passed", () => {
     const cutoff = nextRunCutoff(SUNDAY_1PM);
-    expect(cutoff.getDay()).toBe(3);
-    expect(cutoff.getDate()).toBe(9);
+    expect(cutoff.getDay()).toBe(1);
+    expect(cutoff.getDate()).toBe(7);
+    expect(cutoff.getHours()).toBe(CUTOFF_HOUR);
   });
 
   test("is always strictly in the future", () => {
@@ -78,11 +77,10 @@ describe("nextRunCutoff", () => {
 });
 
 describe("upcomingRunDays", () => {
-  test("returns the next two run days, in order", () => {
+  test("returns today and tomorrow on a morning", () => {
     const [first, second] = upcomingRunDays(MONDAY_9AM, 2);
-    expect(first!.getDay()).toBe(3); // Wed 9th
-    expect(second!.getDay()).toBe(0); // Sun 13th
-    expect(second!.getTime()).toBeGreaterThan(first!.getTime());
+    expect(first!.getDate()).toBe(7); // Mon 7th
+    expect(second!.getDate()).toBe(8); // Tue 8th
   });
 
   test("excludes today once its cutoff has passed", () => {
@@ -98,21 +96,17 @@ describe("upcomingRunDays", () => {
 
 describe("estimateOrderTotal", () => {
   test("a plain order is items plus the flat delivery fee", () => {
-    const r = estimateOrderTotal({ itemPrice: 50, isSpecialOrder: false, completedDeliveries: 0 });
+    const r = estimateOrderTotal({ itemPrice: 50, isSpecialOrder: false, rewardReady: false });
     expect(r.deliveryFee).toBe(DEFAULT_DELIVERY_FEE_GHS);
     expect(r.total).toBe(50 + DEFAULT_DELIVERY_FEE_GHS);
     expect(r.discountPct).toBe(0);
     expect(r.surchargePct).toBe(0);
   });
 
-  test("the special-order surcharge applies to the delivery fee only", () => {
-    const r = estimateOrderTotal({ itemPrice: 100, isSpecialOrder: true, completedDeliveries: 0 });
-    expect(r.surchargePct).toBe(DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT);
-    expect(r.surchargeAmount).toBe(
-      (DEFAULT_DELIVERY_FEE_GHS * DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT) / 100,
-    );
-    // Never a percentage of the goods.
-    expect(r.total).toBe(100 + DEFAULT_DELIVERY_FEE_GHS + r.surchargeAmount);
+  test("there is no rush surcharge any more, even if a caller asks for one", () => {
+    const r = estimateOrderTotal({ itemPrice: 100, isSpecialOrder: true, rewardReady: false });
+    expect(r.surchargePct).toBe(0);
+    expect(r.total).toBe(100 + DEFAULT_DELIVERY_FEE_GHS);
   });
 
   test("loyalty discounts the delivery fee only, never the items", () => {
@@ -120,7 +114,7 @@ describe("estimateOrderTotal", () => {
     const r = estimateOrderTotal({
       itemPrice: 200,
       isSpecialOrder: false,
-      completedDeliveries: DEFAULT_LOYALTY_THRESHOLD,
+      rewardReady: true,
     });
     expect(r.discountPct).toBe(DEFAULT_LOYALTY_DISCOUNT_PCT);
     expect(r.discountAmount).toBe(
@@ -133,12 +127,12 @@ describe("estimateOrderTotal", () => {
     const below = estimateOrderTotal({
       itemPrice: 0,
       isSpecialOrder: false,
-      completedDeliveries: DEFAULT_LOYALTY_THRESHOLD - 1,
+      rewardReady: false,
     });
     const at = estimateOrderTotal({
       itemPrice: 0,
       isSpecialOrder: false,
-      completedDeliveries: DEFAULT_LOYALTY_THRESHOLD,
+      rewardReady: true,
     });
     expect(below.discountPct).toBe(0);
     expect(at.discountPct).toBe(DEFAULT_LOYALTY_DISCOUNT_PCT);
@@ -148,7 +142,7 @@ describe("estimateOrderTotal", () => {
     const r = estimateOrderTotal({
       itemPrice: 0,
       isSpecialOrder: true,
-      completedDeliveries: DEFAULT_LOYALTY_THRESHOLD,
+      rewardReady: true,
     });
     expect(r.total).toBe(DEFAULT_DELIVERY_FEE_GHS + r.surchargeAmount - r.discountAmount);
   });
@@ -176,9 +170,9 @@ describe("deliveryDayFor", () => {
     expect(deliveryDayFor(new Date(2026, 8, 9), false)).toBe("wednesday");
   });
 
-  test("a special order is always 'special', whatever the weekday", () => {
-    expect(deliveryDayFor(new Date(2026, 8, 6), true)).toBe("special");
-    expect(deliveryDayFor(new Date(2026, 8, 7), true)).toBe("special");
+  test("every weekday maps to its own name, and the old flag is ignored", () => {
+    expect(deliveryDayFor(new Date(2026, 8, 7), false)).toBe("monday");
+    expect(deliveryDayFor(new Date(2026, 8, 12), true)).toBe("saturday");
   });
 });
 
@@ -226,13 +220,13 @@ describe("classifyMonth", () => {
     expect(on(13).kind).toBe("standard"); // Sun
   });
 
-  test("a non-run day beyond the lead time is a rush order", () => {
-    expect(on(10).kind).toBe("rush"); // Thu
+  test("today is still open before noon, and tomorrow is standard", () => {
+    expect(on(7).kind).toBe("standard"); // Mon, 9am now
+    expect(on(8).kind).toBe("standard"); // Tue
   });
 
-  test("a day inside the lead time is disabled", () => {
-    // Tue the 8th starts less than 24h after Mon 9am.
-    expect(on(8).kind).toBe("disabled");
+  test("no day is a rush day any more", () => {
+    expect(month.some((d) => d.kind === "rush")).toBe(false);
   });
 
   test("every standard day is a real run day", () => {

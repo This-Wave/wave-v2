@@ -8,8 +8,15 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Migrations must not go through Neon's pooler: the migration engine takes
+  // advisory locks that pgbouncer does not carry, and it fails to connect at
+  // all when `channel_binding=require` is on the URL — which reads as "database
+  // unreachable" even while the Prisma Client is querying the same branch
+  // happily. Falls back to DATABASE_URL when DIRECT_URL is unset, so nothing
+  // breaks for anyone who has not added it yet.
+  directUrl = env("DIRECT_URL")
 }
 
 enum ProfileRole {
@@ -17,6 +24,33 @@ enum ProfileRole {
   rider
   shop_owner
   admin
+  /// A delivery company's dispatcher: sees its company's run sheet and assigns
+  /// jobs to its riders, nothing else. Deliberately not a staff role — several
+  /// admin routes only check "is staff", and a dispatcher must reach none of them.
+  dispatcher
+}
+
+/// How a delivery company is paid. Null on the company until the contract is
+/// signed; statements then show counts and fees but no amount owed.
+enum CompanyRateType {
+  /// `rateValue` GH₵ per delivered order.
+  flat
+  /// `rateValue` percent of each order's delivery fee.
+  percent
+}
+
+/// Which kind of staff an `admin` profile is. Permissions per role live in
+/// `@wave/shared` (`ROLE_PERMISSIONS`), not in the database.
+enum StaffRole {
+  owner
+  accountant
+  claims_officer
+  logistics_head
+  support
+  auditor
+  /// Runs one university. Which one is `profiles.admin_university_id`, and
+  /// every admin route scopes to it.
+  campus_admin
 }
 
 enum ProductStatus {
@@ -27,7 +61,13 @@ enum ProductStatus {
 
 enum DeliveryDay {
   sunday
+  monday
+  tuesday
   wednesday
+  thursday
+  friday
+  saturday
+  /// Legacy: rush orders before every day became a delivery day (2026-11-04).
   special
 }
 
@@ -48,6 +88,20 @@ enum SuggestionStatus {
   pending
   onboarded
   rejected
+}
+
+/// Why an order ended without a delivery.
+///
+/// Free-text `cancellationReason` is what the student reads; this is what the
+/// business counts. You cannot fix what is not measured, and until now the only
+/// record of *why* orders fail was a sentence written for a different audience.
+enum OrderFailureReason {
+  abandoned_payment
+  student_cancelled
+  shop_rejected
+  admin_refunded
+  out_of_stock
+  no_rider
 }
 
 enum OrderStatus {
@@ -102,46 +156,64 @@ model University {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  profiles        Profile[]
+  profiles        Profile[]        @relation("ProfileUniversity")
+  campusAdmins    Profile[]        @relation("AdminUniversity")
+  refundRequests  RefundRequest[]
   checkpoints     Checkpoint[]
   shops           Shop[]
   orders          Order[]
   shopSuggestions ShopSuggestion[]
+  featureFlags    FeatureFlag[]
+  serviceSwitches ServiceSwitch[]
+  groupBaskets    GroupBasket[]
 
   @@map("universities")
 }
 
 model Profile {
-  id           String      @id @default(uuid())
-  universityId String?     @map("university_id")
-  fullName     String      @map("full_name")
-  phone        String      @unique
+  id                String      @id @default(uuid())
+  universityId      String?     @map("university_id")
+  fullName          String      @map("full_name")
+  phone             String      @unique
   // Optional forever: auth is phone-based, so a student who never gives an
   // email must still be able to order. Used for the "the shop you suggested is
   // now on Wave" notification, which also goes out by push and SMS.
-  email        String?
-  studentId    String?     @map("student_id")
-  role         ProfileRole
-  avatarUrl    String?     @map("avatar_url")
-  pushToken    String?     @map("push_token")
+  email             String?
+  studentId         String?     @map("student_id")
+  role              ProfileRole
+  avatarUrl         String?     @map("avatar_url")
+  pushToken         String?     @map("push_token")
   // Two different questions, deliberately two columns. `isActive` is the ban
   // flag: `plugins/auth.ts` rejects every authenticated request when it is
   // false. `isAvailable` is the rider's own online/offline toggle. They were
   // the same column, so a rider tapping "Offline" locked themselves out of the
   // app and could not tap it back on — only an admin could. Nothing but a
   // rider ever reads `isAvailable`.
-  isActive     Boolean     @default(true) @map("is_active")
-  isAvailable  Boolean     @default(true) @map("is_available")
-  isVerified   Boolean     @default(false) @map("is_verified")
+  isActive          Boolean     @default(true) @map("is_active")
+  isAvailable       Boolean     @default(true) @map("is_available")
+  isVerified        Boolean     @default(false) @map("is_verified")
   /// Riders only; null for every other role. Set during onboarding and not
   /// self-editable afterwards — `updateProfileSchema` is `.strict()` and omits
   /// it, because moving yourself from external to student would change which
   /// ID you are allowed to verify with.
-  riderType    RiderType?  @map("rider_type")
-  createdAt    DateTime    @default(now()) @map("created_at")
-  updatedAt    DateTime    @updatedAt @map("updated_at")
+  riderType         RiderType?  @map("rider_type")
+  /// Staff only (`role = admin`); null for everyone else. An admin with no
+  /// staff role has no permissions — see `hasPermission` in `@wave/shared`.
+  staffRole         StaffRole?  @map("staff_role")
+  /// Campus admins only: the university they run. Set by HQ, never by the
+  /// admin themselves — `universityId` is self-editable on the profile, so it
+  /// cannot be what decides whose data they see.
+  adminUniversityId String?     @map("admin_university_id")
+  /// Riders and dispatchers who work for a delivery company. A company rider is
+  /// vouched for by the company (its roster), so Wave's own ID check is skipped.
+  companyId         String?     @map("company_id")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
 
-  university University? @relation(fields: [universityId], references: [id])
+  university      University? @relation("ProfileUniversity", fields: [universityId], references: [id])
+  adminUniversity University? @relation("AdminUniversity", fields: [adminUniversityId], references: [id])
+  company         DeliveryCompany? @relation("CompanyMembers", fields: [companyId], references: [id])
+  assignedOrders  Order[]          @relation("OrderAssignedBy")
 
   shops                 Shop[]
   studentOrders         Order[]               @relation("StudentOrders")
@@ -152,6 +224,11 @@ model Profile {
   studentDeliveryStats  StudentDeliveryStats?
   riderEarnings         RiderEarning[]
   shopSuggestions       ShopSuggestion[]
+  reminderLogs          ReminderLog[]
+  startedBaskets        GroupBasket[]         @relation("StartedBaskets")
+  groupBasketItems      GroupBasketItem[]     @relation("GroupBasketItems")
+  betaApplication       BetaApplication?      @relation("BetaApplications")
+  betaFeedback          BetaFeedback[]        @relation("BetaFeedback")
 
   @@map("profiles")
 }
@@ -171,15 +248,45 @@ model Checkpoint {
   /// safe default is an empty feed, which the rider app explains. Student
   /// riders ignore this column entirely.
   externalRidersAllowed Boolean  @default(false) @map("external_riders_allowed")
+  /// Set = a pickup point in that city zone, and a pickup collected here is
+  /// priced at the zone's fee. Null = a drop-off point on the campus itself.
+  /// Only campus checkpoints may be a delivery's destination.
+  zoneId                String?  @map("zone_id")
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 
   university   University @relation(fields: [universityId], references: [id])
+  zone         Zone?      @relation(fields: [zoneId], references: [id])
   // Two relations because a pickup order references a checkpoint twice.
   orders       Order[]    @relation("OrderDropoff")
   pickupOrders Order[]    @relation("OrderPickup")
 
   @@map("checkpoints")
+}
+
+/// A pricing zone of a city, e.g. "Legon & East Legon" in Accra.
+///
+/// City-wide, not per campus: the same stretch of Accra is the same distance
+/// for every university's riders, so its fee is set once. Each campus then
+/// has its own checkpoints inside the zone (`Checkpoint.zoneId`).
+model Zone {
+  id          String   @id @default(uuid())
+  /// Short letter shown beside the name ("A").
+  code        String   @unique
+  name        String
+  city        String   @default("Accra")
+  /// The whole delivery fee for a pickup collected in this zone, in GHS. It
+  /// replaces the base fee rather than adding to it; surcharge and loyalty
+  /// discount then apply to it exactly as they do to the base fee.
+  deliveryFee Decimal  @map("delivery_fee") @db.Decimal(10, 2)
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  checkpoints Checkpoint[]
+
+  @@map("zones")
 }
 
 model Shop {
@@ -204,6 +311,7 @@ model Shop {
   products            Product[]
   orders              Order[]
   resolvedSuggestions ShopSuggestion[] @relation("ResolvedSuggestions")
+  GroupBasket         GroupBasket[]
 
   @@map("shops")
 }
@@ -305,6 +413,12 @@ model Order {
   // Where the order is handed to the student. Always set, for both kinds.
   checkpointId       String  @map("checkpoint_id")
   universityId       String  @map("university_id")
+  /// The delivery company that ran this order. Set when its dispatcher assigns
+  /// it; a company order earns no per-rider `RiderEarning` — the company is
+  /// paid on its statement instead.
+  companyId          String? @map("company_id")
+  assignedAt         DateTime? @map("assigned_at")
+  assignedById       String? @map("assigned_by_id")
 
   orderType OrderType @default(buy_for_me) @map("order_type")
 
@@ -359,7 +473,9 @@ model Order {
   lastPinResendAt DateTime? @map("last_pin_resend_at")
 
   notes              String?
-  cancellationReason String? @map("cancellation_reason")
+  cancellationReason String?             @map("cancellation_reason")
+  /// Set alongside `cancellationReason` wherever an order ends unhappily.
+  failureReason      OrderFailureReason? @map("failure_reason")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -372,11 +488,21 @@ model Order {
   university       University      @relation(fields: [universityId], references: [id])
   product          Product?        @relation(fields: [productId], references: [id])
   suggestion       ShopSuggestion? @relation(fields: [suggestionId], references: [id])
+  company          DeliveryCompany? @relation(fields: [companyId], references: [id])
+  assignedBy       Profile?         @relation("OrderAssignedBy", fields: [assignedById], references: [id])
 
-  items         OrderItem[]
-  statusHistory OrderStatusHistory[]
-  earning       RiderEarning?
+  items          OrderItem[]
+  statusHistory  OrderStatusHistory[]
+  refundRequests RefundRequest[]
+  earning        RiderEarning?
+  groupBasket    GroupBasket?
 
+  /// Added by 20260807150000_package_pickup_orders but never written into this
+  /// schema, so every later `migrate dev` generated a DROP INDEX for it — the
+  /// feature-flag migration did exactly that. Declared here so the schema and
+  /// the database agree and it stops being silently removed.
+  @@index([orderType])
+  @@index([companyId, scheduledDate])
   @@map("orders")
 }
 
@@ -433,8 +559,16 @@ model RiderVerification {
 }
 
 model StudentDeliveryStats {
-  studentId        String   @id @map("student_id")
-  totalDeliveries  Int      @default(0) @map("total_deliveries")
+  studentId       String @id @map("student_id")
+  /// Lifetime deliveries. Never reset — it is the account's history, and the
+  /// admin and the profile both report on it.
+  totalDeliveries Int    @default(0) @map("total_deliveries")
+  /// Stamps toward the NEXT reward, which is why this exists alongside
+  /// `totalDeliveries`: the discount became one-shot on 2026-09-23, so the
+  /// number that earns it has to be spendable. Incremented on every delivery,
+  /// reduced by the threshold when a discounted order is actually paid for, and
+  /// put back if that order is later refunded.
+  rewardStamps    Int    @default(0) @map("reward_stamps")
   discountEligible Boolean  @default(false) @map("discount_eligible")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
@@ -465,6 +599,198 @@ model RiderEarning {
   @@map("rider_earnings")
 }
 
+/// A basket several students fill together, which one of them then pays for.
+///
+/// Deliberately not an `Order` in some draft state. An order carries a
+/// checkpoint, a delivery day, a total and a payment; a basket being assembled
+/// has none of those settled, and giving `Order` a "not really an order yet"
+/// status would put that ambiguity into every query that touches orders.
+///
+/// **One payer.** The starter pays the whole basket and settles with their
+/// friends themselves. Wave sees one order and one Paystack charge. Per-person
+/// charging means several transactions, partial-payment states and a refund
+/// story when somebody never pays — none of which the pilot should carry.
+///
+/// `status` is the concurrency answer: the starter locks the basket before
+/// paying, and a friend adding an item after that is refused with a reason
+/// rather than silently changing a total someone is looking at.
+model GroupBasket {
+  id             String            @id @default(uuid())
+  /// Short, human-readable, shared in a hostel group chat.
+  code           String            @unique
+  starterId      String            @map("starter_id")
+  starter        Profile           @relation("StartedBaskets", fields: [starterId], references: [id], onDelete: Cascade)
+  shopId         String            @map("shop_id")
+  shop           Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  universityId   String            @map("university_id")
+  university     University        @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  scheduledDate  DateTime          @map("scheduled_date") @db.Date
+  isSpecialOrder Boolean           @default(false) @map("is_special_order")
+  status         GroupBasketStatus @default(open)
+  /// Set once the basket becomes a real order.
+  orderId        String?           @unique @map("order_id")
+  order          Order?            @relation(fields: [orderId], references: [id])
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  items GroupBasketItem[]
+
+  @@index([status, scheduledDate])
+  @@map("group_basket")
+}
+
+enum GroupBasketStatus {
+  open
+  /// The starter is paying. No more items.
+  locked
+  converted
+  /// The Wave closed with nobody paying.
+  expired
+}
+
+/// One line in a group basket, and who added it.
+///
+/// `profileId` is what makes the basket legible to the person paying: "who
+/// asked for the waakye" is the first question the starter will have, and it is
+/// also what they need to chase the money afterwards.
+model GroupBasketItem {
+  id        String      @id @default(uuid())
+  basketId  String      @map("basket_id")
+  basket    GroupBasket @relation(fields: [basketId], references: [id], onDelete: Cascade)
+  profileId String      @map("profile_id")
+  profile   Profile     @relation("GroupBasketItems", fields: [profileId], references: [id], onDelete: Cascade)
+  productId String?     @map("product_id")
+  name      String
+  unitPrice Decimal?    @map("unit_price") @db.Decimal(10, 2)
+  quantity  Int         @default(1)
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@index([basketId])
+  @@map("group_basket_item")
+}
+
+/// One reminder push that has been sent, so it is never sent twice.
+///
+/// The unique on (profile, kind, dedupeKey) is what makes the reminder sweep
+/// safe to run on a timer and safe to run twice at once: the insert is the
+/// claim. `dedupeKey` is the Wave date for a cutoff reminder and the order id
+/// for an abandoned nudge — whatever "the same reminder" means for that kind.
+///
+/// Also the record the per-student daily cap counts. A delivery app that pushes
+/// twice a week is useful; one that pushes daily gets its notifications turned
+/// off, and then none of this works.
+model ReminderLog {
+  id        String   @id @default(uuid())
+  profileId String   @map("profile_id")
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  kind      String
+  dedupeKey String   @map("dedupe_key")
+  sentAt    DateTime @default(now()) @map("sent_at")
+
+  @@unique([profileId, kind, dedupeKey])
+  @@index([profileId, sentAt])
+  @@map("reminder_log")
+}
+
+/// A feature switch, resolved per university with a global fallback.
+///
+/// Deliberately not a `PlatformConfig` row: that table is a flat key/value
+/// store of numbers the pricing code reads, and giving it booleans plus a
+/// university dimension would make both harder to reason about.
+///
+/// A missing row means OFF. The resolver in `@wave/shared` never invents a
+/// `true`, so a feature nobody has switched on is off on a fresh database, on a
+/// database that has never heard of the key, and on a client whose fetch failed.
+model FeatureFlag {
+  id           String      @id @default(uuid())
+  key          String
+  /// Null is the global default that applies to every university.
+  universityId String?     @map("university_id")
+  university   University? @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  /// off: nobody. beta: approved beta testers only. on: everyone.
+  state        FlagState   @default(off)
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  @@unique([key, universityId])
+  @@index([key])
+  @@map("feature_flag")
+}
+
+enum FlagState {
+  off
+  beta
+  on
+}
+
+enum BetaStatus {
+  pending
+  approved
+  rejected
+  /// Was approved; access withdrawn later.
+  revoked
+}
+
+/// A student's or rider's request to test features before release, and the
+/// decision on it. One per person: re-applying after a rejection reopens the
+/// same row rather than stacking a queue of duplicates.
+model BetaApplication {
+  id           String     @id @default(uuid())
+  profileId    String     @unique @map("profile_id")
+  profile      Profile    @relation("BetaApplications", fields: [profileId], references: [id], onDelete: Cascade)
+  status       BetaStatus @default(pending)
+  /// In their words: why they want in. Shown to the reviewer.
+  reason       String?
+  /// The reviewer's note. Shown to the applicant on rejection.
+  reviewNote   String?    @map("review_note")
+  reviewedById String?    @map("reviewed_by_id")
+  reviewedAt   DateTime?  @map("reviewed_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@map("beta_application")
+}
+
+/// What a beta tester told us. Free text plus where they were.
+model BetaFeedback {
+  id         String   @id @default(uuid())
+  profileId  String   @map("profile_id")
+  profile    Profile  @relation("BetaFeedback", fields: [profileId], references: [id], onDelete: Cascade)
+  message    String
+  /// The screen they sent it from, so "this is broken" has a location.
+  screen     String?
+  appVersion String?  @map("app_version")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("beta_feedback")
+}
+
+/// A delivery company Wave contracts to run deliveries. Which one is active, and
+/// whether deliveries go to a company at all, is `platform_config.delivery_mode`
+/// and `delivery_company_id` — so the switch back to independent riders is one
+/// setting, not a data migration.
+model DeliveryCompany {
+  id           String           @id @default(uuid())
+  name         String
+  contactName  String?          @map("contact_name")
+  contactPhone String?          @map("contact_phone")
+  isActive     Boolean          @default(true) @map("is_active")
+  rateType     CompanyRateType? @map("rate_type")
+  rateValue    Decimal?         @map("rate_value") @db.Decimal(10, 2)
+  /// SHA-256 of the company's private list link. The link itself is shown to
+  /// staff once and never stored, so a database read cannot reveal it. Null =
+  /// no link, or it was turned off.
+  listTokenHash String?         @unique @map("list_token_hash")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  members Profile[] @relation("CompanyMembers")
+  orders  Order[]
+
+  @@map("delivery_companies")
+}
+
 model PlatformConfig {
   key         String   @id
   value       String
@@ -472,4 +798,134 @@ model PlatformConfig {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("platform_config")
+}
+
+// --- Audit log --------------------------------------------------------------
+
+enum AuditActorType {
+  /// A student, rider or shop owner acting on their own account.
+  user
+  /// Someone with `role = admin`, acting through the admin dashboard.
+  staff
+  /// The API itself: the abandoned-checkout sweep, reminders, scheduled resumes.
+  system
+  /// An inbound call from a third party, e.g. Paystack.
+  webhook
+  /// No valid session — a failed sign-in or a request that never authenticated.
+  anonymous
+}
+
+enum AuditOutcome {
+  success
+  denied
+  failed
+}
+
+/// One thing that happened, for auditing.
+///
+/// Append-only, and enforced by a trigger rather than by convention: the
+/// migration that creates this table also makes UPDATE and DELETE on it raise.
+/// A log that the people it records could edit would prove nothing.
+///
+/// No foreign keys on purpose. The actor and the entity are copied in as plain
+/// ids plus a name snapshot, so a row still reads correctly after the profile,
+/// order or shop it points at has changed or gone.
+model AuditEvent {
+  id             String         @id @default(uuid())
+  occurredAt     DateTime       @default(now()) @map("occurred_at")
+  actorId        String?        @map("actor_id")
+  actorType      AuditActorType @map("actor_type")
+  /// `profiles.role` at the time: student, rider, shop_owner, admin.
+  actorRole      String?        @map("actor_role")
+  /// `profiles.staff_role` at the time, for staff only.
+  actorStaffRole String?        @map("actor_staff_role")
+  actorName      String?        @map("actor_name")
+  /// Dotted, past tense: "order.refunded", "flag.changed", "pii.viewed".
+  action         String
+  /// The coarse bucket the panel filters on: auth, order, payment, ...
+  category       String
+  entityType     String?        @map("entity_type")
+  entityId       String?        @map("entity_id")
+  universityId   String?        @map("university_id")
+  /// Redacted before it is written — see `packages/api/src/lib/audit.ts`.
+  before         Json?
+  after          Json?
+  metadata       Json?
+  outcome        AuditOutcome   @default(success)
+  ip             String?
+  userAgent      String?        @map("user_agent")
+  requestId      String?        @map("request_id")
+  method         String?
+  path           String?
+  statusCode     Int?           @map("status_code")
+
+  @@index([occurredAt(sort: Desc)])
+  @@index([actorId, occurredAt(sort: Desc)])
+  @@index([entityType, entityId])
+  @@index([category, occurredAt(sort: Desc)])
+  @@index([universityId, occurredAt(sort: Desc)])
+  @@map("audit_event")
+}
+
+/// A pause on taking new orders — the kill switch. See `SERVICE_SWITCHES` in
+/// `@wave/shared`.
+///
+/// The opposite default to `FeatureFlag`: a missing row means RUNNING. Only a
+/// row with `paused = true` stops anything, and it stops new orders only;
+/// paid orders already in flight carry on to delivery.
+model ServiceSwitch {
+  id           String      @id @default(uuid())
+  key          String
+  /// Null is the global switch that applies to every university.
+  universityId String?     @map("university_id")
+  university   University? @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  paused       Boolean     @default(false)
+  /// Not launched yet: the service is not merely paused but absent. The app
+  /// hides its tab and (for Buy for me) shop browsing entirely, and the API
+  /// refuses to serve either. Only meaningful while `paused` is true.
+  hidden       Boolean     @default(false)
+  /// Shown to students, word for word. Null falls back to a generic line.
+  message      String?
+  /// The pause lifts itself at this time. Null means until someone resumes it.
+  resumeAt     DateTime?   @map("resume_at")
+  updatedById  String?     @map("updated_by_id")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  @@unique([key, universityId])
+  @@index([key])
+  @@map("service_switch")
+}
+
+enum RefundRequestStatus {
+  pending
+  approved
+  rejected
+  /// Approved, but Paystack refused. The order is unchanged; HQ can retry.
+  failed
+}
+
+/// A campus admin asking HQ to refund an order. Money moves only when an HQ
+/// role holding `refunds.approve` decides it — the campus admin never calls
+/// Paystack themselves.
+model RefundRequest {
+  id            String              @id @default(uuid())
+  orderId       String              @map("order_id")
+  order         Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  universityId  String              @map("university_id")
+  university    University          @relation(fields: [universityId], references: [id])
+  requestedById String              @map("requested_by_id")
+  reason        String
+  status        RefundRequestStatus @default(pending)
+  decidedById   String?             @map("decided_by_id")
+  decidedAt     DateTime?           @map("decided_at")
+  decisionNote  String?             @map("decision_note")
+  /// Paystack's reason, when an approved refund failed.
+  failureDetail String?             @map("failure_detail")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@index([universityId, status])
+  @@index([orderId])
+  @@map("refund_request")
 }

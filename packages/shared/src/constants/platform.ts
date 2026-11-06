@@ -1,8 +1,15 @@
 // Defaults only — the source of truth at runtime is the `platform_config` table.
-export const DEFAULT_DELIVERY_FEE_GHS = 20.0;
+export const DEFAULT_DELIVERY_FEE_GHS = 50.0;
 export const DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT = 30;
 export const DEFAULT_LOYALTY_DISCOUNT_PCT = 20;
 export const DEFAULT_LOYALTY_THRESHOLD = 6;
+
+/**
+ * How many verified shops a campus should have before Buy for me is worth
+ * opening. Only a prompt in the admin — nothing opens by itself, because
+ * "enough shops" is a judgement about which shops, not just how many.
+ */
+export const DEFAULT_BUY_FOR_ME_MIN_SHOPS = 8;
 export const DEFAULT_SPECIAL_ORDER_LEAD_HOURS = 24;
 
 /**
@@ -83,7 +90,15 @@ export const ALLOWED_ID_TYPES_BY_RIDER_TYPE: Record<RiderType, readonly string[]
   external: ["ghana_card", "passport"],
 };
 
-export const STANDARD_DELIVERY_DAYS = ["sunday", "wednesday"] as const;
+export const STANDARD_DELIVERY_DAYS = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+] as const;
 
 export const PROFILE_ROLES = ["student", "rider", "shop_owner", "admin"] as const;
 export type ProfileRole = (typeof PROFILE_ROLES)[number];
@@ -141,5 +156,58 @@ export function normalizeShopName(name: string): string {
   );
 }
 
-export const DELIVERY_DAYS = ["sunday", "wednesday", "special"] as const;
+// `special` stays accepted so a client built before 2026-11-04 (when every day
+// became a delivery day) can still place an order; the server stores the real
+// weekday instead and charges no surcharge.
+export const DELIVERY_DAYS = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "special",
+] as const;
 export type DeliveryDay = (typeof DELIVERY_DAYS)[number];
+
+
+/**
+ * How far a student is from the loyalty discount.
+ *
+ * Lives here rather than in the app because the discount is the API's decision
+ * — `estimateOrderTotal` only mirrors it — and a progress line that disagreed
+ * with the discount actually applied would be worse than showing nothing.
+ *
+ * `remaining` is 0 once earned, and the caller decides whether to say so.
+ */
+export function loyaltyProgress(
+  stamps: number,
+  threshold: number = DEFAULT_LOYALTY_THRESHOLD,
+  discountPct: number = DEFAULT_LOYALTY_DISCOUNT_PCT,
+): { earned: boolean; completed: number; threshold: number; remaining: number; discountPct: number } {
+  // `completed` is stamps toward the next reward, not lifetime deliveries. The
+  // discount became one-shot on 2026-09-23: a full card is spent on the next
+  // order and the stamps reset, so this number goes down as well as up.
+  const completed = Math.max(0, Math.floor(stamps));
+  const earned = completed >= threshold;
+  return {
+    earned,
+    completed,
+    threshold,
+    remaining: earned ? 0 : threshold - completed,
+    discountPct,
+  };
+}
+
+/** The one sentence both the profile and the review screen show. */
+export function loyaltyProgressLabel(progress: ReturnType<typeof loyaltyProgress>): string {
+  if (progress.earned) {
+    // "every order" was true while the discount was permanent. It is one order
+    // now, and promising more than that in the place a student reads it is the
+    // kind of copy that turns into a support message.
+    return `Reward ready — ${progress.discountPct}% off your next delivery fee.`;
+  }
+  const n = progress.remaining;
+  return `${n} more ${n === 1 ? "delivery" : "deliveries"} for ${progress.discountPct}% off delivery.`;
+}

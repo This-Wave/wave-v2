@@ -3,6 +3,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { ShopStackParamList } from "../../navigation/ShopNavigator";
 import {
+  BrandBar,
   Empty,
   Gutter,
   ListError,
@@ -35,6 +36,7 @@ export function ShopOrdersScreen() {
 
   return (
     <Screen>
+      <BrandBar />
       <ScreenBody
         bottomInset={24}
         refreshing={isRefetching}
@@ -123,7 +125,7 @@ function OrderRow({
       <View className="w-28">
         <StatusPill {...statusPill(order.status)} />
       </View>
-      {onPress ? <ChevronRightIcon size={18} color={colors.subtle} strokeWidth={2} /> : null}
+      {onPress ? <ChevronRightIcon size={18} color={colors.icon} strokeWidth={2} /> : null}
     </>
   );
 

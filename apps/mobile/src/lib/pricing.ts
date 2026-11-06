@@ -1,48 +1,32 @@
 import {
+  CUTOFF_HOUR,
+  RUN_DAYS,
   DEFAULT_DELIVERY_FEE_GHS,
   DEFAULT_LOYALTY_DISCOUNT_PCT,
-  DEFAULT_LOYALTY_THRESHOLD,
   DEFAULT_SPECIAL_ORDER_LEAD_HOURS,
-  DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
+  deliveryDayOf,
 } from "@wave/shared";
+import type { DeliveryDay } from "../types";
 
-export const CUTOFF_HOUR = 12;
-const RUN_DAYS = [0, 3]; // Sunday, Wednesday
+// The Wave schedule lives in @wave/shared so the server's cutoff reminder and
+// the app's countdown cannot drift apart. Re-exported here because these were
+// this module's API for a long time and every caller imports them from it.
+export {
+  CUTOFF_HOUR,
+  RUN_DAYS,
+  nextRunCutoff,
+  isCutoffPassedToday,
+  upcomingRunDays,
+  deliveryDayOf,
+  msUntilCutoff,
+} from "@wave/shared";
 
 // Display-only helpers mirroring the server's pricing rules in
 // packages/api/src/modules/orders/discount.ts — the server always
 // recalculates and is the only source of truth for the actual charge.
 
-export function nextRunCutoff(now: Date = new Date()): Date {
-  for (let offset = 0; offset < 14; offset++) {
-    const candidate = new Date(now);
-    candidate.setDate(now.getDate() + offset);
-    candidate.setHours(CUTOFF_HOUR, 0, 0, 0);
-    if (RUN_DAYS.includes(candidate.getDay()) && candidate.getTime() > now.getTime()) {
-      return candidate;
-    }
-  }
-  return now;
-}
 
-export function isCutoffPassedToday(now: Date = new Date()): boolean {
-  return RUN_DAYS.includes(now.getDay()) && now.getHours() >= CUTOFF_HOUR;
-}
 
-export function upcomingRunDays(now: Date = new Date(), count = 2): Date[] {
-  const results: Date[] = [];
-  for (let offset = 0; results.length < count && offset < 30; offset++) {
-    const candidate = new Date(now);
-    candidate.setDate(now.getDate() + offset);
-    candidate.setHours(0, 0, 0, 0);
-    const cutoff = new Date(candidate);
-    cutoff.setHours(CUTOFF_HOUR, 0, 0, 0);
-    if (RUN_DAYS.includes(candidate.getDay()) && cutoff.getTime() > now.getTime()) {
-      results.push(candidate);
-    }
-  }
-  return results;
-}
 
 export function earliestSpecialOrderDate(now: Date = new Date()): Date {
   return new Date(now.getTime() + DEFAULT_SPECIAL_ORDER_LEAD_HOURS * 60 * 60 * 1000);
@@ -51,11 +35,22 @@ export function earliestSpecialOrderDate(now: Date = new Date()): Date {
 export function estimateOrderTotal(input: {
   itemPrice: number;
   isSpecialOrder: boolean;
-  completedDeliveries: number;
+  /**
+   * Whether the student is holding a full stamp card that this order will
+   * actually spend — the server's `rewardReady`, not a count of past
+   * deliveries. The discount became one-shot on 2026-09-23, so "six or more
+   * deliveries" stopped predicting it: the counter is spent when a discounted
+   * order is paid for, and an order already holding the reward blocks a second.
+   * Guessing locally would quote a total the server then disagreed with.
+   */
+  rewardReady: boolean;
+  /** A zone pickup's fee; the base fee when omitted. */
+  deliveryFee?: number;
 }) {
-  const deliveryFee = DEFAULT_DELIVERY_FEE_GHS;
-  const surchargePct = input.isSpecialOrder ? DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT : 0;
-  const discountPct = input.completedDeliveries >= DEFAULT_LOYALTY_THRESHOLD ? DEFAULT_LOYALTY_DISCOUNT_PCT : 0;
+  const deliveryFee = input.deliveryFee ?? DEFAULT_DELIVERY_FEE_GHS;
+  // No rush surcharge since every day became a delivery day (2026-11-04).
+  const surchargePct = 0;
+  const discountPct = input.rewardReady ? DEFAULT_LOYALTY_DISCOUNT_PCT : 0;
 
   const surchargeAmount = (deliveryFee * surchargePct) / 100;
   const discountAmount = (deliveryFee * discountPct) / 100;
@@ -149,9 +144,10 @@ export function isStandardRunDay(date: Date): boolean {
 }
 
 /** The `deliveryDay` value the API expects for a chosen date. */
-export function deliveryDayFor(date: Date, isSpecialOrder: boolean): "sunday" | "wednesday" | "special" {
-  if (isSpecialOrder) return "special";
-  return date.getDay() === 0 ? "sunday" : "wednesday";
+export function deliveryDayFor(date: Date, _isSpecialOrder?: boolean): DeliveryDay {
+  // Every day is a delivery day; the second argument is kept so existing
+  // callers compile, and ignored.
+  return deliveryDayOf(date);
 }
 
 /**

@@ -1,8 +1,25 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { createShopSchema, updateShopSchema } from "@wave/shared";
+import { buyForMeHidden, pausedReply } from "../switches/routes";
 
 export async function shopRoutes(fastify: FastifyInstance) {
-  fastify.get("/", async (_request, reply) => {
+  /**
+   * Browsing shops is part of Buy for me, so it is closed while Buy for me has
+   * not launched — a catalogue you cannot order from is a dead end, and at
+   * launch there is barely a catalogue to show.
+   *
+   * A pause is different: that leaves browsing open and refuses only the order.
+   * These routes are public, so the campus comes from `?universityId=` when the
+   * caller gives one and from the global switch otherwise.
+   */
+  async function notLaunched(request: FastifyRequest) {
+    const { universityId } = request.query as { universityId?: string };
+    return buyForMeHidden(fastify, universityId ?? request.user?.universityId ?? null);
+  }
+
+  fastify.get("/", async (request, reply) => {
+    const hidden = await notLaunched(request);
+    if (hidden) return reply.code(503).send({ ...pausedReply(hidden), shops: [] });
     const shops = await fastify.prisma.shop.findMany({ where: { isActive: true, isVerified: true } });
     return reply.send({ shops });
   });
@@ -27,6 +44,8 @@ export async function shopRoutes(fastify: FastifyInstance) {
   // part of a unique index. Owners reach their own inactive shops via /my.
   fastify.get("/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
+    const hidden = await notLaunched(request);
+    if (hidden) return reply.code(503).send(pausedReply(hidden));
     const shop = await fastify.prisma.shop.findFirst({
       where: { id, isActive: true, isVerified: true },
       // Products are returned whole, including `out_of_stock` / `not_serving`:

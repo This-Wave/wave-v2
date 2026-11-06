@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { GuestAccountSheet } from "../../components/GuestAccountSheet";
+import type { ResumeTarget } from "../../store/authStore";
 import { Pressable, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -8,18 +10,17 @@ import {
   Button,
   Field,
   Gutter,
-  Row,
-  RowGroup,
   Screen,
   ScreenBody,
   Sheet,
   TopBar,
 } from "../../components/v6";
-import { CheckIcon } from "../../components/icons";
+import { CalendarIcon, CheckIcon, ChevronRightIcon, PinDotIcon, PinIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
-import { useCheckpoints } from "../../lib/checkpoints";
+import { pickupFeeFor, useCheckpoints } from "../../lib/checkpoints";
 import { useCreateOrder } from "../../lib/orders";
-import { useAuthStore } from "../../store/authStore";
+import { useIsGuest, useViewerUniversityId } from "../../store/authStore";
+import type { Checkpoint } from "../../types";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
 import {
   deliveryDayFor,
@@ -31,8 +32,8 @@ import {
 } from "../../lib/pricing";
 
 /**
- * Campus-to-campus package pickup: move something already on campus from one
- * checkpoint to another.
+ * Package pickup: collect something from an Accra zone (or elsewhere on campus)
+ * and bring it to a campus checkpoint.
  *
  * This used to be a dead form — `POST /orders` required a `shopId` and an order
  * carried only one checkpoint, so there was nothing to submit to. The
@@ -48,12 +49,15 @@ type Route = RouteProp<StudentStackParamList, "PickupRequest">;
 export function PickupRequestScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
-  const profile = useAuthStore((s) => s.profile);
-  const { data: checkpoints } = useCheckpoints(profile?.universityId ?? undefined);
+  const viewerUniversityId = useViewerUniversityId();
+  const { data: checkpoints } = useCheckpoints(viewerUniversityId);
 
-  const [description, setDescription] = useState("");
-  const [fromId, setFromId] = useState<string | null>(null);
-  const [toId, setToId] = useState<string | null>(null);
+  const [description, setDescription] = useState(params?.description ?? "");
+  const isGuest = useIsGuest();
+  const [accountPrompt, setAccountPrompt] = useState<ResumeTarget | null>(null);
+  // Pre-chosen when arriving from "Move it again"; both are still editable.
+  const [fromId, setFromId] = useState<string | null>(params?.fromId ?? null);
+  const [toId, setToId] = useState<string | null>(params?.toId ?? null);
   const [dayIndex, setDayIndex] = useState(0);
   const [picker, setPicker] = useState<"from" | "to" | "day" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,8 +72,16 @@ export function PickupRequestScreen() {
   const days = useMemo(() => upcomingRunDays(new Date(), 4), []);
   const scheduled = chosenDate ?? days[dayIndex];
   const isSpecialOrder = params?.isSpecialOrder ?? (scheduled ? !isStandardRunDay(scheduled) : false);
-  const from = checkpoints?.find((c) => c.id === fromId) ?? checkpoints?.[0];
-  const to = checkpoints?.find((c) => c.id === toId) ?? checkpoints?.[1] ?? checkpoints?.[0];
+  // Collection can be an Accra zone or the campus; a delivery always ends on
+  // campus, so "Deliver to" only ever offers campus checkpoints.
+  const zonePoints = (checkpoints ?? []).filter((c) => c.zone);
+  const campusPoints = (checkpoints ?? []).filter((c) => !c.zone);
+  const from = checkpoints?.find((c) => c.id === fromId) ?? zonePoints[0] ?? campusPoints[0];
+  const to =
+    campusPoints.find((c) => c.id === toId) ??
+    campusPoints.find((c) => c.id !== from?.id) ??
+    campusPoints[0];
+  const fee = pickupFeeFor(from, DEFAULT_DELIVERY_FEE_GHS);
 
   async function handleContinue() {
     if (!from || !to) return;
@@ -79,6 +91,13 @@ export function PickupRequestScreen() {
     }
     if (!scheduled) return;
     setError(null);
+    if (isGuest) {
+      setAccountPrompt({
+        route: "PickupRequest",
+        params: { ...params, fromId: from.id, toId: to.id, description },
+      });
+      return;
+    }
     try {
       const order = await createOrder.mutateAsync({
         orderType: "pickup",
@@ -104,13 +123,42 @@ export function PickupRequestScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter>
-          <Text className="mb-2 font-sans-bold text-heading text-ink">Move a package</Text>
-          <Text className="mb-8 font-sans text-body text-muted">
-            Get something carried from one checkpoint to another on the next Wave. You pay the
-            delivery fee only — there's nothing to buy.
+          <Text className="mb-1 font-sans-bold text-heading text-ink">Send a package</Text>
+          <Text className="mb-6 font-sans text-body text-muted">
+            Collected anywhere in our Accra zones and brought to campus on the next Wave.
+            The zone sets the fee, and the fee is the whole price.
           </Text>
 
-          <View className="mb-6">
+          {/* Pickup & delivery first: the route is the decision, and the two
+              ends read as one thing when they sit in one card. */}
+          <View className="mb-3 rounded-card bg-surface p-4">
+            <Text className="mb-3 font-sans-medium text-ui text-ink">Pickup &amp; delivery</Text>
+            <PickerRow
+              icon={<PinIcon size={18} color={colors.ink} strokeWidth={1.9} />}
+              label="Collect from"
+              value={from ? checkpointLabel(from) : undefined}
+              placeholder="Choose a pickup point"
+              onPress={() => setPicker("from")}
+            />
+            <View className="my-1 ml-4 h-4 border-l border-dashed border-hairline" />
+            <PickerRow
+              icon={<PinDotIcon size={18} color={colors.ink} strokeWidth={1.9} />}
+              label="Deliver to"
+              value={to?.name}
+              placeholder="Choose a drop-off"
+              onPress={() => setPicker("to")}
+            />
+            <View className="my-3 border-t border-hairline" />
+            <PickerRow
+              icon={<CalendarIcon size={18} color={colors.ink} strokeWidth={1.9} />}
+              label={`Delivery fee ${formatGhs(fee)}`}
+              value={scheduled ? formatFullDay(scheduled) : undefined}
+              placeholder="Choose a day"
+              onPress={chosenDate ? undefined : () => setPicker("day")}
+            />
+          </View>
+
+          <View className="rounded-card bg-surface p-4">
             <Field
               label="What are we moving?"
               value={description}
@@ -119,26 +167,6 @@ export function PickupRequestScreen() {
               multiline
             />
           </View>
-
-          <Text className="mb-2 font-sans-medium text-body text-ink">Route</Text>
-          <RowGroup>
-            <Row
-              title={from?.name ?? "Choose a pickup point"}
-              meta="Collect from"
-              onPress={() => setPicker("from")}
-            />
-            <Row
-              title={to?.name ?? "Choose a drop-off"}
-              meta="Deliver to"
-              onPress={() => setPicker("to")}
-            />
-            <Row
-              title={scheduled ? formatFullDay(scheduled) : "Choose a day"}
-              meta={`Delivery fee ${formatGhs(DEFAULT_DELIVERY_FEE_GHS)}`}
-              onPress={chosenDate ? undefined : () => setPicker("day")}
-              chevron={!chosenDate}
-            />
-          </RowGroup>
         </Gutter>
       </ScreenBody>
 
@@ -147,7 +175,7 @@ export function PickupRequestScreen() {
           <Text className="mb-3 font-sans text-body text-danger">{error}</Text>
         ) : null}
         <Button
-          label="Review pickup"
+          label={`${isGuest ? "Continue to pay" : "Pay"} ${formatGhs(fee)}`}
           onPress={handleContinue}
           loading={createOrder.isPending}
           disabled={description.trim().length < 3 || !from || !to || from.id === to.id || !scheduled}
@@ -160,11 +188,15 @@ export function PickupRequestScreen() {
         title={picker === "from" ? "Collect from" : "Deliver to"}
       >
         <View className="gap-1">
-          {(checkpoints ?? []).map((c) => (
+          {(picker === "from" ? [...zonePoints, ...campusPoints] : campusPoints).map((c) => (
             <Option
               key={c.id}
-              title={c.name}
-              meta={c.description ?? undefined}
+              title={checkpointLabel(c)}
+              meta={
+                picker === "from"
+                  ? `${c.zone ? `Accra zone ${c.zone.code}` : "On campus"} · ${formatGhs(pickupFeeFor(c, DEFAULT_DELIVERY_FEE_GHS))}`
+                  : (c.description ?? undefined)
+              }
               selected={(picker === "from" ? from?.id : to?.id) === c.id}
               onPress={() => {
                 if (picker === "from") setFromId(c.id);
@@ -191,8 +223,14 @@ export function PickupRequestScreen() {
           ))}
         </View>
       </Sheet>
+      <GuestAccountSheet target={accountPrompt} onClose={() => setAccountPrompt(null)} />
     </Screen>
   );
+}
+
+/** "Zone A · Legon & East Legon" for a zone point, the plain name on campus. */
+function checkpointLabel(c: Checkpoint): string {
+  return c.zone ? `Zone ${c.zone.code} · ${c.name}` : c.name;
 }
 
 function Option({
@@ -220,6 +258,50 @@ function Option({
         {meta ? <Text className="font-sans text-body text-muted">{meta}</Text> : null}
       </View>
       {selected ? <CheckIcon size={18} color={colors.ink} strokeWidth={2.2} /> : null}
+    </Pressable>
+  );
+}
+
+/**
+ * One line of the route card: a glyph, what the line is for, and the choice.
+ *
+ * `Row` was close but wrong here — it is a list item with its own card
+ * background, and three of them inside a card read as three cards. This is a
+ * line inside one card, which is what makes the two ends of the route look
+ * like a route.
+ */
+function PickerRow({
+  icon,
+  label,
+  value,
+  placeholder,
+  onPress,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value?: string;
+  placeholder: string;
+  onPress?: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={`${label}. ${value ?? placeholder}`}
+      className="flex-row items-center gap-3 rounded-input py-1.5 active:bg-hairline"
+    >
+      <View className="h-8 w-8 items-center justify-center rounded-pill bg-lime-faint">{icon}</View>
+      <View className="min-w-0 flex-1">
+        <Text className="font-sans text-meta text-muted">{label}</Text>
+        <Text
+          className={`font-sans-medium text-body ${value ? "text-ink" : "text-muted"}`}
+          numberOfLines={1}
+        >
+          {value ?? placeholder}
+        </Text>
+      </View>
+      {onPress ? <ChevronRightIcon size={18} color={colors.icon} strokeWidth={2} /> : null}
     </Pressable>
   );
 }

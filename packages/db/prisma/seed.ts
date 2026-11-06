@@ -16,7 +16,7 @@ async function main() {
 
   await prisma.platformConfig.createMany({
     data: [
-      { key: "delivery_fee_base", value: "20.00", description: "Base delivery fee in GHS" },
+      { key: "delivery_fee_base", value: "50.00", description: "Base delivery fee in GHS" },
       { key: "special_order_surcharge_pct", value: "30", description: "Special order surcharge %" },
       { key: "loyalty_discount_pct", value: "20", description: "Discount % after 6 deliveries" },
       { key: "loyalty_threshold", value: "6", description: "Deliveries needed for discount" },
@@ -213,13 +213,16 @@ async function main() {
   // needed): phone +233271234567 / WaveAdmin123!
   const admin = await prisma.profile.upsert({
     where: { id: "f9aa5728-6af6-4d0b-9609-a079e1eea924" },
-    update: {},
+    // An admin with no staff role can open nothing (see ROLE_PERMISSIONS), and
+    // the add_staff_role migration only backfills admins that already existed.
+    update: { staffRole: "owner" },
     create: {
       id: "f9aa5728-6af6-4d0b-9609-a079e1eea924",
       universityId: ashesi.id,
       fullName: "Wave Platform Admin",
       phone: "+233271234567",
       role: "admin",
+      staffRole: "owner",
       isVerified: true,
       isActive: true,
     },

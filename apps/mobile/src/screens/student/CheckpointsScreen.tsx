@@ -1,5 +1,6 @@
 import { Text, View } from "react-native";
 import {
+  BrandBar,
   Empty,
   Gutter,
   PageTitle,
@@ -9,13 +10,13 @@ import {
   ScreenBody,
   Skeleton,
 } from "../../components/v6";
-import { useCheckpoints } from "../../lib/checkpoints";
-import { useAuthStore } from "../../store/authStore";
+import { useDropoffPoints } from "../../lib/checkpoints";
+import { useViewerUniversityId } from "../../store/authStore";
 import { useLayout } from "../../hooks/useLayout";
 import { StudentCheckpointsWeb } from "./web/StudentCheckpointsWeb";
 
 /**
- * The campus drop-off points, read-only.
+ * The checkpoints Wave hands over at, read-only.
  * Web uses a card grid; native keeps the phone list.
  */
 export function CheckpointsScreen() {
@@ -25,11 +26,12 @@ export function CheckpointsScreen() {
 }
 
 function CheckpointsMobile() {
-  const universityId = useAuthStore((s) => s.profile?.universityId);
-  const { data: checkpoints, isLoading, isError } = useCheckpoints(universityId ?? undefined);
+  const universityId = useViewerUniversityId();
+  const { data: checkpoints, isLoading, isError } = useDropoffPoints(universityId ?? undefined);
 
   return (
     <Screen>
+      <BrandBar />
       <ScreenBody bottomInset={24}>
         <Gutter className="pb-2 pt-4">
           <PageTitle>Checkpoints</PageTitle>

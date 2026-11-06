@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { createCheckpointSchema, updateCheckpointSchema } from "@wave/shared";
+import { inCampus, outsideCampus } from "../../lib/scope";
 
 // Covers both /universities and /checkpoints per Wave_Technical_Document.md Section 8.3.
 export async function universityRoutes(fastify: FastifyInstance) {
@@ -10,19 +11,36 @@ export async function universityRoutes(fastify: FastifyInstance) {
 
   fastify.get("/universities/:id/checkpoints", async (request, reply) => {
     const { id } = request.params as { id: string };
+    // Each checkpoint carries its zone, if any: that is how the app tells a
+    // city pickup point from a campus drop-off, and what it quotes the fee from.
     const checkpoints = await fastify.prisma.checkpoint.findMany({
       where: { universityId: id, isActive: true },
+      include: { zone: { select: { id: true, code: true, name: true, deliveryFee: true, isActive: true } } },
+      orderBy: [{ zone: { sortOrder: "asc" } }, { name: "asc" }],
     });
-    return reply.send({ checkpoints });
+    return reply.send({
+      checkpoints: checkpoints.filter((c) => !c.zone || c.zone.isActive),
+    });
+  });
+
+  fastify.get("/zones", async (_request, reply) => {
+    const zones = await fastify.prisma.zone.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+    });
+    return reply.send({ zones });
   });
 
   fastify.post(
     "/checkpoints",
-    { preHandler: [fastify.authenticate, fastify.requireRole("admin")] },
+    { preHandler: [fastify.authenticate, fastify.requirePermission("checkpoints.manage")] },
     async (request, reply) => {
       const parsed = createCheckpointSchema.safeParse(request.body);
       if (!parsed.success) {
         return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+      }
+      if (!inCampus(request, parsed.data.universityId)) {
+        return reply.code(403).send({ error: "You can only add checkpoints at your own campus" });
       }
       const checkpoint = await fastify.prisma.checkpoint.create({ data: parsed.data });
       return reply.code(201).send({ checkpoint });
@@ -31,13 +49,15 @@ export async function universityRoutes(fastify: FastifyInstance) {
 
   fastify.put(
     "/checkpoints/:id",
-    { preHandler: [fastify.authenticate, fastify.requireRole("admin")] },
+    { preHandler: [fastify.authenticate, fastify.requirePermission("checkpoints.manage")] },
     async (request, reply) => {
       const { id } = request.params as { id: string };
       const parsed = updateCheckpointSchema.safeParse(request.body);
       if (!parsed.success) {
         return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
       }
+      const existing = await fastify.prisma.checkpoint.findUnique({ where: { id }, select: { universityId: true } });
+      if (!existing || !inCampus(request, existing.universityId)) return outsideCampus(reply, "Checkpoint not found");
       const checkpoint = await fastify.prisma.checkpoint.update({ where: { id }, data: parsed.data });
       return reply.send({ checkpoint });
     },

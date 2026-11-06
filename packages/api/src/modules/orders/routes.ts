@@ -8,10 +8,9 @@ import {
   DEFAULT_DELIVERY_FEE_GHS,
   DEFAULT_LOYALTY_DISCOUNT_PCT,
   DEFAULT_LOYALTY_THRESHOLD,
-  DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
   DEFAULT_GOODS_COST_MAX_GHS,
-  DEFAULT_RIDER_EARNING_PCT_BY_TYPE,
-  RIDER_EARNING_PCT_KEY,
+  deliveryDayOf,
+  isDayClosed,
 } from "@wave/shared";
 import { calculateDiscount, calculateOrderTotal, isStandardDeliveryDay } from "./discount";
 import {
@@ -35,6 +34,11 @@ import {
   PIN_VERIFY_RATE_LIMIT,
   perAccount,
 } from "../../plugins/rateLimit";
+import { riderEarningFor, riderEarningPct } from "../riders/earningRate";
+import { resolveFeature } from "@wave/shared";
+import { pausedFor, pausedReply } from "../switches/routes";
+import { isBetaTester } from "../beta/access";
+import { activeDelivery } from "../companies/mode";
 
 export async function orderRoutes(fastify: FastifyInstance) {
   // POST /orders — student places a "Buy For Me" order.
@@ -71,21 +75,21 @@ export async function orderRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: "That delivery date has already passed" });
       }
 
-      if (!input.isSpecialOrder && !isStandardDeliveryDay(scheduledDate)) {
+      // Every day is a delivery day since 2026-11-04, so there is no rush
+      // order any more: `isSpecialOrder` from an older client is accepted and
+      // ignored rather than charged. What remains is the noon cutoff, which
+      // was only ever enforced in the app.
+      if (!isStandardDeliveryDay(scheduledDate)) {
+        return reply.code(400).send({ error: "Wave does not deliver on that day" });
+      }
+      if (isDayClosed(scheduledDate)) {
         return reply.code(400).send({
-          error: "Non-standard delivery day requires a special order (24h advance notice)",
+          error: "Ordering for today closed at noon. Pick tomorrow.",
         });
       }
-      if (input.isSpecialOrder) {
-        const leadTimeMs = scheduledDate.getTime() - Date.now();
-        if (leadTimeMs < 24 * 60 * 60 * 1000) {
-          return reply.code(400).send({ error: "Special orders require 24 hours advance notice" });
-        }
-      }
 
-      const [feeConfig, surchargeConfig, discountConfig, thresholdConfig, stats] = await Promise.all([
+      const [feeConfig, discountConfig, thresholdConfig, stats] = await Promise.all([
         fastify.prisma.platformConfig.findUnique({ where: { key: "delivery_fee_base" } }),
-        fastify.prisma.platformConfig.findUnique({ where: { key: "special_order_surcharge_pct" } }),
         fastify.prisma.platformConfig.findUnique({ where: { key: "loyalty_discount_pct" } }),
         fastify.prisma.platformConfig.findUnique({ where: { key: "loyalty_threshold" } }),
         fastify.prisma.studentDeliveryStats.findUnique({ where: { studentId: request.user!.id } }),
@@ -95,18 +99,35 @@ export async function orderRoutes(fastify: FastifyInstance) {
       // are the fallback for a row that has not been seeded. They were literals
       // here, which meant the base fee lived as an unlabelled `5` in the middle
       // of the money path and could silently disagree with every other copy.
-      const deliveryFee = Number(feeConfig?.value ?? DEFAULT_DELIVERY_FEE_GHS);
-      const surchargePct = input.isSpecialOrder
-        ? Number(surchargeConfig?.value ?? DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT)
-        : 0;
+      const baseDeliveryFee = Number(feeConfig?.value ?? DEFAULT_DELIVERY_FEE_GHS);
+      const surchargePct = 0;
       const threshold = Number(thresholdConfig?.value ?? DEFAULT_LOYALTY_THRESHOLD);
       const configuredDiscountPct = Number(discountConfig?.value ?? DEFAULT_LOYALTY_DISCOUNT_PCT);
       // The loyalty discount applies to the DELIVERY FEE ONLY, never to the
       // items — see calculateOrderTotal, and Wave_Technical_Document.md §"20%
       // discount applies to delivery fee, not the item purchase price".
+      // One-shot since 2026-09-23: a full stamp card takes the discount off the
+      // NEXT order and is then spent. `rewardStamps` is the spendable number —
+      // `totalDeliveries` is lifetime history and would make the discount
+      // permanent again if it were read here.
+      //
+      // The second condition is the anti-stacking guard. Stamps are only
+      // consumed when an order is *paid*, so without this a student holding one
+      // full card could build three unpaid orders, each priced with the
+      // discount, and then pay all three. One reward, one discounted order in
+      // flight at a time.
+      const rewardHeldOpen = await fastify.prisma.order.findFirst({
+        where: {
+          studentId: request.user!.id,
+          status: "payment_pending",
+          discountApplied: { gt: 0 },
+        },
+        select: { id: true },
+      });
       const discountPct =
+        !rewardHeldOpen &&
         calculateDiscount({
-          totalDeliveries: stats?.totalDeliveries ?? 0,
+          stamps: stats?.rewardStamps ?? 0,
           baseAmount: 1,
           threshold,
           discountPct: configuredDiscountPct,
@@ -124,17 +145,36 @@ export async function orderRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: "Your profile has no campus set" });
       }
 
+      const paused = await pausedFor(fastify, universityId, input.orderType);
+      if (paused) return reply.code(503).send(pausedReply(paused));
+
       const checkpointIds = [input.checkpointId, input.originCheckpointId].filter(
         (id): id is string => !!id,
       );
-      const validCheckpoints = await fastify.prisma.checkpoint.count({
+      const validCheckpoints = await fastify.prisma.checkpoint.findMany({
         where: { id: { in: checkpointIds }, universityId, isActive: true },
+        select: { id: true, zone: { select: { deliveryFee: true, isActive: true } } },
       });
-      if (validCheckpoints !== checkpointIds.length) {
+      if (validCheckpoints.length !== checkpointIds.length) {
         return reply
           .code(400)
           .send({ error: "That checkpoint is not active on your campus" });
       }
+      const dropoff = validCheckpoints.find((c) => c.id === input.checkpointId);
+      const origin = validCheckpoints.find((c) => c.id === input.originCheckpointId);
+      // Zone checkpoints are pickup points out in the city. A delivery always
+      // ends on campus, so one can never be the destination.
+      if (dropoff?.zone) {
+        return reply
+          .code(400)
+          .send({ error: "Deliveries drop off at a campus checkpoint, not a pickup zone" });
+      }
+      if (origin?.zone && !origin.zone.isActive) {
+        return reply.code(400).send({ error: "Wave isn't collecting from that zone right now" });
+      }
+      // A pickup collected in a zone costs that zone's fee, which replaces the
+      // base fee. Everything else, and a campus-to-campus move, is the base fee.
+      const deliveryFee = origin?.zone ? Number(origin.zone.deliveryFee) : baseDeliveryFee;
 
       // --- The basket, and with it the price -------------------------------
       //
@@ -214,9 +254,9 @@ export async function orderRoutes(fastify: FastifyInstance) {
           discountApplied: discountPct,
           surchargeApplied: surchargePct,
           totalAmount,
-          deliveryDay: input.isSpecialOrder ? "special" : (scheduledDate.getDay() === 0 ? "sunday" : "wednesday"),
+          deliveryDay: deliveryDayOf(scheduledDate),
           scheduledDate,
-          isSpecialOrder: input.isSpecialOrder,
+          isSpecialOrder: false,
           status: "payment_pending",
           notes: input.notes,
           items: basket.lines.length
@@ -258,8 +298,23 @@ export async function orderRoutes(fastify: FastifyInstance) {
     if (!rider?.isVerified) {
       return reply.code(403).send({ error: "Your rider account is not verified yet" });
     }
+
+    // Company mode: there is no open feed. The company's dispatcher assigns
+    // each job, and a rider's work arrives on /my-deliveries. Returned as an
+    // empty feed with the reason, so the app can say "Jobs are assigned by
+    // <company>" instead of "No jobs right now".
+    const delivery = await activeDelivery(fastify);
+    if (delivery.mode === "company") {
+      return reply.send({
+        orders: [],
+        riderType: rider.riderType,
+        deliveryMode: "company",
+        companyName: delivery.company?.name ?? null,
+      });
+    }
+
     if (!rider.universityId) {
-      return reply.send({ orders: [] });
+      return reply.send({ orders: [], deliveryMode: "independent" });
     }
 
     // A rider from outside the university may only deliver to checkpoints an
@@ -280,12 +335,37 @@ export async function orderRoutes(fastify: FastifyInstance) {
       where: { status: "confirmed", riderId: null, universityId: rider.universityId, ...externalOnly },
       select: feedOrder,
     });
+    // What each job pays, when the flag is on. Rider supply is what limits
+    // delivery days, and a rider deciding between two jobs — or between working
+    // and not — is doing it on a number the app has never shown them. Computed
+    // server-side with the same rate resolution that writes the earning on
+    // delivery, so the preview cannot quote a percentage the payment then
+    // contradicts.
+    const flagRows = await fastify.prisma.featureFlag.findMany({
+      where: { key: "rider_earnings_preview" },
+      select: { key: true, universityId: true, state: true },
+    });
+    const showEarnings = resolveFeature("rider_earnings_preview", rider.universityId, flagRows, {
+      isBetaTester: await isBetaTester(fastify, request.user!.id),
+    });
+
+    const pct = showEarnings
+      ? await riderEarningPct({ fastify, log: request.log, riderType: rider.riderType })
+      : null;
+
     return reply.send({
-      orders,
+      orders:
+        pct === null
+          ? orders
+          : orders.map((o) => ({
+              ...o,
+              estimatedEarning: riderEarningFor(Number(o.deliveryFee), pct).toFixed(2),
+            })),
       // The app needs to tell an external rider with an empty feed why it is
       // empty. "No jobs right now" and "you are not allowed at any checkpoint"
       // look identical otherwise, and only one of them resolves by waiting.
       riderType: rider.riderType,
+      deliveryMode: "independent",
     });
   });
 
@@ -341,6 +421,17 @@ export async function orderRoutes(fastify: FastifyInstance) {
     });
     if (!rider?.isVerified) {
       return reply.code(403).send({ error: "Your rider account is not verified yet" });
+    }
+
+    // A company's riders are assigned by its dispatcher, never self-claimed:
+    // the company decides who carries what, and is paid for the run as a whole.
+    const delivery = await activeDelivery(fastify);
+    if (delivery.mode === "company") {
+      return reply.code(409).send({
+        error: delivery.company
+          ? `Jobs are assigned by ${delivery.company.name}`
+          : "Jobs are assigned by the delivery company",
+      });
     }
 
     const candidate = await fastify.prisma.order.findUnique({
@@ -709,7 +800,10 @@ export async function orderRoutes(fastify: FastifyInstance) {
       if (order.studentId !== request.user!.id) {
         return reply.code(403).send({ error: "Not your order" });
       }
-      if (!order.riderId) {
+      // A company order has no Wave rider: the company's riders work from the
+      // list link, so the student's "I have my order" is how it closes.
+      const companyOrder = !!order.companyId;
+      if (!order.riderId && !companyOrder) {
         // Nobody has collected it, so there is nothing to have received. Without
         // this a student could close an order that no rider ever touched, and
         // still be counted a delivery towards their loyalty discount.
@@ -720,7 +814,14 @@ export async function orderRoutes(fastify: FastifyInstance) {
       }
 
       const deliverable = await fastify.prisma.order.updateMany({
-        where: { id, status: { in: allowedPredecessors("delivered") } },
+        where: {
+          id,
+          status: {
+            in: companyOrder
+              ? ["rider_assigned", "en_route", "at_checkpoint"]
+              : allowedPredecessors("delivered"),
+          },
+        },
         data: { status: "delivered", deliveredAt: new Date(), deliveryPinAttempts: 0 },
       });
       if (deliverable.count === 0) {
@@ -794,6 +895,8 @@ export async function orderRoutes(fastify: FastifyInstance) {
         reason: parsed.data.reason,
         actorId: request.user!.id,
         intent: "cancel",
+        failureReason: "student_cancelled",
+        request,
       });
       if (!result.ok) return reply.code(result.code).send({ error: result.error });
 
@@ -834,6 +937,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
       if (order.deliveryPinCiphertext) {
         try {
           const pin = decryptDeliveryPin(order.deliveryPinCiphertext, fastify.config.JWT_SECRET);
+          await request.audit({ action: "order.pin_viewed", category: "order", entityType: "order", entityId: order.id });
           return reply.send({ pin });
         } catch (err) {
           request.log.error({ err }, "Failed to decrypt delivery PIN — re-issuing");
@@ -858,6 +962,13 @@ export async function orderRoutes(fastify: FastifyInstance) {
               },
             })
             .then(() => undefined),
+      });
+      await request.audit({
+        action: "order.pin_reissued",
+        category: "order",
+        entityType: "order",
+        entityId: order.id,
+        metadata: { reason: "legacy order had no readable PIN", smsSent },
       });
       return reply.send({ pin, smsSent });
     },
@@ -1039,6 +1150,10 @@ export async function orderRoutes(fastify: FastifyInstance) {
       reason: parsed.data.reason,
       actorId: request.user!.id,
       intent: "cancel",
+      // A shop cancelling is nearly always a stock-out; the free-text reason
+      // carries the detail, this carries the category.
+      failureReason: "shop_rejected",
+      request,
     });
     if (!result.ok) return reply.code(result.code).send({ error: result.error });
 
@@ -1095,10 +1210,12 @@ async function settleDelivery(args: {
     data: { orderId: order.id, status: "delivered", changedBy: closedBy, note },
   });
 
+  // Two counters on purpose: `totalDeliveries` is the account's history and is
+  // never reset, `rewardStamps` is what the one-shot discount spends.
   await fastify.prisma.studentDeliveryStats.upsert({
     where: { studentId: order.studentId },
-    create: { studentId: order.studentId, totalDeliveries: 1 },
-    update: { totalDeliveries: { increment: 1 } },
+    create: { studentId: order.studentId, totalDeliveries: 1, rewardStamps: 1 },
+    update: { totalDeliveries: { increment: 1 }, rewardStamps: { increment: 1 } },
   });
 
   // The rider is paid for the run whichever way it was closed. A delivery that
@@ -1127,6 +1244,17 @@ async function recordRiderEarning(args: {
 }): Promise<void> {
   const { fastify, log, orderId, riderId, deliveryFee } = args;
   try {
+    // A company order is paid to the company on its statement, never per
+    // rider. Writing a RiderEarning too would pay the same run twice.
+    const ran = await fastify.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { companyId: true },
+    });
+    if (ran?.companyId) {
+      log.info({ orderId, companyId: ran.companyId }, "Company delivery — no per-rider earning");
+      return;
+    }
+
     // Student and external riders are paid at separate rates, so the rate to
     // apply depends on this rider. A rider with no type set is paid the student
     // rate rather than nothing — the two are identical by default, and refusing
@@ -1140,16 +1268,9 @@ async function recordRiderEarning(args: {
       log.warn({ riderId }, "Rider has no riderType — paying at the student rate");
     }
 
-    const key = RIDER_EARNING_PCT_KEY[riderType];
-    const pctConfig = await fastify.prisma.platformConfig.findUnique({ where: { key } });
-    const parsed = Number(pctConfig?.value);
-    // A missing row is expected (the constant is the default); an unparseable
-    // one is an admin typo, and silently paying 0 would be worse than saying so.
-    if (pctConfig && !Number.isFinite(parsed)) {
-      log.error({ key, value: pctConfig.value }, `platform_config.${key} is not a number — falling back to the default`);
-    }
-    const pct = Number.isFinite(parsed) ? parsed : DEFAULT_RIDER_EARNING_PCT_BY_TYPE[riderType];
-    const amount = round2((deliveryFee * pct) / 100);
+    // Shared with the feed's earnings preview so the two can never disagree.
+    const pct = await riderEarningPct({ fastify, log, riderType });
+    const amount = riderEarningFor(deliveryFee, pct);
 
     // `ratePct` is written onto the row so editing a rate later never rewrites
     // the basis of a delivery that already happened, and a rider disputing an

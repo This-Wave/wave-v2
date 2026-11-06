@@ -4,15 +4,18 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
 import {
+  BrandBar,
   Confirm,
   Gutter,
   PageTitle,
-  Row,
-  RowGroup,
   Screen,
   ScreenBody,
+  SettingsGroup,
+  SettingsRow,
   StatusPill,
 } from "../../components/v6";
+import { CameraIcon, LogoutIcon, MessageIcon } from "../../components/icons";
+import { colors } from "../../theme/tokens";
 import { useAuthStore } from "../../store/authStore";
 import { useVerificationStatus } from "../../lib/rider";
 import { useLayout } from "../../hooks/useLayout";
@@ -22,6 +25,7 @@ import {
   openSupportContact,
   supportContactLabel,
 } from "../../lib/support";
+import { BetaProgram } from "../../components/BetaProgram";
 
 function verificationPill(status?: string): {
   label: string;
@@ -45,6 +49,7 @@ export function RiderProfileScreen() {
 
   return (
     <Screen>
+      <BrandBar />
       <ScreenBody bottomInset={24}>
         <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-8 pt-4"}>
           {isDesktop ? (
@@ -94,28 +99,43 @@ export function RiderProfileScreen() {
             </View>
 
             <View style={isDesktop ? { flex: 1, minWidth: 280 } : undefined}>
-              <RowGroup>
-                {canSubmit ? (
-                  <Row
-                    title={
-                      verification?.status === "rejected" ? "Resubmit your ID" : "Submit your ID"
-                    }
-                    meta="Photo of your ID plus a selfie"
-                    onPress={() => navigation.navigate("SubmitVerification")}
-                  />
-                ) : null}
-                {hasSupportContact() ? (
-                  <Row
-                    title="Help & support"
-                    meta={supportContactLabel()}
-                    onPress={() => void openSupportContact()}
-                  />
-                ) : null}
-              </RowGroup>
+              {canSubmit || hasSupportContact() ? (
+                <SettingsGroup title="Getting set up">
+                  {canSubmit ? (
+                    <SettingsRow
+                      icon={<CameraIcon size={18} color={colors.ink} strokeWidth={1.8} />}
+                      label={
+                        verification?.status === "rejected" ? "Resubmit your ID" : "Submit your ID"
+                      }
+                      value="Photo of your ID plus a selfie"
+                      onPress={() => navigation.navigate("SubmitVerification")}
+                      last={!hasSupportContact()}
+                    />
+                  ) : null}
+                  {hasSupportContact() ? (
+                    <SettingsRow
+                      icon={<MessageIcon size={18} color={colors.ink} strokeWidth={1.8} />}
+                      label="Help & support"
+                      value={supportContactLabel()}
+                      onPress={() => void openSupportContact()}
+                      last
+                    />
+                  ) : null}
+                </SettingsGroup>
+              ) : null}
 
-              <View className="mt-8">
-                <Row title="Log out" onPress={() => setConfirmLogout(true)} chevron={false} />
-              </View>
+              <BetaProgram />
+
+              <SettingsGroup title="Account">
+                <SettingsRow
+                  icon={<LogoutIcon size={18} color={colors.danger} strokeWidth={1.8} />}
+                  label="Log out"
+                  danger
+                  chevron={false}
+                  onPress={() => setConfirmLogout(true)}
+                  last
+                />
+              </SettingsGroup>
             </View>
           </View>
         </Gutter>

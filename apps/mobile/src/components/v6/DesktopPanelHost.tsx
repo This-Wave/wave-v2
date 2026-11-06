@@ -68,7 +68,7 @@ function OrderTrackingPanel({ orderId, onClose }: { orderId: string; onClose: ()
   const { data: order } = useOrder(orderId, { poll: true });
   const cancelOrder = useCancelOrder();
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const pill = order ? statusPill(order.status) : null;
+  const pill = order ? statusPill(order.status, !!order.companyId) : null;
   const rider = order?.rider;
   const ledger = order ? buildOrderLedger(order) : null;
   const canCancel =
@@ -164,7 +164,7 @@ function OrderTrackingPanel({ orderId, onClose }: { orderId: string; onClose: ()
             );
             onClose();
           } catch {
-            showToast("Could not cancel right now.", "danger");
+            showToast("Couldn't cancel right now. Check your connection and try again.", "danger");
             setConfirmCancel(false);
           }
         }}
@@ -184,7 +184,7 @@ function OrderDetailPanel({ orderId, onClose }: { orderId: string; onClose: () =
       </RightPanel>
     );
   }
-  const pill = statusPill(order.status);
+  const pill = statusPill(order.status, !!order.companyId);
   const ledger = buildOrderLedger(order);
 
   return (
@@ -257,7 +257,7 @@ function WaveCalendarPanel({ onClose }: { onClose: () => void }) {
       }
     >
       <Text className="mb-4 font-sans text-body text-muted">
-        Sunday and Wednesday are standard. Any other day is rush.
+        Every day. Order by noon for the same day.
       </Text>
       <Calendar
         month={month}
@@ -274,7 +274,7 @@ function WaveCalendarPanel({ onClose }: { onClose: () => void }) {
           <Text className="mt-1 font-sans text-body text-muted">
             {isRush
               ? `Rush — ${DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT}% more on the fee.`
-              : "Standard Wave. No surcharge."}
+              : "Order by noon that day."}
           </Text>
         </View>
       ) : null}

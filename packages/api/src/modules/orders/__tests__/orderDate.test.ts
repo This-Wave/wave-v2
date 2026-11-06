@@ -47,19 +47,29 @@ function makePrisma() {
     platformConfig: { findUnique: vi.fn().mockResolvedValue(null) },
     studentDeliveryStats: { findUnique: vi.fn().mockResolvedValue(null) },
     profile: { findUnique: vi.fn().mockResolvedValue({ universityId: "uni-1" }) },
-    checkpoint: { count: vi.fn().mockResolvedValue(1) },
+    checkpoint: { findMany: vi.fn().mockResolvedValue([{ id: CHECKPOINT, zone: null }]) },
     shop: { findFirst: vi.fn().mockResolvedValue({ id: SHOP }) },
     product: {
       findMany: vi
         .fn()
         .mockResolvedValue([{ id: PRODUCT, name: "Jollof", price: "30.00", status: "active" }]),
     },
-    order: { create: vi.fn().mockResolvedValue({ id: "order-1" }) },
+    // `findFirst` is the anti-stacking check on the loyalty reward: the order
+    // route refuses a second discounted order while one sits unpaid.
+    order: {
+      create: vi.fn().mockResolvedValue({ id: "order-1" }),
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
   };
 }
 
-async function place(scheduledDate: string): Promise<LightMyRequestResponse> {
-  const prisma = makePrisma();
+let prisma = makePrisma();
+
+async function place(
+  scheduledDate: string,
+  extra: Record<string, unknown> = {},
+): Promise<LightMyRequestResponse> {
+  prisma = makePrisma();
   const app = await buildTestApp(orderRoutes, { prisma, user: STUDENT });
   const res = await app.inject({
     method: "POST",
@@ -72,6 +82,7 @@ async function place(scheduledDate: string): Promise<LightMyRequestResponse> {
       deliveryDay: "sunday",
       isSpecialOrder: false,
       scheduledDate,
+      ...extra,
     },
   });
   await app.close();
@@ -80,6 +91,23 @@ async function place(scheduledDate: string): Promise<LightMyRequestResponse> {
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe("POST /orders — the noon cutoff is enforced on the server", () => {
+  test("refuses today after noon, accepts today before noon", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-11-04T13:00:00Z"));
+      const late = await place("2026-11-04");
+      expect(late.statusCode).toBe(400);
+      expect(late.json().error).toMatch(/closed at noon/i);
+
+      vi.setSystemTime(new Date("2026-11-04T09:00:00Z"));
+      expect((await place("2026-11-04")).statusCode).toBe(201);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("POST /orders — the scheduled date has to be in the future", () => {
@@ -102,11 +130,18 @@ describe("POST /orders — the scheduled date has to be in the future", () => {
     expect((await place(upcoming(3))).statusCode).toBe(201);
   });
 
-  test("a future non-Wave day is still refused, for the original reason", async () => {
-    // The past-date guard runs first but must not swallow the standard-day rule.
+  test("any future weekday is accepted, and stored under its own name", async () => {
     const res = await place(upcoming(2));
+    expect(res.statusCode).toBe(201);
+    const data = prisma.order.create.mock.calls.at(-1)?.[0]?.data;
+    expect(data.deliveryDay).toBe("tuesday");
+    expect(data.isSpecialOrder).toBe(false);
+    expect(Number(data.surchargeApplied)).toBe(0);
+  });
 
-    expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/special order/i);
+  test("an old client's rush flag is ignored, never charged", async () => {
+    const res = await place(upcoming(4), { isSpecialOrder: true });
+    expect(res.statusCode).toBe(201);
+    expect(Number(prisma.order.create.mock.calls.at(-1)?.[0]?.data.surchargeApplied)).toBe(0);
   });
 });

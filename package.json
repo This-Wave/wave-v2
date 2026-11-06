@@ -27,6 +27,8 @@
     "db:seed:auth": "npm run seed:auth --workspace=@wave/db"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "axe-core": "^4.13.0",
     "typescript": "5.8.3"
   },
   "overrides": {

@@ -15,6 +15,7 @@ import {
   ownsVerificationPath,
   signVerificationImages,
 } from "./images";
+import { campusOf, inCampus, outsideCampus } from "../../lib/scope";
 
 export async function riderRoutes(fastify: FastifyInstance) {
   fastify.post(
@@ -178,14 +179,28 @@ export async function riderRoutes(fastify: FastifyInstance) {
 
   fastify.get(
     "/admin/riders",
-    { preHandler: [fastify.authenticate, fastify.requireRole("admin")] },
+    { preHandler: [fastify.authenticate, fastify.requirePermission("pii.read")] },
     async (request, reply) => {
       const { status } = request.query as { status?: "pending" | "approved" | "rejected" };
+      const campus = campusOf(request);
       const verifications = await fastify.prisma.riderVerification.findMany({
-        where: { status: status ?? "pending" },
+        where: { status: status ?? "pending", ...(campus ? { rider: { universityId: campus } } : {}) },
         orderBy: { createdAt: "desc" },
         include: { rider: { select: { id: true, fullName: true, phone: true } } },
       });
+      if (verifications.length > 0) {
+        // Signed URLs to government ID photographs — the most sensitive thing Wave holds.
+        await request.audit({
+          action: "pii.rider_ids_viewed",
+          category: "pii",
+          entityType: "rider_verification",
+          metadata: {
+            status: status ?? "pending",
+            verificationIds: verifications.map((v) => v.id),
+            riderIds: verifications.map((v) => v.riderId),
+          },
+        });
+      }
       return reply.send({
         verifications: await signVerificationImages(fastify.config, verifications, request.log),
       });
@@ -194,12 +209,19 @@ export async function riderRoutes(fastify: FastifyInstance) {
 
   fastify.patch(
     "/admin/riders/:id/verify",
-    { preHandler: [fastify.authenticate, fastify.requireRole("admin")] },
+    { preHandler: [fastify.authenticate, fastify.requirePermission("riders.verify")] },
     async (request, reply) => {
       const { id } = request.params as { id: string };
       const parsed = reviewVerificationSchema.safeParse(request.body);
       if (!parsed.success) {
         return reply.code(400).send({ error: "Invalid payload", details: parsed.error.flatten() });
+      }
+      const previous = await fastify.prisma.riderVerification.findUnique({
+        where: { id },
+        select: { status: true, rejectionReason: true, rider: { select: { universityId: true } } },
+      });
+      if (!previous || !inCampus(request, previous.rider.universityId)) {
+        return outsideCampus(reply, "Verification not found");
       }
       const verification = await fastify.prisma.riderVerification.update({
         where: { id },
@@ -227,6 +249,15 @@ export async function riderRoutes(fastify: FastifyInstance) {
             : "Rejected verification had no deletable image paths, or storage delete failed",
         );
       }
+      await request.audit({
+        action: parsed.data.status === "approved" ? "rider.verification_approved" : parsed.data.status === "rejected" ? "rider.verification_rejected" : "rider.verification_reviewed",
+        category: "rider",
+        entityType: "rider_verification",
+        entityId: verification.id,
+        before: { status: previous.status, rejectionReason: previous.rejectionReason },
+        after: { status: verification.status, rejectionReason: verification.rejectionReason },
+        metadata: { riderId: verification.riderId },
+      });
       return reply.send({ verification });
     },
   );

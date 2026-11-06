@@ -43,14 +43,21 @@ export function OrderTrackingScreen() {
   const cancelOrder = useCancelOrder();
   const [confirmCancel, setConfirmCancel] = useState(false);
 
-  const pill = order ? statusPill(order.status) : null;
+  const pill = order ? statusPill(order.status, !!order.companyId) : null;
+  // Wave packs and delivers this one (company mode): the student shows the
+  // order number to collect the bag and closes it themselves. No runner, no
+  // PIN, and no hint that anyone but Wave carried it.
+  const packedByWave = !!order?.companyId;
   const rider = order?.rider;
   // Only once a rider is actually carrying it. Offering this earlier would let a
   // student close an order nobody has collected, and still be counted a delivery
   // towards their loyalty discount — the server refuses, but the button should
   // not be there to press.
-  const canConfirmReceipt =
-    !!order?.riderId && ["rider_assigned", "en_route", "at_checkpoint"].includes(order.status);
+  // A Wave-packed order has no Wave rider; it can be received once its bag is
+  // waiting at the checkpoint.
+  const canConfirmReceipt = order?.companyId
+    ? order.status === "at_checkpoint"
+    : !!order?.riderId && ["rider_assigned", "en_route", "at_checkpoint"].includes(order.status);
   const ledger = order ? buildOrderLedger(order) : null;
   const canCancel = order && STUDENT_CANCELLABLE.includes(order.status);
 
@@ -69,7 +76,7 @@ export function OrderTrackingScreen() {
       );
       resetStudentTabs(navigation, "Orders");
     } catch (err) {
-      showToast(apiErrorMessage(err, "Could not cancel right now."), "danger");
+      showToast(apiErrorMessage(err, "Couldn't cancel right now. Check your connection and try again."), "danger");
       setConfirmCancel(false);
     }
   }
@@ -94,17 +101,30 @@ export function OrderTrackingScreen() {
             </Text>
           </View>
 
-          <DeliveryPinSnippet
-            orderId={params.orderId}
-            orderStatus={order?.status}
-            onOpenFull={() => navigation.navigate("PickupPin", { orderId: params.orderId })}
-          />
+          {packedByWave ? (
+            <View className="mb-6 flex-row items-center justify-between rounded-card bg-surface p-5">
+              <Text className="font-sans-medium text-body text-muted">Order number</Text>
+              <Text
+                className="font-sans-bold text-ink"
+                style={{ fontSize: 24, letterSpacing: 0.5 }}
+                accessibilityLabel={`Order number ${shortOrderRef(params.orderId).split("").join(" ")}`}
+              >
+                {shortOrderRef(params.orderId)}
+              </Text>
+            </View>
+          ) : (
+            <DeliveryPinSnippet
+              orderId={params.orderId}
+              orderStatus={order?.status}
+              onOpenFull={() => navigation.navigate("PickupPin", { orderId: params.orderId })}
+            />
+          )}
 
           {/* The PIN arrives by SMS, and SMS does not always arrive. Without a
               second way to close the delivery, a text message is a single point
               of failure on every order — the rider is standing in front of the
               right student holding the right goods and cannot finish the job. */}
-          {canConfirmReceipt ? (
+          {canConfirmReceipt && !packedByWave ? (
             <View className="mb-6">
               <Button
                 label="I have my order"
@@ -166,19 +186,33 @@ export function OrderTrackingScreen() {
                 loading={cancelOrder.isPending}
               />
               <Text className="mt-2 font-sans text-body text-muted">
-                Only before your runner is on the way. Paid orders are refunded automatically.
+                {packedByWave
+                  ? "Only before we start packing it. Paid orders are refunded automatically."
+                  : "Only before your runner is on the way. Paid orders are refunded automatically."}
               </Text>
             </View>
           ) : null}
         </Gutter>
       </ScreenBody>
 
-      <ActionBar>
-        <Button
-          label="Show pickup code"
-          onPress={() => navigation.navigate("PickupPin", { orderId: params.orderId })}
-        />
-      </ActionBar>
+      {packedByWave ? (
+        canConfirmReceipt ? (
+          <ActionBar>
+            <Button
+              label="I have my order"
+              loading={confirmReceipt.isPending}
+              onPress={() => setConfirming(true)}
+            />
+          </ActionBar>
+        ) : null
+      ) : (
+        <ActionBar>
+          <Button
+            label="Show pickup code"
+            onPress={() => navigation.navigate("PickupPin", { orderId: params.orderId })}
+          />
+        </ActionBar>
+      )}
 
       <Confirm
         visible={confirmCancel}
@@ -191,7 +225,11 @@ export function OrderTrackingScreen() {
       <Confirm
         visible={confirming}
         title="Do you have your order?"
-        body="This closes the delivery, the same as giving your runner the PIN. Only tap yes once your things are in your hands."
+        body={
+          packedByWave
+            ? "Only tap yes once your Wave bag is in your hands."
+            : "This closes the delivery, the same as giving your runner the PIN. Only tap yes once your things are in your hands."
+        }
         confirmLabel="Yes, I have it"
         onConfirm={() => {
           setConfirming(false);

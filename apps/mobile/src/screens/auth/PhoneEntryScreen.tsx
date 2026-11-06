@@ -1,10 +1,18 @@
 import { useState } from "react";
+import { useAuthStore } from "../../store/authStore";
 import { Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
-import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
+import {
+  ActionBar,
+  Button,
+  Gutter,
+  PhoneField,
+  Screen,
+  ScreenBody,
+  TopBar,
+} from "../../components/v6";
 import { GHANA_LOCAL_PHONE_LENGTH, toGhanaE164 } from "@wave/shared";
-import { PhoneField } from "../../components/ui/PhoneField";
 import { supabase } from "../../lib/supabase";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "PhoneEntry">;
@@ -20,6 +28,16 @@ export function PhoneEntryScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const fullPhone = toGhanaE164(localNumber);
+  const fromGuest = useAuthStore((st) => st.signingUpFromGuest);
+  const cancelSignupFromGuest = useAuthStore((st) => st.cancelSignupFromGuest);
+
+  // Welcome *replaces* itself with this screen, so there is no history to go
+  // back through: back used to do nothing. A guest goes back to their basket.
+  function handleBack() {
+    if (fromGuest) cancelSignupFromGuest();
+    else if (navigation.canGoBack()) navigation.goBack();
+    else navigation.replace("Welcome");
+  }
 
   async function handleSendOtp() {
     setLoading(true);
@@ -35,17 +53,21 @@ export function PhoneEntryScreen({ navigation }: Props) {
 
   return (
     <Screen>
-      <TopBar onBack={() => navigation.goBack()} />
+      <TopBar onBack={handleBack} />
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-4">
           <Text className="mb-2 font-sans-bold text-heading text-ink">What's your number?</Text>
           <Text className="mb-10 font-sans text-body text-muted">
-            We'll text you a six-digit code. No password to remember.
+            {fromGuest ? "Your basket is saved." : "We'll text you a six-digit code."}
           </Text>
 
-          <PhoneField value={localNumber} onChangeText={setLocalNumber} />
-          {error ? <Text className="mt-3 font-sans text-body text-danger">{error}</Text> : null}
+          <PhoneField
+            value={localNumber}
+            onChangeText={setLocalNumber}
+            label="Phone number"
+            error={error}
+          />
         </Gutter>
       </ScreenBody>
 

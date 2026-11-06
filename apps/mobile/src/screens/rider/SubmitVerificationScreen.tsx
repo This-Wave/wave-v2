@@ -155,7 +155,7 @@ export function SubmitVerificationScreen() {
       });
       setSubmitted(true);
     } catch {
-      setError("Something went wrong submitting your verification. Please try again.");
+      setError("Couldn't submit your verification. Check your connection and try again.");
     }
   }
 
@@ -355,6 +355,12 @@ function PhotoSlot({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      // `hint` is the only thing naming which document this slot wants, and
+      // once a photo is chosen the Text disappears behind the Image — so the
+      // slot went from "camera, Front of your ID" to silent at exactly the
+      // point the user needs to know which one they already did.
+      accessibilityLabel={uri ? `${hint}. Photo added.` : hint}
+      accessibilityHint={uri ? "Opens the picker to replace it" : "Opens the photo picker"}
       className="h-40 items-center justify-center overflow-hidden rounded-card bg-surface-muted"
     >
       {uri ? (

@@ -45,7 +45,7 @@ const NEXT_ROLE: Partial<Record<Role, Role>> = {
 const PAGE_SIZE = 25;
 
 export default function UsersPage() {
-  const { accessToken, profile } = useAdminAuth();
+  const { accessToken, profile, can } = useAdminAuth();
   const [role, setRole] = useState<RoleFilter>("all");
   const [search, setSearch] = useState("");
   // Debounced copy of `search`. The list is paged server-side now, so filtering
@@ -139,7 +139,11 @@ export default function UsersPage() {
         // The API rejects self-edits; hide the controls rather than offer a
         // button that is guaranteed to fail.
         if (u.id === profile?.id) return <span className="text-[12.5px] text-muted">You</span>;
-        const next = NEXT_ROLE[u.role];
+        // Staff are managed on the Staff page, and the API refuses both
+        // actions here for them.
+        if (u.role === "admin") return <span className="text-[12.5px] text-muted">Staff</span>;
+        const next = can("users.role") ? NEXT_ROLE[u.role] : undefined;
+        if (!next && !can("users.ban")) return null;
         return (
           <div className="flex justify-end gap-4">
             {next ? (
@@ -149,12 +153,14 @@ export default function UsersPage() {
                 onClick={() => patchUser(u.id, "role", { role: next })}
               />
             ) : null}
-            <RowAction
-              label={u.isActive ? "Deactivate" : "Reactivate"}
-              tone={u.isActive ? "danger" : "default"}
-              disabled={actioning === u.id}
-              onClick={() => patchUser(u.id, "status", { isActive: !u.isActive })}
-            />
+            {can("users.ban") ? (
+              <RowAction
+                label={u.isActive ? "Deactivate" : "Reactivate"}
+                tone={u.isActive ? "danger" : "default"}
+                disabled={actioning === u.id}
+                onClick={() => patchUser(u.id, "status", { isActive: !u.isActive })}
+              />
+            ) : null}
           </div>
         );
       },

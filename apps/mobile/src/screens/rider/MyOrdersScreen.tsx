@@ -3,6 +3,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
 import {
+  BrandBar,
   Empty,
   Gutter,
   ListError,
@@ -33,6 +34,7 @@ export function MyOrdersScreen() {
 
   return (
     <Screen>
+      <BrandBar />
       <ScreenBody
         bottomInset={24}
         refreshing={isRefetching}
@@ -79,6 +81,17 @@ export function MyOrdersScreen() {
                           onPress={() =>
                             navigation.navigate("ActiveDelivery", { orderId: order.id })
                           }
+                          accessibilityRole="button"
+                          // The row is four separate Texts plus a pill; without
+                          // an explicit name a screen reader reads them as five
+                          // unrelated stops and the "Open" at the end belongs to
+                          // nothing.
+                          accessible
+                          accessibilityLabel={[
+                            order.shop?.name ?? "Delivery",
+                            `to ${order.checkpoint?.name ?? "checkpoint"}`,
+                            statusPill(order.status).label,
+                          ].join(", ")}
                           className="flex-row items-center gap-4 rounded-card bg-surface px-5 py-4 active:bg-hairline"
                         >
                           <Thumb uri={order.shop?.logoUrl} size={52} />

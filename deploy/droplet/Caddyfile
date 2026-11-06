@@ -1,0 +1,41 @@
+# Caddy fronts every site on the droplet and gets HTTPS certificates for each
+# hostname automatically. Hostnames come from /opt/wave/.env.
+#
+# To host another app: add its container to docker-compose.yml (no `ports:`),
+# point a DNS record at the droplet, add a block below, and run ./deploy.sh.
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$API_HOST} {
+	encode zstd gzip
+	reverse_proxy api:4000
+}
+
+{$ADMIN_HOST} {
+	encode zstd gzip
+	reverse_proxy admin:3000
+}
+
+{$WEB_HOST} {
+	root * /srv/web
+	encode zstd gzip
+
+	# Same headers apps/mobile/vercel.json set. A cached service worker or
+	# manifest would keep students on an old build of the app.
+	header /sw.js Cache-Control "public, max-age=0, must-revalidate"
+	header /sw.js Service-Worker-Allowed "/"
+	header /manifest.webmanifest Cache-Control "public, max-age=0, must-revalidate"
+	header /manifest.webmanifest Content-Type "application/manifest+json"
+	header /_expo/static/* Cache-Control "public, max-age=31536000, immutable"
+
+	# Client-side routing: unknown paths load the app shell.
+	try_files {path} /index.html
+	file_server
+}
+
+# Example second app:
+# {$OTHER_HOST} {
+# 	reverse_proxy other:8080
+# }

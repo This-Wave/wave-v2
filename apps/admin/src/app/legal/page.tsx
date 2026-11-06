@@ -1,13 +1,15 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { LEGAL_LAST_UPDATED, PRIVACY, TERMS } from "@wave/shared";
+import { LEGAL_DOCS, LEGAL_LAST_UPDATED } from "@wave/shared";
 
 export const metadata: Metadata = {
   title: "Wave — Legal",
-  description: "Wave's terms of service and privacy policy.",
+  description: "Wave's terms of service, privacy policy and refund policy.",
 };
 
-const DOCS = [TERMS, PRIVACY].map((doc) => ({
+// Driven off LEGAL_DOCS rather than a hand-listed pair, so a document added to
+// the shared source appears here without anyone remembering to add it.
+const DOCS = LEGAL_DOCS.map((doc) => ({
   href: `/legal/${doc.slug}`,
   title: doc.title,
   blurb: doc.description,

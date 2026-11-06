@@ -1,3 +1,4 @@
+import { recordAudit, SYSTEM_ACTOR } from "../../lib/audit";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import { fetchPaystackTransaction } from "./paystack";
 import { paystackMatchesGhs } from "./amounts";
@@ -102,6 +103,14 @@ export async function sweepAbandonedCheckouts(args: {
   }
 
   log.info({ ...result, cutoff }, "Swept abandoned checkouts");
+  if (result.cancelled > 0 || result.recovered > 0) {
+    await recordAudit(fastify, {
+      action: "system.abandoned_checkouts_swept",
+      category: "system",
+      metadata: { ...result, cutoff },
+      actor: SYSTEM_ACTOR,
+    });
+  }
   return result;
 }
 
@@ -176,7 +185,11 @@ async function settleOne(args: {
   // cancelled out from under the student. Same shape as the claim in `confirm.ts`.
   const cancelled = await fastify.prisma.order.updateMany({
     where: { id: order.id, status: { in: ["pending", "payment_pending"] }, paidAt: null },
-    data: { status: "cancelled", cancellationReason: ABANDONED_CANCELLATION_REASON },
+    data: {
+      status: "cancelled",
+      cancellationReason: ABANDONED_CANCELLATION_REASON,
+      failureReason: "abandoned_payment",
+    },
   });
   if (cancelled.count === 0) return "skipped";
 

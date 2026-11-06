@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { FOCUS_RING } from "./Field";
 
 type Variant = "primary" | "secondary" | "danger";
 
@@ -30,7 +31,7 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex h-[42px] items-center gap-2 rounded-control px-5 text-[13.5px] font-semibold disabled:opacity-50 ${VARIANT[variant]}`}
+      className={`inline-flex min-h-[42px] items-center gap-2 rounded-control px-5 py-2 text-[13.5px] font-semibold disabled:opacity-50 ${FOCUS_RING} ${VARIANT[variant]}`}
     >
       {icon}
       {label}
@@ -54,7 +55,10 @@ export function RowAction({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`text-[13px] font-semibold disabled:opacity-40 ${
+      // A bare 13px text button in a table row measured about 17px tall,
+      // against 2.5.8's 24x24 minimum. The negative margin keeps the row's
+      // visual density while the target itself grows.
+      className={`-my-1 inline-flex min-h-[24px] items-center rounded-control px-1 py-1 text-[13px] font-semibold disabled:opacity-40 ${FOCUS_RING} ${
         tone === "danger" ? "text-danger-text" : "text-ink"
       }`}
     >

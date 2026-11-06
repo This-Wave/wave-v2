@@ -29,7 +29,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }, [accessToken, profile]);
 
   if (isLoading || !accessToken || !profile) {
-    return <div className="flex min-h-screen items-center justify-center text-[13px] text-muted">Loading…</div>;
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex min-h-screen items-center justify-center text-[13px] text-muted"
+      >
+        Loading…
+      </div>
+    );
   }
 
   if (profile.role !== "admin") {
@@ -43,10 +51,33 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  if (!profile.staffRole) {
+    // An admin row with no staff role has no permissions. Saying so beats an
+    // empty sidebar and a dashboard of 403s.
+    return (
+      <div className="flex min-h-screen items-center justify-center px-6 text-center">
+        <p className="max-w-[420px] text-[14px] text-ink">
+          Your account is staff but has no staff role yet, so there is nothing you can open. Ask an owner
+          to set your role on the Staff page.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen bg-surface-muted">
+      {/* The sidebar is eight links deep and sits before the content in the tab
+          order on every page. 2.4.1. */}
+      <a
+        href="#main"
+        className="sr-only rounded-control bg-ink px-4 py-2 text-[13px] font-semibold text-surface focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50"
+      >
+        Skip to content
+      </a>
       <Sidebar pendingVerifications={pendingVerifications} pendingShops={pendingShops} />
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <main id="main" tabIndex={-1} className="flex-1 overflow-y-auto">
+        {children}
+      </main>
     </div>
   );
 }

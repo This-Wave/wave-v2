@@ -8,6 +8,12 @@ const envSchema = z.object({
   /** Comma-separated browser origins (admin URL, student web URL, localhost dev). Required in production. */
   CORS_ORIGINS: z.string().optional(),
 
+  // Reverse proxies in front of the API whose X-Forwarded-For can be trusted.
+  // Without it `request.ip` is the proxy's address, so every IP-keyed rate
+  // limit (sign-in, registration) is shared by all users. Only set it when the
+  // API is unreachable except through those proxies, or clients can spoof it.
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
+
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required (Neon.tech, never Supabase DB)"),
 
   SUPABASE_URL: z.string().url(),

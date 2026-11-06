@@ -12,6 +12,11 @@ export function useUniversities() {
   });
 }
 
+/**
+ * Every checkpoint on the campus: campus drop-offs and the Accra zone pickup
+ * points. Only a pickup's "Collect from" wants both; everything that picks a
+ * destination wants `useDropoffPoints`.
+ */
 export function useCheckpoints(universityId: string | undefined) {
   return useQuery({
     queryKey: ["checkpoints", universityId],
@@ -21,4 +26,18 @@ export function useCheckpoints(universityId: string | undefined) {
     },
     enabled: !!universityId,
   });
+}
+
+/** Campus checkpoints only — the places a delivery can end. */
+export function useDropoffPoints(universityId: string | undefined) {
+  const query = useCheckpoints(universityId);
+  return { ...query, data: query.data?.filter((c) => !c.zone) };
+}
+
+/**
+ * The delivery fee a pickup from `origin` will be charged: its zone's fee, or
+ * the base fee for a campus checkpoint. Display only — the API decides.
+ */
+export function pickupFeeFor(origin: Checkpoint | undefined, baseFee: number): number {
+  return origin?.zone ? Number(origin.zone.deliveryFee) : baseFee;
 }

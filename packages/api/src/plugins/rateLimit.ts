@@ -12,6 +12,9 @@ export const REGISTER_RATE_LIMIT = { max: 5, timeWindow: "1 hour" as const };
 export const SMS_HOOK_RATE_LIMIT = { max: 30, timeWindow: "1 minute" as const };
 
 /** Delivery PIN resend — complements the per-order 60s cooldown. */
+/** The delivery company's private list link — public, so it is capped. */
+export const COMPANY_LIST_RATE_LIMIT = { max: 60, timeWindow: "1 minute" as const };
+
 export const PIN_RESEND_RATE_LIMIT = { max: 5, timeWindow: "15 minutes" as const };
 
 /**

@@ -16,9 +16,10 @@ import {
 } from "../../components/v6";
 import { CheckIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
-import { useCheckpoints } from "../../lib/checkpoints";
-import { useCompletedDeliveryCount, useCreateOrder } from "../../lib/orders";
-import { useAuthStore } from "../../store/authStore";
+import { useDropoffPoints } from "../../lib/checkpoints";
+import { useCreateOrder } from "../../lib/orders";
+import { useLoyalty } from "../../lib/loyalty";
+import { useViewerUniversityId } from "../../store/authStore";
 import { useLastCheckpoint } from "../../hooks/useLastCheckpoint";
 import {
   deliveryDayFor,
@@ -45,10 +46,10 @@ type Route = RouteProp<StudentStackParamList, "SuggestOrderSummary">;
 export function SuggestOrderSummaryScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
-  const profile = useAuthStore((s) => s.profile);
-  const { data: checkpoints } = useCheckpoints(profile?.universityId ?? undefined);
+  const viewerUniversityId = useViewerUniversityId();
+  const { data: checkpoints } = useDropoffPoints(viewerUniversityId);
   const createOrder = useCreateOrder();
-  const completedDeliveries = useCompletedDeliveryCount();
+  const { data: loyalty } = useLoyalty();
 
   const checkpointIds = checkpoints?.map((c) => c.id);
   const { checkpointId, selectCheckpoint } = useLastCheckpoint(checkpointIds);
@@ -63,9 +64,9 @@ export function SuggestOrderSummaryScreen() {
       estimateOrderTotal({
         itemPrice: 0,
         isSpecialOrder: params.isSpecialOrder,
-        completedDeliveries,
+        rewardReady: !!loyalty?.rewardReady,
       }),
-    [params.isSpecialOrder, completedDeliveries],
+    [params.isSpecialOrder, loyalty?.rewardReady],
   );
 
   async function handleConfirm() {

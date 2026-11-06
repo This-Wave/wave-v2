@@ -28,7 +28,7 @@ export const BellIcon: Icon = ({ size = 16, color = colors.ink, strokeWidth = 1.
   </Svg>
 );
 
-export const CartIcon: Icon = ({ size = 16, color = colors.primary, strokeWidth = 1.7 }) => (
+export const CartIcon: Icon = ({ size = 16, color = colors.ink, strokeWidth = 1.7 }) => (
   <Svg {...box({ size })} fill="none">
     <Circle cx={9} cy={20} r={1.6} stroke={color} strokeWidth={strokeWidth} />
     <Circle cx={18} cy={20} r={1.6} stroke={color} strokeWidth={strokeWidth} />
@@ -42,20 +42,20 @@ export const CartIcon: Icon = ({ size = 16, color = colors.primary, strokeWidth 
   </Svg>
 );
 
-export const PinIcon: Icon = ({ size = 16, color = colors.primary, strokeWidth = 1.7 }) => (
+export const PinIcon: Icon = ({ size = 16, color = colors.ink, strokeWidth = 1.7 }) => (
   <Svg {...box({ size })} fill="none">
     <Path d="M12 21s7-7.2 7-12a7 7 0 1 0-14 0c0 4.8 7 12 7 12Z" stroke={color} strokeWidth={strokeWidth} />
   </Svg>
 );
 
-export const PinDotIcon: Icon = ({ size = 19, color = colors.primary, strokeWidth = 1.7 }) => (
+export const PinDotIcon: Icon = ({ size = 19, color = colors.ink, strokeWidth = 1.7 }) => (
   <Svg {...box({ size })} fill="none">
     <Path d="M12 21s7-7.2 7-12a7 7 0 1 0-14 0c0 4.8 7 12 7 12Z" stroke={color} strokeWidth={strokeWidth} />
     <Circle cx={12} cy={9} r={2.4} stroke={color} strokeWidth={strokeWidth} />
   </Svg>
 );
 
-export const BoxIcon: Icon = ({ size = 19, color = colors.primary, strokeWidth = 1.7 }) => (
+export const BoxIcon: Icon = ({ size = 19, color = colors.ink, strokeWidth = 1.7 }) => (
   <Svg {...box({ size })} fill="none">
     <Path
       d="M3.5 8L12 3.5 20.5 8M3.5 8v9L12 21.5 20.5 17V8"
@@ -67,14 +67,14 @@ export const BoxIcon: Icon = ({ size = 19, color = colors.primary, strokeWidth =
   </Svg>
 );
 
-export const HistoryIcon: Icon = ({ size = 19, color = colors.primary, strokeWidth = 1.7 }) => (
+export const HistoryIcon: Icon = ({ size = 19, color = colors.ink, strokeWidth = 1.7 }) => (
   <Svg {...box({ size })} fill="none">
     <Path d="M4 7h16v11H4z" stroke={color} strokeWidth={strokeWidth} />
     <Path d="M4 11h16" stroke={color} strokeWidth={strokeWidth} />
   </Svg>
 );
 
-export const CardIcon: Icon = ({ size = 19, color = colors.primary, strokeWidth = 1.7 }) => (
+export const CardIcon: Icon = ({ size = 19, color = colors.ink, strokeWidth = 1.7 }) => (
   <Svg {...box({ size })} fill="none">
     <Rect x={3} y={5} width={18} height={14} rx={2.5} stroke={color} strokeWidth={strokeWidth} />
     <Path d="M3 10h18" stroke={color} strokeWidth={strokeWidth} />
@@ -104,13 +104,13 @@ export const ChevronLeftIcon: Icon = ({ size = 14, color = colors.ink, strokeWid
   </Svg>
 );
 
-export const ChevronRightIcon: Icon = ({ size = 13, color = colors.primary, strokeWidth = 2.2 }) => (
+export const ChevronRightIcon: Icon = ({ size = 13, color = colors.ink, strokeWidth = 2.2 }) => (
   <Svg width={size * (7 / 13)} height={size} viewBox="0 0 12 20" fill="none">
     <Path d="M2 2l8 8-8 8" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
-export const CheckIcon: Icon = ({ size = 13, color = colors.primary, strokeWidth = 2.5 }) => (
+export const CheckIcon: Icon = ({ size = 13, color = colors.ink, strokeWidth = 2.5 }) => (
   <Svg {...box({ size })} fill="none">
     <Path d="M5 12.5l5 5L19 7" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
@@ -139,7 +139,7 @@ export const PhoneIcon: Icon = ({ size = 17, color = colors.white, strokeWidth =
   </Svg>
 );
 
-export const TruckIcon: Icon = ({ size = 42, color = colors.primary, strokeWidth = 1.9 }) => (
+export const TruckIcon: Icon = ({ size = 42, color = colors.ink, strokeWidth = 1.9 }) => (
   <Svg {...box({ size })} fill="none">
     <Path d="M3 8h11v9H3z" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />
     <Path d="M14 11h4l3 3v3h-7v-6Z" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />
@@ -166,7 +166,7 @@ export const CashIcon: Icon = ({ size = 18, color = colors.ink, strokeWidth = 1.
   </Svg>
 );
 
-export const PlusIcon: Icon = ({ size = 16, color = colors.primary, strokeWidth = 2 }) => (
+export const PlusIcon: Icon = ({ size = 16, color = colors.ink, strokeWidth = 2 }) => (
   <Svg {...box({ size })} fill="none">
     <Path d="M12 4v16M4 12h16" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
   </Svg>
@@ -275,6 +275,41 @@ export const SettingsIcon: Icon = ({ size = 18, color = colors.muted, strokeWidt
       d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"
       stroke={color}
       strokeWidth={strokeWidth}
+      strokeLinecap="round"
+    />
+  </Svg>
+);
+
+/**
+ * The Wave app mark: ink ground, two lime strokes.
+ *
+ * Transcribed path-for-path from `assets/source/mark.svg`, which is the single
+ * source every app icon and PWA raster is generated from. It is drawn here
+ * rather than loaded as one of those rasters because they are 1024px squares of
+ * ink — fine as an app icon, a heavy black tile at 28px in a header — and
+ * because a vector stays sharp at whatever size a bar asks for.
+ *
+ * Two strokes, not three: the third stops reading below about 32px.
+ *
+ * `mark.svg` still carries a PLACEHOLDER note, so this glyph is expected to
+ * change with it. Keep the two in step — if the strokes move there, move them
+ * here.
+ */
+export const WaveMarkIcon = ({ size = 28 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 1024 1024">
+    <Rect width={1024} height={1024} fill={colors.ink} />
+    <Path
+      d="M 192 412 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"
+      fill="none"
+      stroke={colors.lime}
+      strokeWidth={76}
+      strokeLinecap="round"
+    />
+    <Path
+      d="M 192 612 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"
+      fill="none"
+      stroke={colors.lime}
+      strokeWidth={76}
       strokeLinecap="round"
     />
   </Svg>

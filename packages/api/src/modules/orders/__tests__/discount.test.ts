@@ -3,15 +3,15 @@ import { calculateDiscount, calculateOrderTotal, isStandardDeliveryDay } from ".
 
 describe("Discount Engine", () => {
   test("should not apply discount below threshold", () => {
-    expect(calculateDiscount({ totalDeliveries: 5, baseAmount: 10 })).toBe(0);
+    expect(calculateDiscount({ stamps: 5, baseAmount: 10 })).toBe(0);
   });
 
   test("should apply 20% at 6 deliveries", () => {
-    expect(calculateDiscount({ totalDeliveries: 6, baseAmount: 10 })).toBe(2);
+    expect(calculateDiscount({ stamps: 6, baseAmount: 10 })).toBe(2);
   });
 
   test("should apply 20% above threshold", () => {
-    expect(calculateDiscount({ totalDeliveries: 10, baseAmount: 50 })).toBe(10);
+    expect(calculateDiscount({ stamps: 10, baseAmount: 50 })).toBe(10);
   });
 });
 
@@ -24,8 +24,8 @@ describe("Delivery Day Validation", () => {
     expect(isStandardDeliveryDay(new Date("2026-07-01"))).toBe(true);
   });
 
-  test("Monday requires special order flag", () => {
-    expect(isStandardDeliveryDay(new Date("2026-06-29"))).toBe(false);
+  test("Monday is a delivery day too (every day since 2026-11-04)", () => {
+    expect(isStandardDeliveryDay(new Date("2026-06-29"))).toBe(true);
   });
 });
 
