@@ -226,6 +226,11 @@ Once no traffic reaches Render's production API (its logs go quiet):
 - **Manual pulls:** the registry login on the droplet expires when the workflow
   ends, so `docker compose pull` by hand fails. Deploy through the workflow, or
   `docker login ghcr.io` with a personal token that has `read:packages`.
+- **Test accounts for reviewers** (a payment provider's compliance team, say):
+  run `packages/db/scripts/seed-test-account.ts` (usage in its header), add the
+  number under Supabase → Phone → Test phone numbers, and set
+  `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` to watch what the account does.
+  Its orders are flagged `isTest` and stay out of stats, payouts, shops and riders.
 
 ## Hosting another app on the same droplet
 

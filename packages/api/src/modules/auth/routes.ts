@@ -6,6 +6,7 @@ import { createServerSupabaseClient } from "../../lib/supabaseServer";
 import { phoneMatchesSession, resolveSupabaseUser } from "../../lib/authUser";
 import { SmsSendError, sendOtpSms } from "../../lib/sms";
 import { captureSmsError } from "../../lib/sentry";
+import { watchLabel } from "../../plugins/watch";
 import {
   LOGIN_RATE_LIMIT,
   REGISTER_RATE_LIMIT,
@@ -17,6 +18,15 @@ export async function authRoutes(fastify: FastifyInstance) {
     fastify.config.SUPABASE_URL,
     fastify.config.SUPABASE_SERVICE_ROLE_KEY,
   );
+
+  // Supabase ends the session on the device alone, so the server never sees a
+  // sign-out. The app reports one here first, while its token still works.
+  fastify.post("/signed-out", { preHandler: fastify.authenticate }, async (request, reply) => {
+    const user = request.user!;
+    await request.audit({ action: "auth.signed_out", category: "auth", entityType: "profile", entityId: user.id });
+    if (user.isTest) await fastify.activityWatch?.sendNow(watchLabel(user), "Signed out");
+    return reply.code(204).send();
+  });
 
   // Register — sets a password on a phone number the caller has already proven
   // they control, then creates the matching Prisma profile.

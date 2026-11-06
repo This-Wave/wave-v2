@@ -45,6 +45,7 @@ export async function hubRoutes(fastify: FastifyInstance) {
       where: {
         scheduledDate: new Date(date),
         companyId: { not: null },
+        isTest: false,
         status: { in: ["rider_assigned", "en_route", "at_checkpoint", "delivered"] },
         ...(campus ? { universityId: campus } : {}),
       },

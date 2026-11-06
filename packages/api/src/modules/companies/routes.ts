@@ -278,6 +278,7 @@ export async function companyRoutes(fastify: FastifyInstance) {
     const orders = await fastify.prisma.order.findMany({
       where: {
         companyId: id,
+        isTest: false,
         status: "delivered",
         scheduledDate: { gte: new Date(parsed.data.from), lte: new Date(parsed.data.to) },
       },
