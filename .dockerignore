@@ -1,0 +1,29 @@
+# Build context is the repo root (deploy/droplet/*.Dockerfile).
+**/node_modules
+**/dist
+**/.next
+**/.expo
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+.git
+.github
+.agents
+.claude
+.cursor
+brand
+screenshots
+reviews
+devlogs
+e2e
+supabase
+docs
+*.md
+!apps/**/README.md
+**/.DS_Store
+
+# Local env files hold dev values. Expo and Next read .env files at build time,
+# so letting one into the context would bake dev URLs into a production image.
+**/.env
+**/.env.*
+!**/.env.example

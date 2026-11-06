@@ -1,7 +1,15 @@
+const path = require("node:path");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@wave/shared"],
+  // The droplet image ships only the traced server files. `next start` (Render,
+  // local) doesn't work with standalone output, so it stays opt-in.
+  ...(process.env.NEXT_STANDALONE === "1" && {
+    output: "standalone",
+    experimental: { outputFileTracingRoot: path.join(__dirname, "../..") },
+  }),
 };
 
 const { withSentryConfig } = require("@sentry/nextjs");
