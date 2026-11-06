@@ -42,7 +42,7 @@ const CHECKPOINT = {
 const PLAN: { dayBack: number; shop: string; checkpoint: string; picks: [number, number][]; cancelled?: string }[] = [
   { dayBack: 13, shop: SHOP.mamaPut, checkpoint: CHECKPOINT.hostelA, picks: [[0, 2]] },
   { dayBack: 10, shop: SHOP.freshMart, checkpoint: CHECKPOINT.hostelA, picks: [[0, 1], [1, 2], [2, 1]] },
-  { dayBack: 8, shop: SHOP.print, checkpoint: CHECKPOINT.library, picks: [[0, 1]], cancelled: "Printed it on campus instead" },
+  { dayBack: 8, shop: SHOP.print, checkpoint: CHECKPOINT.library, picks: [[0, 24]], cancelled: "Printed it on campus instead" },
   { dayBack: 6, shop: SHOP.coffee, checkpoint: CHECKPOINT.library, picks: [[0, 1], [1, 1]] },
   { dayBack: 4, shop: SHOP.pharmacy, checkpoint: CHECKPOINT.hostelA, picks: [[0, 1]] },
   { dayBack: 1, shop: SHOP.mamaPut, checkpoint: CHECKPOINT.hostelA, picks: [[0, 1]] },
