@@ -1,7 +1,9 @@
 import { useEffect, type ReactNode } from "react";
 import { supabase } from "../lib/supabase";
 import { fetchMyProfile } from "../lib/profile";
+import { Platform } from "react-native";
 import { registerPushToken } from "../lib/notifications";
+import { syncWebPush } from "../lib/webPush";
 import { useAuthStore } from "../store/authStore";
 
 async function syncProfile() {
@@ -23,8 +25,10 @@ async function syncProfile() {
     // Push is an accelerator — every state it announces is also reachable by
     // opening the app — so it must never gate sign-in. `registerPushToken`
     // already reports failure by returning rather than throwing.
+    // On web, the browser prompt only counts from a tap, so this never asks:
+    // it re-attaches a subscription the person already turned on.
     if (profile) {
-      void registerPushToken();
+      void (Platform.OS === "web" ? syncWebPush() : registerPushToken());
     }
   } catch {
     // 401 here means the Supabase user has no Profile row yet — expected for

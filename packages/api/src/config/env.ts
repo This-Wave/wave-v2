@@ -50,6 +50,14 @@ const envSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_CHAT_ID: z.string().optional(),
 
+  // Web Push for the web app (home-screen installs). All three or it stays off.
+  // Generate the pair once with `npx web-push generate-vapid-keys`; changing it
+  // orphans every existing subscription. SUBJECT is a mailto: or https: contact
+  // the push services can use to reach whoever runs the server.
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().regex(/^(mailto:|https:)/).optional(),
+
   // Transactional email (Resend). Optional like mNotify: unset means every send
   // is a silent no-op, which is what keeps tests and local dev offline. The
   // from-address must be on a domain verified in the Resend dashboard.

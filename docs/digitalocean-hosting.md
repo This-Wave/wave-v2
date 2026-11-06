@@ -231,6 +231,10 @@ Once no traffic reaches Render's production API (its logs go quiet):
   number under Supabase → Phone → Test phone numbers, and set
   `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` to watch what the account does.
   Its orders are flagged `isTest` and stay out of stats, payouts, shops and riders.
+- **Web notifications:** the `VAPID_*` keys in `.env` turn on Web Push for the
+  home-screen app. Keep the same pair forever; a new one silently unsubscribes
+  everyone. The cutoff reminder and unpaid-order nudge are feature flags in
+  admin (`cutoff_reminder`, `abandoned_nudge`), off until switched on.
 
 ## Hosting another app on the same droplet
 

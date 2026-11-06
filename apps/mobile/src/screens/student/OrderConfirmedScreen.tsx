@@ -4,6 +4,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import { Button, Gutter, Row, RowGroup, Screen, ScreenBody } from "../../components/v6";
 import { CheckIcon } from "../../components/icons";
+import { NotificationPrompt } from "../../components/NotificationSettings";
 import { colors } from "../../theme/tokens";
 import { useOrder } from "../../lib/orders";
 import { formatFullDay } from "../../lib/pricing";
@@ -61,6 +62,7 @@ export function OrderConfirmedScreen() {
                 chevron={false}
               />
             </RowGroup>
+            <NotificationPrompt />
           </Gutter>
         </ScreenBody>
 

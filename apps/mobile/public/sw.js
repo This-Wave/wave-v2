@@ -157,3 +157,57 @@ self.addEventListener("fetch", (event) => {
     );
   }
 });
+
+/*
+ * Web Push. The API sends `{ title, body, data }` (see the API's
+ * `notifications/webPush.ts`). Every push must show a notification — browsers,
+ * Safari most strictly, revoke permission from a site that pushes silently.
+ *
+ * One notification per order: the tag replaces "On the way" with "Your order
+ * has arrived" instead of stacking them, and `renotify` still buzzes for it.
+ */
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (e) {
+    payload = { body: event.data ? event.data.text() : "" };
+  }
+  const data = payload.data || {};
+  const tag = data.orderId ? `order-${data.orderId}` : undefined;
+
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(payload.title || "Wave", {
+        body: payload.body || "",
+        icon: "/icons/icon-192.png",
+        data,
+        tag,
+        renotify: Boolean(tag),
+      }),
+      // An open app refreshes its orders, so the screen agrees with the banner.
+      self.clients
+        .matchAll({ type: "window" })
+        .then((clients) => clients.forEach((c) => c.postMessage({ type: "wave:push", data }))),
+    ]),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const orderId = event.notification.data && event.notification.data.orderId;
+
+  event.waitUntil(
+    (async () => {
+      const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const open = clients.find((c) => new URL(c.url).origin === self.location.origin);
+      if (open) {
+        await open.focus();
+        open.postMessage({ type: "wave:open-order", orderId });
+        return;
+      }
+      // Read once by the app on start (`consumeOpenOrderParam`), then removed.
+      await self.clients.openWindow(orderId ? `/?order=${encodeURIComponent(orderId)}` : "/");
+    })(),
+  );
+});

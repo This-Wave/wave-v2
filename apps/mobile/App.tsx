@@ -18,6 +18,7 @@ import {
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { navigationRef } from "./src/lib/navigationRef";
 import { PaymentReturnListener } from "./src/components/PaymentReturnListener";
+import { WebPushListener } from "./src/components/WebPushListener";
 import { AuthProvider } from "./src/providers/AuthProvider";
 import { NotificationProvider } from "./src/providers/NotificationProvider";
 import { queryClient } from "./src/lib/queryClient";
@@ -110,6 +111,7 @@ function App() {
               >
                 <RootNavigator />
                 <PaymentReturnListener />
+                <WebPushListener />
                 <ToastHost />
                 <InstallHint />
                 <StatusBar style="dark" />

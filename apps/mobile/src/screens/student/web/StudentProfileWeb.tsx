@@ -36,6 +36,7 @@ import { colors } from "../../../theme/tokens";
 import { getLegalLinks, openLegalLink } from "../../../lib/legal";
 import { useLoyalty } from "../../../lib/loyalty";
 import { describeWave } from "../../../lib/wave";
+import { NotificationSettings } from "../../../components/NotificationSettings";
 
 /** Desktop profile — account panel + settings column. */
 /**
@@ -105,6 +106,8 @@ export function StudentProfileWeb() {
             </View>
 
             <View style={{ flex: 1, minWidth: 280 }}>
+              <NotificationSettings />
+
               <SettingsGroup title="Deliveries">
                 <SettingsRow
                   icon={<PinIcon size={18} color={colors.ink} strokeWidth={1.8} />}

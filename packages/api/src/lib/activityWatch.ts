@@ -120,6 +120,8 @@ export function createActivityWatch(opts: {
       pending.set(userId, batch);
     },
     async sendNow(name, text) {
+      // Otherwise "Signed out" lands before the summary of what came before it.
+      await flush();
       await send(`${name}\n${clock(new Date())}  ${text}`);
     },
     async stop() {

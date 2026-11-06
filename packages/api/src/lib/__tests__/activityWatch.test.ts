@@ -43,6 +43,17 @@ describe("activityWatch", () => {
     expect(sentTexts()[0]!.match(/Viewed My orders/g)).toHaveLength(1);
   });
 
+  it("sends pending activity before an immediate message", async () => {
+    const watch = createActivityWatch({ botToken: "t", chatId: "c", log })!;
+    watch.record("u1", "Ama", "POST", "Placed an order");
+    await watch.sendNow("Ama", "Signed out");
+    await watch.stop();
+
+    expect(sentTexts()).toHaveLength(2);
+    expect(sentTexts()[0]).toMatch(/Placed an order/);
+    expect(sentTexts()[1]).toMatch(/Signed out/);
+  });
+
   it("never throws when Telegram is unreachable", async () => {
     fetchMock.mockRejectedValue(new Error("offline"));
     const watch = createActivityWatch({ botToken: "t", chatId: "c", log })!;
