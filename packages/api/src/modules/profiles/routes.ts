@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { completeProfileSchema, updateProfileSchema } from "@wave/shared";
 import { resolveSupabaseUser } from "../../lib/authUser";
+import { announceSignup } from "../notifications/teamAlerts";
 
 /**
  * `resolveSupabaseUser` plus the 401 these routes answer with. The resolution
@@ -56,6 +57,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
         isVerified: role === "student",
       },
     });
+    void announceSignup({ fastify, log: request.log, profile });
     return reply.code(201).send({ profile });
   });
 

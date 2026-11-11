@@ -131,6 +131,40 @@ export function shopLiveEmail(args: {
   return { subject, html, text };
 }
 
+/**
+ * Sent once, when a profile is created. Same plain-HTML rule as above. The
+ * student copy carries the two facts people get wrong (the noon cutoff and the
+ * handover code) and nothing that changes often, like the fee.
+ */
+export function welcomeEmail(args: {
+  name: string;
+  role: "student" | "rider" | "shop_owner" | "admin" | "dispatcher";
+}): { subject: string; html: string; text: string } {
+  const first = args.name.split(" ")[0] || "there";
+  const subject = `Welcome to Wave, ${first}`;
+  const lines: string[] =
+    args.role === "student"
+      ? [
+          "You're in. Order from the app before 12 noon and we'll bring it to your campus checkpoint.",
+          "When it arrives, show your 6-digit code to collect it. Every 6 deliveries earns you 20% off a delivery fee.",
+        ]
+      : args.role === "rider"
+        ? ["Thanks for signing up to ride with Wave. We'll check your details and let you know in the app when you can start."]
+        : args.role === "shop_owner"
+          ? ["Thanks for bringing your shop to Wave. Open the app to finish setting up your shop."]
+          : ["Your Wave account is ready."];
+  const text =
+    `Hi ${first},\n\n` + lines.join("\n\n") + `\n\nThe Wave team\n${LEGAL_OPERATOR}`;
+  const html =
+    `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;` +
+    `font-size:16px;line-height:1.5;color:#154b3e;max-width:480px">` +
+    `<p>Hi ${escapeHtml(first)},</p>` +
+    lines.map((l) => `<p>${escapeHtml(l)}</p>`).join("") +
+    `<p style="color:#5e6d66">The Wave team<br>${LEGAL_OPERATOR}</p>` +
+    `</div>`;
+  return { subject, html, text };
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
