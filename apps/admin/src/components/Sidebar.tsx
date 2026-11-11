@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -69,6 +70,7 @@ export function Sidebar({
   return (
     <aside className="flex h-screen w-[232px] flex-shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex items-center gap-2.5 px-[18px] pb-[22px] pt-[26px]">
+        <Image src="/icon.svg" alt="" width={24} height={24} unoptimized className="rounded-input" />
         <span className="text-[19px] font-semibold tracking-tight text-ink">wave</span>
         <span className="rounded-pill bg-admin-bg px-2.5 py-[3px] text-[10px] font-semibold uppercase tracking-[0.06em] text-admin-text">
           {profile?.campus ? "Campus" : "Admin"}

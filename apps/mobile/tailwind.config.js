@@ -31,6 +31,8 @@ module.exports = {
           900: "#083400",
           700: "#2c4f26", // ink on tinted grounds where full ink is too heavy
         },
+        // Logo ground only (brand/logo). Not a UI colour.
+        brand: "#154b3e",
 
         // --- neutrals, straight from the reference ---
         canvas: "#f7f7f7", // page ground (Faint)
