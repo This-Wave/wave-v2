@@ -1,17 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <!--
-    Wave app mark. Derived from the v6 tokens in src/theme/tokens.ts, not
-    invented here: ink #083400 is the only dark, lime #87ea5c is the only
-    accent, and lime is fill-only — it never carries text. Two strokes rather
-    than three because the third stops reading at 32px.
-
-    PLACEHOLDER. Regenerate every raster from this file with
-    `npm run build:icons (in apps/mobile)`; replacing this one SVG
-    replaces every icon in the project.
+    Wave app mark: the checkpoint pin (chosen 2026-11-05; masters in brand/logo/svg).
+    Square and full-bleed because iOS and Android round the corners themselves.
+    Regenerate every raster from this folder with `npm run build:icons` (in apps/mobile).
   -->
-  <rect width="1024" height="1024" fill="#083400"/>
-  <g fill="none" stroke="#87ea5c" stroke-width="76" stroke-linecap="round">
-    <path d="M 192 412 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"/>
-    <path d="M 192 612 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"/>
-  </g>
+  <rect width="1024" height="1024" fill="#154b3e"/>
+  <g transform="translate(143.36 153.60) scale(15.3600)"><path d="M24 3c-9.6 0-17.5 7.6-17.5 17C6.5 33 24 45 24 45s17.5-12 17.5-25C41.5 10.6 33.6 3 24 3z" fill="#87ea5c"/><path d="M12.5 21 q2.9 -4.2 5.75 0 t5.75 0 t5.75 0 t5.75 0" fill="none" stroke="#154b3e" stroke-width="3.6" stroke-linecap="round"/></g>
 </svg>
