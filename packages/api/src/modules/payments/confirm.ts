@@ -3,6 +3,7 @@ import { recordAudit, SYSTEM_ACTOR } from "../../lib/audit";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import { issueDeliveryPin } from "../orders/issuePin";
 import { announceNewOrderToRiders, notifyGoodsPaid, notifyOrderStatus } from "../notifications/dispatch";
+import { announceFirstPaidOrder } from "../notifications/teamAlerts";
 
 /**
  * Everything that must happen when money for an order actually arrives.
@@ -163,6 +164,9 @@ export async function confirmDeliveryFeePaid(args: {
       shopName: order.shop?.name ?? "a nearby shop",
     });
   }
+
+  // Best-effort, never throws; a no-op unless the Telegram alerts are set up.
+  await announceFirstPaidOrder({ fastify, log, order });
 
   await recordAudit(fastify, {
     action: "payment.confirmed",

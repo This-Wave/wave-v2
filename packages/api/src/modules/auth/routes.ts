@@ -7,6 +7,7 @@ import { phoneMatchesSession, resolveSupabaseUser } from "../../lib/authUser";
 import { SmsSendError, sendOtpSms } from "../../lib/sms";
 import { captureSmsError } from "../../lib/sentry";
 import { watchLabel } from "../../plugins/watch";
+import { announceSignup } from "../notifications/teamAlerts";
 import {
   LOGIN_RATE_LIMIT,
   REGISTER_RATE_LIMIT,
@@ -96,6 +97,7 @@ export async function authRoutes(fastify: FastifyInstance) {
           isVerified: role === "student", // riders/shops require admin verification
         },
       });
+      void announceSignup({ fastify, log: request.log, profile });
       return reply.code(201).send({ profile });
     } catch (err) {
       // No auth user to roll back any more — it predates this request and the
