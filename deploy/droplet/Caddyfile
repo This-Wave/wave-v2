@@ -35,7 +35,8 @@
 	file_server
 }
 
-# Example second app:
-# {$OTHER_HOST} {
-# 	reverse_proxy other:8080
-# }
+# Crescendo PM (co-hosted; container on wave_default as crescendo-app)
+{$CRESCENDO_HOST} {
+	encode zstd gzip
+	reverse_proxy crescendo-app:3000
+}
