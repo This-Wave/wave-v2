@@ -280,37 +280,39 @@ export const SettingsIcon: Icon = ({ size = 18, color = colors.muted, strokeWidt
   </Svg>
 );
 
+const PIN_PATH = "M24 3c-9.6 0-17.5 7.6-17.5 17C6.5 33 24 45 24 45s17.5-12 17.5-25C41.5 10.6 33.6 3 24 3z";
+const PIN_WAVE = "M12.5 21 q2.9 -4.2 5.75 0 t5.75 0 t5.75 0 t5.75 0";
+
 /**
- * The Wave app mark: ink ground, two lime strokes.
+ * The Wave app mark: the checkpoint pin on its brand-green tile.
  *
- * Transcribed path-for-path from `assets/source/mark.svg`, which is the single
- * source every app icon and PWA raster is generated from. It is drawn here
- * rather than loaded as one of those rasters because they are 1024px squares of
- * ink — fine as an app icon, a heavy black tile at 28px in a header — and
- * because a vector stays sharp at whatever size a bar asks for.
- *
- * Two strokes, not three: the third stops reading below about 32px.
- *
- * `mark.svg` still carries a PLACEHOLDER note, so this glyph is expected to
- * change with it. Keep the two in step — if the strokes move there, move them
- * here.
+ * Transcribed path-for-path from `assets/source/mark.svg` (masters in
+ * `brand/logo/svg`), which every app icon and PWA raster is generated from.
+ * Drawn as a vector rather than loaded as one of those rasters so it stays
+ * sharp at whatever size a bar asks for. Keep the two in step.
  */
 export const WaveMarkIcon = ({ size = 28 }: { size?: number }) => (
   <Svg width={size} height={size} viewBox="0 0 1024 1024">
-    <Rect width={1024} height={1024} fill={colors.ink} />
+    <Rect width={1024} height={1024} fill={colors.brand} />
+    <Path d={PIN_PATH} fill={colors.lime} transform="translate(143.36 153.6) scale(15.36)" />
     <Path
-      d="M 192 412 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"
+      d={PIN_WAVE}
       fill="none"
-      stroke={colors.lime}
-      strokeWidth={76}
+      stroke={colors.brand}
+      strokeWidth={3.6}
       strokeLinecap="round"
+      transform="translate(143.36 153.6) scale(15.36)"
     />
-    <Path
-      d="M 192 612 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"
-      fill="none"
-      stroke={colors.lime}
-      strokeWidth={76}
-      strokeLinecap="round"
-    />
+  </Svg>
+);
+
+/**
+ * The pin alone, cropped to its own bounds (`brand/logo/svg/mark-lime.svg`), for
+ * dark grounds where a tile would be a box inside a box. `size` is the height.
+ */
+export const WavePinIcon = ({ size = 28, fill = colors.lime, wave = colors.brand }: { size?: number; fill?: string; wave?: string }) => (
+  <Svg width={(size * 35) / 42} height={size} viewBox="6.5 3 35 42">
+    <Path d={PIN_PATH} fill={fill} />
+    <Path d={PIN_WAVE} fill="none" stroke={wave} strokeWidth={3.6} strokeLinecap="round" />
   </Svg>
 );

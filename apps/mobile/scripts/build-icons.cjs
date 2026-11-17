@@ -37,7 +37,8 @@ const TARGETS = [
   { from: "mark-maskable.svg", to: "public/icons/icon-maskable-512.png", size: 512 },
   // iOS ignores the manifest's icons entirely and reads this one tag instead.
   { from: "mark.svg", to: "public/icons/apple-touch-icon.png", size: 180 },
-  { from: "mark.svg", to: "public/favicon.png", size: 48 },
+  // Heavier wave stroke so it still reads at tab size.
+  { from: "favicon.svg", to: "public/favicon.png", size: 48 },
 ];
 
 function have(cmd) {

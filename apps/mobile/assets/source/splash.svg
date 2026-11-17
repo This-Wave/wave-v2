@@ -1,17 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <!--
-    Splash artwork. `app.json` sets resizeMode "contain" on the #f7f7f7 canvas, so this
-    rect must match `expo.splash.backgroundColor` exactly or the letterbox bands
-    show a seam against the artwork on every cold start. So
-    this is the mark on its ink tile at a size that survives being letterboxed
-    into a tall phone screen rather than a full-bleed image.
+    Splash artwork. app.json sets resizeMode "contain" on the #f7f7f7 canvas, so this
+    rect must match expo.splash.backgroundColor exactly or the letterbox bands show a seam.
   -->
   <rect width="1024" height="1024" fill="#f7f7f7"/>
   <g transform="translate(512 512) scale(0.52) translate(-512 -512)">
-    <rect width="1024" height="1024" rx="180" fill="#083400"/>
-    <g fill="none" stroke="#87ea5c" stroke-width="76" stroke-linecap="round">
-      <path d="M 192 412 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"/>
-      <path d="M 192 612 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"/>
-    </g>
+    <rect width="1024" height="1024" rx="230.4" fill="#154b3e"/>
+    <g transform="translate(143.36 153.60) scale(15.3600)"><path d="M24 3c-9.6 0-17.5 7.6-17.5 17C6.5 33 24 45 24 45s17.5-12 17.5-25C41.5 10.6 33.6 3 24 3z" fill="#87ea5c"/><path d="M12.5 21 q2.9 -4.2 5.75 0 t5.75 0 t5.75 0 t5.75 0" fill="none" stroke="#154b3e" stroke-width="3.6" stroke-linecap="round"/></g>
   </g>
 </svg>

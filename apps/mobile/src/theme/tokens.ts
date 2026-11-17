@@ -10,6 +10,8 @@ export const colors = {
   /** Near-black green. Text, icon strokes, inverse surfaces. */
   ink: "#083400",
   inkSoft: "#2c4f26",
+  /** Logo ground only (brand/logo). Not a UI colour. */
+  brand: "#154b3e",
 
   canvas: "#f7f7f7",
   surface: "#ffffff",

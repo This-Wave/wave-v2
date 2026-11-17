@@ -4,6 +4,7 @@ import Svg, { Path } from "react-native-svg";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
 import { Button, Gutter, Row, RowGroup, Screen, ScreenBody, Sheet } from "../../components/v6";
+import { WavePinIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useUniversities } from "../../lib/checkpoints";
 import { useAuthStore } from "../../store/authStore";
@@ -58,9 +59,7 @@ export function WelcomeScreen({ navigation }: Props) {
         <ScreenBody bottomInset={16}>
           <Gutter className="pt-8">
             <View className="mb-16 flex-row items-center gap-2.5">
-              <View className="h-10 w-10 items-center justify-center rounded-card bg-lime">
-                <WaveMark size={24} color={colors.ink} />
-              </View>
+              <WavePinIcon size={36} />
               <Text className="font-sans-bold text-white" style={{ fontSize: 26, lineHeight: 30, letterSpacing: -0.5 }}>
                 wave
               </Text>
@@ -188,18 +187,5 @@ function WaveLines() {
         </Animated.View>
       ))}
     </View>
-  );
-}
-
-function WaveMark({ size, color }: { size: number; color: string }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M3 9c1.5-2 3-2 4.5 0s3 2 4.5 0 3-2 4.5 0 3 2 4.5 0M3 15c1.5-2 3-2 4.5 0s3 2 4.5 0 3-2 4.5 0 3 2 4.5 0"
-        stroke={color}
-        strokeWidth={2.4}
-        strokeLinecap="round"
-      />
-    </Svg>
   );
 }
