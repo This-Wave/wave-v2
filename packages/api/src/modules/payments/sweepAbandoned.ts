@@ -1,7 +1,7 @@
 import { recordAudit, SYSTEM_ACTOR } from "../../lib/audit";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
-import { fetchPaystackTransaction } from "./paystack";
-import { paystackMatchesGhs } from "./amounts";
+import { lookupCharge } from "./charges";
+import { mintedAtFromMoolreReference } from "./moolre";
 import { confirmDeliveryFeePaid } from "./confirm";
 import { capturePaymentIssue } from "../../lib/sentry";
 import { notifyOrderStatus } from "../notifications/dispatch";
@@ -24,6 +24,9 @@ export const ABANDONED_CHECKOUT_TTL_MS = 45 * 60 * 1000;
  * stalling the API for one long one.
  */
 export const SWEEP_BATCH_SIZE = 50;
+
+/** A Moolre prompt this young may be unknown to Moolre and still be paid. */
+export const MOOLRE_FRESH_PROMPT_MS = 10 * 60_000;
 
 export interface SweepResult {
   /** Rows that were past the TTL and looked at. */
@@ -98,7 +101,7 @@ export async function sweepAbandonedCheckouts(args: {
   if (stale.length === 0) return result;
 
   for (const order of stale) {
-    const outcome = await settleOne({ fastify, log, order });
+    const outcome = await settleOne({ fastify, log, order, now });
     result[outcome] += 1;
   }
 
@@ -118,17 +121,18 @@ async function settleOne(args: {
   fastify: FastifyInstance;
   log: FastifyBaseLogger;
   order: { id: string; paystackRef: string | null; totalAmount: unknown };
+  now: Date;
 }): Promise<"recovered" | "cancelled" | "skipped"> {
-  const { fastify, log, order } = args;
+  const { fastify, log, order, now } = args;
 
   // No reference at all means checkout was never even opened — there is nothing
   // for Paystack to know about, so there is nothing to ask.
   if (order.paystackRef) {
     const expectedGhs = Number(order.totalAmount);
 
-    let transaction;
+    let charge;
     try {
-      transaction = await fetchPaystackTransaction(fastify.config.PAYSTACK_SECRET_KEY, order.paystackRef);
+      charge = await lookupCharge(fastify.config, order.paystackRef, expectedGhs);
     } catch (err) {
       // The one case where we know nothing. Leave the row untouched and look
       // again next sweep — an order that lingers an extra hour costs nobody
@@ -136,13 +140,34 @@ async function settleOne(args: {
       // their money.
       log.warn(
         { orderId: order.id, reference: order.paystackRef, err: (err as Error).message },
-        "Abandoned-checkout sweep could not reach Paystack — leaving the order for the next sweep",
+        "Abandoned-checkout sweep could not reach the payment provider — leaving the order for the next sweep",
       );
       return "skipped";
     }
 
-    if (transaction?.status === "success") {
-      if (!paystackMatchesGhs(transaction, expectedGhs)) {
+    // Moolre answers "pending" for anything it cannot yet call (a prompt still
+    // on the phone, a network timeout upstream). That is not "unpaid", so the
+    // order waits for a definite answer. Paystack keeps its old behaviour:
+    // anything short of success is an abandoned checkout.
+    // Moolre also answers "not found" for a prompt still sitting on the phone
+    // (it only knows the charge once the payer acts), so a reference minted
+    // in the last few minutes is left alone whatever it says.
+    const minted = mintedAtFromMoolreReference(order.paystackRef);
+    const recentPrompt =
+      charge.provider === "moolre" &&
+      charge.state === "not_found" &&
+      !!minted &&
+      now.getTime() - minted.getTime() < MOOLRE_FRESH_PROMPT_MS;
+    if ((charge.provider === "moolre" && charge.state === "pending") || recentPrompt) {
+      log.warn(
+        { orderId: order.id, reference: order.paystackRef },
+        "Abandoned-checkout sweep: Moolre still reports the charge pending — leaving the order",
+      );
+      return "skipped";
+    }
+
+    if (charge.state === "paid") {
+      if (!charge.amountMatches) {
         // Paid, but not for what we think this order costs. Never confirm it and
         // never cancel it — both are wrong, and only a human can say which.
         log.error(
