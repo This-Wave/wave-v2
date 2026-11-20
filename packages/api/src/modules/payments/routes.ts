@@ -1,6 +1,5 @@
 import type { FastifyInstance } from "fastify";
 import {
-  fetchPaystackTransaction,
   initiatePaystackPayment,
   paystackCustomerEmail,
   paystackErrorMessage,
@@ -8,6 +7,8 @@ import {
 } from "./paystack";
 import { paystackMatchesGhs } from "./amounts";
 import { confirmDeliveryFeePaid, confirmGoodsPaid } from "./confirm";
+import { lookupCharge, type ChargeState } from "./charges";
+import { registerMoolreRoutes } from "./moolreRoutes";
 import { capturePaymentError, capturePaymentIssue } from "../../lib/sentry";
 import { parseCorsOrigins } from "../../config/cors";
 import { PAYMENT_INITIATE_RATE_LIMIT, perAccount } from "../../plugins/rateLimit";
@@ -69,6 +70,10 @@ function reportStaleReference(args: {
 }
 
 export async function paymentRoutes(fastify: FastifyInstance) {
+  // Moolre's routes (OTP, webhook, options) and the MoMo start both initiate
+  // routes hand off to. `checkCharge` is hoisted from below.
+  const moolre = registerMoolreRoutes(fastify, { checkCharge });
+
   fastify.post(
     "/initiate",
     {
@@ -81,8 +86,14 @@ export async function paymentRoutes(fastify: FastifyInstance) {
       method?: "momo" | "card";
       /** Web app origin — Paystack returns the student to this tab after pay. */
       returnOrigin?: string;
+      /** Moolre MoMo only: the number to prompt, and its network. */
+      payerPhone?: string;
+      network?: string;
     };
     if (!body.orderId) return reply.code(400).send({ error: "orderId is required" });
+    if (body.method === "card" && fastify.config.CARD_PAYMENTS === "off") {
+      return reply.code(409).send({ error: "Card payments are switched off. Please pay with Mobile Money." });
+    }
     // The student already picked a method on the checkout screen; carrying it
     // through means Paystack opens on that channel instead of asking twice.
     const channels =
@@ -118,15 +129,16 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     // WebView. Checking first turns the dangerous case (they pay on the old
     // page after we stopped watching it) into an ordinary "already paid", and
     // stops a student being charged twice for one order.
+    let previous: ChargeState | "unknown" | null = null;
     if (order.paystackRef) {
-      const settled = await confirmIfAlreadyPaid({
+      previous = await checkCharge({
         reference: order.paystackRef,
         isGoods: false,
         orderId: order.id,
         expectedGhs: amountGhs,
         log: request.log,
       });
-      if (settled) {
+      if (previous === "paid") {
         return reply.code(409).send({
           error: "This order has already been paid — pull down to refresh.",
         });
@@ -134,6 +146,21 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     }
 
     const profile = await fastify.prisma.profile.findUnique({ where: { id: order.studentId } });
+
+    if (body.method === "momo" && fastify.config.MOMO_PROVIDER === "moolre") {
+      return moolre.start({
+        request,
+        reply,
+        orderId: order.id,
+        isGoods: false,
+        amountGhs,
+        previousRef: order.paystackRef,
+        previousState: previous,
+        payerPhone: body.payerPhone ?? profile?.phone,
+        network: body.network,
+      });
+    }
+
     const reference = `WAVE-${order.id}-${Date.now()}`;
     const callbackUrl = paystackCallbackUrl(fastify.config, body.returnOrigin);
 
@@ -181,8 +208,13 @@ export async function paymentRoutes(fastify: FastifyInstance) {
       orderId?: string;
       method?: "momo" | "card";
       returnOrigin?: string;
+      payerPhone?: string;
+      network?: string;
     };
     if (!body.orderId) return reply.code(400).send({ error: "orderId is required" });
+    if (body.method === "card" && fastify.config.CARD_PAYMENTS === "off") {
+      return reply.code(409).send({ error: "Card payments are switched off. Please pay with Mobile Money." });
+    }
     const channels =
       body.method === "momo" ? (["mobile_money"] as const)
       : body.method === "card" ? (["card"] as const)
@@ -207,15 +239,16 @@ export async function paymentRoutes(fastify: FastifyInstance) {
         .send({ error: "Your runner hasn't recorded what the items cost yet" });
     }
 
+    let previous: ChargeState | "unknown" | null = null;
     if (order.goodsPaystackRef) {
-      const settled = await confirmIfAlreadyPaid({
+      previous = await checkCharge({
         reference: order.goodsPaystackRef,
         isGoods: true,
         orderId: order.id,
         expectedGhs: goodsAmount,
         log: request.log,
       });
-      if (settled) {
+      if (previous === "paid") {
         return reply.code(409).send({
           error: "You've already paid for the goods on this order — pull down to refresh.",
         });
@@ -223,6 +256,20 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     }
 
     const profile = await fastify.prisma.profile.findUnique({ where: { id: order.studentId } });
+
+    if (body.method === "momo" && fastify.config.MOMO_PROVIDER === "moolre") {
+      return moolre.start({
+        request,
+        reply,
+        orderId: order.id,
+        isGoods: true,
+        amountGhs: goodsAmount,
+        previousRef: order.goodsPaystackRef,
+        previousState: previous,
+        payerPhone: body.payerPhone ?? profile?.phone,
+        network: body.network,
+      });
+    }
     const reference = `WAVEGOODS-${order.id}-${Date.now()}`;
     const callbackUrl = paystackCallbackUrl(fastify.config, body.returnOrigin);
 
@@ -466,34 +513,48 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     expectedGhs: number;
     log: typeof fastify.log;
   }): Promise<boolean> {
-    let transaction;
+    return (await checkCharge(args)) === "paid";
+  }
+
+  /**
+   * The same question, with the full answer: "unknown" when the provider could
+   * not be reached, which is never the same as unpaid.
+   */
+  async function checkCharge(args: {
+    reference: string;
+    isGoods: boolean;
+    orderId: string;
+    expectedGhs: number;
+    log: typeof fastify.log;
+  }): Promise<ChargeState | "unknown"> {
+    let charge;
     try {
-      transaction = await fetchPaystackTransaction(fastify.config.PAYSTACK_SECRET_KEY, args.reference);
+      charge = await lookupCharge(fastify.config, args.reference, args.expectedGhs);
     } catch (err) {
       // Never fail the poll on a provider blip — the next one may succeed, and
       // the webhook may land in the meantime. On the initiate path this means
       // checkout proceeds; the webhook's metadata fallback is the net under it.
-      args.log.warn({ err: (err as Error).message }, "Paystack verify lookup failed");
-      return false;
+      args.log.warn({ err: (err as Error).message }, "Payment provider lookup failed");
+      return "unknown";
     }
-    if (transaction?.status !== "success") return false;
-    if (!paystackMatchesGhs(transaction, args.expectedGhs)) {
+    if (charge.state !== "paid") return charge.state;
+    if (!charge.amountMatches) {
       args.log.error(
-        { orderId: args.orderId, reference: args.reference, expectedGhs: args.expectedGhs },
-        "Paystack verify amount mismatch — refusing to confirm",
+        { orderId: args.orderId, reference: args.reference, expectedGhs: args.expectedGhs, provider: charge.provider },
+        "Payment lookup amount mismatch — refusing to confirm",
       );
-      capturePaymentIssue("Paystack verify amount mismatch", {
+      capturePaymentIssue(`${charge.provider === "moolre" ? "Moolre" : "Paystack"} verify amount mismatch`, {
         phase: args.isGoods ? "verify_goods" : "verify_delivery",
         orderId: args.orderId,
         reference: args.reference,
         expectedGhs: args.expectedGhs,
       });
-      return false;
+      return "unknown";
     }
 
     args.log.info(
-      { orderId: args.orderId, reference: args.reference },
-      "Payment confirmed by polling Paystack — webhook had not arrived",
+      { orderId: args.orderId, reference: args.reference, provider: charge.provider },
+      "Payment confirmed by asking the provider directly",
     );
     if (args.isGoods) {
       await confirmGoodsPaid({
@@ -510,7 +571,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
         reference: args.reference,
       });
     }
-    return true;
+    return "paid";
   }
 
   fastify.get("/verify/:ref", { preHandler: fastify.authenticate }, async (request, reply) => {

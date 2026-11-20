@@ -12,7 +12,12 @@ const { fetchPaystackTransaction, confirmDeliveryFeePaid, notifyOrderStatus, cap
     capturePaymentIssue: vi.fn(),
   }));
 
+const { moolreCollectionStatus } = vi.hoisted(() => ({ moolreCollectionStatus: vi.fn() }));
 vi.mock("../paystack", () => ({ fetchPaystackTransaction }));
+vi.mock("../moolre", async () => {
+  const actual = await vi.importActual<typeof import("../moolre")>("../moolre");
+  return { ...actual, moolreCollectionStatus };
+});
 vi.mock("../confirm", () => ({ confirmDeliveryFeePaid, confirmGoodsPaid: vi.fn() }));
 vi.mock("../../notifications/dispatch", () => ({ notifyOrderStatus }));
 vi.mock("../../../lib/sentry", () => ({
@@ -269,5 +274,48 @@ describe("sweepAbandonedCheckouts — a mixed batch", () => {
 
     expect(result).toMatchObject({ examined: 2, cancelled: 2 });
     expect(fastify.updateMany).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("Moolre charges", () => {
+  const ref = "WAVEM-order-1-1756460000000";
+
+  test("a charge Moolre still calls pending is left alone, never cancelled", async () => {
+    moolreCollectionStatus.mockResolvedValue({ state: "pending" });
+    const fastify = makeFastify([{ id: "order-1", paystackRef: ref, totalAmount: "40.00" }]);
+    const result = await run(fastify);
+    expect(result).toMatchObject({ skipped: 1, cancelled: 0 });
+    expect(fastify.updateMany).not.toHaveBeenCalled();
+    expect(fetchPaystackTransaction).not.toHaveBeenCalled();
+  });
+
+  test("a paid Moolre charge is recovered", async () => {
+    moolreCollectionStatus.mockResolvedValue({ state: "paid", amount: "40.00" });
+    const fastify = makeFastify([{ id: "order-1", paystackRef: ref, totalAmount: "40.00" }]);
+    const result = await run(fastify);
+    expect(result).toMatchObject({ recovered: 1 });
+    expect(confirmDeliveryFeePaid).toHaveBeenCalled();
+  });
+
+  test("a fresh prompt Moolre does not know yet is left alone (it only appears once approved)", async () => {
+    moolreCollectionStatus.mockResolvedValue({ state: "not_found" });
+    const fresh = `WAVEM-order-1-${NOW.getTime() - 60_000}`;
+    const fastify = makeFastify([{ id: "order-1", paystackRef: fresh, totalAmount: "40.00" }]);
+    const result = await run(fastify);
+    expect(result).toMatchObject({ skipped: 1, cancelled: 0 });
+  });
+
+  test("an old prompt Moolre never heard of is an abandoned checkout", async () => {
+    moolreCollectionStatus.mockResolvedValue({ state: "not_found" });
+    const fastify = makeFastify([{ id: "order-1", paystackRef: ref, totalAmount: "40.00" }]);
+    const result = await run(fastify);
+    expect(result).toMatchObject({ cancelled: 1 });
+  });
+
+  test("a failed Moolre charge is cancelled like an abandoned checkout", async () => {
+    moolreCollectionStatus.mockResolvedValue({ state: "failed" });
+    const fastify = makeFastify([{ id: "order-1", paystackRef: ref, totalAmount: "40.00" }]);
+    const result = await run(fastify);
+    expect(result).toMatchObject({ cancelled: 1 });
   });
 });

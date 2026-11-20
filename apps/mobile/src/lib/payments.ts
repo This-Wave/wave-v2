@@ -1,13 +1,17 @@
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { api } from "./api";
+import type { MoolreStart } from "./momo";
 
 export type PaymentMethod = "momo" | "card";
 
-interface InitiatePaymentResponse {
-  payment_url: string;
-  reference: string;
-}
+/**
+ * Paystack answers with a page to open; Moolre MoMo answers with what happens
+ * on the student's phone next (see `lib/momo.ts`).
+ */
+export type InitiatePaymentResponse =
+  | { provider?: undefined; payment_url: string; reference: string }
+  | MoolreStart;
 
 export function paymentInitiateErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
@@ -26,15 +30,22 @@ export function useInitiatePayment() {
       orderId,
       method,
       returnOrigin,
+      payerPhone,
+      network,
     }: {
       orderId: string;
       method: PaymentMethod;
       returnOrigin?: string;
+      /** Moolre MoMo only. */
+      payerPhone?: string;
+      network?: string;
     }) => {
       const { data } = await api.post<InitiatePaymentResponse>("/payments/initiate", {
         orderId,
         method,
         returnOrigin,
+        payerPhone,
+        network,
       });
       return data;
     },

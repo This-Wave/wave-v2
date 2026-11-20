@@ -57,6 +57,10 @@ export function testEnv(overrides: Partial<Env> = {}): Env {
     PAYSTACK_SECRET_KEY: TEST_PAYSTACK_SECRET,
     JWT_SECRET: "jwt-secret",
     MNOTIFY_SENDER_ID: "Wave",
+    // Existing tests drive Paystack for both methods; Moolre tests opt in.
+    MOOLRE_BASE_URL: "https://sandbox.moolre.com",
+    MOMO_PROVIDER: "paystack",
+    CARD_PAYMENTS: "paystack",
     // The sweep timer has no place in a route test — see plugins/sweeper.ts.
     SWEEP_ENABLED: false,
     ...overrides,

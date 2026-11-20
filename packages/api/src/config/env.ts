@@ -27,6 +27,26 @@ const envSchema = z.object({
     .min(1)
     .refine((v) => v.startsWith("sk_"), "PAYSTACK_SECRET_KEY must be a Paystack secret key (sk_test_… or sk_live_…), not the public pk_… key"),
 
+  // Moolre: Mobile Money (since 2026-11-20). Cards stay on Paystack above.
+  // All optional so the API boots before the keys exist; MoMo checkout answers
+  // "not set up yet" until USER, PUBLIC_KEY and ACCOUNT_NUMBER are all set.
+  // PRIVATE_KEY is only for refunds (payouts). WEBHOOK_SECRET signs the
+  // callback; without it the webhook is still safe, because every callback is
+  // re-checked against Moolre's status API before anything is confirmed.
+  // Sandbox: MOOLRE_BASE_URL=https://sandbox.moolre.com with sandbox keys.
+  MOOLRE_BASE_URL: z.string().url().default("https://api.moolre.com"),
+  MOOLRE_API_USER: z.string().optional(),
+  MOOLRE_PUBLIC_KEY: z.string().optional(),
+  MOOLRE_PRIVATE_KEY: z.string().optional(),
+  MOOLRE_ACCOUNT_NUMBER: z.string().optional(),
+  MOOLRE_WEBHOOK_SECRET: z.string().optional(),
+
+  // Which provider takes each method. `MOMO_PROVIDER=paystack` puts Mobile
+  // Money back on Paystack without a code change; `CARD_PAYMENTS=off` hides
+  // cards entirely.
+  MOMO_PROVIDER: z.enum(["moolre", "paystack"]).default("moolre"),
+  CARD_PAYMENTS: z.enum(["paystack", "off"]).default("paystack"),
+
   // Misnamed for historical reasons: this signs nothing. Supabase Auth issues
   // and verifies every JWT Wave uses. This is the symmetric key that encrypts
   // the delivery-PIN ciphertext in `orders/pinCrypto.ts`, so the owner can
