@@ -76,6 +76,13 @@ describe("refunding a Moolre MoMo payment", () => {
     expect(h.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "refunded" }) }));
   });
 
+  test("falls back to Moolre's 233… payer, sent in local form", async () => {
+    const h = harness({ momoPayer: null, momoNetwork: null });
+    moolreCollectionStatus.mockResolvedValue({ state: "paid", amount: "1.00", payer: "233550076503" });
+    await endOrderWithRefund(args(h));
+    expect(moolrePayout).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ receiver: "0550076503", channel: "MTN", amountGhs: 1 }));
+  });
+
   test("a payout Moolre has not confirmed leaves the order unchanged", async () => {
     moolrePayout.mockResolvedValue({ state: "pending", reference: `RF-${REF}` });
     const h = harness();

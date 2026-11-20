@@ -1,6 +1,7 @@
 import { recordAudit, SYSTEM_ACTOR } from "../../lib/audit";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import { lookupCharge } from "./charges";
+import { mintedAtFromMoolreReference } from "./moolre";
 import { confirmDeliveryFeePaid } from "./confirm";
 import { capturePaymentIssue } from "../../lib/sentry";
 import { notifyOrderStatus } from "../notifications/dispatch";
@@ -23,6 +24,9 @@ export const ABANDONED_CHECKOUT_TTL_MS = 45 * 60 * 1000;
  * stalling the API for one long one.
  */
 export const SWEEP_BATCH_SIZE = 50;
+
+/** A Moolre prompt this young may be unknown to Moolre and still be paid. */
+export const MOOLRE_FRESH_PROMPT_MS = 10 * 60_000;
 
 export interface SweepResult {
   /** Rows that were past the TTL and looked at. */
@@ -97,7 +101,7 @@ export async function sweepAbandonedCheckouts(args: {
   if (stale.length === 0) return result;
 
   for (const order of stale) {
-    const outcome = await settleOne({ fastify, log, order });
+    const outcome = await settleOne({ fastify, log, order, now });
     result[outcome] += 1;
   }
 
@@ -117,8 +121,9 @@ async function settleOne(args: {
   fastify: FastifyInstance;
   log: FastifyBaseLogger;
   order: { id: string; paystackRef: string | null; totalAmount: unknown };
+  now: Date;
 }): Promise<"recovered" | "cancelled" | "skipped"> {
-  const { fastify, log, order } = args;
+  const { fastify, log, order, now } = args;
 
   // No reference at all means checkout was never even opened — there is nothing
   // for Paystack to know about, so there is nothing to ask.
@@ -144,7 +149,16 @@ async function settleOne(args: {
     // on the phone, a network timeout upstream). That is not "unpaid", so the
     // order waits for a definite answer. Paystack keeps its old behaviour:
     // anything short of success is an abandoned checkout.
-    if (charge.provider === "moolre" && charge.state === "pending") {
+    // Moolre also answers "not found" for a prompt still sitting on the phone
+    // (it only knows the charge once the payer acts), so a reference minted
+    // in the last few minutes is left alone whatever it says.
+    const minted = mintedAtFromMoolreReference(order.paystackRef);
+    const recentPrompt =
+      charge.provider === "moolre" &&
+      charge.state === "not_found" &&
+      !!minted &&
+      now.getTime() - minted.getTime() < MOOLRE_FRESH_PROMPT_MS;
+    if ((charge.provider === "moolre" && charge.state === "pending") || recentPrompt) {
       log.warn(
         { orderId: order.id, reference: order.paystackRef },
         "Abandoned-checkout sweep: Moolre still reports the charge pending — leaving the order",

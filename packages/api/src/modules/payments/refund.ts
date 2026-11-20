@@ -3,7 +3,7 @@ import { recordAudit } from "../../lib/audit";
 import axios from "axios";
 import { DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
 import { refundPaystackPayment } from "./paystack";
-import { guessNetwork, isMoolreReference, MOOLRE_CHANNELS, moolreCollectionStatus, moolrePayout, type MoolreChannel } from "./moolre";
+import { guessNetwork, isMoolreReference, normaliseGhanaMobile, MOOLRE_CHANNELS, moolreCollectionStatus, moolrePayout, type MoolreChannel } from "./moolre";
 import { clientSafeOrder } from "../orders/select";
 import { notifyOrderStatus } from "../notifications/dispatch";
 import type { OrderFailureReason } from "@prisma/client";
@@ -286,7 +286,8 @@ async function refundByMoolrePayout(args: {
     if (charge.state !== "paid") {
       return { code: 409, error: "Moolre does not show this payment as received, so there is nothing to refund." };
     }
-    const receiver = args.payer ?? charge.payer;
+    // Moolre reports the payer as 233…; payouts take the local 0… form.
+    const receiver = normaliseGhanaMobile(args.payer ?? charge.payer ?? "");
     const channel =
       MOOLRE_CHANNELS.find((c) => c === args.network) ?? (receiver ? guessNetwork(receiver) : null);
     const amountGhs = Number(charge.amount);

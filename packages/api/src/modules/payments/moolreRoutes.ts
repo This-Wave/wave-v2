@@ -125,7 +125,10 @@ export function registerMoolreRoutes(fastify: FastifyInstance, deps: { checkChar
     if (
       args.previousRef &&
       isMoolreReference(args.previousRef) &&
-      (args.previousState === "pending" || args.previousState === "unknown")
+      // "not_found" too: Moolre's status lookup does not know a prompt until
+      // the payer acts on it (seen live 2026-11-20), so a prompt sent seconds
+      // ago reads as not found while it sits on the phone.
+      (args.previousState === "pending" || args.previousState === "unknown" || args.previousState === "not_found")
     ) {
       const minted = mintedAtFromMoolreReference(args.previousRef);
       if (minted && Date.now() - minted.getTime() < MOOLRE_PROMPT_WINDOW_MS) {

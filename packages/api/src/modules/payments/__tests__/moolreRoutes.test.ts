@@ -143,6 +143,19 @@ describe("POST /initiate with Moolre MoMo", () => {
     expect(moolreCollect).not.toHaveBeenCalled();
   });
 
+  test("a prompt Moolre cannot see yet is still not sent twice", async () => {
+    const recent = `WAVEM-${ORDER_ID}-${Date.now() - 10_000}`;
+    moolreCollectionStatus.mockResolvedValue({ state: "not_found" });
+    const app = await buildTestApp(paymentRoutes, {
+      prisma: prismaFor(order({ paystackRef: recent })),
+      user: STUDENT,
+      env: MOOLRE_ENV,
+    });
+    const res = await app.inject({ method: "POST", url: "/initiate", payload: { orderId: ORDER_ID, method: "momo" } });
+    expect(res.json()).toMatchObject({ code: "prompt_pending" });
+    expect(moolreCollect).not.toHaveBeenCalled();
+  });
+
   test("an earlier Moolre charge that was paid stops a second one", async () => {
     moolreCollectionStatus.mockResolvedValue({ state: "paid", amount: "40.00" });
     const app = await buildTestApp(paymentRoutes, {
