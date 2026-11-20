@@ -3,7 +3,19 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { ActionBar, Button, CheckoutProgress, Gutter, Screen, ScreenBody, TopBar, WaveContextBanner } from "../../components/v6";
+import {
+  ActionBar,
+  Button,
+  CheckoutProgress,
+  Chip,
+  CodeInput,
+  Gutter,
+  PhoneField,
+  Screen,
+  ScreenBody,
+  TopBar,
+  WaveContextBanner,
+} from "../../components/v6";
 import { PaystackCheckout, type CheckoutOutcome } from "../../components/PaystackCheckout";
 import { CardIcon, CheckIcon, MobileIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
@@ -14,6 +26,17 @@ import { useOrder } from "../../lib/orders";
 import { formatGhs, formatGhsCompact } from "../../lib/pricing";
 import { exitPaymentToOrders, resetAfterPaymentOutcome } from "../../lib/navigationFlows";
 import { showToast } from "../../store/toastStore";
+import {
+  guessMomoNetwork,
+  maskMomoNumber,
+  momoErrorCode,
+  MOMO_NETWORKS,
+  pendingPromptReference,
+  usePaymentOptions,
+  useSubmitMomoCode,
+  type MomoNetwork,
+} from "../../lib/momo";
+import { MomoApprove } from "../../components/MomoApprove";
 
 type Route = RouteProp<StudentStackParamList, "Payment">;
 type Method = "momo" | "card";
@@ -45,7 +68,13 @@ type Method = "momo" | "card";
  * student is back, not that they paid; only the signed Paystack webhook confirms
  * an order.
  */
-type Phase = "choosing" | "checkout" | "confirming";
+type Phase = "choosing" | "checkout" | "confirming" | "otp" | "approve";
+
+/**
+ * How long the approve screen waits for the MoMo prompt before saying the
+ * payment was not confirmed. A prompt left on a phone expires well inside this.
+ */
+const APPROVE_WAIT_ATTEMPTS = 120; // ~3 minutes at 1.5s
 
 export function PaymentScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
@@ -58,6 +87,26 @@ export function PaymentScreen() {
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("choosing");
   const [checkout, setCheckout] = useState<{ url: string; reference: string } | null>(null);
+
+  // Moolre MoMo: the number and network the prompt goes to. Prefilled from the
+  // profile, network guessed from the prefix; both editable (ported numbers).
+  const { data: options } = usePaymentOptions();
+  const moolreMomo = options?.momo.provider === "moolre";
+  const cardEnabled = options?.card ?? true;
+  const profileDigits = (profile?.phone ?? "").replace(/^\+?233/, "").replace(/\D/g, "");
+  const [momoDigits, setMomoDigits] = useState(profileDigits);
+  const [network, setNetwork] = useState<MomoNetwork | null>(guessMomoNetwork(profileDigits));
+  const [networkTouched, setNetworkTouched] = useState(false);
+  const [momo, setMomo] = useState<{ reference: string; payer: string; network: MomoNetwork } | null>(null);
+  const [code, setCode] = useState("");
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const submitCode = useSubmitMomoCode();
+
+  function changeMomoDigits(next: string) {
+    setMomoDigits(next);
+    // Follow the number until the student picks a network themselves.
+    if (!networkTouched) setNetwork(guessMomoNetwork(next));
+  }
 
   // Cancelled when the screen unmounts so a poll can't navigate a screen the
   // student has already left.
@@ -78,7 +127,7 @@ export function PaymentScreen() {
    * `confirming` phase below is allowed to conclude anything negative.
    */
   useEffect(() => {
-    if (!checkout || phase === "choosing") return;
+    if (!checkout || (phase !== "checkout" && phase !== "confirming")) return;
     let stopped = false;
 
     (async () => {
@@ -100,19 +149,98 @@ export function PaymentScreen() {
     };
   }, [checkout, phase, navigation, params.orderId]);
 
+  /**
+   * The approve screen: the prompt is on the phone and the poll decides.
+   * Confirmation goes ahead the moment the money lands; only after the full
+   * wait does it conclude "not confirmed", and even then the order is saved.
+   */
+  useEffect(() => {
+    if (phase !== "approve" || !momo) return;
+    let stopped = false;
+    (async () => {
+      const status = await waitForPayment(momo.reference, {
+        attempts: APPROVE_WAIT_ATTEMPTS,
+        signal: cancel.current,
+      });
+      if (stopped || cancel.current.cancelled) return;
+      resetAfterPaymentOutcome(
+        navigation,
+        status
+          ? { name: "OrderConfirmed", params: { orderId: params.orderId } }
+          : { name: "PaymentFailed", params: { orderId: params.orderId, totalAmount: params.totalAmount } },
+      );
+    })();
+    return () => {
+      stopped = true;
+    };
+  }, [phase, momo, navigation, params.orderId, params.totalAmount]);
+
   async function handlePay() {
     setError(null);
+    const usingMoolre = method === "momo" && moolreMomo;
+    if (usingMoolre) {
+      if (momoDigits.length !== 9) {
+        setError("Enter your Mobile Money number, like 24 123 4521.");
+        return;
+      }
+      if (!network) {
+        setError("Pick your Mobile Money network.");
+        return;
+      }
+    }
     try {
-      const { reference, payment_url: url } = await initiatePayment.mutateAsync({
+      const result = await initiatePayment.mutateAsync({
         orderId: params.orderId,
         method,
         returnOrigin: webAppOrigin(),
+        ...(usingMoolre ? { payerPhone: `0${momoDigits}`, network: network ?? undefined } : {}),
       });
-      setCheckout({ url, reference });
+      if (result.provider === "moolre") {
+        setMomo({ reference: result.reference, payer: result.payer, network: result.network });
+        setCode("");
+        setCodeError(null);
+        setPhase(result.next === "otp" ? "otp" : "approve");
+        return;
+      }
+      setCheckout({ url: result.payment_url, reference: result.reference });
       setPhase("checkout");
     } catch (err) {
+      // A prompt sent a moment ago is still live: wait on that one rather
+      // than send a second (two live prompts is how a student pays twice).
+      const pending = pendingPromptReference(err);
+      if (pending && usingMoolre && network) {
+        setMomo({ reference: pending, payer: `0${momoDigits}`, network });
+        setPhase("approve");
+        return;
+      }
       setError(paymentInitiateErrorMessage(err));
     }
+  }
+
+  async function handleSubmitCode() {
+    if (!momo || code.length !== 6) return;
+    setCodeError(null);
+    try {
+      const result = await submitCode.mutateAsync({ reference: momo.reference, code });
+      if (result.next === "otp") {
+        setCode("");
+        setCodeError("That code has expired. We've sent a new one.");
+        return;
+      }
+      setPhase("approve");
+    } catch (err) {
+      setCode("");
+      setCodeError(
+        momoErrorCode(err) === "otp_wrong"
+          ? "That code is not right. Check the SMS and try again."
+          : paymentInitiateErrorMessage(err),
+      );
+    }
+  }
+
+  function backToChoosing() {
+    setMomo(null);
+    setPhase("choosing");
   }
 
   /**
@@ -162,6 +290,58 @@ export function PaymentScreen() {
           }}
           onOutcome={handleCheckoutOutcome}
         />
+      </Screen>
+    );
+  }
+
+  if (phase === "approve" && momo) {
+    return (
+      <Screen narrow>
+        <MomoApprove
+          amountLabel={formatGhs(params.totalAmount)}
+          network={momo.network}
+          payer={momo.payer}
+          onPayAnotherWay={backToChoosing}
+        />
+      </Screen>
+    );
+  }
+
+  if (phase === "otp" && momo) {
+    return (
+      <Screen narrow>
+        <TopBar onBack={backToChoosing} />
+        <ScreenBody bottomInset={16}>
+          <Gutter>
+            <Text className="font-sans-bold text-heading text-ink">Enter the SMS code</Text>
+            <Text className="mb-7 mt-1.5 font-sans text-body text-muted">
+              Sent to {maskMomoNumber(momo.payer)} · first payment from this number
+            </Text>
+            <CodeInput
+              value={code}
+              onChangeText={(next) => {
+                setCodeError(null);
+                setCode(next.replace(/\D/g, "").slice(0, 6));
+              }}
+              state={codeError ? "error" : "default"}
+              accessibilityLabel="Mobile Money SMS code"
+            />
+            {codeError ? (
+              <Text accessibilityLiveRegion="assertive" role="alert" className="mt-4 font-sans text-body text-danger">
+                {codeError}
+              </Text>
+            ) : null}
+          </Gutter>
+        </ScreenBody>
+        <ActionBar>
+          <Button
+            label="Continue"
+            onPress={handleSubmitCode}
+            disabled={code.length !== 6 || submitCode.isPending}
+            loading={submitCode.isPending}
+          />
+          <Button label="Use another number" variant="quiet" onPress={backToChoosing} />
+        </ActionBar>
       </Screen>
     );
   }
@@ -223,23 +403,58 @@ export function PaymentScreen() {
           <View className="gap-2" accessibilityRole="radiogroup" accessibilityLabel="Payment method">
             <MethodRow
               label="Mobile Money"
-              meta={profile?.phone ?? "MTN · Telecel · AirtelTigo"}
+              meta={
+                moolreMomo
+                  ? "MTN · Telecel · AT"
+                  : (profile?.phone ?? "MTN · Telecel · AirtelTigo")
+              }
               icon={<MobileIcon size={20} color={colors.ink} strokeWidth={1.7} />}
               selected={method === "momo"}
               onPress={() => setMethod("momo")}
             />
-            <MethodRow
-              label="Card"
-              meta="Visa or Mastercard"
-              icon={<CardIcon size={20} color={colors.ink} strokeWidth={1.7} />}
-              selected={method === "card"}
-              onPress={() => setMethod("card")}
-            />
+            {method === "momo" && moolreMomo ? (
+              <View className="gap-4 rounded-card border border-hairline bg-surface p-4">
+                <PhoneField label="MoMo number" value={momoDigits} onChangeText={changeMomoDigits} />
+                <View>
+                  <Text nativeID="momo-network" className="mb-2 font-sans-medium text-body text-ink">
+                    Network
+                  </Text>
+                  <View
+                    className="flex-row gap-2"
+                    accessibilityRole="radiogroup"
+                    aria-labelledby="momo-network"
+                  >
+                    {MOMO_NETWORKS.map((n) => (
+                      <View key={n.id} className="flex-1">
+                        <Chip
+                          label={n.label}
+                          selected={network === n.id}
+                          onPress={() => {
+                            setNetworkTouched(true);
+                            setNetwork(n.id);
+                          }}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            ) : null}
+            {cardEnabled ? (
+              <MethodRow
+                label="Card"
+                meta="Visa or Mastercard"
+                icon={<CardIcon size={20} color={colors.ink} strokeWidth={1.7} />}
+                selected={method === "card"}
+                onPress={() => setMethod("card")}
+              />
+            ) : null}
           </View>
 
           <Text className="mt-6 font-sans text-body text-muted">
-            Paystack handles the payment. You’ll stay in this tab and come straight back when
-            you’re done.
+            {method === "momo" && moolreMomo
+              ? "A prompt goes to this phone. Approve it with your MoMo PIN."
+              : "Paystack handles the payment. You’ll stay in this tab and come straight back when you’re done."}
           </Text>
           {error ? (
             <Text

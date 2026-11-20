@@ -12,7 +12,12 @@ const { fetchPaystackTransaction, confirmDeliveryFeePaid, notifyOrderStatus, cap
     capturePaymentIssue: vi.fn(),
   }));
 
+const { moolreCollectionStatus } = vi.hoisted(() => ({ moolreCollectionStatus: vi.fn() }));
 vi.mock("../paystack", () => ({ fetchPaystackTransaction }));
+vi.mock("../moolre", async () => {
+  const actual = await vi.importActual<typeof import("../moolre")>("../moolre");
+  return { ...actual, moolreCollectionStatus };
+});
 vi.mock("../confirm", () => ({ confirmDeliveryFeePaid, confirmGoodsPaid: vi.fn() }));
 vi.mock("../../notifications/dispatch", () => ({ notifyOrderStatus }));
 vi.mock("../../../lib/sentry", () => ({
@@ -269,5 +274,33 @@ describe("sweepAbandonedCheckouts — a mixed batch", () => {
 
     expect(result).toMatchObject({ examined: 2, cancelled: 2 });
     expect(fastify.updateMany).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("Moolre charges", () => {
+  const ref = "WAVEM-order-1-1756460000000";
+
+  test("a charge Moolre still calls pending is left alone, never cancelled", async () => {
+    moolreCollectionStatus.mockResolvedValue({ state: "pending" });
+    const fastify = makeFastify([{ id: "order-1", paystackRef: ref, totalAmount: "40.00" }]);
+    const result = await run(fastify);
+    expect(result).toMatchObject({ skipped: 1, cancelled: 0 });
+    expect(fastify.updateMany).not.toHaveBeenCalled();
+    expect(fetchPaystackTransaction).not.toHaveBeenCalled();
+  });
+
+  test("a paid Moolre charge is recovered", async () => {
+    moolreCollectionStatus.mockResolvedValue({ state: "paid", amount: "40.00" });
+    const fastify = makeFastify([{ id: "order-1", paystackRef: ref, totalAmount: "40.00" }]);
+    const result = await run(fastify);
+    expect(result).toMatchObject({ recovered: 1 });
+    expect(confirmDeliveryFeePaid).toHaveBeenCalled();
+  });
+
+  test("a failed Moolre charge is cancelled like an abandoned checkout", async () => {
+    moolreCollectionStatus.mockResolvedValue({ state: "failed" });
+    const fastify = makeFastify([{ id: "order-1", paystackRef: ref, totalAmount: "40.00" }]);
+    const result = await run(fastify);
+    expect(result).toMatchObject({ cancelled: 1 });
   });
 });

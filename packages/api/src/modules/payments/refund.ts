@@ -3,6 +3,7 @@ import { recordAudit } from "../../lib/audit";
 import axios from "axios";
 import { DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
 import { refundPaystackPayment } from "./paystack";
+import { guessNetwork, isMoolreReference, MOOLRE_CHANNELS, moolreCollectionStatus, moolrePayout, type MoolreChannel } from "./moolre";
 import { clientSafeOrder } from "../orders/select";
 import { notifyOrderStatus } from "../notifications/dispatch";
 import type { OrderFailureReason } from "@prisma/client";
@@ -111,6 +112,38 @@ export async function endOrderWithRefund(
 
     let refundIssued = false;
     for (const reference of refsToRefund) {
+      if (isMoolreReference(reference)) {
+        // Moolre has no refund call: the money goes back as a payout to the
+        // number that paid. `moolrePayout` derives its reference from the
+        // charge, so a retry after a timeout or a "pending" can never pay twice.
+        const isGoods = reference === order.goodsPaystackRef;
+        const failure = await refundByMoolrePayout({
+          fastify,
+          log,
+          orderId,
+          reference,
+          payer: isGoods ? order.goodsMomoPayer : order.momoPayer,
+          network: isGoods ? order.goodsMomoNetwork : order.momoNetwork,
+        });
+        if (failure) {
+          await recordAudit(
+            fastify,
+            {
+              action: "refund.failed",
+              category: "refund",
+              entityType: "order",
+              entityId: orderId,
+              universityId: order.universityId,
+              outcome: "failed",
+              metadata: { reference, reason, intent, providerMessage: failure.error },
+            },
+            request,
+          );
+          return { ok: false, code: failure.code, error: failure.error };
+        }
+        refundIssued = true;
+        continue;
+      }
       try {
         const refund = await refundPaystackPayment(fastify.config.PAYSTACK_SECRET_KEY, {
           reference,
@@ -229,5 +262,55 @@ export async function endOrderWithRefund(
           log.error({ orderId, err }, "Could not release the refund claim — it will expire via TTL");
         });
     }
+  }
+}
+
+/**
+ * Pays a Moolre charge back to the number that paid it. Returns null once the
+ * money has definitely left, or the reason it has not.
+ *
+ * The amount is what Moolre says it collected, not what the order says now,
+ * so a refund is never more than was taken.
+ */
+async function refundByMoolrePayout(args: {
+  fastify: FastifyInstance;
+  log: FastifyBaseLogger;
+  orderId: string;
+  reference: string;
+  payer: string | null;
+  network: string | null;
+}): Promise<{ code: number; error: string } | null> {
+  const { fastify, log, orderId, reference } = args;
+  try {
+    const charge = await moolreCollectionStatus(fastify.config, reference);
+    if (charge.state !== "paid") {
+      return { code: 409, error: "Moolre does not show this payment as received, so there is nothing to refund." };
+    }
+    const receiver = args.payer ?? charge.payer;
+    const channel =
+      MOOLRE_CHANNELS.find((c) => c === args.network) ?? (receiver ? guessNetwork(receiver) : null);
+    const amountGhs = Number(charge.amount);
+    if (!receiver || !channel || !Number.isFinite(amountGhs) || amountGhs <= 0) {
+      return { code: 409, error: "We could not tell which number to refund. Refund it from the Moolre dashboard." };
+    }
+
+    const payout = await moolrePayout(fastify.config, {
+      chargeReference: reference,
+      amountGhs,
+      receiver,
+      channel: channel as MoolreChannel,
+    });
+    log.info({ orderId, reference, payout }, "Moolre refund payout");
+    if (payout.state === "paid") return null;
+    if (payout.state === "pending") {
+      return {
+        code: 409,
+        error: `GHS ${amountGhs.toFixed(2)} is on its way to ${receiver}, but Moolre has not confirmed it yet. Try again in a few minutes to finish; it will not be sent twice.`,
+      };
+    }
+    return { code: 502, error: payout.message ?? "Moolre refused the refund payout. The order was left unchanged." };
+  } catch (err) {
+    log.error({ orderId, reference, err: (err as Error).message }, "Moolre refund failed — order status left unchanged");
+    return { code: 502, error: (err as Error).message || "Refund could not be issued. The order was left unchanged." };
   }
 }
