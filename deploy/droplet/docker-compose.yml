@@ -6,6 +6,12 @@
 # Only `web` (Caddy) publishes ports. Docker's published ports bypass ufw, and
 # the API trusts one proxy hop for client IPs, so publishing api or admin would
 # expose them directly and let callers spoof their address.
+#
+# Postgres (`db`) is internal-only — no host ports. Point DATABASE_URL and
+# DIRECT_URL at postgresql://wave:${POSTGRES_PASSWORD}@db:5432/wave (no SSL).
+# Never remove `db` from this file while production uses it: deploy.sh runs
+# `--remove-orphans` and would stop the container (the pgdata volume still keeps
+# the files, but the API would lose the hostname).
 
 name: wave
 
@@ -17,10 +23,45 @@ x-logging: &logging
     max-file: "3"
 
 services:
+  db:
+    # Match Neon’s major (currently 18). pg_dump/pg_restore must be ≥ server.
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: wave
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: wave
+    # Shared 1 GB droplet also runs Wave + crescendo — keep Postgres lean.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - effective_cache_size=192MB
+      - -c
+      - max_connections=50
+      - -c
+      - work_mem=4MB
+    # PG 18+ images expect the volume at /var/lib/postgresql (not .../data).
+    volumes:
+      - pgdata:/var/lib/postgresql
+    mem_limit: 256m
+    shm_size: 64mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wave -d wave"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    logging: *logging
+
   migrate:
     image: ghcr.io/this-wave/wave-api:${IMAGE_TAG:?run ./deploy.sh <tag>}
     command: ["prisma", "migrate", "deploy", "--schema", "packages/db/prisma/schema.prisma"]
     env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
     restart: "no"
     logging: *logging
 
@@ -31,10 +72,12 @@ services:
       NODE_ENV: production
       PORT: "4000"
       TRUST_PROXY_HOPS: "1"
-      # Node sizes its heap from the host's memory, not what's free. On the
-      # 512 MB droplet that would let one process push the others into swap.
+      # Node sizes its heap from the host's memory, not what's free. Cap each
+      # process so Wave + Postgres + crescendo fit in 1 GB.
       NODE_OPTIONS: --max-old-space-size=192
     depends_on:
+      db:
+        condition: service_healthy
       # A failed migration stops here, and the running API is left in place.
       migrate:
         condition: service_completed_successfully
@@ -82,3 +125,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  pgdata:

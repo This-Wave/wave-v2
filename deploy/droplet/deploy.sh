@@ -16,7 +16,12 @@ export IMAGE_TAG
 IMAGE_TAG="$(cat .image-tag)"
 echo "Deploying $IMAGE_TAG"
 
-docker compose pull
+# Workflow logins to GHCR before calling this. A manual `./deploy.sh` (e.g.
+# after editing .env) has no token, so pull would fail even when images are
+# already on disk — keep going with what we have.
+if ! docker compose pull; then
+  echo "docker compose pull failed (often no GHCR login); continuing with local images" >&2
+fi
 docker compose up -d --remove-orphans
 # Picks up Caddyfile edits; a bind-mounted file change does not recreate the container.
 docker compose exec -T web caddy reload --config /etc/caddy/Caddyfile

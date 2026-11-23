@@ -1,17 +1,14 @@
 # Moving production to a DigitalOcean droplet
 
 Production runs on one DigitalOcean droplet (a virtual server) in New York
-(`nyc3`), next to the production Neon database in `us-east-2` (Ohio), with each
-part of Wave in its own Docker container. Put the droplet in the region closest
-to the database, not the users: every API request makes several database round
-trips in a row, so that distance is paid many times per request, while the
-user's distance is paid once. Not every region offers the $4 and $6 sizes (`fra1`
-doesn't); `doctl compute region list -o json` shows which do. The
-database stays on Neon and auth/storage stay on Supabase; only the hosting
-moves.
+(`nyc3`), with each part of Wave in its own Docker container. Auth/storage/
+realtime stay on Supabase. The app database runs as a `db` container on the
+same droplet (Postgres 16). Not every region offers the $4 and $6 sizes
+(`fra1` doesn't); `doctl compute region list -o json` shows which do.
 
 | Container | Image built from | What it does |
 |---|---|---|
+| `db` | `postgres:18-alpine` | App Postgres (internal only; data in the `pgdata` volume) |
 | `web` | [`deploy/droplet/web.Dockerfile`](../deploy/droplet/web.Dockerfile) | Caddy: HTTPS for every hostname, serves the student web app, forwards the other hosts |
 | `api` | [`deploy/droplet/api.Dockerfile`](../deploy/droplet/api.Dockerfile) | Fastify API |
 | `migrate` | same image as `api` | Runs `prisma migrate deploy`, then exits. The API only starts if it succeeds |
@@ -23,11 +20,11 @@ stores them in GitHub's container registry (GHCR), then SSHes into the droplet
 and runs [`deploy.sh`](../deploy/droplet/deploy.sh). The droplet never builds
 anything, so a small one is enough.
 
-**Size and cost.** Wave runs on the smallest droplet, `s-1vcpu-512mb-10gb`
-($4/month, plus $0.80 for weekly backups). Measured in the images: the API uses
-about 110 MB of memory and the admin about 80 MB, which with Caddy, Docker and
-Ubuntu comes to roughly 430 MB of the 512. That works, but leaves little
-headroom: compose caps each Node heap, and 1 GB of swap absorbs spikes.
+**Size and cost.** Production (`wave-prod-nyc`) is on `s-1vcpu-1gb`
+($6/month, plus ~$1.20 for weekly backups), resized from `s-1vcpu-512mb-10gb`
+on 2026-11-23. The API uses about 110 MB of memory and the admin about 80 MB;
+with Caddy, Docker and Ubuntu that was ~430 MB of 512. The 1 GB size leaves
+room for on-droplet Postgres (capped at 256 MB in compose) and a second app.
 
 Move up a size when monitoring (droplet → Graphs) shows memory above ~90% most
 of the time, swap in steady use, or before adding a second app:
@@ -55,9 +52,12 @@ backups are switched on below.
    - **`JWT_SECRET` must be the same value.** It encrypts delivery PINs that are
      already stored; a new value makes those undecryptable (the bcrypt check at
      the door still works, but owners can no longer see their PIN in-app).
-   - `DATABASE_URL` is the Neon **pooled** string. `DIRECT_URL` is the same
-     branch's **direct** string (Neon → Connection details → untick "Pooled").
-     Migrations fail through the pooler.
+   - `DATABASE_URL` and `DIRECT_URL` both point at the on-droplet Postgres
+     service: `postgresql://wave:<POSTGRES_PASSWORD>@db:5432/wave` (no SSL;
+     hostname `db` is the compose service name). Also set `POSTGRES_PASSWORD`
+     in `.env` — compose refuses to start `db` without it.
+   - Keep a copy of the old Neon URLs offline until you are sure the cutover
+     stuck; then you can delete the Neon project to stop compute charges.
 2. Pick three hostnames, for example `api.wave.app`, `admin.wave.app` and
    `app.wave.app`. No domain yet? Use `api.<ip>.sslip.io`, `admin.<ip>.sslip.io`
    and `app.<ip>.sslip.io` once you know the droplet's IP: sslip.io resolves
@@ -217,6 +217,10 @@ Once no traffic reaches Render's production API (its logs go quiet):
   a migration only works if the older code tolerates the newer schema.
 - **Change a secret:** edit `/opt/wave/.env`, then `./deploy.sh` in `/opt/wave`
   (no tag: it reuses the current one).
+- **Database backups:** droplet weekly backups snapshot the whole disk (including
+  the Docker `pgdata` volume). For a logical dump before a risky change:
+  `mkdir -p /opt/wave/backups && docker compose exec -T db pg_dump -U wave -d wave -Fc > /opt/wave/backups/wave-$(date +%F).dump`.
+  Never publish Postgres on a host port.
 - **Logs:** `docker compose logs -f api` in `/opt/wave`. They rotate at 30 MB
   per container.
 - **Reboots:** after a kernel update the login banner says a restart is
