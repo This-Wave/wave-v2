@@ -1,4 +1,4 @@
-# Student web app (PWA) baked into the Caddy image that fronts everything.
+# Student web app (PWA) and the marketing site, baked into the Caddy image that fronts everything.
 # Caddy serves these files itself and proxies the API and admin hosts; its
 # Caddyfile is mounted from the droplet so new sites need no rebuild.
 FROM node:22-bookworm-slim AS build
@@ -26,3 +26,5 @@ RUN npm run build --workspace @wave/shared && npm run build:web --workspace apps
 
 FROM caddy:2-alpine
 COPY --from=build /app/apps/mobile/dist /srv/web
+# Marketing site: static, no build step.
+COPY apps/site /srv/site

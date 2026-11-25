@@ -8,7 +8,9 @@
 	email {$ACME_EMAIL}
 }
 
-{$API_HOST} {
+# LEGACY_API_HOST keeps the old sslip.io name answering while Paystack, Moolre
+# and the Supabase SMS hook still point at it. Empty = only the new name.
+{$API_HOST} {$LEGACY_API_HOST} {
 	encode zstd gzip
 	reverse_proxy api:4000
 }
@@ -33,6 +35,29 @@
 	# Client-side routing: unknown paths load the app shell.
 	try_files {path} /index.html
 	file_server
+}
+
+# Marketing site: plain static files from apps/site, baked into this image.
+{$SITE_HOST} {
+	root * /srv/site
+	encode zstd gzip
+	header /assets/* Cache-Control "public, max-age=86400"
+	try_files {path} {path}.html {path}/index.html
+	file_server
+}
+
+www.{$SITE_HOST} {
+	redir https://{$SITE_HOST}{uri} permanent
+}
+
+# Old hostnames (e.g. app.<ip>.sslip.io) send people to the new ones. Unset = a
+# plain-HTTP placeholder that never resolves, so Caddy requests no certificate.
+{$LEGACY_WEB_HOST:http://legacy-web.invalid} {
+	redir https://{$WEB_HOST}{uri} permanent
+}
+
+{$LEGACY_ADMIN_HOST:http://legacy-admin.invalid} {
+	redir https://{$ADMIN_HOST}{uri} permanent
 }
 
 # Example second app:

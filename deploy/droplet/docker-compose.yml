@@ -110,6 +110,11 @@ services:
       API_HOST: ${API_HOST:?set API_HOST in .env}
       ADMIN_HOST: ${ADMIN_HOST:?set ADMIN_HOST in .env}
       WEB_HOST: ${WEB_HOST:?set WEB_HOST in .env}
+      SITE_HOST: ${SITE_HOST:?set SITE_HOST in .env}
+      # Old hostnames kept alive during a domain move; leave unset otherwise.
+      LEGACY_API_HOST: ${LEGACY_API_HOST:-}
+      LEGACY_ADMIN_HOST: ${LEGACY_ADMIN_HOST:-}
+      LEGACY_WEB_HOST: ${LEGACY_WEB_HOST:-}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       # Certificates. Losing this volume means re-issuing every certificate,

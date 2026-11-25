@@ -30,8 +30,9 @@ concurrency:
 env:
   # Repository variables, so a URL change needs no commit. Defaults are the
   # current hosts, so the workflow is useful before anyone sets them.
-  API_HEALTH_URL: ${{ vars.API_HEALTH_URL || 'https://wave-api-ei19.onrender.com/health' }}
-  WEB_URL: ${{ vars.WEB_URL || 'https://wave-liart-pi.vercel.app' }}
+  API_HEALTH_URL: ${{ vars.API_HEALTH_URL || 'https://api.usewavenow.com/health' }}
+  WEB_URL: ${{ vars.WEB_URL || 'https://app.usewavenow.com' }}
+  SITE_URL: ${{ vars.SITE_URL || 'https://usewavenow.com' }}
 
 jobs:
   check:
@@ -61,6 +62,7 @@ jobs:
           {
             probe api "$API_HEALTH_URL"
             probe web "$WEB_URL"
+            probe site "$SITE_URL"
           } > results.txt
 
           cat results.txt
