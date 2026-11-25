@@ -58,8 +58,11 @@ backups are switched on below.
      in `.env` — compose refuses to start `db` without it.
    - Keep a copy of the old Neon URLs offline until you are sure the cutover
      stuck; then you can delete the Neon project to stop compute charges.
-2. Pick three hostnames, for example `api.wave.app`, `admin.wave.app` and
-   `app.wave.app`. No domain yet? Use `api.<ip>.sslip.io`, `admin.<ip>.sslip.io`
+2. Pick the hostnames. Production (since 2026-11-25) is `usewavenow.com`
+   (marketing site, `apps/site`, with `www.` redirecting to it),
+   `app.usewavenow.com` (student web app), `api.usewavenow.com` and
+   `admin.usewavenow.com`. DNS is on Cloudflare: plain A records to the droplet
+   IP with the proxy **off** (grey cloud), or Caddy cannot get certificates. No domain yet? Use `api.<ip>.sslip.io`, `admin.<ip>.sslip.io`
    and `app.<ip>.sslip.io` once you know the droplet's IP: sslip.io resolves
    those to the IP for free, and Caddy still gets real certificates. Moving to a
    real domain later means repeating the hostname steps below.

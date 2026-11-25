@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wave · Parcels from Accra, dropped on campus</title>
+<meta name="description" content="Wave collects your parcels from Accra and brings them to a checkpoint at Ashesi. Every day. Opens Friday 27 November.">
+<meta name="theme-color" content="#87ea5c">
+<link rel="canonical" href="https://usewavenow.com/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://usewavenow.com/">
+<meta property="og:title" content="Wave · Stay in. We'll fetch it.">
+<meta property="og:description" content="Parcels from Accra, dropped at your campus checkpoint. Opens Friday 27 November.">
+<meta property="og:image" content="https://usewavenow.com/assets/hero.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,900&display=swap" rel="stylesheet">
+<style>
+  /* Palette: packages/shared/palettes.cjs. No gradients, no shadows,
+     radii 12 / 8 / pill only. Lime is fill-only and carries deep green text. */
+  :root {
+    --sacramento: #154b3e;
+    --lime: #87ea5c;
+    --on-accent: #0b2a21;
+    --canvas: #ffffff;
+    --card: #fdfcf8;
+    --muted: #5e6d66;
+    --onyx: #30473f;
+    --hairline: #eeede7;
+    --gutter: clamp(16px, 5vw, 64px);
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--canvas);
+    color: var(--sacramento);
+    font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 18px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { display: block; max-width: 100%; height: auto; }
+  a { color: inherit; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 var(--gutter); }
+
+  /* Buttons. 56px tall: a big target on a phone (Fitts). */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 56px; padding: 0 32px;
+    border-radius: 9999px;
+    font-weight: 700; font-size: 18px; letter-spacing: -0.01em;
+    text-decoration: none;
+    transition: transform 160ms cubic-bezier(.2,.8,.2,1);
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:focus-visible, a:focus-visible { outline: 3px solid var(--on-accent); outline-offset: 3px; }
+  .btn-ink { background: var(--sacramento); color: #fff; }
+  .btn-lime { background: var(--lime); color: var(--on-accent); }
+  .dark a:focus-visible, .dark .btn:focus-visible { outline-color: var(--lime); }
+
+  /* Hero */
+  .hero { background: var(--lime); color: var(--on-accent); overflow: hidden; }
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 24px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 700; font-size: 26px; letter-spacing: -0.04em; }
+  .brand svg { width: 40px; height: 40px; flex: none; }
+  .bar-right { display: flex; align-items: center; gap: 20px; font-weight: 700; font-size: 16px; white-space: nowrap; }
+  @media (max-width: 480px) { .bar-right .pre { display: none; } }
+  .bar-right a { text-decoration: none; }
+  .bar-right a:hover { text-decoration: underline; text-underline-offset: 4px; }
+  .hero-body { padding: clamp(48px, 9vw, 96px) 0 40px; }
+  h1 {
+    margin: 0;
+    font-weight: 900;
+    font-size: clamp(52px, 11vw, 112px);
+    line-height: 0.95;
+    letter-spacing: -0.045em;
+  }
+  .lede { margin: 24px 0 32px; font-weight: 700; font-size: clamp(20px, 2.6vw, 26px); line-height: 1.35; max-width: 30ch; }
+  .arch {
+    margin: 24px auto 0;
+    width: min(100%, 760px);
+    background: var(--card);
+    border-radius: 9999px 9999px 0 0;
+    padding: clamp(72px, 17vw, 120px) 24px 0;
+  }
+  .arch img { margin: 0 auto; width: min(76%, 420px); }
+
+  /* What is Wave */
+  section { padding: clamp(64px, 10vw, 112px) 0; }
+  h2 { margin: 0 0 20px; font-weight: 900; font-size: clamp(36px, 6vw, 56px); line-height: 1.02; letter-spacing: -0.035em; }
+  .intro { margin: 0; max-width: 34ch; font-size: clamp(19px, 2.2vw, 22px); }
+  .facts { list-style: none; margin: 40px 0 0; padding: 0; border-top: 1px solid var(--hairline); }
+  .facts li {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px 32px;
+    padding: 20px 0; border-bottom: 1px solid var(--hairline);
+  }
+  .facts b { font-weight: 700; letter-spacing: -0.01em; }
+  .facts span { color: var(--onyx); }
+  @media (max-width: 560px) { .facts li { grid-template-columns: 1fr; } }
+
+  /* Steps */
+  .steps-sec { background: var(--card); border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); }
+  .steps { list-style: none; margin: 48px 0 0; padding: 0; }
+  .step { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 24px; position: relative; padding: 20px 0; }
+  .step + .step::before {
+    /* The dotted line between numbers: one path, three stops (Goal-Gradient). */
+    content: ""; position: absolute; left: 27px; top: -20px; height: 40px;
+    border-left: 3px dotted var(--sacramento);
+  }
+  .num {
+    width: 56px; height: 56px; border-radius: 9999px;
+    display: grid; place-items: center;
+    background: var(--sacramento); color: #fff; font-weight: 900; font-size: 24px;
+    position: relative; z-index: 1;
+  }
+  .step:last-child .num { background: var(--lime); color: var(--on-accent); }
+  .step h3 { margin: 0; font-weight: 900; font-size: clamp(22px, 3.2vw, 32px); letter-spacing: -0.03em; line-height: 1.1; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip { display: inline-flex; align-items: center; min-height: 32px; padding: 0 14px; border-radius: 9999px; font-size: 15px; font-weight: 700; background: var(--sacramento); color: #fff; }
+  .chip.out { background: transparent; color: var(--sacramento); border: 2px solid var(--sacramento); }
+  .step img { width: 140px; }
+  @media (max-width: 640px) {
+    .step { grid-template-columns: 56px minmax(0, 1fr); }
+    .step img { display: none; }
+  }
+
+  /* Waitlist */
+  .dark { background: var(--sacramento); color: #fff; }
+  .dark h2 { color: #fff; }
+  .sub { margin: 0 0 32px; font-weight: 700; font-size: clamp(20px, 2.6vw, 26px); color: #cfe0d8; }
+  .dark .btn { width: 100%; max-width: 520px; }
+  .fine { margin: 20px 0 0; font-size: 16px; color: #cfe0d8; }
+  .fine a { color: #fff; font-weight: 700; text-underline-offset: 3px; }
+
+  footer { background: var(--sacramento); color: #cfe0d8; font-size: 15px; border-top: 1px solid #2a5e51; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 32px; justify-content: space-between; padding-top: 28px; padding-bottom: 28px; }
+  footer nav { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+  footer a { color: #fff; text-decoration: none; }
+  footer a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  /* Open-state copy: swapped in by the script below from launch day on. */
+  [data-open="true"] .pre { display: none; }
+  [data-open="false"] .post { display: none; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .rise { animation: rise 600ms cubic-bezier(.2,.8,.2,1) both; }
+    .rise.d1 { animation-delay: 80ms; } .rise.d2 { animation-delay: 160ms; } .rise.d3 { animation-delay: 240ms; }
+    @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+<script>
+  // Launch is Fri 27 Nov 2026, 00:00 Accra (UTC+0). From then on the badge reads
+  // "Open now" and the hero leads with the app instead of the waitlist.
+  document.documentElement.dataset.open = String(Date.now() >= Date.UTC(2026, 10, 27));
+</script>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="bar">
+      <a class="brand" href="/" aria-label="Wave home">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#154b3e"/><g transform="translate(6.4 7.04) scale(1.0667)"><path d="M24 3c-9.6 0-17.5 7.6-17.5 17C6.5 33 24 45 24 45s17.5-12 17.5-25C41.5 10.6 33.6 3 24 3z" fill="#87ea5c"/><path d="M12.5 21 q2.9 -4.2 5.75 0 t5.75 0 t5.75 0 t5.75 0" fill="none" stroke="#154b3e" stroke-width="3.6" stroke-linecap="round"/></g></svg>
+        wave
+      </a>
+      <div class="bar-right">
+        <span class="pre">Opens Fri 27 Nov</span>
+        <a href="https://app.usewavenow.com">Open the app</a>
+      </div>
+    </div>
+    <div class="hero-body">
+      <h1 class="rise">Stay in.<br>We'll fetch it.</h1>
+      <p class="lede rise d1">Parcels from Accra, dropped at your campus checkpoint.</p>
+      <div class="rise d2">
+        <a class="btn btn-ink pre" href="https://forms.gle/ZfED3zbmTGzUBJR16">Join the waitlist</a>
+        <a class="btn btn-ink post" href="https://app.usewavenow.com">Open the app</a>
+      </div>
+    </div>
+    <div class="arch rise d3">
+      <img src="/assets/hero.png" width="774" height="580" alt="A student lifting a parcel out of an open box">
+    </div>
+  </div>
+</header>
+
+<main>
+  <section aria-labelledby="what">
+    <div class="wrap">
+      <h2 id="what">What is Wave?</h2>
+      <p class="intro">A delivery app for Ashesi students. We collect your parcels from Accra and bring them to a checkpoint on campus, so you never make the trip.</p>
+      <ul class="facts">
+        <li><b>Every day</b><span>Order by 12 noon, get it the same day.</span></li>
+        <li><b>Campus checkpoints</b><span>Collect at a spot on campus near you.</span></li>
+        <li><b>Live tracking</b><span>Watch it go from packed to your checkpoint.</span></li>
+        <li><b>Your own code</b><span>Six digits. Only you can collect.</span></li>
+        <li><b>On your phone</b><span>No download. Open the link, add it to your home screen.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="steps-sec" aria-labelledby="how">
+    <div class="wrap">
+      <h2 id="how">Three taps. Then nap.</h2>
+      <ol class="steps">
+        <li class="step">
+          <span class="num" aria-hidden="true">1</span>
+          <div><h3>Say what to pick up</h3></div>
+          <img src="/assets/step1.png" width="280" height="210" alt="" loading="lazy">
+        </li>
+        <li class="step">
+          <span class="num" aria-hidden="true">2</span>
+          <div>
+            <h3>Pay with MoMo or card</h3>
+            <div class="chips"><span class="chip">MTN MoMo</span><span class="chip">Telecel Cash</span><span class="chip out">Card</span></div>
+          </div>
+          <img src="/assets/step2.png" width="280" height="210" alt="" loading="lazy">
+        </li>
+        <li class="step">
+          <span class="num" aria-hidden="true">3</span>
+          <div><h3>Show your code. Collect.</h3></div>
+          <img src="/assets/step3.png" width="280" height="210" alt="" loading="lazy">
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="dark" id="waitlist" aria-labelledby="first">
+    <div class="wrap">
+      <h2 id="first" class="pre">Be first in line.</h2>
+      <h2 class="post">We're open.</h2>
+      <p class="sub pre">Your code drops Friday.</p>
+      <p class="sub post">Your first parcel is three taps away.</p>
+      <a class="btn btn-lime pre" href="https://forms.gle/ZfED3zbmTGzUBJR16">Join the waitlist</a>
+      <a class="btn btn-lime post" href="https://app.usewavenow.com">Open the app</a>
+      <p class="fine pre">We'll ask for your name, WhatsApp number and hall.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>&copy; 2026 Ride the Wave</span>
+    <nav aria-label="Contact and legal">
+      <a href="mailto:ridethewavelogistics@gmail.com">ridethewavelogistics@gmail.com</a>
+      <a href="https://wa.me/233550076503">WhatsApp 055 007 6503</a>
+      <a href="https://app.usewavenow.com/legal/terms.html">Terms</a>
+      <a href="https://app.usewavenow.com/legal/privacy.html">Privacy</a>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>
