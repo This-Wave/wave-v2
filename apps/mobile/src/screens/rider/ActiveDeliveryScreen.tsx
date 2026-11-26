@@ -137,12 +137,12 @@ export function ActiveDeliveryScreen() {
             {step === "at_shop" ? "Go and collect it" : "Take it to the checkpoint"}
           </Text>
 
-          <View className="mb-7 rounded-card bg-surface p-5">
+          <View className="mb-7 rounded-card border border-hairline bg-surface p-5">
             <Steps steps={steps} currentIndex={step === "at_shop" ? 1 : 2} />
           </View>
 
           <Text className="mb-2 font-sans-medium text-body text-ink">What to buy</Text>
-          <View className="mb-7 rounded-card bg-surface p-4">
+          <View className="mb-7 rounded-card border border-hairline bg-surface p-4">
             {order?.items?.length ? (
               order.items.map((item, i) => (
                 <View
@@ -167,7 +167,7 @@ export function ActiveDeliveryScreen() {
           </View>
 
           {order?.senderName ? (
-            <View className="mb-7 rounded-card bg-surface p-4">
+            <View className="mb-7 rounded-card border border-hairline bg-surface p-4">
               <Text className="font-sans text-meta text-muted">Collect from</Text>
               <Text className="mt-1 font-sans-medium text-body text-ink">{order.senderName}</Text>
               {order.senderPhone ? (

@@ -49,7 +49,7 @@ export function StudentCheckpointsWeb() {
               {checkpoints.map((cp) => (
                 <View
                   key={cp.id}
-                  className="rounded-card bg-surface p-5"
+                  className="rounded-card border border-hairline bg-surface p-5"
                   style={{ width: cardWidth, maxWidth: "100%" }}
                 >
                   <View className="mb-4 h-10 w-10 items-center justify-center rounded-pill bg-canvas">

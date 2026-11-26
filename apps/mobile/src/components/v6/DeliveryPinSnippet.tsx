@@ -23,7 +23,7 @@ export function DeliveryPinSnippet({
   }
 
   return (
-    <View className="mb-6 rounded-card bg-surface p-4">
+    <View className="mb-6 rounded-card border border-hairline bg-surface p-4">
       <Text className="mb-1 font-sans-semibold text-meta text-muted">DELIVERY CODE</Text>
       {isLoading ? (
         <Text className="font-sans text-body text-muted">Loading code…</Text>

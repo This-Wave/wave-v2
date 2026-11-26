@@ -61,7 +61,7 @@ export function Calendar({
     // tablet or Expo Web the grid would otherwise grow to a full-screen square
     // of 200px circles. 420px is about a large phone's width — the size the
     // layout was designed at.
-    <View className="w-full self-center rounded-card bg-surface p-4" style={{ maxWidth: 420 }}>
+    <View className="w-full self-center rounded-card border border-hairline bg-surface p-4" style={{ maxWidth: 420 }}>
       <View className="mb-4 flex-row items-center justify-between">
         <Pressable
           onPress={onPrevMonth}

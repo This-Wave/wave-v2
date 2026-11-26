@@ -101,7 +101,7 @@ export function OrderFeedScreen() {
             onPressAvatar={() => navigation.navigate("Tabs", { screen: "Profile" })}
             onPressBell={() => navigation.navigate("Tabs", { screen: "MyOrders" })}
           >
-            <View className="flex-row items-center gap-3 rounded-card bg-surface px-4 py-3.5">
+            <View className="flex-row items-center gap-3 rounded-card border border-hairline bg-surface px-4 py-3.5">
               <View className="min-w-0 flex-1">
                 <Text className="font-sans-medium text-ui text-ink">
                   {online ? "You're online" : "You're offline"}
@@ -165,7 +165,7 @@ export function OrderFeedScreen() {
               body="New orders land here as students place them for this Wave."
             />
           ) : isDesktop ? (
-            <View className="overflow-hidden rounded-card bg-surface">
+            <View className="overflow-hidden rounded-card border border-hairline bg-surface">
               <View className="flex-row border-b border-hairline px-5 py-3">
                 <Text className="flex-[2] font-sans-semibold text-meta text-muted">SHOP</Text>
                 <Text className="flex-[2] font-sans-semibold text-meta text-muted">ROUTE</Text>

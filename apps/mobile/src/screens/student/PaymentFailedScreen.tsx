@@ -39,7 +39,7 @@ export function PaymentFailedScreen() {
             check back in a few minutes before paying again.
           </Text>
 
-          <View className="rounded-card bg-surface p-5">
+          <View className="rounded-card border border-hairline bg-surface p-5">
             <Text className="mb-1 font-sans-semibold text-meta text-muted">NOTHING IS LOST</Text>
             <Text className="font-sans text-body text-ink">
               The order is saved exactly as you built it. You can pay for it from your orders list

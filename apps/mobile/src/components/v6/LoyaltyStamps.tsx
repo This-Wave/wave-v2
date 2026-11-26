@@ -47,7 +47,7 @@ export function LoyaltyStamps({
 
   return (
     <View
-      className="rounded-card bg-surface p-5"
+      className="rounded-card border border-hairline bg-surface p-5"
       accessible
       accessibilityRole="progressbar"
       accessibilityLabel={`Delivery stamps. ${filled} of ${progress.threshold} collected. ${loyaltyProgressLabel(progress)}`}

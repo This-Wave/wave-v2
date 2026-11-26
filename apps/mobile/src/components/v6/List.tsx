@@ -34,7 +34,7 @@ export function Row({
       // `meta` carries the price, the date, the status — dropping it left rows
       // announcing a bare shop name. Explicit overrides still win.
       accessibilityLabel={accessibilityLabel ?? [title, meta].filter(Boolean).join(", ")}
-      className="flex-row items-center gap-3 rounded-card bg-surface px-4 py-3.5 active:bg-hairline"
+      className="flex-row items-center gap-3 rounded-card border border-hairline bg-surface px-4 py-3.5 active:bg-hairline"
     >
       {leading}
       <View className="flex-1">
@@ -73,7 +73,7 @@ export function ListError({ message, onRetry }: { message?: string; onRetry: () 
   const { gutter } = useLayout();
   return (
     <View
-      className="rounded-card bg-surface p-5"
+      className="rounded-card border border-hairline bg-surface p-5"
       style={{ marginHorizontal: gutter }}
       accessibilityLiveRegion="assertive"
       role="alert"
@@ -99,7 +99,7 @@ export function ListSkeleton({ rows = 3, height = 64 }: { rows?: number; height?
   return (
     <View style={{ gap: 8, paddingHorizontal: gutter }}>
       {Array.from({ length: rows }, (_, i) => (
-        <View key={i} className="rounded-card bg-surface p-4" style={{ height }} />
+        <View key={i} className="rounded-card border border-hairline bg-surface p-4" style={{ height }} />
       ))}
     </View>
   );

@@ -5,16 +5,24 @@ import type { ViewStyle } from "react-native";
 export const colors = {
   /** The single accent. Fill-only — always pair with `ink` on top. */
   lime: "#87ea5c",
-  limePressed: "#6fd544",
+  limePressed: "#6cc947",
+  /** v7: the sticker edge under a lime button, and the pressed fill. */
+  limeEdge: "#6cc947",
+  /** v7: text on lime (white on lime fails contrast). */
+  onLime: "#0b2a21",
+  /** v7: input and secondary-button outline. */
+  line: "#d9ded9",
+  /** v7: links. */
+  link: "#02833f",
   limeFaint: "#eafbe3",
   /** Near-black green. Text, icon strokes, inverse surfaces. */
-  ink: "#083400",
-  inkSoft: "#2c4f26",
+  ink: "#154b3e",
+  inkSoft: "#30473f",
 
-  canvas: "#f7f7f7",
+  canvas: "#ffffff",
   surface: "#ffffff",
   surfaceMuted: "#dddddd",
-  muted: "#6a6a6a",
+  muted: "#5e6d66",
   /**
    * Icon-only neutral: chevrons, decorative strokes. 3.45:1 on white and
    * 3.22:1 on canvas, so it clears WCAG 1.4.11's 3:1 for meaningful glyphs.
@@ -26,7 +34,7 @@ export const colors = {
    * icon, and placeholders that used to sit here moved to `muted`.
    */
   subtle: "#c1c1c1",
-  hairline: "#ebebeb",
+  hairline: "#eeede7",
 
   danger: "#c1341f",
   dangerBg: "#fdecea",
@@ -38,8 +46,8 @@ export const colors = {
 } as const;
 
 export const radii = {
-  card: 12,
-  input: 8,
+  card: 16,
+  input: 12,
   pill: 9999,
 } as const;
 

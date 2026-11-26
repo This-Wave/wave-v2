@@ -22,23 +22,24 @@ module.exports = {
         lime: {
           DEFAULT: "#87ea5c",
           500: "#87ea5c",
-          600: "#6fd544", // pressed/active state
+          600: "#6cc947", // pressed/active state, and the v7 sticker edge
+          edge: "#6cc947",
           faint: "#eafbe3", // tinted wash for selected rows and success grounds
         },
         // Near-black green. Text, icons, inverse surfaces.
         ink: {
-          DEFAULT: "#083400",
-          900: "#083400",
-          700: "#2c4f26", // ink on tinted grounds where full ink is too heavy
+          DEFAULT: "#154b3e",
+          900: "#154b3e",
+          700: "#30473f", // ink on tinted grounds where full ink is too heavy
         },
 
         // --- neutrals, straight from the reference ---
-        canvas: "#f7f7f7", // page ground (Faint)
+        canvas: "#ffffff", // page ground (Faint)
         surface: {
           DEFAULT: "#ffffff", // cards, inputs, sheets (White)
           muted: "#dddddd", // skeletons, disabled cards (Deco)
         },
-        muted: "#6a6a6a", // secondary text, metadata (Foggy). 5.05:1 on canvas.
+        muted: "#5e6d66", // secondary text, metadata (Foggy). 5.05:1 on canvas.
         // Icon-only neutral for chevrons and decorative strokes. 3.45:1 on
         // white, 3.22:1 on canvas — clears 1.4.11's 3:1 for meaningful glyphs.
         // Never put text in it.
@@ -46,7 +47,12 @@ module.exports = {
         // Disabled FILLS only. At 1.80:1 on white this is not a text colour and
         // not an icon colour; placeholders moved to `muted`. See UX-A11Y-PLAN.md.
         subtle: "#c1c1c1",
-        hairline: "#ebebeb", // dividers, input underlines (Bebe)
+        hairline: "#eeede7",
+        // --- v7 ---
+        "on-lime": "#0b2a21",
+        line: "#d9ded9",
+        link: "#02833f",
+        wash: "#eafbe3", // dividers, input underlines (Bebe)
 
         // --- semantic ---
         // Success reads as the accent itself; there is no second green.
@@ -67,6 +73,9 @@ module.exports = {
         "sans-medium": ["DMSans_500Medium"],
         "sans-semibold": ["DMSans_600SemiBold"],
         "sans-bold": ["DMSans_700Bold"],
+        // v7 headings (owner chose Nunito, 2026-11-26)
+        display: ["Nunito_900Black"],
+        "display-bold": ["Nunito_800ExtraBold"],
       },
       fontSize: {
         // The reference's scale, with the bottom three sizes raised once.
@@ -88,8 +97,8 @@ module.exports = {
       },
       borderRadius: {
         // Exactly three shapes: card, input, pill. Nothing else.
-        card: "12px",
-        input: "8px",
+        card: "16px",
+        input: "12px",
         pill: "9999px",
       },
       spacing: {

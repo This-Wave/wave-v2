@@ -34,7 +34,7 @@ export function QuickTiles({ actions }: { actions: QuickAction[] }) {
           accessibilityRole="button"
           accessibilityLabel={action.label}
           accessibilityState={{ disabled: !!action.disabled }}
-          className={`flex-1 items-center rounded-card bg-surface px-3 py-3.5 active:bg-hairline ${
+          className={`flex-1 items-center rounded-card border border-hairline bg-surface px-3 py-3.5 active:bg-hairline ${
             action.disabled ? "opacity-50" : ""
           }`}
         >

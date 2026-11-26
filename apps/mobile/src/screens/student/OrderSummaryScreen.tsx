@@ -165,7 +165,7 @@ export function OrderSummaryScreen() {
           </RowGroup>
 
           <Text className="mb-2 mt-8 font-sans-medium text-body text-ink">Your list</Text>
-          <View className="mb-6 rounded-card bg-surface p-4">
+          <View className="mb-6 rounded-card border border-hairline bg-surface p-4">
             {params.itemsPreview.map((line, i) => (
               <View
                 key={i}
@@ -194,14 +194,14 @@ export function OrderSummaryScreen() {
           {params.notes ? (
             <View className="mt-6">
               <Text className="mb-2 font-sans-medium text-body text-ink">Your note</Text>
-              <View className="rounded-card bg-surface p-4">
+              <View className="rounded-card border border-hairline bg-surface p-4">
                 <Text className="font-sans text-body text-ink">{params.notes}</Text>
               </View>
             </View>
           ) : null}
 
           <Text className="mb-3 mt-8 font-sans-medium text-subheading text-ink">What you pay</Text>
-          <View className="rounded-card bg-surface p-5">
+          <View className="rounded-card border border-hairline bg-surface p-5">
             <Line label="Items" value={formatGhs(basketTotal)} />
             <Line label="Delivery" value={formatGhs(estimate.deliveryFee)} />
             {estimate.surchargeAmount > 0 ? (

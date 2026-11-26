@@ -92,7 +92,7 @@ export function MyOrdersScreen() {
                             `to ${order.checkpoint?.name ?? "checkpoint"}`,
                             statusPill(order.status).label,
                           ].join(", ")}
-                          className="flex-row items-center gap-4 rounded-card bg-surface px-5 py-4 active:bg-hairline"
+                          className="flex-row items-center gap-4 rounded-card border border-hairline bg-surface px-5 py-4 active:bg-hairline"
                         >
                           <Thumb uri={order.shop?.logoUrl} size={52} />
                           <View className="min-w-0 flex-1">
@@ -134,7 +134,7 @@ export function MyOrdersScreen() {
                 </Gutter>
                 <Gutter>
                   {isDesktop ? (
-                    <View className="overflow-hidden rounded-card bg-surface">
+                    <View className="overflow-hidden rounded-card border border-hairline bg-surface">
                       <View className="flex-row border-b border-hairline px-5 py-3">
                         <Text className="flex-[2] font-sans-semibold text-meta text-muted">
                           SHOP

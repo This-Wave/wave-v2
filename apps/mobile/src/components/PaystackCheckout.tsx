@@ -99,7 +99,7 @@ function WebCheckout({
         <Text className="mb-8 font-sans text-body text-muted">
           You’ll pay in this tab, then come straight back to Wave when you’re done.
         </Text>
-        <View className="mb-8 flex-row items-center gap-3 rounded-card bg-surface p-4">
+        <View className="mb-8 flex-row items-center gap-3 rounded-card border border-hairline bg-surface p-4">
           <ActivityIndicator color={colors.ink} />
           <Text className="flex-1 font-sans text-body text-ink">Opening secure checkout…</Text>
         </View>

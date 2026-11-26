@@ -38,7 +38,7 @@ export function Field({
   return (
     <View>
       {label ? (
-        <Text nativeID={`${id}-label`} className="mb-2 font-sans-medium text-body text-ink">
+        <Text nativeID={`${id}-label`} className="mb-2 font-sans-bold text-body text-ink">
           {label}
         </Text>
       ) : null}
@@ -61,9 +61,9 @@ export function Field({
         aria-invalid={error ? true : undefined}
         // Was a fixed h-12: at large OS text sizes the label grew and the box
         // did not, clipping the value. 1.4.4.
-        className={`rounded-input border bg-surface px-4 py-3 font-sans text-body text-ink ${
-          error ? "border-danger" : "border-hairline"
-        } ${multiline ? "min-h-[112px]" : "min-h-[48px]"}`}
+        className={`rounded-input border-2 bg-surface px-4 py-3 font-sans-medium text-ui text-ink focus:border-ink ${
+          error ? "border-danger" : "border-line"
+        } ${multiline ? "min-h-[112px]" : "min-h-[56px]"}`}
       />
       {error ? (
         <Text

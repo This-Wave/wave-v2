@@ -97,7 +97,7 @@ export function ShopDashboardScreen() {
             onPressAvatar={() => navigation.navigate("Tabs", { screen: "Settings" })}
             onPressBell={() => navigation.navigate("Tabs", { screen: "ShopOrders" })}
           >
-            <View className="flex-row items-center gap-3 rounded-card bg-surface px-4 py-3.5">
+            <View className="flex-row items-center gap-3 rounded-card border border-hairline bg-surface px-4 py-3.5">
               <View className="min-w-0 flex-1">
                 <Text className="font-sans-medium text-ui text-ink">
                   {shop && !shop.isVerified
@@ -128,7 +128,7 @@ export function ShopDashboardScreen() {
 
         {shop && !shop.isVerified ? (
           <Gutter className="pb-4">
-            <View className="rounded-card bg-surface px-4 py-3.5">
+            <View className="rounded-card border border-hairline bg-surface px-4 py-3.5">
               <Text className="mb-1 font-sans-medium text-body text-ink">
                 Waiting for approval
               </Text>

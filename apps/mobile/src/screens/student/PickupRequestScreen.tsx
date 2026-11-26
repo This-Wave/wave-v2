@@ -135,7 +135,7 @@ export function PickupRequestScreen() {
 
           {/* The route as one card, like a ride: pickup with its sender above,
               you below, joined by a line. */}
-          <View className="mb-3 rounded-card bg-surface p-4">
+          <View className="mb-3 rounded-card border border-hairline bg-surface p-4">
             <PickerRow
               icon={<PinIcon size={18} color={colors.ink} strokeWidth={1.9} />}
               label="Pickup in Accra"
@@ -172,7 +172,7 @@ export function PickupRequestScreen() {
             />
           </View>
 
-          <View className="mb-3 rounded-card bg-surface p-4">
+          <View className="mb-3 rounded-card border border-hairline bg-surface p-4">
             <Text className="mb-3 font-sans-medium text-ui text-ink">Package size</Text>
             <View className="gap-2" accessibilityRole="radiogroup">
               {SIZES.map((s) => (
@@ -197,7 +197,7 @@ export function PickupRequestScreen() {
             </View>
           </View>
 
-          <View className="mb-3 rounded-card bg-surface p-4">
+          <View className="mb-3 rounded-card border border-hairline bg-surface p-4">
             <PickerRow
               icon={<CalendarIcon size={18} color={colors.ink} strokeWidth={1.9} />}
               label="Arrives on"
@@ -207,14 +207,14 @@ export function PickupRequestScreen() {
             />
           </View>
 
-          <View className="mb-3 rounded-card bg-surface p-4">
+          <View className="mb-3 rounded-card border border-hairline bg-surface p-4">
             <Text className="font-sans-medium text-ui text-ink">Your 6-digit code</Text>
             <Text className="mt-1 font-sans text-body text-muted">
               Only you can collect. We send the code when your order is confirmed.
             </Text>
           </View>
 
-          <View className="rounded-card bg-surface p-4">
+          <View className="rounded-card border border-hairline bg-surface p-4">
             <Pressable
               onPress={() => setShowRules((v) => !v)}
               accessibilityRole="button"

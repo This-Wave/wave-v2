@@ -25,7 +25,7 @@ export function WaveCountdown({ wave }: { wave: WaveInfo }) {
 
   return (
     <View
-      className="rounded-card bg-surface p-4"
+      className="rounded-card border border-hairline bg-surface p-4"
       accessible
       // One label for the whole card. Read block by block a screen reader says
       // "3 days 22 hours to order", which is right, but it arrives as four

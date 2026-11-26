@@ -145,7 +145,7 @@ function DayOption({
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
       accessibilityLabel={`${title}, ${meta}`}
-      className={`flex-row items-center gap-3.5 rounded-card bg-surface p-4 active:opacity-90 ${
+      className={`flex-row items-center gap-3.5 rounded-card border border-hairline bg-surface p-4 active:opacity-90 ${
         selected ? "border-2 border-ink" : "border border-hairline"
       }`}
     >

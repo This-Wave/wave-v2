@@ -61,7 +61,7 @@ export function ActiveDeliveryCard({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${order.orderType === "pickup" ? "Pickup" : order.shop?.name ?? "Order"}, ${pill.label}, from ${from} to ${to}. Open it.`}
-      className="rounded-card bg-surface p-4 active:bg-hairline"
+      className="rounded-card border border-hairline bg-surface p-4 active:bg-hairline"
     >
       <View className="mb-4 flex-row items-start justify-between gap-3">
         <View className="min-w-0 flex-1">

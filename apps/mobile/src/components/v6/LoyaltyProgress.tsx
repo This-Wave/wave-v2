@@ -32,7 +32,7 @@ export function LoyaltyProgress({ compact = false }: { compact?: boolean }) {
 
   return (
     <View
-      className={`rounded-card bg-surface ${compact ? "p-4" : "p-5"}`}
+      className={`rounded-card border border-hairline bg-surface ${compact ? "p-4" : "p-5"}`}
       accessible
       accessibilityRole="progressbar"
       accessibilityLabel={label}

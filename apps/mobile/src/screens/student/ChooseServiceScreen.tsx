@@ -90,7 +90,7 @@ function ServiceRow({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${title}. ${body}`}
-      className="mb-3 flex-row items-center gap-4 rounded-card bg-surface p-5 active:bg-hairline"
+      className="mb-3 flex-row items-center gap-4 rounded-card border border-hairline bg-surface p-5 active:bg-hairline"
     >
       <View className="h-11 w-11 items-center justify-center rounded-pill bg-lime-faint">
         {icon}

@@ -97,7 +97,7 @@ export function OrderDetailScreen() {
           </RowGroup>
 
           <Text className="mb-3 mt-7 font-sans-medium text-subheading text-ink">What it cost</Text>
-          <View className="rounded-card bg-surface p-5">
+          <View className="rounded-card border border-hairline bg-surface p-5">
             <Ledger ledger={ledger} />
           </View>
 
@@ -108,7 +108,7 @@ export function OrderDetailScreen() {
           ) : null}
 
           <Text className="mb-3 mt-7 font-sans-medium text-subheading text-ink">How it went</Text>
-          <View className="rounded-card bg-surface p-5">
+          <View className="rounded-card border border-hairline bg-surface p-5">
             <Steps steps={orderSteps(order)} currentIndex={currentStepIndex(order.status)} />
           </View>
         </Gutter>

@@ -91,7 +91,7 @@ export function ShopSetupScreen() {
             // could not hear what they had already picked.
             accessibilityLabel={category ? `Category: ${category}` : "Choose a category"}
             accessibilityHint="Opens the category list"
-            className="mb-6 min-h-[48px] flex-row items-center gap-3 rounded-card bg-surface px-4 py-3.5"
+            className="mb-6 min-h-[48px] flex-row items-center gap-3 rounded-card border border-hairline bg-surface px-4 py-3.5"
           >
             <Text
               className={`flex-1 font-sans text-body ${category ? "text-ink" : "text-muted"}`}

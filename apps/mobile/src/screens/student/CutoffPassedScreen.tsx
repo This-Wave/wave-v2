@@ -35,7 +35,7 @@ export function CutoffPassedScreen() {
             next standard run is {nextRun ? formatFullDay(nextRun) : "coming up"}.
           </Text>
 
-          <View className="rounded-card bg-surface p-5">
+          <View className="rounded-card border border-hairline bg-surface p-5">
             <Text className="mb-1 font-sans-semibold text-meta text-muted">NEED IT SOONER?</Text>
             <Text className="font-sans text-body text-ink">
               A rush order can go out ahead of the schedule for {DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT}

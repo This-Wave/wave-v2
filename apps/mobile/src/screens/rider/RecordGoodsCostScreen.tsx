@@ -88,7 +88,7 @@ export function RecordGoodsCostScreen() {
 
           <View className="gap-3">
             {items.map((item) => (
-              <View key={item.id} className="rounded-card bg-surface p-4">
+              <View key={item.id} className="rounded-card border border-hairline bg-surface p-4">
                 <Text className="mb-1 font-sans-medium text-body text-ink">{item.name}</Text>
                 <Text className="mb-3 font-sans text-caption text-muted">
                   Quantity: {item.quantity}
@@ -113,7 +113,7 @@ export function RecordGoodsCostScreen() {
             ))}
           </View>
 
-          <View className="mt-6 rounded-card bg-surface p-5">
+          <View className="mt-6 rounded-card border border-hairline bg-surface p-5">
             <View className="flex-row items-center justify-between">
               <Text className="font-sans-medium text-ui text-ink">Total for the goods</Text>
               <Text className="font-sans-bold text-heading-sm text-ink">{formatGhs(total)}</Text>

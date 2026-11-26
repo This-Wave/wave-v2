@@ -77,7 +77,7 @@ export function StudentProfileWeb() {
 
         <Gutter>
           <View className="flex-row flex-wrap" style={{ gap: 24 }}>
-            <View className="rounded-card bg-surface p-6" style={{ flex: 1, minWidth: 280 }}>
+            <View className="rounded-card border border-hairline bg-surface p-6" style={{ flex: 1, minWidth: 280 }}>
               <Text className="font-sans-bold text-heading-sm text-ink">
                 {profile?.fullName ?? "Student"}
               </Text>

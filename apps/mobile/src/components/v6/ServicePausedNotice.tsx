@@ -29,7 +29,7 @@ export function ServicePausedNotice({
       accessible
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
-      className="rounded-card bg-surface p-4"
+      className="rounded-card border border-hairline bg-surface p-4"
     >
       <Text className="font-sans-medium text-body text-ink">{service} is paused</Text>
       <Text className="mt-1 font-sans text-body text-ink">{message}</Text>

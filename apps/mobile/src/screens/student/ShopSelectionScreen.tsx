@@ -224,7 +224,7 @@ export function ShopSelectionScreen() {
                 })
               }
               accessibilityRole="button"
-              className="mt-8 rounded-card bg-surface p-4 active:bg-hairline"
+              className="mt-8 rounded-card border border-hairline bg-surface p-4 active:bg-hairline"
             >
               <Text className="font-sans-medium text-body text-ink">
                 Can’t find the shop you want?

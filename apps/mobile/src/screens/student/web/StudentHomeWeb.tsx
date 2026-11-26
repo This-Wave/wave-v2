@@ -276,7 +276,7 @@ export function StudentHomeWeb() {
         ) : null}
 
         <Gutter className="mt-12 mb-4">
-          <View className="flex-row items-center justify-between rounded-card bg-surface p-5">
+          <View className="flex-row items-center justify-between rounded-card border border-hairline bg-surface p-5">
             <View className="flex-1 pr-4">
               <Text className="font-sans-medium text-ui text-ink">Can’t find your shop?</Text>
               <Text className="mt-1 font-sans text-body text-muted">
@@ -327,7 +327,7 @@ function ShopTile({
 function LiveStrip({ order, onTrack }: { order: Order; onTrack: () => void }) {
   const pill = statusPill(order.status, !!order.companyId);
   return (
-    <View className="flex-row items-center gap-4 rounded-card bg-surface px-5 py-4">
+    <View className="flex-row items-center gap-4 rounded-card border border-hairline bg-surface px-5 py-4">
       <Thumb uri={order.shop?.logoUrl} size={52} />
       <View className="min-w-0 flex-1">
         <View className="mb-1 flex-row items-center gap-2">

@@ -70,7 +70,7 @@ export function RiderProfileScreen() {
         <Gutter>
           <View className={isDesktop ? "flex-row flex-wrap" : undefined} style={isDesktop ? { gap: 24 } : undefined}>
             <View
-              className={`rounded-card bg-surface p-5 ${isDesktop ? "" : "mb-8"}`}
+              className={`rounded-card border border-hairline bg-surface p-5 ${isDesktop ? "" : "mb-8"}`}
               style={isDesktop ? { flex: 1, minWidth: 280 } : undefined}
             >
               {isDesktop ? (
