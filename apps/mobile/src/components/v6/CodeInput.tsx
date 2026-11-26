@@ -46,14 +46,14 @@ export function CodeInput({
   const cells = Array.from({ length }, (_, i) => value[i] ?? "");
 
   return (
-    <View className="relative flex-row gap-2.5">
+    <View className="relative flex-row" style={{ gap: 8 }}>
       {cells.map((digit, index) => {
         const isActive = editable && index === value.length && state === "default";
 
-        let cellClass = "border border-hairline bg-surface";
+        let cellClass = digit ? "border-2 border-b-4 border-line bg-surface" : "border-2 border-line bg-surface";
         let textClass = "text-ink";
         if (state === "error") {
-          cellClass = "border border-danger bg-danger-bg";
+          cellClass = "border-2 border-danger bg-danger-bg";
           textClass = "text-danger";
         } else if (isActive) {
           cellClass = "border-2 border-ink bg-surface";
@@ -69,7 +69,7 @@ export function CodeInput({
             accessibilityElementsHidden={editable}
             importantForAccessibility={editable ? "no-hide-descendants" : "auto"}
           >
-            <Text className={`font-sans-semibold text-heading ${textClass}`}>{digit}</Text>
+            <Text className={`font-display text-heading ${textClass}`}>{digit}</Text>
           </View>
         );
       })}

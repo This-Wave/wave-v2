@@ -88,12 +88,12 @@ export function StudentHomeWeb() {
         <Gutter className="flex-row items-end justify-between pb-8 pt-8">
           <View className="flex-1 pr-6">
             <Text className="font-display text-heading text-ink">
-              {buyForMeLaunched ? "Browse shops" : "Move a package"}
+              {buyForMeLaunched ? "Browse shops" : "Send a package"}
             </Text>
             <Text className="mt-1 font-sans text-ui text-muted">
               {buyForMeLaunched
                 ? "Order from off-campus shops. We buy and bring it in to your checkpoint."
-                : "We collect from one checkpoint and drop at another."}
+                : "We collect from your sender in Accra and bring it to campus."}
             </Text>
           </View>
           <Pressable
@@ -109,9 +109,18 @@ export function StudentHomeWeb() {
           </Pressable>
         </Gutter>
 
-        {service?.buy_for_me.paused || service?.pickup.paused ? (
+        {live ? (
+          <Gutter className="mb-6">
+            <LiveStrip
+              order={live}
+              onTrack={() => openOrderTracking(navigation, live.id)}
+            />
+          </Gutter>
+        ) : null}
+
+        {(buyForMeLaunched && service?.buy_for_me.paused) || service?.pickup.paused ? (
           <Gutter className="mb-6" style={{ gap: 12 }}>
-            {service.buy_for_me.paused ? (
+            {buyForMeLaunched && service.buy_for_me.paused ? (
               <ServicePausedNotice
                 service={
                   service.pickup.paused && service.pickup.message === service.buy_for_me.message
@@ -123,7 +132,8 @@ export function StudentHomeWeb() {
               />
             ) : null}
             {/* One notice when the master switch paused both with one message. */}
-            {service.pickup.paused && service.pickup.message !== service.buy_for_me.message ? (
+            {service.pickup.paused &&
+            !(buyForMeLaunched && service.buy_for_me.paused && service.pickup.message === service.buy_for_me.message) ? (
               <ServicePausedNotice
                 service="Pickup"
                 message={service.pickup.message ?? ""}
@@ -194,15 +204,6 @@ export function StudentHomeWeb() {
           </Gutter>
         )}
 
-        {live ? (
-          <Gutter className="mb-10">
-            <LiveStrip
-              order={live}
-              onTrack={() => openOrderTracking(navigation, live.id)}
-            />
-          </Gutter>
-        ) : null}
-
         {/* The catalogue, and everything that leads into it, only exists once
             Buy for me has launched. Suggesting a shop stays: a suggested shop
             becomes a pickup-style order, which works today, and the
@@ -226,7 +227,7 @@ export function StudentHomeWeb() {
           ) : null}
 
           <Gutter className="mb-4 flex-row items-center justify-between">
-            <Text className="font-sans-medium text-heading-sm text-ink">
+            <Text className="font-display text-heading-sm text-ink">
               {wave ? `On ${wave.name}` : "Open now"}
             </Text>
             <Pressable
@@ -331,13 +332,13 @@ function LiveStrip({ order, onTrack }: { order: Order; onTrack: () => void }) {
       <Thumb uri={order.shop?.logoUrl} size={52} />
       <View className="min-w-0 flex-1">
         <View className="mb-1 flex-row items-center gap-2">
-          <Text className="font-sans-medium text-ui text-ink" numberOfLines={1}>
-            {order.shop?.name ?? "Your order"}
+          <Text className="font-display text-subheading text-ink" numberOfLines={1}>
+            {order.orderType === "pickup" ? order.itemDescription || "Your parcel" : (order.shop?.name ?? "Your order")}
           </Text>
           <StatusPill label={pill.label} tone={pill.tone} />
         </View>
         <Text className="mb-2 font-sans text-body text-muted" numberOfLines={1}>
-          To {order.checkpoint?.name ?? "your checkpoint"}
+          {order.senderName ? `From ${order.senderName} · ` : ""}To {order.checkpoint?.name ?? "your checkpoint"}
         </Text>
         <ProgressRail ratio={orderProgress(order.status)} />
       </View>

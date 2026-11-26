@@ -88,7 +88,7 @@ export default function CompanyListPage() {
           <p className="text-[14px] opacity-80">
             Wave collections{sheet ? ` for ${sheet.company.name}` : ""}
           </p>
-          <h1 className="mt-2 text-[28px] font-bold tracking-tight">
+          <h1 className="mt-2 text-[28px] font-display font-black">
             {offset === 0 ? "Today" : "Tomorrow"}, {dayLabel(date)}
           </h1>
           {state === "dead" ? null : (

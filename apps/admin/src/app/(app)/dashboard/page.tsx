@@ -91,7 +91,7 @@ export default function DashboardPage() {
     <div className="px-10 py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-[26px] font-semibold tracking-tight text-ink">
+          <h1 className="text-[26px] font-display font-black text-ink">
             {profile?.campus ? profile.campus.name : "Platform Overview"}
           </h1>
           <p className="mt-0.5 text-[13px] text-muted">
@@ -137,7 +137,7 @@ export default function DashboardPage() {
       <div className="overflow-hidden rounded-card border border-border bg-surface">
         <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className="border-b border-border bg-canvas text-[11px] uppercase tracking-wide text-muted">
+            <tr className="border-b border-border bg-canvas text-[12.5px] font-bold text-ink">
               <th className="px-4 py-3 font-semibold">Student</th>
               <th className="px-4 py-3 font-semibold">Shop</th>
               <th className="px-4 py-3 font-semibold">Checkpoint</th>
@@ -213,7 +213,7 @@ function StatTile({
       }`}
     >
       <p className={`mb-1.5 text-[11px] ${attention ? "text-danger-text" : "text-muted"}`}>{label}</p>
-      <p className={`text-[24px] font-semibold tracking-tight ${attention ? "text-danger-text" : "text-ink"}`}>
+      <p className={`text-[24px] font-display font-black ${attention ? "text-danger-text" : "text-ink"}`}>
         {value}
       </p>
       {hint ? (

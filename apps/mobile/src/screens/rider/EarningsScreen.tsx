@@ -116,7 +116,7 @@ export function EarningsScreen() {
                 {RANGES.find((r) => r.key === range)?.label}
               </Text>
               <Text
-                className="mt-1 font-sans-bold text-ink"
+                className="mt-1 font-display text-ink"
                 style={{ fontSize: 44, lineHeight: 48 }}
               >
                 {formatGhs(total)}

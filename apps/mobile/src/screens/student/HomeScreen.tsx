@@ -223,7 +223,7 @@ function HomeScreenMobile() {
 
         {active.length > 0 ? (
           <Gutter className="pt-5">
-            <Text className="mb-3 font-sans-medium text-heading-sm text-ink">
+            <Text className="mb-3 font-display text-heading-sm text-ink">
               {active.length === 1 ? "Active delivery" : `Active deliveries (${active.length})`}
             </Text>
             <View style={{ gap: 8 }}>

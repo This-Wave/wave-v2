@@ -1,9 +1,9 @@
 import { Text, View } from "react-native";
 
 const STEPS = [
-  { title: "Drop it at a checkpoint", body: "Leave your parcel with the rider at the checkpoint you choose." },
-  { title: "A rider brings it in", body: "On the next Wave, a verified Wave rider carries it onto campus." },
-  { title: "Your person collects it", body: "They show the 6-digit code at the other checkpoint. That's the handover." },
+  { title: "Tell us who is sending it", body: "Their name, number and where in Accra. A rider goes to them." },
+  { title: "A rider brings it in", body: "A verified Wave rider carries it to campus on the next Wave." },
+  { title: "You collect it", body: "Show your 6-digit code at your pickup point on campus." },
 ];
 
 /**

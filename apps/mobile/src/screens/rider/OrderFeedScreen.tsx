@@ -10,13 +10,13 @@ import {
   Gutter,
   ListError,
   ListSkeleton,
-  Row,
-  RowGroup,
+  Button,
   Screen,
   ScreenBody,
   Switch,
   Thumb,
 } from "../../components/v6";
+import { RouteLine } from "../../components/v7/Signature";
 import { ChevronRightIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useAuthStore } from "../../store/authStore";
@@ -124,7 +124,7 @@ export function OrderFeedScreen() {
 
         {activeRun ? (
           <Gutter className="pt-5">
-            <Text className="mb-3 font-sans-medium text-heading-sm text-ink">On this run</Text>
+            <Text className="mb-3 font-display text-heading-sm text-ink">On this run</Text>
             <ActiveDeliveryCard
               order={activeRun}
               title={activeRun.shop?.name ?? "Package pickup"}
@@ -136,7 +136,7 @@ export function OrderFeedScreen() {
 
         {showHeading ? (
           <Gutter className="pt-6">
-            <Text className="mb-3 font-sans-medium text-heading-sm text-ink">Available to claim</Text>
+            <Text className="mb-3 font-display text-heading-sm text-ink">Jobs</Text>
           </Gutter>
         ) : null}
 
@@ -181,22 +181,37 @@ export function OrderFeedScreen() {
               ))}
             </View>
           ) : (
-            <RowGroup>
-              {orders.map((order) => (
-                <Row
-                  key={order.id}
-                  title={order.shop?.name ?? "Shop"}
-                  meta={`${order.shop?.locationText ?? "Off-campus"} → ${order.checkpoint?.name ?? "checkpoint"}`}
-                  leading={<Thumb uri={order.shop?.logoUrl} />}
-                  trailing={
-                    <Text className="font-sans-semibold text-body text-ink">
-                      {formatGhs(Number(order.deliveryFee))}
-                    </Text>
-                  }
-                  onPress={() => openRiderClaim(navigation, order.id)}
-                />
-              ))}
-            </RowGroup>
+            // v7 job cards (canvas: Rider jobs): what, what you earn, where from
+            // and to, the size, one action. One card per job (Hick, Fitts).
+            <View style={{ gap: 12 }}>
+              {orders.map((order) => {
+                const pickup = order.orderType === "pickup";
+                const pay = order.estimatedEarning ? Number(order.estimatedEarning) : Number(order.deliveryFee);
+                return (
+                  <View key={order.id} className="rounded-card border border-hairline bg-surface p-4" style={{ gap: 12 }}>
+                    <View className="flex-row items-center justify-between">
+                      <Text className="font-sans-bold text-ui text-ink">{pickup ? "Pickup" : (order.shop?.name ?? "Shop order")}</Text>
+                      <View className="items-end">
+                        <Text className="font-display text-heading-sm text-ink">{formatGhs(pay)}</Text>
+                        {order.estimatedEarning ? <Text className="font-sans text-caption text-muted">you earn</Text> : null}
+                      </View>
+                    </View>
+                    <RouteLine
+                      fromLabel="Collect"
+                      from={pickup ? (order.originCheckpoint?.name ?? "Accra") : (order.shop?.locationText ?? order.shop?.name ?? "Accra")}
+                      toLabel="Deliver"
+                      to={order.checkpoint?.name ?? "Campus"}
+                    />
+                    <View className="flex-row items-center justify-between">
+                      <Text className="font-sans-bold text-meta text-muted">
+                        {order.packageSize ? `${order.packageSize[0]!.toUpperCase()}${order.packageSize.slice(1)} size` : order.itemDescription}
+                      </Text>
+                      <Button label="View job" full={false} onPress={() => openRiderClaim(navigation, order.id)} />
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
           )}
         </Gutter>
       </ScreenBody>

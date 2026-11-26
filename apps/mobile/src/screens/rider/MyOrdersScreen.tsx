@@ -71,7 +71,7 @@ export function MyOrdersScreen() {
             {active.length > 0 ? (
               <View className="mb-section">
                 <Gutter className="mb-3">
-                  <Text className="font-sans-medium text-heading-sm text-ink">In progress</Text>
+                  <Text className="font-display text-heading-sm text-ink">In progress</Text>
                 </Gutter>
                 <Gutter style={isDesktop ? { gap: 12 } : undefined}>
                   {isDesktop
@@ -130,7 +130,7 @@ export function MyOrdersScreen() {
             {past.length > 0 ? (
               <View>
                 <Gutter className="mb-3">
-                  <Text className="font-sans-medium text-heading-sm text-ink">Done</Text>
+                  <Text className="font-display text-heading-sm text-ink">Done</Text>
                 </Gutter>
                 <Gutter>
                   {isDesktop ? (

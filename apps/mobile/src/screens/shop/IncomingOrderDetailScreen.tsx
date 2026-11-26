@@ -84,7 +84,7 @@ export function IncomingOrderDetailScreen() {
         <Gutter className="pt-2">
           <Text className="font-sans text-body text-muted">Order value</Text>
           <Text
-            className="mb-8 mt-1 font-sans-bold text-ink"
+            className="mb-8 mt-1 font-display text-ink"
             style={{ fontSize: 44, lineHeight: 48 }}
           >
             {order?.totalAmount ? formatGhs(Number(order.totalAmount)) : "—"}

@@ -174,7 +174,7 @@ export function ShopDashboardScreen() {
         </Gutter>
 
         <Gutter className="mb-3 flex-row items-center gap-2">
-          <Text className="font-sans-medium text-heading-sm text-ink">Needs you</Text>
+          <Text className="font-display text-heading-sm text-ink">Needs you</Text>
           {incoming.length > 0 ? (
             <StatusPill label={`${incoming.length}`} tone="active" />
           ) : null}
