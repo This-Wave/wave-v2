@@ -6,7 +6,6 @@ import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
   ActionBar,
   Button,
-  CheckoutProgress,
   Chip,
   CodeInput,
   Gutter,
@@ -14,7 +13,6 @@ import {
   Screen,
   ScreenBody,
   TopBar,
-  WaveContextBanner,
 } from "../../components/v6";
 import { PaystackCheckout, type CheckoutOutcome } from "../../components/PaystackCheckout";
 import { CardIcon, CheckIcon, MobileIcon } from "../../components/icons";
@@ -23,7 +21,7 @@ import { useInitiatePayment, waitForPayment, paymentInitiateErrorMessage } from 
 import { webAppOrigin } from "../../lib/paymentReturn";
 import { useAuthStore } from "../../store/authStore";
 import { useOrder } from "../../lib/orders";
-import { formatGhs, formatGhsCompact } from "../../lib/pricing";
+import { formatGhs } from "../../lib/pricing";
 import { exitPaymentToOrders, resetAfterPaymentOutcome } from "../../lib/navigationFlows";
 import { showToast } from "../../store/toastStore";
 import {
@@ -294,6 +292,10 @@ export function PaymentScreen() {
     );
   }
 
+  const sizeLabel = order?.packageSize
+    ? `${order.packageSize[0]!.toUpperCase()}${order.packageSize.slice(1)} size`
+    : null;
+
   if (phase === "approve" && momo) {
     return (
       <Screen narrow>
@@ -302,6 +304,7 @@ export function PaymentScreen() {
           network={momo.network}
           payer={momo.payer}
           onPayAnotherWay={backToChoosing}
+          seconds={Math.round((APPROVE_WAIT_ATTEMPTS * 1500) / 1000)}
         />
       </Screen>
     );
@@ -310,12 +313,12 @@ export function PaymentScreen() {
   if (phase === "otp" && momo) {
     return (
       <Screen narrow>
-        <TopBar onBack={backToChoosing} />
+        <TopBar title="Pay" onBack={backToChoosing} />
         <ScreenBody bottomInset={16}>
           <Gutter>
-            <Text className="font-display text-heading text-ink">Enter the SMS code</Text>
-            <Text className="mb-7 mt-1.5 font-sans text-body text-muted">
-              Sent to {maskMomoNumber(momo.payer)} · first payment from this number
+            <Text accessibilityRole="header" className="font-display text-heading text-ink">Enter the MoMo code</Text>
+            <Text className="mb-6 mt-2 font-sans text-ui text-muted">
+              Your network sent a code to {maskMomoNumber(momo.payer)}.
             </Text>
             <CodeInput
               value={code}
@@ -335,7 +338,7 @@ export function PaymentScreen() {
         </ScreenBody>
         <ActionBar>
           <Button
-            label="Continue"
+            label="Confirm"
             onPress={handleSubmitCode}
             disabled={code.length !== 6 || submitCode.isPending}
             loading={submitCode.isPending}
@@ -368,38 +371,16 @@ export function PaymentScreen() {
   return (
     <Screen narrow>
       <TopBar
+        title="Pay"
         onBack={() => {
-          showToast("Order saved — pay anytime from Orders.");
+          showToast("Order saved. Pay any time from Orders.");
           exitPaymentToOrders(navigation);
         }}
       />
 
       <ScreenBody bottomInset={16}>
         <Gutter>
-          <CheckoutProgress step={3} />
-          {order ? (
-            <WaveContextBanner
-              scheduledDate={order.scheduledDate}
-              checkpointName={order.checkpoint?.name}
-              isSpecialOrder={order.isSpecialOrder}
-            />
-          ) : null}
-          <View accessible accessibilityLabel={`You're paying ${formatGhs(params.totalAmount)}`}>
-            <Text className="font-sans text-body text-muted">You&apos;re paying</Text>
-            <Text
-              className="mb-8 mt-1 font-display text-ink"
-              // Off-scale on purpose: this is the figure the whole screen
-              // exists to state. `formatGhsCompact` drops the decimals for the
-              // display, so the accessible name above uses the exact amount —
-              // "57" and "57.00" are the same number but only one of them is
-              // what the student is agreeing to.
-              style={{ fontSize: 48, lineHeight: 52 }}
-            >
-              {formatGhsCompact(params.totalAmount)}
-            </Text>
-          </View>
-
-          <Text accessibilityRole="header" className="mb-3 font-display text-heading-sm text-ink">How do you want to pay?</Text>
+          <Text accessibilityRole="header" className="mb-4 font-display text-heading text-ink">How do you want to pay?</Text>
           <View className="gap-2" accessibilityRole="radiogroup" accessibilityLabel="Payment method">
             <MethodRow
               label="Mobile Money"
@@ -469,6 +450,17 @@ export function PaymentScreen() {
       </ScreenBody>
 
       <ActionBar>
+        {/* v7 canvas: the amount sits with the key that spends it. */}
+        <View
+          className="mb-3 flex-row items-end justify-between"
+          accessible
+          accessibilityLabel={`You're paying ${formatGhs(params.totalAmount)}`}
+        >
+          <Text className="font-sans text-ui text-muted">{sizeLabel ?? "Total"}</Text>
+          <Text className="font-display text-ink" style={{ fontSize: 28, lineHeight: 32 }}>
+            {formatGhs(params.totalAmount)}
+          </Text>
+        </View>
         <Button
           label={`Pay ${formatGhs(params.totalAmount)}`}
           onPress={handlePay}

@@ -2,7 +2,6 @@ import { Modal, Pressable, Text, View } from "react-native";
 import type { ReactNode } from "react";
 import { CloseIcon } from "../icons";
 import { colors } from "../../theme/tokens";
-import { IconCircle } from "./Controls";
 
 /**
  * Bottom sheet. The one place the system uses real elevation — it floats over
@@ -35,7 +34,7 @@ export function Sheet({
           accessibilityRole="button"
           accessibilityLabel="Dismiss sheet"
           className="flex-1"
-          style={{ backgroundColor: "rgba(8,52,0,0.45)" }}
+          style={{ backgroundColor: "rgba(15,28,24,0.35)" }}
         />
         <Pressable
           onPress={() => undefined}
@@ -44,17 +43,24 @@ export function Sheet({
           accessibilityLabel={title}
         >
           <View
-            className="bg-surface px-gutter pb-8 pt-4"
+            className="bg-surface px-gutter pb-8 pt-3"
             style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
             accessibilityRole="summary"
           >
-            <View className="mb-4 flex-row items-center justify-between">
-              <Text className="font-display text-heading-sm text-ink" accessibilityRole="header">
+            {/* v7 canvas: grab handle, Nunito title, square close key. */}
+            <View className="mb-4 h-[5px] w-10 self-center rounded-pill bg-line" />
+            <View className="mb-4 flex-row items-center justify-between" style={{ gap: 12 }}>
+              <Text className="flex-1 font-display text-heading text-ink" accessibilityRole="header">
                 {title ?? ""}
               </Text>
-              <IconCircle onPress={onClose} tone="transparent" accessibilityLabel="Close sheet">
-                <CloseIcon size={20} color={colors.ink} strokeWidth={2} />
-              </IconCircle>
+              <Pressable
+                onPress={onClose}
+                accessibilityRole="button"
+                accessibilityLabel="Close sheet"
+                className="h-11 w-11 items-center justify-center rounded-input border-2 border-hairline bg-surface"
+              >
+                <CloseIcon size={18} color={colors.ink} strokeWidth={2} />
+              </Pressable>
             </View>
             {children}
             {footer ? <View className="pt-5">{footer}</View> : null}

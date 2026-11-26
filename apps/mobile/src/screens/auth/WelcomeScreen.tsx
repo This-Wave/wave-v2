@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { Text, View } from "react-native";
-import Svg, { Path } from "react-native-svg";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
 import { Button, Field, Gutter, Row, RowGroup, Screen, ScreenBody, Sheet } from "../../components/v6";
 import { recordGuestVisit } from "../../lib/growth";
 import { Illustration, Rise } from "../../components/v7/Illustration";
-import { colors } from "../../theme/tokens";
+import { WaveMarkIcon } from "../../components/icons";
 import { useUniversities } from "../../lib/checkpoints";
 import { useAuthStore } from "../../store/authStore";
 import { supabase } from "../../lib/supabase";
-import { useWave } from "../../lib/wave";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Welcome">;
 
@@ -38,7 +36,6 @@ const DEV_LOGINS = [
 export function WelcomeScreen({ navigation }: Props) {
   const [devError, setDevError] = useState<string | null>(null);
   const [pickingCampus, setPickingCampus] = useState(false);
-  const wave = useWave();
   const { data: universities } = useUniversities();
   const startGuest = useAuthStore((s) => s.startGuest);
 
@@ -69,10 +66,8 @@ export function WelcomeScreen({ navigation }: Props) {
       <View className="flex-1 bg-canvas">
         <ScreenBody bottomInset={16}>
           <Gutter className="pt-6">
-            <View className="flex-row items-center gap-2.5">
-              <View className="h-9 w-9 items-center justify-center rounded-input bg-ink">
-                <WaveMark size={22} color={colors.lime} />
-              </View>
+            <View className="flex-row items-center" style={{ gap: 8 }}>
+              <WaveMarkIcon size={32} />
               <Text className="font-sans-bold text-ink" style={{ fontSize: 24, letterSpacing: -0.8 }}>
                 wave
               </Text>
@@ -96,11 +91,6 @@ export function WelcomeScreen({ navigation }: Props) {
         </ScreenBody>
 
         <View className="gap-3 px-gutter pb-9">
-          {wave ? (
-            <Text className="text-center font-sans-medium text-meta text-muted">
-              {wave.name} · order by noon · closes in {wave.countdown}
-            </Text>
-          ) : null}
           <Button label="Get started" onPress={() => navigation.replace("PhoneEntry")} />
           <Button label="Look around" variant="ghost" onPress={lookAround} disabled={!universities?.length} />
 
@@ -133,15 +123,16 @@ export function WelcomeScreen({ navigation }: Props) {
       <Sheet
         visible={pickingCampus}
         onClose={() => setPickingCampus(false)}
-        title="Before you look around"
-        footer={<Button label="Start looking" disabled={!canStartGuest} onPress={startLooking} />}
+        title="What should we call you?"
+        footer={<Button label="Look around" disabled={!canStartGuest} onPress={startLooking} />}
       >
-        <View className="gap-5">
+        <View style={{ gap: 20 }}>
           <Field
-            label="Your first name"
+            label="First name"
             value={guestName}
             onChangeText={setGuestName}
-            placeholder="e.g. Ama"
+            placeholder="Ama"
+            hint="No account needed to look around."
             maxLength={40}
             autoFocus
           />
@@ -166,15 +157,3 @@ export function WelcomeScreen({ navigation }: Props) {
   );
 }
 
-function WaveMark({ size, color }: { size: number; color: string }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M3 9c1.5-2 3-2 4.5 0s3 2 4.5 0 3-2 4.5 0 3 2 4.5 0M3 15c1.5-2 3-2 4.5 0s3 2 4.5 0 3-2 4.5 0 3 2 4.5 0"
-        stroke={color}
-        strokeWidth={2.4}
-        strokeLinecap="round"
-      />
-    </Svg>
-  );
-}

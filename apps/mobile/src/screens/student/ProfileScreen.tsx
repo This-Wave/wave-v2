@@ -1,35 +1,23 @@
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
-  BrandBar,
+  Button,
+  Switch,
   Confirm,
   Field,
   Gutter,
   PageTitle,
   Screen,
   ScreenBody,
-  LoyaltyStamps,
-  SettingsGroup,
-  SettingsRow,
 } from "../../components/v6";
-import {
-  CardIcon,
-  MenuIcon,
-  LogoutIcon,
-  MessageIcon,
-  PinIcon,
-  PlusIcon,
-} from "../../components/icons";
-import { colors } from "../../theme/tokens";
 import { getLegalLinks, openLegalLink } from "../../lib/legal";
 import { useAuthStore } from "../../store/authStore";
 import { useLoyalty } from "../../lib/loyalty";
 import { signOut } from "../../lib/auth";
 import { updateProfile } from "../../lib/profile";
-import { isStandardRunDay } from "../../lib/pricing";
 import { useLayout } from "../../hooks/useLayout";
 import { StudentProfileWeb } from "./web/StudentProfileWeb";
 import {
@@ -38,8 +26,9 @@ import {
   supportContactLabel,
 } from "../../lib/support";
 import { BetaProgram } from "../../components/BetaProgram";
-import { describeWave } from "../../lib/wave";
-import { NotificationSettings } from "../../components/NotificationSettings";
+import { InfoRow, TextLink, localPhone } from "../../components/v7/InfoRows";
+import { useUniversities } from "../../lib/checkpoints";
+import { useWebPush } from "../../hooks/useWebPush";
 
 /**
  * Profile. Web uses a two-panel account page; native keeps the phone layout.
@@ -48,12 +37,6 @@ import { NotificationSettings } from "../../components/NotificationSettings";
  * Suggesting from Profile has no Wave chosen, and the flow ends in an order, so
  * it needs one: the next open Wave, which the student can still change.
  */
-function nextWaveParams(): { scheduledDate: string; isSpecialOrder: boolean } {
-  const next = describeWave();
-  const date = next?.date ?? new Date();
-  return { scheduledDate: date.toISOString(), isSpecialOrder: !isStandardRunDay(date) };
-}
-
 export function ProfileScreen() {
   const { isDesktop } = useLayout();
   if (isDesktop) return <StudentProfileWeb />;
@@ -71,140 +54,131 @@ function ProfileMobile() {
   const [emailError, setEmailError] = useState<string | null>(null);
 
   const legal = getLegalLinks();
+  const [editingEmail, setEditingEmail] = useState(false);
+  const { data: universities } = useUniversities();
+  const push = useWebPush();
+
+  const stamps = loyalty?.stamps ?? 0;
+  const threshold = loyalty?.threshold ?? 6;
+  const delivered = loyalty?.totalDeliveries ?? 0;
+  const left = Math.max(threshold - stamps, 0);
+  const loyaltyLine = loyalty?.rewardReady || loyalty?.rewardPending
+    ? `${delivered} deliveries · ${loyalty.discountPct}% off your next one`
+    : `${delivered} ${delivered === 1 ? "delivery" : "deliveries"} · ${left} more for ${loyalty?.discountPct ?? 20}% off`;
+  const campus = universities?.find((u) => u.id === profile?.universityId)?.name;
+  const first = (profile?.fullName ?? "S").trim();
 
   return (
     <Screen>
-      <BrandBar />
       <ScreenBody bottomInset={24}>
-        <Gutter className="flex-row items-center pb-6 pt-4" style={{ gap: 14 }}>
+        <Gutter className="pb-5 pt-6">
+          <PageTitle>You</PageTitle>
+        </Gutter>
+
+        <Gutter className="flex-row items-center pb-4" style={{ gap: 14 }}>
           <View className="h-16 w-16 items-center justify-center rounded-pill bg-wash">
-            <Text className="font-display text-heading text-ink">{(profile?.fullName ?? "S").trim()[0]?.toUpperCase()}</Text>
+            <Text className="font-display text-heading text-ink">{first[0]?.toUpperCase()}</Text>
           </View>
-          <View className="flex-1">
-            <PageTitle>{profile?.fullName ?? "Student"}</PageTitle>
-            <Text className="mt-1 font-sans text-body text-muted">
-              {[profile?.studentId, profile?.phone].filter(Boolean).join(" · ") || "—"}
+          <View className="min-w-0 flex-1">
+            <Text className="font-sans-bold text-subheading text-ink" numberOfLines={1}>
+              {profile?.fullName ?? "Student"}
             </Text>
+            <Text className="font-sans text-body text-muted">{loyaltyLine}</Text>
           </View>
         </Gutter>
 
-        <Gutter className="mb-8">
-          <LoyaltyStamps
-            stamps={loyalty?.stamps ?? 0}
-            threshold={loyalty?.threshold}
-            discountPct={loyalty?.discountPct}
-            pending={loyalty?.rewardPending}
-          />
+        <Gutter className="mb-3">
+          <View
+            className="h-2.5 overflow-hidden rounded-pill bg-hairline"
+            accessibilityRole="progressbar"
+            accessibilityValue={{ min: 0, max: threshold, now: Math.min(stamps, threshold) }}
+          >
+            <View className="h-full rounded-pill bg-lime" style={{ width: `${Math.min(stamps / threshold, 1) * 100}%` }} />
+          </View>
         </Gutter>
 
         <Gutter>
-          {/* Email stays an editable field rather than a row that leads
-              somewhere: there is no email screen to lead to, and it is the one
-              setting here a student actually types into. Inside a titled group
-              so it reads as part of the same list. */}
-          <SettingsGroup title="Contact">
-            <View className="p-4">
+          <InfoRow label="Name" value={profile?.fullName} />
+          <InfoRow label="Phone" value={localPhone(profile?.phone)} />
+          {editingEmail ? (
+            <View className="border-b border-hairline py-3">
               <Field
                 label="Email"
                 value={email}
                 onChangeText={setEmail}
-                placeholder="you@ashesi.edu.gh"
-                hint="Optional — shop-live alerts when you suggest a place."
+                placeholder="For receipts"
                 keyboardType="email-address"
                 error={emailError}
               />
-              {email !== (profile?.email ?? "") ? (
-                <Pressable
-                  accessibilityRole="button"
+              <View className="mt-3 flex-row" style={{ gap: 8 }}>
+                <Button
+                  label={emailSaving ? "Saving" : "Save"}
+                  small
+                  full={false}
+                  loading={emailSaving}
                   onPress={() => {
                     setEmailSaving(true);
                     setEmailError(null);
                     void updateProfile({ email: email.trim() || null })
-                      .then((next) => setProfile(next))
+                      .then((next) => {
+                        setProfile(next);
+                        setEditingEmail(false);
+                      })
                       .catch(() => setEmailError("Couldn't save email."))
                       .finally(() => setEmailSaving(false));
                   }}
-                  className="mt-3 self-start rounded-pill bg-lime px-4 py-2"
-                >
-                  <Text className="font-sans-bold text-ui text-ink">
-                    {emailSaving ? "Saving…" : "Save email"}
-                  </Text>
-                </Pressable>
-              ) : null}
+                />
+                <Button label="Cancel" variant="quiet" small full={false} onPress={() => setEditingEmail(false)} />
+              </View>
             </View>
-          </SettingsGroup>
-
-          <NotificationSettings />
-
-          <SettingsGroup title="Deliveries">
-            <SettingsRow
-              icon={<PinIcon size={18} color={colors.ink} strokeWidth={1.8} />}
-              label="Delivery checkpoints"
-              value="Where your runner meets you"
-              onPress={() => navigation.navigate("Checkpoints")}
-            />
-            <SettingsRow
-              icon={<CardIcon size={18} color={colors.ink} strokeWidth={1.8} />}
-              label="Payment"
-              value="How you pay for deliveries"
-              onPress={() => navigation.navigate("PaymentMethods")}
-              last
-            />
-          </SettingsGroup>
-
-          <SettingsGroup title="Wave">
-            <SettingsRow
-              icon={<PlusIcon size={18} color={colors.ink} strokeWidth={2} />}
-              label="Suggest a shop"
-              value="Somewhere you'd like Wave to buy from"
-              onPress={() => navigation.navigate("SuggestShop", nextWaveParams())}
-            />
-            {hasSupportContact() ? (
-              <SettingsRow
-                icon={<MessageIcon size={18} color={colors.ink} strokeWidth={1.8} />}
-                label="Help & support"
-                value={supportContactLabel()}
-                onPress={() => void openSupportContact()}
-                last
-              />
-            ) : null}
-          </SettingsGroup>
-
-          {/* An application with its own states, not a row that goes
-              somewhere — it stays a card of its own. */}
-          <BetaProgram />
-
-          {legal.terms || legal.privacy ? (
-            <SettingsGroup title="Legal">
-              {legal.terms ? (
-                <SettingsRow
-                  icon={<MenuIcon size={18} color={colors.ink} strokeWidth={1.8} />}
-                  label="Terms of service"
-                  onPress={() => void openLegalLink(legal.terms)}
-                  last={!legal.privacy}
+          ) : (
+            <InfoRow label="Email" value={profile?.email || "Add"} onPress={() => setEditingEmail(true)} />
+          )}
+          <InfoRow label="Campus" value={campus ?? "Ashesi University"} />
+          <InfoRow label="Pickup point" value="Change" onPress={() => navigation.navigate("Checkpoints")} />
+          <InfoRow label="Payment" value="MoMo or card" onPress={() => navigation.navigate("PaymentMethods")} />
+          {push.state === "on" || push.state === "off" ? (
+            <InfoRow
+              label="Delivery updates"
+              trailing={
+                <Switch
+                  value={push.state === "on"}
+                  disabled={push.busy}
+                  accessibilityLabel="Delivery updates"
+                  onValueChange={(next) => (next ? push.turnOn() : push.turnOff())}
                 />
-              ) : null}
-              {legal.privacy ? (
-                <SettingsRow
-                  icon={<MenuIcon size={18} color={colors.ink} strokeWidth={1.8} />}
-                  label="Privacy policy"
-                  onPress={() => void openLegalLink(legal.privacy)}
-                  last
-                />
-              ) : null}
-            </SettingsGroup>
+              }
+            />
+          ) : push.state === "needs-install" ? (
+            <InfoRow label="Delivery updates" value="Add Wave to your Home Screen" />
+          ) : null}
+          {hasSupportContact() ? (
+            <InfoRow label="Help" value={supportContactLabel()} onPress={() => void openSupportContact()} last />
           ) : null}
 
-          <SettingsGroup title="Account">
-            <SettingsRow
-              icon={<LogoutIcon size={18} color={colors.danger} strokeWidth={1.8} />}
-              label="Log out"
-              danger
-              chevron={false}
-              onPress={() => setConfirmLogout(true)}
-              last
-            />
-          </SettingsGroup>
+          <View className="mt-4" style={{ gap: 2 }}>
+            <TextLink label="Own a business on campus?" onPress={() => navigation.navigate("BusinessInterest")} />
+            <TextLink label="Sign out" tone="muted" onPress={() => setConfirmLogout(true)} />
+          </View>
+
+          <View className="mt-6">
+            <BetaProgram />
+          </View>
+
+          {legal.terms || legal.privacy ? (
+            <View className="mt-4 flex-row" style={{ gap: 16 }}>
+              {legal.terms ? (
+                <Text accessibilityRole="link" onPress={() => void openLegalLink(legal.terms)} className="font-sans text-meta text-muted underline">
+                  Terms
+                </Text>
+              ) : null}
+              {legal.privacy ? (
+                <Text accessibilityRole="link" onPress={() => void openLegalLink(legal.privacy)} className="font-sans text-meta text-muted underline">
+                  Privacy
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
         </Gutter>
       </ScreenBody>
 

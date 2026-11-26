@@ -12,7 +12,6 @@ import {
   ScreenBody,
   TopBar,
 } from "../../components/v6";
-import { Illustration } from "../../components/v7/Illustration";
 import { GHANA_LOCAL_PHONE_LENGTH, toGhanaE164 } from "@wave/shared";
 import { supabase } from "../../lib/supabase";
 
@@ -58,13 +57,7 @@ export function PhoneEntryScreen({ navigation }: Props) {
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-4">
-          <View className="mb-2 items-center">
-            <Illustration name="stroll" width={200} height={130} />
-          </View>
-          <Text accessibilityRole="header" className="mb-2 font-display text-heading text-ink">What's your number?</Text>
-          <Text className="mb-10 font-sans text-body text-muted">
-            {fromGuest ? "Your basket is saved." : "We'll text you a six-digit code."}
-          </Text>
+          <Text accessibilityRole="header" className="mb-6 font-display text-heading text-ink">What's your number?</Text>
 
           <PhoneField
             value={localNumber}
@@ -72,13 +65,16 @@ export function PhoneEntryScreen({ navigation }: Props) {
             label="Phone number"
             error={error}
           />
+          <Text className="mt-4 font-sans text-body text-muted">
+            {fromGuest ? "Your package details are saved. " : ""}We'll text you a 6-digit code.
+          </Text>
         </Gutter>
       </ScreenBody>
 
       <ActionBar>
         <View className="gap-4">
           <Button
-            label="Send my code"
+            label="Continue"
             onPress={handleSendOtp}
             loading={loading}
             disabled={localNumber.length < GHANA_LOCAL_PHONE_LENGTH}

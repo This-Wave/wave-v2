@@ -19,7 +19,7 @@ export function statusPill(status: OrderStatus, packedByWave = false): {
   }
   switch (status) {
     case "delivered":
-      return { label: "Delivered", tone: "done" };
+      return { label: "Collected", tone: "done" };
     case "cancelled":
       return { label: "Cancelled", tone: "neutral" };
     case "refunded":
@@ -27,9 +27,9 @@ export function statusPill(status: OrderStatus, packedByWave = false): {
     case "en_route":
       return { label: "On the way", tone: "active" };
     case "at_checkpoint":
-      return { label: "At checkpoint", tone: "active" };
+      return { label: "At your checkpoint", tone: "active" };
     case "rider_assigned":
-      return { label: "Runner assigned", tone: "active" };
+      return { label: "Rider assigned", tone: "active" };
     case "confirmed":
       return { label: "Confirmed", tone: "neutral" };
     case "payment_pending":
@@ -133,4 +133,26 @@ export function initialsOf(name: string): string {
 function timeOf(iso: string): string {
   const d = new Date(iso);
   return `${d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })} · ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+}
+
+/**
+ * v7 canvas tracker: four plain steps from the student's side, each ticked
+ * when the order has reached it. Times only where Wave records one.
+ */
+export function trackerSteps(order: Order): { label: string; time: string | null; done: boolean }[] {
+  const idx = currentStepIndex(order.status);
+  const where =
+    order.orderType === "pickup"
+      ? `Picked up in ${(order.originCheckpoint?.name ?? "Accra").split(" & ")[0]}`
+      : `Bought at ${order.shop?.name ?? order.suggestion?.name ?? "the shop"}`;
+  return [
+    { label: where, time: null, done: idx >= 2 },
+    { label: "On the way up", time: null, done: idx >= 2 },
+    { label: "At your checkpoint", time: null, done: idx >= 3 },
+    {
+      label: "Collected",
+      time: order.deliveredAt ? new Date(order.deliveredAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : null,
+      done: idx >= 4,
+    },
+  ];
 }

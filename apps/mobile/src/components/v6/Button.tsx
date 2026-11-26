@@ -13,6 +13,8 @@ interface ButtonProps {
   /** Optional leading glyph, rendered at the label's ink colour. */
   icon?: ReactNode;
   full?: boolean;
+  /** v7 canvas `.btn.sm`: 44px tall, 13px label (in-card actions like Track). */
+  small?: boolean;
   accessibilityLabel?: string;
 }
 
@@ -40,6 +42,7 @@ export function Button({
   loading,
   icon,
   full = true,
+  small,
   accessibilityLabel,
 }: ButtonProps) {
   const inert = disabled || loading;
@@ -71,7 +74,7 @@ export function Button({
       // Without this the spinner is silent — the label vanishes and a screen
       // reader has nothing to report while the request is in flight.
       accessibilityValue={loading ? { text: "Working" } : undefined}
-      className={`min-h-[56px] flex-row items-center justify-center gap-2 rounded-input px-6 py-3 ${surface} ${
+      className={`${small ? "min-h-[44px] px-4 py-2" : "min-h-[56px] px-6 py-3"} flex-row items-center justify-center gap-2 rounded-input ${surface} ${
         full ? "w-full" : ""
       }`}
     >
@@ -80,7 +83,15 @@ export function Button({
       ) : (
         <>
           {icon ? <View>{icon}</View> : null}
-          <Text className={`font-sans-bold text-ui uppercase tracking-wider ${labelColor}`}>{label}</Text>
+          <Text
+            className={`font-sans-bold ${small ? "text-meta" : "text-ui"} ${
+              // v7 canvas: text-only actions ("Not now", "Cancel") stay in
+              // sentence case; only keys with a surface shout.
+              variant === "quiet" ? "text-ink-700" : `uppercase tracking-wider ${labelColor}`
+            }`}
+          >
+            {label}
+          </Text>
         </>
       )}
     </Pressable>

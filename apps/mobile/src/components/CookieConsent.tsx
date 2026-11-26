@@ -63,21 +63,28 @@ export function CookieConsent() {
         style={{
           width: "100%",
           maxWidth: 480,
-          backgroundColor: colors.ink,
+          // v7 canvas: a white card with an edge, a lime Accept key.
+          backgroundColor: colors.white,
+          borderWidth: 1,
+          borderColor: colors.hairline,
           borderRadius: radii.card,
           padding: 16,
+          shadowColor: "#000",
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 2 },
           flexDirection: "row",
           alignItems: "center",
           gap: 12,
         }}
       >
-        <Text className="flex-1 font-sans text-caption" style={{ color: colors.white }}>
+        <Text className="flex-1 font-sans text-meta text-ink-700">
           Wave uses cookies to keep you signed in and remember your basket.
           {PRIVACY_URL ? (
             <Text
               accessibilityRole="link"
               onPress={() => void Linking.openURL(PRIVACY_URL)}
-              style={{ textDecorationLine: "underline" }}
+              className="font-sans-bold text-link"
             >
               {" "}
               Privacy
@@ -88,11 +95,9 @@ export function CookieConsent() {
           onPress={accept}
           accessibilityRole="button"
           accessibilityLabel="Accept cookies"
-          style={{ backgroundColor: colors.lime, borderRadius: radii.pill, paddingVertical: 10, paddingHorizontal: 18, minHeight: 44, justifyContent: "center" }}
+          className="min-h-[44px] justify-center rounded-input border-b-4 border-lime-edge bg-lime px-4"
         >
-          <Text className="font-sans-medium text-caption" style={{ color: colors.ink }}>
-            Accept
-          </Text>
+          <Text className="font-sans-bold text-meta uppercase tracking-wider text-on-lime">Accept</Text>
         </Pressable>
       </View>
     </View>

@@ -1,5 +1,5 @@
 import { TextInput, Text, View } from "react-native";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { colors } from "../../theme/tokens";
 
 /**
@@ -33,6 +33,7 @@ export function Field({
   // Web renders these to real `id`/`aria-*` attributes; native ignores them and
   // relies on the explicit accessibilityLabel/Hint below.
   const id = useId();
+  const [focused, setFocused] = useState(false);
   const messageId = `${id}-message`;
 
   return (
@@ -61,8 +62,13 @@ export function Field({
         aria-invalid={error ? true : undefined}
         // Was a fixed h-12: at large OS text sizes the label grew and the box
         // did not, clipping the value. 1.4.4.
-        className={`rounded-input border-2 bg-surface px-4 py-3 font-sans-bold text-ui text-ink focus:border-ink ${
-          error ? "border-danger" : "border-line"
+        // v7: the edge turns ink on focus (canvas .in.focus) in place of the
+        // browser's blue ring, so focus stays visible and on-palette.
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{ outlineStyle: "none" } as object}
+        className={`rounded-input border-2 bg-surface px-4 py-3 font-sans-medium text-ui text-ink ${
+          error ? "border-danger" : focused ? "border-ink" : "border-line"
         } ${multiline ? "min-h-[112px]" : "min-h-[56px]"}`}
       />
       {error ? (

@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
-  BrandBar,
   Button,
   Chip,
   Empty,
@@ -12,26 +11,17 @@ import {
   ListError,
   ListSkeleton,
   PageTitle,
-  ProgressRail,
-  Row,
-  RowGroup,
   Screen,
   ScreenBody,
-  StatusPill,
-  Thumb,
 } from "../../components/v6";
 import { useMyOrders } from "../../lib/orders";
 import { openOrderDetail, openOrderTracking } from "../../lib/desktopNavigate";
 import { formatGhsCompact } from "../../lib/pricing";
 import { resetToPayment } from "../../lib/navigationFlows";
-import { orderProgress, statusPill } from "./orderPresenters";
+import { Illustration } from "../../components/v7/Illustration";
+import { OrderCardRow, orderTitle } from "../../components/v7/OrderCards";
 import { StudentOrdersWeb } from "./web/StudentOrdersWeb";
 import { useLayout } from "../../hooks/useLayout";
-import type { Order } from "../../types";
-import { useFeature } from "../../lib/features";
-import { describeWave } from "../../lib/wave";
-import { isStandardRunDay } from "../../lib/pricing";
-import { resetToShopMenu } from "../../lib/navigationFlows";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
 
@@ -46,239 +36,106 @@ export function OrderHistoryScreen() {
 function OrderHistoryMobile() {
   const navigation = useNavigation<Nav>();
   const { data: orders, isLoading, isError, refetch, isRefetching } = useMyOrders();
-  const [filter, setFilter] = useState<"all" | "delivered" | "cancelled">("all");
-  const canReorder = useFeature("reorder");
-
-  // Reordering books onto the next open Wave; the calendar is how you pick a
-  // different one. Same rule as the order detail screen.
-  const nextWave = useMemo(() => {
-    const next = describeWave();
-    const date = next?.date ?? new Date();
-    return { scheduledDate: date.toISOString(), isSpecialOrder: !isStandardRunDay(date) };
-  }, []);
 
   const live = useMemo(() => (orders ?? []).filter((o) => LIVE.includes(o.status)), [orders]);
-  const unpaid = useMemo(
-    () => (orders ?? []).filter((o) => o.status === "payment_pending"),
+  const unpaid = useMemo(() => (orders ?? []).filter((o) => o.status === "payment_pending"), [orders]);
+  const past = useMemo(
+    () => (orders ?? []).filter((o) => !LIVE.includes(o.status) && o.status !== "payment_pending"),
     [orders],
   );
-  const past = useMemo(() => {
-    const rest = (orders ?? []).filter(
-      (o) => !LIVE.includes(o.status) && o.status !== "payment_pending",
-    );
-    if (filter === "delivered") return rest.filter((o) => o.status === "delivered");
-    if (filter === "cancelled")
-      return rest.filter((o) => o.status === "cancelled" || o.status === "refunded");
-    return rest;
-  }, [orders, filter]);
+  const hasActive = live.length + unpaid.length > 0;
+  const [tab, setTab] = useState<"active" | "past" | null>(null);
+  const shown = tab ?? (hasActive ? "active" : "past");
+
+  const pastList = (
+    <View style={{ gap: 8 }}>
+      {past.map((o) => (
+        <OrderCardRow key={o.id} order={o} onPress={() => openOrderDetail(navigation, o.id)} />
+      ))}
+    </View>
+  );
 
   return (
     <Screen>
-      <BrandBar />
-      <ScreenBody
-        bottomInset={24}
-        refreshing={isRefetching}
-        onRefresh={() => void refetch()}
-      >
-        <Gutter className="pb-6 pt-4">
+      <ScreenBody bottomInset={24} refreshing={isRefetching} onRefresh={() => void refetch()}>
+        <Gutter className="pb-4 pt-6">
           <PageTitle>Orders</PageTitle>
         </Gutter>
 
-        {live.length > 0 ? (
-          <View className="mb-section">
-            <Gutter className="mb-3">
-              <Text className="font-sans-bold text-subheading text-ink">Happening now</Text>
-            </Gutter>
-            <Gutter style={{ gap: 12 }}>
-              {live.map((o) => (
-                <LiveRow key={o.id} order={o} navigation={navigation} />
-              ))}
-            </Gutter>
-          </View>
-        ) : null}
-
-        {unpaid.length > 0 ? (
-          <View className="mb-section">
-            <Gutter className="mb-3">
-              <Text className="font-sans-bold text-subheading text-ink">Waiting for payment</Text>
-            </Gutter>
-            <Gutter style={{ gap: 12 }}>
-              {unpaid.map((o) => (
-                <View key={o.id} className="rounded-card border border-hairline bg-surface p-4">
-                  <View className="mb-3 flex-row items-center gap-3">
-                    <Thumb uri={o.shop?.logoUrl} size={44} />
-                    <View className="flex-1">
-                      <Text className="font-sans-bold text-body text-ink" numberOfLines={1}>
-                        {o.shop?.name ?? "Your order"}
-                      </Text>
-                      <Text className="font-sans text-body text-muted" numberOfLines={1}>
-                        {formatGhsCompact(Number(o.totalAmount ?? 0))} · not paid yet
-                      </Text>
-                    </View>
-                  </View>
-                  <Button
-                    label="Pay now"
-                    onPress={() =>
-                      resetToPayment(navigation, {
-                        orderId: o.id,
-                        totalAmount: Number(o.totalAmount),
-                      })
-                    }
-                  />
-                </View>
-              ))}
-            </Gutter>
-          </View>
-        ) : null}
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
-          className="mb-4 grow-0"
-        >
-          <Chip label="All" selected={filter === "all"} onPress={() => setFilter("all")} />
-          <Chip
-            label="Delivered"
-            selected={filter === "delivered"}
-            onPress={() => setFilter("delivered")}
-          />
-          <Chip
-            label="Cancelled"
-            selected={filter === "cancelled"}
-            onPress={() => setFilter("cancelled")}
-          />
-        </ScrollView>
-
-        <Gutter>
-          {isLoading ? (
+        {isLoading ? (
+          <Gutter>
             <ListSkeleton rows={4} />
-          ) : isError ? (
+          </Gutter>
+        ) : isError ? (
+          <Gutter>
             <ListError onRetry={() => void refetch()} />
-          ) : past.length === 0 ? (
-            <Empty
-              title="Nothing here yet"
-              body={
-                filter === "all"
-                  ? "Your finished orders will collect here."
-                  : "No orders match this filter."
-              }
-              action={
-                filter === "all" ? (
-                  <Button
-                    label="Browse shops"
-                    variant="ghost"
-                    full={false}
-                    onPress={() => navigation.navigate("ShopSelection")}
-                  />
-                ) : undefined
-              }
-            />
-          ) : (
-            <RowGroup>
-              {past.map((o) =>
-                /* A delivered order from a shop gets its own "Order again" beside
-                   the row. The action already existed on the order detail screen,
-                   which meant opening an order to repeat it — two screens for the
-                   thing most students do most often.
+          </Gutter>
+        ) : (orders ?? []).length === 0 ? (
+          // v7 canvas: the illustrated first-run state, one way forward.
+          <Gutter className="items-center pt-6">
+            <Illustration name="pillow" width={230} height={160} />
+            <Text accessibilityRole="header" className="mt-4 text-center font-display text-heading text-ink">
+              No orders yet
+            </Text>
+            <Text className="mb-5 mt-2 text-center font-sans text-body text-muted">
+              Your first one shows up here.
+            </Text>
+            <View className="self-stretch">
+              <Button label="Send a package" onPress={() => navigation.navigate("PickupRequest")} />
+            </View>
+          </Gutter>
+        ) : (
+          <>
+            <Gutter className="mb-4 flex-row" style={{ gap: 8 }}>
+              <Chip label="Active" selected={shown === "active"} onPress={() => setTab("active")} />
+              <Chip label="Past" selected={shown === "past"} onPress={() => setTab("past")} />
+            </Gutter>
 
-                   It still lands on the shop's menu rather than rebuilding the
-                   basket, for the reason stated on OrderDetailScreen: prices and
-                   stock move between Waves, so a silently rebuilt basket would
-                   quote a total the shop may not honour and fail at checkout
-                   instead of at the menu. */
-                canReorder && o.status === "delivered" && o.shop ? (
-                  <View
-                    key={o.id}
-                    className="flex-row items-center gap-3 rounded-card border border-hairline bg-surface px-4 py-3"
-                  >
-                    <Pressable
-                      onPress={() => openOrderDetail(navigation, o.id)}
-                      accessibilityRole="button"
-                      accessible
-                      accessibilityLabel={`${o.shop.name}, ${dayOf(o)}, ${formatGhsCompact(
-                        Number(o.totalAmount ?? 0),
-                      )}, ${statusPill(o.status, !!o.companyId).label}`}
-                      className="min-h-[44px] flex-1 flex-row items-center gap-3"
-                    >
-                      <Thumb uri={o.shop.logoUrl} />
+            {shown === "active" ? (
+              <Gutter style={{ gap: 8 }}>
+                {unpaid.map((o) => (
+                  <View key={o.id} className="rounded-card border border-hairline bg-surface p-4" style={{ gap: 12 }}>
+                    <View className="flex-row items-center" style={{ gap: 12 }}>
                       <View className="min-w-0 flex-1">
-                        <Text className="font-sans-bold text-body text-ink" numberOfLines={1}>
-                          {o.shop.name}
+                        <Text className="font-sans-bold text-ui text-ink" numberOfLines={1}>
+                          {orderTitle(o)}
                         </Text>
-                        <Text className="font-sans text-body text-muted" numberOfLines={1}>
-                          {dayOf(o)} · {formatGhsCompact(Number(o.totalAmount ?? 0))}
+                        <Text className="font-sans text-meta text-muted" numberOfLines={1}>
+                          {formatGhsCompact(Number(o.totalAmount ?? 0))} · not paid yet
                         </Text>
                       </View>
-                    </Pressable>
-
-                    <Pressable
-                      onPress={() =>
-                        resetToShopMenu(navigation, {
-                          shopId: o.shop!.id,
-                          shopName: o.shop!.name,
-                          scheduledDate: nextWave.scheduledDate,
-                          isSpecialOrder: nextWave.isSpecialOrder,
-                        })
-                      }
-                      accessibilityRole="button"
-                      accessibilityLabel={`Order from ${o.shop.name} again`}
-                      accessibilityHint="Opens the shop's menu for the next Wave"
-                      hitSlop={6}
-                      className="min-h-[44px] justify-center rounded-input border-2 border-b-4 border-line px-4"
-                    >
-                      <Text className="font-sans-bold text-body text-ink">Order again</Text>
-                    </Pressable>
+                    </View>
+                    <Button
+                      label="Pay now"
+                      onPress={() => resetToPayment(navigation, { orderId: o.id, totalAmount: Number(o.totalAmount) })}
+                    />
                   </View>
+                ))}
+                {live.map((o) => (
+                  <OrderCardRow key={o.id} order={o} onPress={() => openOrderTracking(navigation, o.id)} />
+                ))}
+                {!hasActive ? (
+                  <Text className="py-6 text-center font-sans text-body text-muted">Nothing on the way right now.</Text>
+                ) : null}
+                {past.length > 0 ? (
+                  <>
+                    <Text className="mb-1 mt-5 font-sans-bold text-ui text-ink">Earlier</Text>
+                    {pastList}
+                  </>
+                ) : null}
+              </Gutter>
+            ) : (
+              <Gutter>
+                {past.length === 0 ? (
+                  <Empty title="Nothing finished yet" body="Collected parcels collect here." />
                 ) : (
-                  <Row
-                    key={o.id}
-                    title={o.shop?.name ?? "Package pickup"}
-                    meta={`${dayOf(o)} · ${formatGhsCompact(Number(o.totalAmount ?? 0))}`}
-                    leading={<Thumb uri={o.shop?.logoUrl} />}
-                    trailing={<StatusPill {...statusPill(o.status, !!o.companyId)} />}
-                    onPress={() => openOrderDetail(navigation, o.id)}
-                  />
-                ),
-              )}
-            </RowGroup>
-          )}
-        </Gutter>
+                  pastList
+                )}
+              </Gutter>
+            )}
+          </>
+        )}
       </ScreenBody>
     </Screen>
   );
-}
-
-function LiveRow({ order, navigation }: { order: Order; navigation: Nav }) {
-  const pill = statusPill(order.status, !!order.companyId);
-  return (
-    <View className="rounded-card border border-hairline bg-surface p-4">
-      <View className="mb-3 flex-row items-center gap-3">
-        <Thumb uri={order.shop?.logoUrl} size={44} />
-        <View className="flex-1">
-          <Text className="font-sans-bold text-body text-ink" numberOfLines={1}>
-            {order.shop?.name ?? "Your order"}
-          </Text>
-          <Text className="font-sans text-body text-muted" numberOfLines={1}>
-            {order.itemDescription}
-          </Text>
-        </View>
-        <StatusPill label={pill.label} tone={pill.tone} />
-      </View>
-      <ProgressRail ratio={orderProgress(order.status)} />
-      <Text
-        className="pt-3 font-sans-bold text-body text-ink"
-        accessibilityRole="button"
-        onPress={() => openOrderTracking(navigation, order.id)}
-      >
-        Track this order
-      </Text>
-    </View>
-  );
-}
-
-function dayOf(order: Order): string {
-  const iso = order.deliveredAt ?? order.scheduledDate;
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString([], { day: "numeric", month: "short" });
 }

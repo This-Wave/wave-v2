@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Linking, Platform, Pressable, Text, View } from "react-native";
-import { MobileIcon } from "./icons";
+import { PhoneIcon } from "./icons";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 import { colors } from "../theme/tokens";
 import { maskMomoNumber, MOMO_NETWORKS, type MomoNetwork } from "../lib/momo";
 
@@ -17,69 +18,76 @@ export function MomoApprove({
   network,
   payer,
   onPayAnotherWay,
+  seconds = 120,
 }: {
   amountLabel: string;
   network: MomoNetwork;
   payer: string;
   onPayAnotherWay: () => void;
+  /** How long the prompt stays live, for the countdown. */
+  seconds?: number;
 }) {
-  const spin = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(0)).current;
+  const reduce = useReducedMotion();
   useEffect(() => {
+    if (reduce) return;
     const loop = Animated.loop(
-      Animated.timing(spin, { toValue: 1, duration: 900, easing: Easing.linear, useNativeDriver: Platform.OS !== "web" }),
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 700, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== "web" }),
+        Animated.timing(pulse, { toValue: 0, duration: 700, easing: Easing.in(Easing.quad), useNativeDriver: Platform.OS !== "web" }),
+      ]),
     );
     loop.start();
     return () => loop.stop();
-  }, [spin]);
-  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  }, [pulse, reduce]);
+  const tilt = pulse.interpolate({ inputRange: [0, 1], outputRange: ["-8deg", "8deg"] });
+
+  const [left, setLeft] = useState(seconds);
+  useEffect(() => {
+    const t = setInterval(() => setLeft((n) => Math.max(n - 1, 0)), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const net = MOMO_NETWORKS.find((n) => n.id === network) ?? MOMO_NETWORKS[0]!;
+  const clock = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
 
   return (
     <View className="flex-1 px-gutter pb-8">
-      <View className="flex-1 items-center justify-center gap-7">
-        <View
-          accessibilityRole="progressbar"
-          accessibilityLabel="Waiting for you to approve the payment"
-          className="h-[120px] w-[120px] items-center justify-center"
-        >
-          <Animated.View
-            style={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: 0,
-              borderRadius: 9999,
-              borderWidth: 4,
-              borderColor: colors.hairline,
-              borderTopColor: colors.ink,
-              transform: [{ rotate }],
-            }}
-          />
-          <MobileIcon size={40} color={colors.ink} strokeWidth={1.8} />
+      <View className="flex-1 items-center justify-center" style={{ gap: 14 }}>
+        <View className="h-24 w-24 items-center justify-center rounded-pill bg-wash">
+          <Animated.View style={{ transform: [{ rotate: tilt }] }}>
+            <PhoneIcon size={36} color={colors.ink} strokeWidth={1.9} />
+          </Animated.View>
         </View>
-        <View className="items-center gap-2" accessibilityLiveRegion="polite">
-          <Text className="text-center font-display text-heading text-ink">Approve on your phone</Text>
-          <Text className="font-display text-ink" style={{ fontSize: 40, lineHeight: 44 }}>
-            {amountLabel}
+        <View className="items-center" style={{ gap: 8 }} accessibilityLiveRegion="polite">
+          <Text accessibilityRole="header" className="text-center font-display text-heading text-ink">
+            Approve on your phone
           </Text>
-          <Text className="font-sans text-ui text-muted">
-            {net.label} MoMo · {maskMomoNumber(payer)}
+          <Text className="text-center font-sans text-ui text-muted">
+            Check {maskMomoNumber(payer)} for the {net.label} MoMo prompt and enter your PIN to pay {amountLabel}.
           </Text>
+          <Text
+            className="mt-2 font-display text-ink"
+            style={{ fontSize: 36, lineHeight: 40 }}
+            accessibilityLabel={left > 0 ? `${clock} left` : "Still waiting"}
+          >
+            {clock}
+          </Text>
+          <Text className="font-sans text-body text-muted">{left > 0 ? "Waiting for MoMo…" : "Still waiting for MoMo…"}</Text>
         </View>
       </View>
 
-      <View className="items-center gap-1">
+      <View style={{ gap: 4 }}>
         <Pressable
-          accessibilityRole="link"
+          accessibilityRole="button"
           onPress={() => Linking.openURL(`tel:${encodeURIComponent(net.ussd)}`).catch(() => undefined)}
-          className="min-h-[44px] justify-center"
+          className="min-h-[56px] items-center justify-center rounded-input border-2 border-b-4 border-line bg-surface"
         >
-          <Text className="font-sans-bold text-ui text-ink">No prompt? Dial {net.ussd}</Text>
+          <Text className="font-sans-bold text-ui uppercase tracking-wider text-ink">I didn't get a prompt</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={onPayAnotherWay} className="min-h-[44px] justify-center">
-          <Text className="font-sans-semibold text-ui text-muted">Pay another way</Text>
+        <Text className="text-center font-sans text-meta text-muted">Opens {net.ussd} to approve it yourself.</Text>
+        <Pressable accessibilityRole="button" onPress={onPayAnotherWay} className="min-h-[44px] items-center justify-center">
+          <Text className="font-sans-bold text-ui text-ink-700">Cancel</Text>
         </Pressable>
       </View>
     </View>

@@ -32,14 +32,14 @@ export function RiderTabNavigator() {
   return (
     <View style={{ flex: 1 }}>
       <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} />}>
-        <Tab.Screen name="Feed" component={OrderFeedScreen} options={{ tabBarLabel: "Feed" }} />
+        <Tab.Screen name="Feed" component={OrderFeedScreen} options={{ tabBarLabel: "Jobs" }} />
         <Tab.Screen
           name="MyOrders"
           component={MyOrdersScreen}
-          options={{ tabBarLabel: "Deliveries", tabBarBadge: deliveriesBadge }}
+          options={{ tabBarLabel: "My jobs", tabBarBadge: deliveriesBadge }}
         />
         <Tab.Screen name="Earnings" component={EarningsScreen} options={{ tabBarLabel: "Earnings" }} />
-        <Tab.Screen name="Profile" component={RiderProfileScreen} options={{ tabBarLabel: "Profile" }} />
+        <Tab.Screen name="Profile" component={RiderProfileScreen} options={{ tabBarLabel: "You" }} />
       </Tab.Navigator>
       {!isDesktop ? <ActiveDeliveryBar /> : null}
     </View>

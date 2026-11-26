@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { CommonActions } from "@react-navigation/native";
 import {
-  BoltIcon,
   BoxIcon,
   CartIcon,
   DashboardIcon,
+  GiftIcon,
   HomeIcon,
-  PinIcon,
+  ListIcon,
+  PlusIcon,
   SettingsIcon,
   UserIcon,
-  WalletIcon,
   type IconProps,
 } from "../icons";
 import { colors } from "../../theme/tokens";
@@ -32,19 +32,19 @@ const MENUS: Record<AppRole, { subtitle: string; footer: string; items: NavItem[
     footer: "Ashesi · Delivering every day",
     items: [
       { label: "Home", tab: "Home", Icon: HomeIcon },
-      { label: "Orders", tab: "Orders", Icon: BoxIcon },
-      { label: "Checkpoints", tab: "Checkpoints", Icon: PinIcon },
-      { label: "Profile", tab: "Profile", Icon: UserIcon },
+      { label: "Orders", tab: "Orders", Icon: ListIcon },
+      { label: "Send a package", tab: "Send", Icon: PlusIcon },
+      { label: "You", tab: "Profile", Icon: UserIcon },
     ],
   },
   rider: {
     subtitle: "Runner",
     footer: "Ashesi · Live Wave feed",
     items: [
-      { label: "Feed", tab: "Feed", Icon: BoltIcon },
-      { label: "Deliveries", tab: "MyOrders", Icon: BoxIcon },
-      { label: "Earnings", tab: "Earnings", Icon: WalletIcon },
-      { label: "Profile", tab: "Profile", Icon: UserIcon },
+      { label: "Jobs", tab: "Feed", Icon: ListIcon },
+      { label: "My jobs", tab: "MyOrders", Icon: BoxIcon },
+      { label: "Earnings", tab: "Earnings", Icon: GiftIcon },
+      { label: "You", tab: "Profile", Icon: UserIcon },
     ],
   },
   shop: {
@@ -136,6 +136,11 @@ export function SideNav({ role }: { role: AppRole }) {
 function goToTab(tab: string) {
   if (!navigationRef.isReady()) return;
   useDesktopPanelStore.getState().closePanel();
+  // "Send" is a shortcut into the Send flow, not a tab page.
+  if (tab === "Send") {
+    navigationRef.dispatch(CommonActions.navigate({ name: "PickupRequest" }));
+    return;
+  }
   navigationRef.dispatch(
     CommonActions.navigate({
       name: "Tabs",

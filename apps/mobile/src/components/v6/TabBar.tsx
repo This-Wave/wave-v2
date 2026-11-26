@@ -2,7 +2,6 @@ import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import {
-  BoltIcon,
   BoxIcon,
   CartIcon,
   DashboardIcon,
@@ -10,7 +9,9 @@ import {
   PinIcon,
   SettingsIcon,
   UserIcon,
-  WalletIcon,
+  ListIcon,
+  GiftIcon,
+  PlusIcon,
   type IconProps,
 } from "../icons";
 import { colors } from "../../theme/tokens";
@@ -18,12 +19,13 @@ import { useLayout } from "../../hooks/useLayout";
 
 const ICONS: Record<string, (p: IconProps) => JSX.Element> = {
   Home: HomeIcon,
-  Orders: BoxIcon,
+  Orders: ListIcon,
+  Send: PlusIcon,
   Checkpoints: PinIcon,
   Profile: UserIcon,
-  Feed: BoltIcon,
+  Feed: ListIcon,
   MyOrders: BoxIcon,
-  Earnings: WalletIcon,
+  Earnings: GiftIcon,
   Dashboard: DashboardIcon,
   ShopOrders: CartIcon,
   Menu: BoxIcon,

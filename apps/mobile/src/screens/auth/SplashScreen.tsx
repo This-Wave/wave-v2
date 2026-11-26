@@ -1,24 +1,17 @@
 import { Text, View } from "react-native";
+import { WaveMarkIcon } from "../../components/icons";
+import { colors } from "../../theme/tokens";
 
-/**
- * Rendered while the auth session hydrates.
- *
- * v5 filled the screen with brand green. v6 has no such surface — ink is a text
- * colour and lime is fill-only — so the splash is the canvas with the wordmark,
- * which is also what the app looks like a frame later. Nothing flashes.
- */
+/** v7 canvas splash: the mark and wordmark on Sacramento, nothing else. */
 export function SplashScreen() {
   return (
-    <View className="flex-1 items-center justify-center bg-canvas">
-      <View className="flex-row items-center gap-2.5">
-        <View className="h-10 w-10 items-center justify-center rounded-pill bg-lime">
-          <Text className="font-sans-bold text-subheading text-ink">W</Text>
-        </View>
-        <Text className="font-sans-bold text-ink" style={{ fontSize: 34, lineHeight: 38 }}>
+    <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.ink }}>
+      <View className="flex-row items-center" style={{ gap: 10 }} accessible accessibilityLabel="Wave">
+        <WaveMarkIcon size={64} inverse />
+        <Text className="font-sans-bold" style={{ fontSize: 44, lineHeight: 48, letterSpacing: -1.5, color: "#fdfcf8" }}>
           wave
         </Text>
       </View>
-      <Text className="mt-3 font-sans text-body text-muted">Campus delivery, on schedule.</Text>
     </View>
   );
 }

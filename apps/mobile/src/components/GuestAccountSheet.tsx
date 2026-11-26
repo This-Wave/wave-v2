@@ -1,14 +1,10 @@
-import { Text } from "react-native";
+import { Text, View } from "react-native";
 import { Button, Sheet } from "./v6";
 import { useAuthStore, type ResumeTarget } from "../store/authStore";
 
 /**
- * "One step to pay": what a guest sees when they press Pay (canvas board 26b).
- *
- * The order stays on screen behind the sheet, so it is obvious nothing was
- * lost. One action: a phone number is the whole of Wave's sign-in, for a new
- * account and a returning one alike, so there is no "sign up / log in" fork to
- * choose between. After the code, the app comes straight back to `target`.
+ * v7 canvas "One last step, Ama": a guest who has built a send is asked for a
+ * number only at the point of paying, and told nothing they entered is lost.
  */
 export function GuestAccountSheet({
   target,
@@ -18,21 +14,27 @@ export function GuestAccountSheet({
   onClose: () => void;
 }) {
   const beginSignupFromGuest = useAuthStore((s) => s.beginSignupFromGuest);
+  const first = useAuthStore((s) => s.guestFirstName?.trim().split(/\s+/)[0]);
   return (
     <Sheet
       visible={!!target}
       onClose={onClose}
-      title="One step to pay"
+      title={first ? `One last step, ${first}` : "One last step"}
       footer={
-        <Button
-          label="Continue with phone number"
-          onPress={() => {
-            if (target) beginSignupFromGuest(target);
-          }}
-        />
+        <View style={{ gap: 4 }}>
+          <Button
+            label="Continue with phone"
+            onPress={() => {
+              if (target) beginSignupFromGuest(target);
+            }}
+          />
+          <Button label="Keep looking around" variant="quiet" onPress={onClose} />
+        </View>
       }
     >
-      <Text className="font-sans text-body text-muted">Your basket is saved.</Text>
+      <Text className="font-sans text-ui text-muted">
+        Add your number to pay and get your code. Your package details are saved.
+      </Text>
     </Sheet>
   );
 }

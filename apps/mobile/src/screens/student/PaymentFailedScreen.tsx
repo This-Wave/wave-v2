@@ -24,7 +24,7 @@ export function PaymentFailedScreen() {
   return (
     <Screen narrow>
       <ScreenBody bottomInset={16}>
-        <Gutter className="items-center pt-12" style={{ gap: 14 }}>
+        <Gutter className="items-center pt-16" style={{ gap: 14 }}>
           <Rise>
             <Illustration name="pillow" width={220} height={160} />
           </Rise>
@@ -53,10 +53,16 @@ export function PaymentFailedScreen() {
             }
           />
           <Button
-            label="Check my orders"
+            label="Pay another way"
             variant="ghost"
-            onPress={() => resetStudentTabs(navigation, "Orders")}
+            onPress={() =>
+              resetToPayment(navigation, {
+                orderId: params.orderId,
+                totalAmount: params.totalAmount,
+              })
+            }
           />
+          <Button label="Check my orders" variant="quiet" onPress={() => resetStudentTabs(navigation, "Orders")} />
         </View>
       </ActionBar>
     </Screen>

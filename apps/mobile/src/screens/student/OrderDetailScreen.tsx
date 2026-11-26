@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
@@ -8,19 +8,18 @@ import {
   Button,
   Gutter,
   Ledger,
-  Row,
-  RowGroup,
   Screen,
   ScreenBody,
   StatusPill,
-  Steps,
-  Thumb,
   TopBar,
 } from "../../components/v6";
-import { RouteLine } from "../../components/v7/Signature";
+import { RouteLine, Tracker } from "../../components/v7/Signature";
+import { orderTitle } from "../../components/v7/OrderCards";
+import { openSupportContact } from "../../lib/support";
+import { formatGhs } from "../../lib/pricing";
 import { useOrder } from "../../lib/orders";
 import { buildOrderLedger } from "../../lib/ledger";
-import { currentStepIndex, orderSteps, shortOrderRef, statusPill } from "./orderPresenters";
+import { statusPill, trackerSteps } from "./orderPresenters";
 import { describeWave } from "../../lib/wave";
 import { isStandardRunDay } from "../../lib/pricing";
 import { resetToShopMenu } from "../../lib/navigationFlows";
@@ -61,96 +60,94 @@ export function OrderDetailScreen() {
   const pill = statusPill(order.status, !!order.companyId);
   const ledger = buildOrderLedger(order);
 
+  const size = order.packageSize ? `${order.packageSize[0]!.toUpperCase()}${order.packageSize.slice(1)} size` : null;
+
   return (
     <Screen>
-      <TopBar title={shortOrderRef(order.id)} onBack={() => navigation.goBack()} />
+      <TopBar title="Order" onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>
-        <Gutter className="pt-2">
+        <Gutter className="pt-1">
           <StatusPill label={pill.label} tone={pill.tone} />
           <Text accessibilityRole="header" className="mt-3 font-display text-heading text-ink">
-            {order.orderType === "pickup" ? order.itemDescription || "Package pickup" : (order.shop?.name ?? "Your order")}
+            {orderTitle(order)}
           </Text>
-          <Text className="mb-5 mt-1 font-sans text-body text-muted">{whenLine(order)}</Text>
-          {order.orderType === "pickup" ? (
-            <View className="mb-7 rounded-card border border-hairline bg-surface p-4">
-              <RouteLine
-                fromLabel="From"
-                from={order.senderName ?? order.originCheckpoint?.name ?? "Accra"}
-                fromSub={order.senderName ? order.originCheckpoint?.name : null}
-                toLabel="To you at"
-                to={order.checkpoint?.name ?? "your pickup point"}
-                progress={order.status === "delivered" ? 1 : undefined}
-              />
-            </View>
-          ) : null}
+          <Text className="mb-5 mt-1 font-sans text-body text-muted">
+            {[shortDay(order.deliveredAt ?? order.scheduledDate), size].filter(Boolean).join(" · ")}
+          </Text>
 
-          <Text className="mb-3 font-sans-bold text-subheading text-ink">What you ordered</Text>
-          <RowGroup>
-            <Row
-              title={order.itemDescription ?? "—"}
-              meta={
+          <View className="mb-4 rounded-card border border-hairline bg-surface p-4">
+            <RouteLine
+              fromLabel={order.orderType === "pickup" ? "From" : "Bought at"}
+              from={
                 order.orderType === "pickup"
-                  ? `Collected from ${order.originCheckpoint?.name ?? "a checkpoint"}`
-                  : order.checkpoint?.name
-                    ? `Delivered to ${order.checkpoint.name}`
-                    : undefined
+                  ? [order.senderName, order.originCheckpoint?.name?.split(" & ")[0]].filter(Boolean).join(", ") || "Accra"
+                  : (order.shop?.name ?? "The shop")
               }
-              leading={<Thumb uri={order.shop?.logoUrl} />}
-              chevron={false}
+              toLabel="To you at"
+              to={order.checkpoint?.name ?? "your pickup point"}
+              progress={order.status === "delivered" ? 1 : undefined}
             />
-            {order.rider ? (
-              <Row title={order.rider.fullName} meta="Your runner" chevron={false} />
-            ) : null}
-          </RowGroup>
-
-          <Text className="mb-3 mt-7 font-sans-bold text-subheading text-ink">What it cost</Text>
-          <View className="rounded-card border border-hairline bg-surface p-5">
-            <Ledger ledger={ledger} />
           </View>
 
-          {!ledger.reconciles ? (
-            <Text className="mt-2 font-sans text-meta text-muted">
-              Line-by-line breakdown unavailable for this order.
-            </Text>
-          ) : null}
-
-          <Text className="mb-3 mt-7 font-sans-bold text-subheading text-ink">How it went</Text>
-          <View className="rounded-card border border-hairline bg-surface p-5">
-            <Steps steps={orderSteps(order)} currentIndex={currentStepIndex(order.status)} />
+          <View className="mb-5 rounded-card border border-hairline bg-surface p-4">
+            <Tracker steps={trackerSteps(order)} />
           </View>
+
+          {ledger.reconciles && order.orderType !== "pickup" ? (
+            <View className="mb-2">
+              <Ledger ledger={ledger} />
+            </View>
+          ) : (
+            <View className="flex-row items-center justify-between">
+              <Text className="font-sans text-ui text-muted">{order.paidAt ? "Paid" : "Total"}</Text>
+              <Text className="font-sans-bold text-ui text-ink">{formatGhs(Number(order.totalAmount ?? 0))}</Text>
+            </View>
+          )}
         </Gutter>
       </ScreenBody>
 
-      {/* Reordering opens the shop's menu rather than pre-filling a basket.
-          Prices and availability move between Waves, so silently rebuilding an
-          old basket would quote a total the shop may no longer honour — and an
-          out-of-stock line would fail at checkout instead of at the menu. */}
-      {order.shop ? (
-        <ActionBar>
-          <Button
-            label="Order from here again"
-            onPress={() =>
-              resetToShopMenu(navigation, {
-                shopId: order.shop!.id,
-                shopName: order.shop!.name,
-                scheduledDate: nextWaveDate.scheduledDate,
-                isSpecialOrder: nextWaveDate.isSpecialOrder,
-              })
-            }
-          />
-        </ActionBar>
-      ) : null}
+      <ActionBar>
+        <View style={{ gap: 4 }}>
+          {order.orderType === "pickup" ? (
+            <Button
+              label="Send again"
+              onPress={() =>
+                navigation.navigate("PickupRequest", {
+                  ...nextWaveDate,
+                  fromId: order.originCheckpointId ?? undefined,
+                  toId: order.checkpointId ?? undefined,
+                  description: order.itemDescription ?? undefined,
+                })
+              }
+            />
+          ) : order.shop ? (
+            <Button
+              label="Order again"
+              onPress={() =>
+                resetToShopMenu(navigation, {
+                  shopId: order.shop!.id,
+                  shopName: order.shop!.name,
+                  scheduledDate: nextWaveDate.scheduledDate,
+                  isSpecialOrder: nextWaveDate.isSpecialOrder,
+                })
+              }
+            />
+          ) : null}
+          <Pressable
+            onPress={() => void openSupportContact()}
+            accessibilityRole="link"
+            className="min-h-[44px] items-center justify-center"
+          >
+            <Text className="font-sans-bold text-ui text-link">Get help with this order</Text>
+          </Pressable>
+        </View>
+      </ActionBar>
     </Screen>
   );
 }
 
-function whenLine(order: { deliveredAt?: string | null; scheduledDate?: string }): string {
-  const iso = order.deliveredAt ?? order.scheduledDate;
+function shortDay(iso?: string | null): string {
   if (!iso) return "";
-  const d = new Date(iso);
-  const day = d.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
-  return order.deliveredAt
-    ? `Delivered ${day} at ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
-    : `Scheduled for ${day}`;
+  return new Date(iso).toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
 }
