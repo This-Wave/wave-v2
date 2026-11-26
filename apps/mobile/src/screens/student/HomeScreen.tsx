@@ -121,6 +121,13 @@ function HomeScreenMobile() {
           alert={active.length > 0 || !!unpaid}
           onPressAvatar={() => navigation.navigate("Tabs", { screen: "Profile" })}
           onPressBell={() => navigation.navigate("Tabs", { screen: "Orders" })}
+          title={
+            !ordersLoaded
+              ? undefined
+              : active.length > 0
+                ? `${active.length} parcel${active.length === 1 ? "" : "s"} on the way`
+                : "Nothing on the way yet"
+          }
         >
           {buyForMeLaunched ? (
             <View className="mb-3">

@@ -24,9 +24,11 @@ export interface QuickAction {
  * carries a border or a shadow.
  */
 export function QuickTiles({ actions }: { actions: QuickAction[] }) {
+  // v7: round icon buttons with the label under them; the first action is the
+  // lime one (Von Restorff: one thing stands out), the rest are outlined.
   return (
-    <View className="flex-row" style={{ gap: 12 }}>
-      {actions.map((action) => (
+    <View className="flex-row justify-around" style={{ gap: 8 }}>
+      {actions.map((action, i) => (
         <Pressable
           key={action.label}
           onPress={action.onPress}
@@ -34,17 +36,16 @@ export function QuickTiles({ actions }: { actions: QuickAction[] }) {
           accessibilityRole="button"
           accessibilityLabel={action.label}
           accessibilityState={{ disabled: !!action.disabled }}
-          className={`flex-1 items-center rounded-card border border-hairline bg-surface px-3 py-3.5 active:bg-hairline ${
-            action.disabled ? "opacity-50" : ""
-          }`}
+          className={`flex-1 items-center active:opacity-80 ${action.disabled ? "opacity-50" : ""}`}
         >
-          <View className="mb-2 h-10 w-10 items-center justify-center rounded-pill bg-lime">
+          <View
+            className={`mb-2 h-[60px] w-[60px] items-center justify-center rounded-pill ${
+              i === 0 ? "border-b-4 border-lime-edge bg-lime" : "border-2 border-line bg-surface"
+            }`}
+          >
             {action.icon}
           </View>
-          <Text
-            className="text-center font-sans-medium text-body text-ink"
-            numberOfLines={2}
-          >
+          <Text className="text-center font-sans-bold text-meta text-ink" numberOfLines={2}>
             {action.label}
           </Text>
         </Pressable>

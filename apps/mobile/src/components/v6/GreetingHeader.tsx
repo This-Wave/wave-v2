@@ -22,6 +22,7 @@ export function GreetingHeader({
   onPressAvatar,
   onPressBell,
   note,
+  title,
   children,
   wholeName,
 }: {
@@ -40,6 +41,8 @@ export function GreetingHeader({
    * line of text was a card Home did not need.
    */
   note?: ReactNode;
+  /** v7: the screen's one-line status in Nunito, e.g. "1 parcel on the way". */
+  title?: string;
   children?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
@@ -47,7 +50,7 @@ export function GreetingHeader({
 
   return (
     <View
-      className="rounded-b-card bg-ink px-gutter pb-5"
+      className="bg-canvas px-gutter pb-3"
       style={{ paddingTop: Math.max(insets.top, 12) + 12 }}
     >
       {/* The greeting rides the avatar row rather than sitting under it. On its
@@ -60,18 +63,18 @@ export function GreetingHeader({
           onPress={onPressAvatar}
           accessibilityRole="button"
           accessibilityLabel={`${name}. Open your profile`}
-          className="h-11 w-11 items-center justify-center overflow-hidden rounded-pill bg-white/15 active:opacity-80"
+          className="h-11 w-11 items-center justify-center overflow-hidden rounded-pill border-2 border-hairline bg-surface active:opacity-80"
         >
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={{ width: 44, height: 44 }} resizeMode="cover" />
           ) : (
-            <UserIcon size={22} color={colors.white} strokeWidth={1.8} />
+            <UserIcon size={22} color={colors.ink} strokeWidth={1.8} />
           )}
         </Pressable>
 
         <View className="min-w-0 flex-1 px-3">
-          <Text className="font-sans text-meta text-white/70">Hello,</Text>
-          <Text className="font-sans-bold text-subheading text-white" numberOfLines={1}>
+          <Text className="font-sans text-meta text-muted">Hello,</Text>
+          <Text className="font-sans-bold text-subheading text-ink" numberOfLines={1}>
             {shown}
           </Text>
         </View>
@@ -80,9 +83,9 @@ export function GreetingHeader({
           onPress={onPressBell}
           accessibilityRole="button"
           accessibilityLabel={alert ? "Your orders. You have an order in progress" : "Your orders"}
-          className="h-11 w-11 items-center justify-center rounded-pill bg-white/15 active:opacity-80"
+          className="h-11 w-11 items-center justify-center rounded-pill border-2 border-hairline bg-surface active:opacity-80"
         >
-          <BellIcon size={20} color={colors.white} strokeWidth={1.8} />
+          <BellIcon size={20} color={colors.ink} strokeWidth={1.8} />
           {alert ? (
             // Lime on ink is the one pairing that works at this size; a dot
             // carries no text, so the state is in the label above.
@@ -90,6 +93,12 @@ export function GreetingHeader({
           ) : null}
         </Pressable>
       </View>
+
+      {title ? (
+        <Text accessibilityRole="header" className="mt-5 font-display text-heading text-ink">
+          {title}
+        </Text>
+      ) : null}
 
       {note ? <View className="mt-5">{note}</View> : null}
 
