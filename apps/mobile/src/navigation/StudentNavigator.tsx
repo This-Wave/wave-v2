@@ -105,6 +105,7 @@ export type StudentStackParamList = {
         description?: string;
         senderName?: string;
         senderPhone?: string;
+        promoCode?: string;
       })
     | undefined;
   OrderTracking: { orderId: string };

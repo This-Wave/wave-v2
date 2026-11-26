@@ -149,3 +149,32 @@ describe("POST /orders — Accra zone pricing", () => {
     expect(res.statusCode).toBe(400);
   });
 });
+
+describe("POST /orders — first-order code", () => {
+  const points = [
+    { id: ZONE_POINT, zone: zone("10.00") },
+    { id: CAMPUS, zone: null },
+  ];
+
+  test("HELLOHILL takes 25% off the delivery fee and is kept on the order", async () => {
+    const { res, created } = await pickup(ZONE_POINT, CAMPUS, points, { packageSize: "swell", promoCode: "hellohill" });
+    expect(res.statusCode).toBe(201);
+    expect(created.deliveryFee).toBe(85);
+    expect(created.discountApplied).toBe(25);
+    expect(created.promoCode).toBe("HELLOHILL");
+    expect(created.totalAmount).toBe(63.75);
+  });
+
+  test("a wrong code is refused before any order is made", async () => {
+    const { res, created } = await pickup(ZONE_POINT, CAMPUS, points, { packageSize: "swell", promoCode: "NOPE" });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/doesn't exist/);
+    expect(created).toBeUndefined();
+  });
+
+  test("no code, no discount", async () => {
+    const { created } = await pickup(ZONE_POINT, CAMPUS, points, { packageSize: "swell" });
+    expect(created.discountApplied).toBe(0);
+    expect(created.promoCode).toBeNull();
+  });
+});

@@ -466,6 +466,10 @@ model Order {
   itemPrice        Decimal? @map("item_price") @db.Decimal(10, 2)
   deliveryFee      Decimal  @map("delivery_fee") @db.Decimal(10, 2)
   discountApplied  Decimal  @default(0) @map("discount_applied") @db.Decimal(5, 2)
+  /// A first-order promo code (e.g. HELLOHILL) that set `discountApplied`.
+  /// Null for a loyalty discount: payments and refunds read this to keep the
+  /// promo from spending or granting a loyalty stamp card.
+  promoCode        String?  @map("promo_code")
   surchargeApplied Decimal  @default(0) @map("surcharge_applied") @db.Decimal(5, 2)
   totalAmount      Decimal  @map("total_amount") @db.Decimal(10, 2)
 

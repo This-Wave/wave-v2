@@ -34,6 +34,8 @@ export const PLATFORM_CONFIG_KEYS = {
   size_price_wave: { min: 0, max: 1000, integer: false, label: "Wave size price (GH₵)" },
   size_price_swell: { min: 0, max: 1000, integer: false, label: "Swell size price (GH₵)" },
   size_price_tide: { min: 0, max: 1000, integer: false, label: "Tide size price (GH₵)" },
+  // 0 turns the first-order code off.
+  promo_first_order_pct: { min: 0, max: 100, integer: false, label: "First-order code discount on delivery (%)" },
 } as const;
 
 export type PlatformConfigKey = keyof typeof PLATFORM_CONFIG_KEYS;

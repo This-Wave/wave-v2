@@ -107,7 +107,8 @@ export async function confirmDeliveryFeePaid(args: {
   // `decrement` by the threshold rather than a write to 0: a delivery that
   // completed between the card filling and this order being paid is a stamp the
   // student earned towards their *next* card, and setting 0 would eat it.
-  if (Number(order.discountApplied) > 0) {
+  // A first-order code is not a stamp card: nothing to spend.
+  if (Number(order.discountApplied) > 0 && !order.promoCode) {
     const thresholdRow = await fastify.prisma.platformConfig.findUnique({
       where: { key: "loyalty_threshold" },
     });

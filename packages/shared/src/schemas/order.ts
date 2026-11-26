@@ -77,6 +77,8 @@ export const createOrderSchema = z
      */
     senderName: z.string().trim().min(2).max(80).optional(),
     senderPhone: z.string().trim().min(9).max(15).optional(),
+    /** First-order code (FIRST_ORDER_PROMO_CODE). Checked and priced server-side. */
+    promoCode: z.string().trim().max(32).optional(),
     pickupNotes: z.string().trim().max(300).optional(),
     packageSize: z.enum(PACKAGE_SIZES).optional(),
   })
