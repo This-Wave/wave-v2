@@ -295,22 +295,25 @@ export const SettingsIcon: Icon = ({ size = 18, color = colors.muted, strokeWidt
  * change with it. Keep the two in step — if the strokes move there, move them
  * here.
  */
-export const WaveMarkIcon = ({ size = 28 }: { size?: number }) => (
-  <Svg width={size} height={size} viewBox="0 0 1024 1024">
-    <Rect width={1024} height={1024} fill={colors.ink} />
+/**
+ * v7 mark (logo B, chosen 2026-11-05): a lime checkpoint pin with a wave
+ * through it, on an ink tile. Same geometry as brand/logo and the canvas.
+ */
+export const WaveMarkIcon = ({ size = 28, inverse = false }: { size?: number; inverse?: boolean }) => (
+  <Svg width={size} height={size} viewBox="0 0 48 48">
+    <Rect width={48} height={48} rx={12} fill={inverse ? colors.lime : colors.ink} />
     <Path
-      d="M 192 412 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"
-      fill="none"
-      stroke={colors.lime}
-      strokeWidth={76}
-      strokeLinecap="round"
+      d="M24 3c-9.6 0-17.5 7.6-17.5 17C6.5 33 24 45 24 45s17.5-12 17.5-25C41.5 10.6 33.6 3 24 3z"
+      fill={inverse ? colors.ink : colors.lime}
+      transform="translate(5.3 5.3) scale(0.78)"
     />
     <Path
-      d="M 192 612 c 77 -85, 136 -85, 213 0 c 77 85, 136 85, 213 0 c 77 -85, 137 -85, 214 0"
+      d="M12.5 21 q2.9 -4.2 5.75 0 t5.75 0 t5.75 0 t5.75 0"
       fill="none"
-      stroke={colors.lime}
-      strokeWidth={76}
+      stroke={inverse ? colors.lime : colors.ink}
+      strokeWidth={3.6}
       strokeLinecap="round"
+      transform="translate(5.3 5.3) scale(0.78)"
     />
   </Svg>
 );
@@ -339,5 +342,12 @@ export const StoreIcon: Icon = ({ size = 20, color = colors.ink, strokeWidth = 1
   <Svg {...box({ size })} fill="none">
     <Path d="M4 9.5V20h16V9.5M3 9.5 4.5 4h15L21 9.5H3Z" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />
     <Path d="M9.5 20v-5h5v5" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />
+  </Svg>
+);
+
+/** v7: select boxes (zone, campus, pickup point). */
+export const ChevronDownIcon: Icon = ({ size = 18, color = colors.ink, strokeWidth = 2 }) => (
+  <Svg {...box({ size })} fill="none">
+    <Path d="M6 9l6 6 6-6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );

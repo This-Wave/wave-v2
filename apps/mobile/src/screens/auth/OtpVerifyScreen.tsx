@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { localPhone } from "../../components/v7/InfoRows";
+import { Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
 import {
+  ActionBar,
+  Button,
   CodeInput,
   Gutter,
   Screen,
@@ -10,7 +13,6 @@ import {
   TopBar,
 } from "../../components/v6";
 import { supabase } from "../../lib/supabase";
-import { colors } from "../../theme/tokens";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "OtpVerify">;
 
@@ -76,9 +78,9 @@ export function OtpVerifyScreen({ navigation, route }: Props) {
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-4">
-          <Text className="mb-2 font-display text-heading text-ink">Enter the code</Text>
-          <Text className="mb-10 font-sans text-body text-muted">
-            We sent six digits to <Text className="font-sans-medium text-ink">{phone}</Text>.
+          <Text accessibilityRole="header" className="mb-2 font-display text-heading text-ink">Enter the code</Text>
+          <Text className="mb-6 font-sans text-ui text-muted">
+            Sent to <Text className="font-sans-bold text-ink">{localPhone(phone) ?? phone}</Text>
           </Text>
 
           <CodeInput
@@ -97,30 +99,29 @@ export function OtpVerifyScreen({ navigation, route }: Props) {
             </Text>
           ) : null}
 
-          <View className="mt-6 items-center">
+          <View className="mt-5 items-start">
             {secondsLeft > 0 ? (
               <Text className="font-sans text-body text-muted">
-                Didn't arrive? You can resend in {minutes}:{seconds.toString().padStart(2, "0")}
+                Resend in {minutes}:{seconds.toString().padStart(2, "0")}
               </Text>
             ) : (
               <Text
-                className="font-sans-bold text-body text-ink"
+                className="font-sans-bold text-body text-link"
                 accessibilityRole="button"
                 onPress={handleResend}
               >
-                Send it again
+                Send the code again
               </Text>
             )}
           </View>
         </Gutter>
       </ScreenBody>
 
-      {loading ? (
-        <View className="items-center pb-8" accessibilityLiveRegion="polite">
-          <ActivityIndicator color={colors.ink} />
-          <Text className="mt-2 font-sans text-body text-muted">Checking the code</Text>
-        </View>
-      ) : null}
+      {/* v7 canvas: a Verify key that wakes at six digits. The code still
+          checks itself the moment the sixth digit lands. */}
+      <ActionBar>
+        <Button label="Verify" onPress={() => void handleConfirm()} loading={loading} disabled={code.length !== 6} />
+      </ActionBar>
     </Screen>
   );
 }
