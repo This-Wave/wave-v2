@@ -69,7 +69,7 @@ export function OrderDetailScreen() {
             {order ? formatGhs(Number(order.deliveryFee)) : "—"}
           </Text>
 
-          <Text className="mb-2 font-sans-medium text-body text-ink">The job</Text>
+          <Text className="mb-2 font-sans-bold text-body text-ink">The job</Text>
           <RowGroup>
             <Row
               title={order?.shop?.name ?? "Shop"}
@@ -89,14 +89,14 @@ export function OrderDetailScreen() {
             />
           </RowGroup>
 
-          <Text className="mb-2 mt-7 font-sans-medium text-body text-ink">What to buy</Text>
+          <Text className="mb-2 mt-7 font-sans-bold text-body text-ink">What to buy</Text>
           <View className="rounded-card border border-hairline bg-surface p-4">
             <Text className="font-sans text-body text-ink">{order?.itemDescription ?? "—"}</Text>
           </View>
 
           {order?.notes ? (
             <>
-              <Text className="mb-2 mt-7 font-sans-medium text-body text-ink">
+              <Text className="mb-2 mt-7 font-sans-bold text-body text-ink">
                 Notes from the student
               </Text>
               <View className="rounded-card border border-hairline bg-surface p-4">

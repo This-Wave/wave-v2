@@ -115,7 +115,7 @@ function OrderTrackingPanel({ orderId, onClose }: { orderId: string; onClose: ()
         <View className="mb-5 flex-row items-center gap-3 rounded-card bg-canvas p-4">
           <Thumb size={44} />
           <View className="flex-1">
-            <Text className="font-sans-medium text-body text-ink">{rider.fullName}</Text>
+            <Text className="font-sans-bold text-body text-ink">{rider.fullName}</Text>
             <Text className="font-sans text-body text-muted">Your runner</Text>
           </View>
           {rider.phone ? (
@@ -130,7 +130,7 @@ function OrderTrackingPanel({ orderId, onClose }: { orderId: string; onClose: ()
         </View>
       ) : null}
 
-      <Text className="mb-2 font-sans-medium text-body text-ink">Your order</Text>
+      <Text className="mb-2 font-sans-bold text-body text-ink">Your order</Text>
       <RowGroup>
         <Row
           title={order?.itemDescription ?? "—"}
@@ -270,7 +270,7 @@ function WaveCalendarPanel({ onClose }: { onClose: () => void }) {
       />
       {selected ? (
         <View className="mt-4 rounded-card bg-canvas p-4">
-          <Text className="font-sans-medium text-body text-ink">{formatFullDay(selected)}</Text>
+          <Text className="font-sans-bold text-body text-ink">{formatFullDay(selected)}</Text>
           <Text className="mt-1 font-sans text-body text-muted">
             {isRush
               ? `Rush — ${DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT}% more on the fee.`
@@ -298,7 +298,7 @@ function PaymentMethodsPanel({ onClose }: { onClose: () => void }) {
         <Row title="Card" meta="Visa or Mastercard" chevron={false} />
       </RowGroup>
       <View className="mt-5 rounded-card bg-canvas p-4">
-        <Text className="mb-1 font-sans-semibold text-meta text-muted">WHY NOTHING TO SET UP</Text>
+        <Text className="mb-1 font-sans-bold text-body text-ink">Why nothing to set up</Text>
         <Text className="font-sans text-body text-ink">
           Paystack handles the payment. Wave never stores your card or wallet details.
         </Text>
@@ -348,7 +348,7 @@ function RiderClaimPanel({ orderId, onClose }: { orderId: string; onClose: () =>
           chevron={false}
         />
       </RowGroup>
-      <Text className="mb-2 mt-5 font-sans-medium text-body text-ink">What to buy</Text>
+      <Text className="mb-2 mt-5 font-sans-bold text-body text-ink">What to buy</Text>
       <View className="rounded-card bg-canvas p-4">
         {order?.items?.length ? (
           order.items.map((item, i) => (
@@ -365,7 +365,7 @@ function RiderClaimPanel({ orderId, onClose }: { orderId: string; onClose: () =>
       </View>
       {order?.notes ? (
         <>
-          <Text className="mb-2 mt-5 font-sans-medium text-body text-ink">Notes</Text>
+          <Text className="mb-2 mt-5 font-sans-bold text-body text-ink">Notes</Text>
           <View className="rounded-card bg-canvas p-4">
             <Text className="font-sans text-body text-ink">{order.notes}</Text>
           </View>
@@ -413,7 +413,7 @@ function ShopIncomingPanel({ orderId, onClose }: { orderId: string; onClose: () 
       <Text className="mb-5 mt-1 font-display text-heading text-ink">
         {order?.totalAmount ? formatGhs(Number(order.totalAmount)) : "—"}
       </Text>
-      <Text className="mb-2 font-sans-medium text-body text-ink">What they want</Text>
+      <Text className="mb-2 font-sans-bold text-body text-ink">What they want</Text>
       <View className="mb-4 rounded-card bg-canvas p-4">
         {order?.items?.length ? (
           order.items.map((item, i) => (

@@ -4,6 +4,7 @@ import { useNavigation, useRoute, type RouteProp } from "@react-navigation/nativ
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
+import { CodeTicket } from "../../components/v7/Signature";
 import { useDeliveryPin, useOrder, useResendPin } from "../../lib/orders";
 import { apiErrorMessage } from "../../lib/apiError";
 import { shortOrderRef } from "./orderPresenters";
@@ -43,52 +44,29 @@ export function PickupPinScreen() {
       <TopBar title={shortOrderRef(params.orderId)} onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>
-        <Gutter className="pt-4">
-          <Text className="mb-2 font-display text-heading text-ink">Your delivery code</Text>
-          <Text className="mb-8 font-sans text-body text-muted">
-            Read this out to your runner at {order?.checkpoint?.name ?? "your checkpoint"} — they
-            type it in to close the delivery. We also text it to your phone.
+        <Gutter className="pt-4" style={{ gap: 16 }}>
+          <Text accessibilityRole="header" className="font-display text-heading text-ink">Your code</Text>
+          <Text className="font-sans text-ui text-muted">
+            Show it at {order?.checkpoint?.name ?? "your pickup point"}. Only you can collect.
           </Text>
-
-          <View className="mb-6 items-center rounded-card border border-hairline bg-surface px-5 py-8">
-            {isLoading ? (
-              <Text className="font-sans text-body text-muted">Loading code…</Text>
-            ) : isError || !pin ? (
-              <View className="items-center">
-                <Text className="mb-3 text-center font-sans text-body text-muted">
-                  Couldn’t load your code.
-                </Text>
-                <Button label="Try again" variant="ghost" full={false} onPress={() => void refetch()} />
-              </View>
-            ) : (
-              <Text
-                className="font-sans-bold text-ink"
-                style={{ fontSize: 40, letterSpacing: 10 }}
-                accessibilityLabel={`Delivery code ${pin.split("").join(" ")}`}
-              >
-                {pin}
-              </Text>
-            )}
-          </View>
-
-          <View className="rounded-card border border-hairline bg-surface p-5">
-            <Text className="mb-1 font-sans-semibold text-meta text-muted">DIDN'T GET THE TEXT?</Text>
-            <Text className="font-sans text-body text-ink">
-              Use the code above — it works without the SMS. You can also send it again to the
-              number on your account. One text per minute.
-            </Text>
-          </View>
-
-          {note ? <Text className="mt-4 font-sans text-body text-ink">{note}</Text> : null}
+          {isError ? (
+            <View className="items-center rounded-card bg-danger-bg p-5" style={{ gap: 10 }}>
+              <Text className="text-center font-sans text-body text-danger">Couldn't load your code.</Text>
+              <Button label="Try again" variant="ghost" full={false} onPress={() => void refetch()} />
+            </View>
+          ) : (
+            <CodeTicket pin={isLoading ? null : (pin ?? null)} large note="Works without the SMS" />
+          )}
+          {note ? <Text className="font-sans text-body text-ink">{note}</Text> : null}
         </Gutter>
       </ScreenBody>
 
       <ActionBar>
         <Button
-          label="Send the code again"
+          label="Text me the code again"
           onPress={handleResend}
           loading={resend.isPending}
-          variant="primary"
+          variant="ghost"
         />
       </ActionBar>
     </Screen>

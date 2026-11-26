@@ -47,7 +47,7 @@ export function WaveCountdown({ wave }: { wave: WaveInfo }) {
       </Text>
 
       {wave.closed ? (
-        <Text className="mt-4 font-sans-medium text-body text-ink">
+        <Text className="mt-4 font-sans-bold text-body text-ink">
           Ordering has closed for this one.
         </Text>
       ) : (

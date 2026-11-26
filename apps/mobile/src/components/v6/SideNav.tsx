@@ -92,8 +92,8 @@ export function SideNav({ role }: { role: AppRole }) {
     >
       <View>
         <View className="mb-12 flex-row items-center gap-2.5 px-2">
-          <View className="h-9 w-9 items-center justify-center rounded-pill bg-lime">
-            <Text className="font-sans-bold text-ui text-ink">W</Text>
+          <View className="h-9 w-9 items-center justify-center rounded-input bg-ink">
+            <Text className="font-display text-ui text-lime">w</Text>
           </View>
           <View>
             <Text className="font-sans-bold text-subheading text-ink">wave</Text>
@@ -101,7 +101,7 @@ export function SideNav({ role }: { role: AppRole }) {
           </View>
         </View>
 
-        <Text className="mb-3 px-2 font-sans-semibold text-meta text-muted">MENU</Text>
+        <Text className="mb-3 px-2 font-sans-bold text-body text-ink">Menu</Text>
         <View className="gap-1">
           {menu.items.map(({ label, tab, Icon }) => {
             const focused = activeTab === tab;
@@ -111,19 +111,17 @@ export function SideNav({ role }: { role: AppRole }) {
                 accessibilityRole="button"
                 accessibilityState={focused ? { selected: true } : {}}
                 onPress={() => goToTab(tab)}
-                className={`flex-row items-center gap-3 rounded-input px-3 py-3 ${
-                  focused ? "bg-lime-faint" : ""
+                className={`flex-row items-center gap-3 rounded-input border-2 px-3 py-3 ${
+                  focused ? "border-ink bg-wash" : "border-transparent"
                 }`}
               >
                 <Icon size={20} color={focused ? colors.ink : colors.muted} strokeWidth={1.7} />
                 <Text
-                  className={`font-sans-medium text-ui ${focused ? "text-ink" : "text-muted"}`}
+                  className={`font-sans-bold text-ui ${focused ? "text-ink" : "text-muted"}`}
                 >
                   {label}
                 </Text>
-                {focused ? (
-                  <View className="ml-auto h-1.5 w-1.5 rounded-pill bg-lime" />
-                ) : null}
+
               </Pressable>
             );
           })}

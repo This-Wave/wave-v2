@@ -40,7 +40,7 @@ export function PhoneField({
   return (
     <View>
       {label ? (
-        <Text nativeID={`${id}-label`} className="mb-2 font-sans-medium text-body text-ink">
+        <Text nativeID={`${id}-label`} className="mb-2 font-sans-bold text-body text-ink">
           {label}
         </Text>
       ) : null}

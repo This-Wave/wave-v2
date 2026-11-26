@@ -16,10 +16,10 @@ import {
   Screen,
   ScreenBody,
   StatusPill,
-  Steps,
   Thumb,
   TopBar,
 } from "../../components/v6";
+import { RouteLine, Tracker } from "../../components/v7/Signature";
 import { PhoneIcon } from "../../components/icons";
 import { useConfirmReceipt } from "../../lib/orders";
 import { colors } from "../../theme/tokens";
@@ -87,19 +87,26 @@ export function OrderTrackingScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter>
-          <View className="mb-6">
+          <View className="mb-5">
             {pill ? <StatusPill label={pill.label} tone={pill.tone} /> : null}
-            <Text className="mt-3 font-display text-heading text-ink">
+            <Text accessibilityRole="header" className="mt-3 font-display text-heading text-ink">
               {headline(order?.status)}
             </Text>
-            <Text className="mt-1 font-sans text-body text-muted">
-              {order?.orderType === "pickup" && order.originCheckpoint
-                ? `${order.originCheckpoint.name} → ${order.checkpoint?.name}`
-                : order?.checkpoint?.name
-                  ? `Handing over at ${order.checkpoint.name}`
-                  : "Delivery in progress"}
-            </Text>
           </View>
+
+          {/* v7 route card: pickup (sender) above, you below; fills as it moves. */}
+          {order ? (
+            <View className="mb-5 rounded-card border border-hairline bg-surface p-4">
+              <RouteLine
+                fromLabel={order.orderType === "pickup" ? "From" : "Buying at"}
+                from={order.senderName ?? order.originCheckpoint?.name ?? order.shop?.name ?? "Accra"}
+                fromSub={order.senderName ? order.originCheckpoint?.name : null}
+                toLabel="To you at"
+                to={order.checkpoint?.name ?? "your pickup point"}
+                progress={Math.min(1, (currentStepIndex(order.status) + 1) / Math.max(orderSteps(order).length, 1))}
+              />
+            </View>
+          ) : null}
 
           {packedByWave ? (
             <View className="mb-6 flex-row items-center justify-between rounded-card border border-hairline bg-surface p-5">
@@ -139,14 +146,22 @@ export function OrderTrackingScreen() {
           ) : null}
 
           <View className="mb-6 rounded-card border border-hairline bg-surface p-5">
-            {order ? <Steps steps={orderSteps(order)} currentIndex={currentStepIndex(order.status)} /> : null}
+            {order ? (
+              <Tracker
+                steps={orderSteps(order).map((st, i) => ({
+                  label: st.label,
+                  time: typeof st.detail === "string" ? st.detail : null,
+                  done: i <= currentStepIndex(order.status),
+                }))}
+              />
+            ) : null}
           </View>
 
           {rider ? (
             <View className="mb-6 flex-row items-center gap-3 rounded-card border border-hairline bg-surface p-4">
               <Thumb size={44} />
               <View className="flex-1">
-                <Text className="font-sans-medium text-body text-ink">{rider.fullName}</Text>
+                <Text className="font-sans-bold text-body text-ink">{rider.fullName}</Text>
                 <Text className="font-sans text-body text-muted">Your runner</Text>
               </View>
               {rider.phone ? (
@@ -161,7 +176,7 @@ export function OrderTrackingScreen() {
             </View>
           ) : null}
 
-          <Text className="mb-3 font-sans-medium text-subheading text-ink">Your order</Text>
+          <Text className="mb-3 font-sans-bold text-subheading text-ink">Your order</Text>
           <RowGroup>
             <Row
               title={order?.itemDescription ?? "—"}

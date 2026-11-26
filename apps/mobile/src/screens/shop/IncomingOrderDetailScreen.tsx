@@ -92,7 +92,7 @@ export function IncomingOrderDetailScreen() {
 
           {/* Itemised, so the kitchen can read quantities off the screen. Falls
               back to the summary line for orders placed before baskets existed. */}
-          <Text className="mb-2 font-sans-medium text-body text-ink">What they want</Text>
+          <Text className="mb-2 font-sans-bold text-body text-ink">What they want</Text>
           <View className="mb-2 rounded-card border border-hairline bg-surface p-4">
             {order?.items?.length ? (
               order.items.map((item, i) => (

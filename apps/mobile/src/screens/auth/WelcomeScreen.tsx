@@ -147,7 +147,7 @@ export function WelcomeScreen({ navigation }: Props) {
           />
           {(universities?.length ?? 0) > 1 ? (
             <View>
-              <Text className="mb-2 font-sans-medium text-body text-ink">Your campus</Text>
+              <Text className="mb-2 font-sans-bold text-body text-ink">Your campus</Text>
               <RowGroup>
                 {(universities ?? []).map((u) => (
                   <Row

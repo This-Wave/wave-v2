@@ -87,7 +87,7 @@ function OrderHistoryMobile() {
         {live.length > 0 ? (
           <View className="mb-section">
             <Gutter className="mb-3">
-              <Text className="font-sans-medium text-subheading text-ink">Happening now</Text>
+              <Text className="font-sans-bold text-subheading text-ink">Happening now</Text>
             </Gutter>
             <Gutter style={{ gap: 12 }}>
               {live.map((o) => (
@@ -100,7 +100,7 @@ function OrderHistoryMobile() {
         {unpaid.length > 0 ? (
           <View className="mb-section">
             <Gutter className="mb-3">
-              <Text className="font-sans-medium text-subheading text-ink">Waiting for payment</Text>
+              <Text className="font-sans-bold text-subheading text-ink">Waiting for payment</Text>
             </Gutter>
             <Gutter style={{ gap: 12 }}>
               {unpaid.map((o) => (
@@ -108,7 +108,7 @@ function OrderHistoryMobile() {
                   <View className="mb-3 flex-row items-center gap-3">
                     <Thumb uri={o.shop?.logoUrl} size={44} />
                     <View className="flex-1">
-                      <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
+                      <Text className="font-sans-bold text-body text-ink" numberOfLines={1}>
                         {o.shop?.name ?? "Your order"}
                       </Text>
                       <Text className="font-sans text-body text-muted" numberOfLines={1}>
@@ -203,7 +203,7 @@ function OrderHistoryMobile() {
                     >
                       <Thumb uri={o.shop.logoUrl} />
                       <View className="min-w-0 flex-1">
-                        <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
+                        <Text className="font-sans-bold text-body text-ink" numberOfLines={1}>
                           {o.shop.name}
                         </Text>
                         <Text className="font-sans text-body text-muted" numberOfLines={1}>
@@ -225,9 +225,9 @@ function OrderHistoryMobile() {
                       accessibilityLabel={`Order from ${o.shop.name} again`}
                       accessibilityHint="Opens the shop's menu for the next Wave"
                       hitSlop={6}
-                      className="min-h-[44px] justify-center rounded-pill border border-ink px-4"
+                      className="min-h-[44px] justify-center rounded-input border-2 border-b-4 border-line px-4"
                     >
-                      <Text className="font-sans-medium text-body text-ink">Order again</Text>
+                      <Text className="font-sans-bold text-body text-ink">Order again</Text>
                     </Pressable>
                   </View>
                 ) : (
@@ -256,7 +256,7 @@ function LiveRow({ order, navigation }: { order: Order; navigation: Nav }) {
       <View className="mb-3 flex-row items-center gap-3">
         <Thumb uri={order.shop?.logoUrl} size={44} />
         <View className="flex-1">
-          <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
+          <Text className="font-sans-bold text-body text-ink" numberOfLines={1}>
             {order.shop?.name ?? "Your order"}
           </Text>
           <Text className="font-sans text-body text-muted" numberOfLines={1}>
@@ -267,7 +267,7 @@ function LiveRow({ order, navigation }: { order: Order; navigation: Nav }) {
       </View>
       <ProgressRail ratio={orderProgress(order.status)} />
       <Text
-        className="pt-3 font-sans-medium text-body text-ink"
+        className="pt-3 font-sans-bold text-body text-ink"
         accessibilityRole="button"
         onPress={() => openOrderTracking(navigation, order.id)}
       >

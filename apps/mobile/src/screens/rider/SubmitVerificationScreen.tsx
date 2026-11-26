@@ -215,7 +215,7 @@ export function SubmitVerificationScreen() {
             </View>
           ) : null}
 
-          <Text className="mb-2 font-sans-medium text-body text-ink">Which ID?</Text>
+          <Text className="mb-2 font-sans-bold text-body text-ink">Which ID?</Text>
           <View className="mb-7 flex-row flex-wrap gap-2">
             {allowedIdTypes.map((type) => (
               <Chip
@@ -236,14 +236,14 @@ export function SubmitVerificationScreen() {
             />
           </View>
 
-          <Text className="mb-2 font-sans-medium text-body text-ink">Photo of your ID</Text>
+          <Text className="mb-2 font-sans-bold text-body text-ink">Photo of your ID</Text>
           <PhotoSlot
             uri={idPhoto?.uri}
             hint="Tap to choose a photo of your ID"
             onPress={pickIdPhoto}
           />
 
-          <Text className="mb-2 mt-7 font-sans-medium text-body text-ink">A selfie</Text>
+          <Text className="mb-2 mt-7 font-sans-bold text-body text-ink">A selfie</Text>
           <PhotoSlot uri={selfie?.uri} hint="Tap to take a selfie" onPress={takeSelfie} />
 
           {isExternal ? (
@@ -256,7 +256,7 @@ export function SubmitVerificationScreen() {
                 </Text>
               </View>
 
-              <Text className="mb-2 mt-5 font-sans-medium text-body text-ink">A second ID</Text>
+              <Text className="mb-2 mt-5 font-sans-bold text-body text-ink">A second ID</Text>
               <View className="mb-4 flex-row flex-wrap gap-2">
                 {(Object.keys(ID_TYPE_LABELS) as IdType[])
                   .filter((type) => type !== idType && type !== "student_id")
@@ -283,7 +283,7 @@ export function SubmitVerificationScreen() {
                 onPress={() => pickInto(setSecondIdPhoto)}
               />
 
-              <Text className="mb-2 mt-7 font-sans-medium text-body text-ink">Proof of address</Text>
+              <Text className="mb-2 mt-7 font-sans-bold text-body text-ink">Proof of address</Text>
               <PhotoSlot
                 uri={addressPhoto?.uri}
                 hint="A bill, tenancy note or letter showing where you live"

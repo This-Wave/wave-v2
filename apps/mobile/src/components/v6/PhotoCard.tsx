@@ -71,7 +71,7 @@ export function PhotoCard({
       {overlay ? <View className="absolute right-2 top-2">{overlay}</View> : null}
 
       <View className="pt-3">
-        <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
+        <Text className="font-sans-bold text-body text-ink" numberOfLines={1}>
           {title}
         </Text>
         {meta ? (

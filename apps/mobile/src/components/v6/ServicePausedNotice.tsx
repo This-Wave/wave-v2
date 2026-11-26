@@ -31,7 +31,7 @@ export function ServicePausedNotice({
       accessibilityLiveRegion="polite"
       className="rounded-card border border-hairline bg-surface p-4"
     >
-      <Text className="font-sans-medium text-body text-ink">{service} is paused</Text>
+      <Text className="font-sans-bold text-body text-ink">{service} is paused</Text>
       <Text className="mt-1 font-sans text-body text-ink">{message}</Text>
       {resumeAt ? (
         <Text className="mt-1 font-sans text-body text-muted">Back {formatResume(resumeAt)}.</Text>

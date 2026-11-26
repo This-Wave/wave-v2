@@ -147,7 +147,7 @@ export function ProfileSetupScreen({ route }: Props) {
 
           {role === "rider" ? (
             <View className="mb-8">
-              <Text className="mb-2 font-sans-medium text-body text-ink">Are you a student here?</Text>
+              <Text className="mb-2 font-sans-bold text-body text-ink">Are you a student here?</Text>
               <View className="gap-2">
                 {RIDER_TYPE_OPTIONS.map((option) => {
                   const isSelected = riderType === option.value;
@@ -162,7 +162,7 @@ export function ProfileSetupScreen({ route }: Props) {
                       }`}
                     >
                       <View className="flex-1">
-                        <Text className="font-sans-medium text-body text-ink">{option.title}</Text>
+                        <Text className="font-sans-bold text-body text-ink">{option.title}</Text>
                         <Text className="mt-0.5 font-sans text-body text-muted">{option.blurb}</Text>
                       </View>
                       {isSelected ? (
@@ -215,7 +215,7 @@ export function ProfileSetupScreen({ route }: Props) {
           </View>
           ) : null}
 
-          <Text className="mb-2 font-sans-medium text-body text-ink">Campus</Text>
+          <Text className="mb-2 font-sans-bold text-body text-ink">Campus</Text>
           <RowGroup>
             <Row
               title={university?.name ?? "Choose your campus"}
@@ -256,7 +256,7 @@ export function ProfileSetupScreen({ route }: Props) {
               }`}
             >
               <View className="flex-1">
-                <Text className="font-sans-medium text-body text-ink">{u.name}</Text>
+                <Text className="font-sans-bold text-body text-ink">{u.name}</Text>
                 <Text className="font-sans text-body text-muted">
                   {u.city}, {u.country}
                 </Text>

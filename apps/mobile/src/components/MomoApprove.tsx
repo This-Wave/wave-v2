@@ -61,7 +61,7 @@ export function MomoApprove({
         </View>
         <View className="items-center gap-2" accessibilityLiveRegion="polite">
           <Text className="text-center font-display text-heading text-ink">Approve on your phone</Text>
-          <Text className="font-sans-bold text-ink" style={{ fontSize: 40, lineHeight: 44 }}>
+          <Text className="font-display text-ink" style={{ fontSize: 40, lineHeight: 44 }}>
             {amountLabel}
           </Text>
           <Text className="font-sans text-ui text-muted">

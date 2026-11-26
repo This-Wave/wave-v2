@@ -31,7 +31,7 @@ export function ActiveDeliveryBar() {
     >
       <View className="flex-row items-center gap-3">
         <View className="min-w-0 flex-1">
-          <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
+          <Text className="font-sans-bold text-body text-ink" numberOfLines={1}>
             {active.shop?.name ?? "Active delivery"}
           </Text>
           <Text className="font-sans text-meta text-muted" numberOfLines={1}>
@@ -39,7 +39,7 @@ export function ActiveDeliveryBar() {
           </Text>
         </View>
         <StatusPill label={pill.label} tone={pill.tone} />
-        <Text className="font-sans-medium text-body text-ink">Open</Text>
+        <Text className="font-sans-bold text-body text-ink">Open</Text>
       </View>
     </Pressable>
   );

@@ -101,7 +101,7 @@ export function StudentHomeWeb() {
             accessibilityRole="button"
             className="rounded-pill bg-surface px-4 py-2.5 active:bg-hairline"
           >
-            <Text className="font-sans-medium text-body text-ink">
+            <Text className="font-sans-bold text-body text-ink">
               {wave && !wave.closed
                 ? `${wave.name} · ${wave.countdown} left`
                 : "Pick a Wave day"}
@@ -144,7 +144,7 @@ export function StudentHomeWeb() {
             accessibilityRole="button"
             className="mt-3 self-start"
           >
-            <Text className="font-sans-medium text-body text-ink">
+            <Text className="font-sans-bold text-body text-ink">
               Need a package pickup instead?
             </Text>
           </Pressable>
@@ -234,7 +234,7 @@ export function StudentHomeWeb() {
               accessibilityRole="button"
               className="flex-row items-center gap-1"
             >
-              <Text className="font-sans-medium text-body text-ink">See all</Text>
+              <Text className="font-sans-bold text-body text-ink">See all</Text>
               <ChevronRightIcon size={16} color={colors.ink} strokeWidth={2} />
             </Pressable>
           </Gutter>

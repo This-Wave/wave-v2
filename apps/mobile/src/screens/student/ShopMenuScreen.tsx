@@ -270,7 +270,7 @@ function MenuRow({
       )}
 
       <View className="flex-1">
-        <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
+        <Text className="font-sans-bold text-body text-ink" numberOfLines={1}>
           {product.name}
         </Text>
         {product.description ? (
@@ -278,7 +278,7 @@ function MenuRow({
             {product.description}
           </Text>
         ) : null}
-        <Text className="mt-0.5 font-sans-medium text-body text-ink">
+        <Text className="mt-0.5 font-sans-bold text-body text-ink">
           {formatGhs(Number(product.price))}
         </Text>
       </View>
@@ -291,7 +291,7 @@ function MenuRow({
           >
             <MinusIcon size={14} color={colors.ink} />
           </StepperButton>
-          <Text className="w-7 text-center font-sans-medium text-body text-ink">{quantity}</Text>
+          <Text className="w-7 text-center font-sans-bold text-body text-ink">{quantity}</Text>
           <StepperButton
             label={`Add another ${product.name}`}
             disabled={quantity >= MAX_ITEM_QUANTITY}

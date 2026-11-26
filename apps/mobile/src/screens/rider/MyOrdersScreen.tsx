@@ -104,7 +104,7 @@ export function MyOrdersScreen() {
                             </Text>
                           </View>
                           <StatusPill {...statusPill(order.status)} />
-                          <Text className="font-sans-medium text-body text-ink">Open →</Text>
+                          <Text className="font-sans-bold text-body text-ink">Open →</Text>
                         </Pressable>
                       ))
                     : (
@@ -139,8 +139,8 @@ export function MyOrdersScreen() {
                         <Text className="flex-[2] font-sans-semibold text-meta text-muted">
                           SHOP
                         </Text>
-                        <Text className="flex-1 font-sans-semibold text-meta text-muted">DATE</Text>
-                        <Text className="w-28 font-sans-semibold text-meta text-muted">FEE</Text>
+                        <Text className="flex-1 font-sans-bold text-body text-ink">Date</Text>
+                        <Text className="w-28 font-sans-bold text-body text-ink">Fee</Text>
                       </View>
                       {past.map((order, i) => (
                         <PastRow key={order.id} order={order} last={i === past.length - 1} />
@@ -184,7 +184,7 @@ function PastRow({ order, last }: { order: Order; last: boolean }) {
     >
       <View className="flex-[2] flex-row items-center gap-3 pr-3">
         <Thumb uri={order.shop?.logoUrl} size={40} />
-        <Text className="flex-1 font-sans-medium text-body text-ink" numberOfLines={1}>
+        <Text className="flex-1 font-sans-bold text-body text-ink" numberOfLines={1}>
           {order.shop?.name ?? "Delivery"}
         </Text>
       </View>
