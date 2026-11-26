@@ -95,11 +95,11 @@ function WebCheckout({
     <View className="flex-1 bg-canvas">
       <TopBar title="Payment" onBack={() => onSettle("dismissed")} />
       <Gutter className="flex-1 pt-8">
-        <Text className="mb-2 font-sans-bold text-heading text-ink">Taking you to Paystack…</Text>
+        <Text className="mb-2 font-display text-heading text-ink">Taking you to Paystack…</Text>
         <Text className="mb-8 font-sans text-body text-muted">
           You’ll pay in this tab, then come straight back to Wave when you’re done.
         </Text>
-        <View className="mb-8 flex-row items-center gap-3 rounded-card bg-surface p-4">
+        <View className="mb-8 flex-row items-center gap-3 rounded-card border border-hairline bg-surface p-4">
           <ActivityIndicator color={colors.ink} />
           <Text className="flex-1 font-sans text-body text-ink">Opening secure checkout…</Text>
         </View>

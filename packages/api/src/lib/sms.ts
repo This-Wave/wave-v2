@@ -81,6 +81,34 @@ export interface SendSmsParams {
  */
 const INSUFFICIENT_WALLET = /insufficient wallet balance/i;
 
+/**
+ * mNotify refuses the otp flag (403) for a sender ID that has not registered
+ * the web address its OTPs are used on: "your sender id 'TACCBooking' isn't set
+ * up for OTPs yet. To send OTPs, add the URL where your OTPs are used…". Seen
+ * live on 2026-11-26, after the move to usewavenow.com, and it stopped every
+ * sign-in code. The standard route is unaffected, so the code still goes out.
+ */
+const SENDER_NOT_OTP_READY = /isn'?t set up for OTPs/i;
+
+/** The otp-flag refusals a standard send gets past, and what to log for each. */
+function otpFallbackReason(status: number | undefined, reason: string | undefined): string | null {
+  if (!reason) return null;
+  if (status === 402 && INSUFFICIENT_WALLET.test(reason)) {
+    return (
+      "[sms] mNotify cash wallet is empty — retrying as a standard credit send. " +
+      "The message will go out, but whatever the otp flag buys is forfeited " +
+      "until the wallet is topped up."
+    );
+  }
+  if (status === 403 && SENDER_NOT_OTP_READY.test(reason)) {
+    return (
+      "[sms] mNotify sender ID is not set up for OTPs — retrying as a standard send. " +
+      "Register the app URL for this sender in the mNotify dashboard to restore the otp route."
+    );
+  }
+  return null;
+}
+
 export async function sendSms(params: SendSmsParams): Promise<void> {
   const body = {
     recipient: [toLocalGhanaFormat(params.phone)],
@@ -100,22 +128,19 @@ export async function sendSms(params: SendSmsParams): Promise<void> {
     const reason = providerReason(err.response?.data);
 
     /**
-     * The cash wallet is empty but SMS credits remain. Retry as a standard send
-     * rather than failing.
+     * The otp flag was refused for a reason the standard route does not share
+     * (an empty cash wallet, or a sender not yet set up for OTPs). Retry as a
+     * standard send rather than failing.
      *
-     * A delivery PIN that arrives on ordinary priority is worth far more than
-     * one that does not arrive at all — without it a rider physically cannot
-     * close a handover. The trade is real and worth stating: the retry loses
-     * do-not-disturb exemption and priority queueing, so a student on a DND list
-     * may still not receive it. That is why it logs rather than passing silently.
+     * A code that arrives on ordinary priority is worth far more than one that
+     * does not arrive at all: without it a student cannot sign in and a rider
+     * cannot close a handover. The retry may lose whatever the flag buys, so it
+     * logs rather than passing silently.
      */
-    if (params.smsType === "otp" && status === 402 && reason && INSUFFICIENT_WALLET.test(reason)) {
+    const fallback = params.smsType === "otp" ? otpFallbackReason(status, reason) : null;
+    if (fallback) {
       // eslint-disable-next-line no-console
-      console.warn(
-        "[sms] mNotify cash wallet is empty — retrying as a standard credit send. " +
-          "The message will go out, but whatever the otp flag buys is forfeited " +
-          "until the wallet is topped up.",
-      );
+      console.warn(fallback);
       try {
         const { sms_type: _omit, ...standard } = body as typeof body & { sms_type?: string };
         await axios.post(`${MNOTIFY_QUICK_SMS_URL}?key=${params.apiKey}`, standard);

@@ -35,7 +35,7 @@ export function WaveStrip({ wave, onPress }: { wave: WaveInfo | null; onPress: (
           : `${wave.name}, ${wave.countdown} left to order. Tap to choose a different day`
       }
       accessibilityHint="Opens the Wave calendar"
-      className="rounded-card bg-lime-faint px-4 py-3.5 active:bg-lime/30"
+      className="rounded-card border border-hairline bg-surface px-4 py-3.5 active:bg-hairline"
     >
       <View className="flex-row items-center gap-3.5">
         <View className="overflow-hidden rounded-pill">
@@ -60,7 +60,7 @@ export function WaveStrip({ wave, onPress }: { wave: WaveInfo | null; onPress: (
             the two read as a pair rather than a sentence. */}
         {closed ? null : (
           <View className="items-end">
-            <Text className="font-sans-bold text-heading-sm text-ink">{wave.countdown}</Text>
+            <Text className="font-display text-heading-sm text-ink">{wave.countdown}</Text>
             <Text className="font-sans text-meta text-ink-700">left to order</Text>
             {/* The one moment the solid accent is warranted here: under six
                 hours, "later" has stopped being a safe assumption. */}

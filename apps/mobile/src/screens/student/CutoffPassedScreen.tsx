@@ -27,7 +27,7 @@ export function CutoffPassedScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-8">
-          <Text className="mb-2 font-sans-bold text-heading text-ink">
+          <Text className="mb-2 font-display text-heading text-ink">
             Today's run is full
           </Text>
           <Text className="mb-8 font-sans text-body text-muted">
@@ -35,7 +35,7 @@ export function CutoffPassedScreen() {
             next standard run is {nextRun ? formatFullDay(nextRun) : "coming up"}.
           </Text>
 
-          <View className="rounded-card bg-surface p-5">
+          <View className="rounded-card border border-hairline bg-surface p-5">
             <Text className="mb-1 font-sans-semibold text-meta text-muted">NEED IT SOONER?</Text>
             <Text className="font-sans text-body text-ink">
               A rush order can go out ahead of the schedule for {DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT}

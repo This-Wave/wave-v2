@@ -28,7 +28,7 @@ export function NotFoundScreen() {
           <WaveMarkIcon size={56} />
         </View>
 
-        <Text className="text-center font-sans-bold text-heading text-ink">
+        <Text className="text-center font-display text-heading text-ink">
           This page doesn&apos;t exist
         </Text>
         <Text className="mt-2 text-center font-sans text-body text-muted">

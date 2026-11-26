@@ -44,13 +44,13 @@ export function PickupPinScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-4">
-          <Text className="mb-2 font-sans-bold text-heading text-ink">Your delivery code</Text>
+          <Text className="mb-2 font-display text-heading text-ink">Your delivery code</Text>
           <Text className="mb-8 font-sans text-body text-muted">
             Read this out to your runner at {order?.checkpoint?.name ?? "your checkpoint"} — they
             type it in to close the delivery. We also text it to your phone.
           </Text>
 
-          <View className="mb-6 items-center rounded-card bg-surface px-5 py-8">
+          <View className="mb-6 items-center rounded-card border border-hairline bg-surface px-5 py-8">
             {isLoading ? (
               <Text className="font-sans text-body text-muted">Loading code…</Text>
             ) : isError || !pin ? (
@@ -71,7 +71,7 @@ export function PickupPinScreen() {
             )}
           </View>
 
-          <View className="rounded-card bg-surface p-5">
+          <View className="rounded-card border border-hairline bg-surface p-5">
             <Text className="mb-1 font-sans-semibold text-meta text-muted">DIDN'T GET THE TEXT?</Text>
             <Text className="font-sans text-body text-ink">
               Use the code above — it works without the SMS. You can also send it again to the

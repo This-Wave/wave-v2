@@ -94,7 +94,7 @@ function OrderTrackingPanel({ orderId, onClose }: { orderId: string; onClose: ()
       }
     >
       {pill ? <StatusPill label={pill.label} tone={pill.tone} /> : null}
-      <Text className="mt-3 font-sans-bold text-heading-sm text-ink">
+      <Text className="mt-3 font-display text-heading-sm text-ink">
         {trackingHeadline(order?.status)}
       </Text>
       <Text className="mb-4 mt-1 font-sans text-body text-muted">
@@ -210,7 +210,7 @@ function OrderDetailPanel({ orderId, onClose }: { orderId: string; onClose: () =
       }
     >
       <StatusPill label={pill.label} tone={pill.tone} />
-      <Text className="mt-3 font-sans-bold text-heading-sm text-ink">
+      <Text className="mt-3 font-display text-heading-sm text-ink">
         {order.shop?.name ?? "Package pickup"}
       </Text>
       <Text className="mb-5 mt-1 font-sans text-body text-muted">{order.itemDescription}</Text>
@@ -332,7 +332,7 @@ function RiderClaimPanel({ orderId, onClose }: { orderId: string; onClose: () =>
       }
     >
       <Text className="font-sans text-body text-muted">You'd earn</Text>
-      <Text className="mb-5 mt-1 font-sans-bold text-heading text-ink">
+      <Text className="mb-5 mt-1 font-display text-heading text-ink">
         {order ? formatGhs(Number(order.deliveryFee)) : "—"}
       </Text>
       <RowGroup>
@@ -410,7 +410,7 @@ function ShopIncomingPanel({ orderId, onClose }: { orderId: string; onClose: () 
       }
     >
       <Text className="font-sans text-body text-muted">Order value</Text>
-      <Text className="mb-5 mt-1 font-sans-bold text-heading text-ink">
+      <Text className="mb-5 mt-1 font-display text-heading text-ink">
         {order?.totalAmount ? formatGhs(Number(order.totalAmount)) : "—"}
       </Text>
       <Text className="mb-2 font-sans-medium text-body text-ink">What they want</Text>

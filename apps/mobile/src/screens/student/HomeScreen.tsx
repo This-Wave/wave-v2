@@ -36,6 +36,7 @@ import { useAuthStore } from "../../store/authStore";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
 import { HomeSkeleton } from "./HomeSkeleton";
 import { StudentHomeWeb } from "./web/StudentHomeWeb";
+import { BusinessPromoCard } from "../../components/BusinessPromoCard";
 import type { ServiceMode } from "../../components/v6";
 import type { Shop } from "../../types";
 import { BoxIcon, PlusIcon } from "../../components/icons";
@@ -66,7 +67,7 @@ function HomeScreenMobile() {
   const wave = useWave();
   const [mode, setMode] = useState<ServiceMode>("buy");
   const { data: service } = useServiceStatus();
-  const profileName = useAuthStore((state) => state.profile?.fullName ?? "there");
+  const profileName = useAuthStore((state) => state.profile?.fullName ?? state.guestFirstName ?? "there");
   const avatarUrl = useAuthStore((state) => state.profile?.avatarUrl ?? null);
   // Before Buy for me launches there is only one service, so there is nothing
   // to switch between and no shops to show.
@@ -120,6 +121,13 @@ function HomeScreenMobile() {
           alert={active.length > 0 || !!unpaid}
           onPressAvatar={() => navigation.navigate("Tabs", { screen: "Profile" })}
           onPressBell={() => navigation.navigate("Tabs", { screen: "Orders" })}
+          title={
+            !ordersLoaded
+              ? undefined
+              : active.length > 0
+                ? `${active.length} parcel${active.length === 1 ? "" : "s"} on the way`
+                : "Nothing on the way yet"
+          }
         >
           {buyForMeLaunched ? (
             <View className="mb-3">
@@ -275,11 +283,14 @@ function HomeScreenMobile() {
                     is what decides which shops arrive first. */}
                 <Gutter className="pt-3">
                   <PromoCard
-                    headline="Shop orders are coming"
-                    body="We're signing up shops around campus now. Tell us where you actually buy — the places the most people ask for open first."
+                    headline="Need something from a shop in Accra?"
+                    body="Name the shop and what you need. We pick it up and bring it to your checkpoint."
                     cta="Suggest a shop"
                     onPress={() => navigation.navigate("SuggestShop", waveDate)}
                   />
+                </Gutter>
+                <Gutter className="pt-3">
+                  <BusinessPromoCard onPress={() => navigation.navigate("BusinessInterest")} />
                 </Gutter>
               </>
             ) : null}

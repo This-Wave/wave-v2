@@ -165,6 +165,11 @@ export interface Order {
   universityId: string;
   productId: string | null;
   itemDescription: string;
+  /** Pickup only: who hands the package over, and where. Null on older orders. */
+  senderName?: string | null;
+  senderPhone?: string | null;
+  pickupNotes?: string | null;
+  packageSize?: "ripple" | "wave" | "swell" | "tide" | null;
   itemPrice: string | null;
   deliveryFee: string;
   discountApplied: string;

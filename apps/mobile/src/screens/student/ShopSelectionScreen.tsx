@@ -85,7 +85,7 @@ export function ShopSelectionScreen() {
         <Gutter className={isDesktop ? "pb-6 pt-2" : "pb-5"}>
           {isDesktop ? (
             <>
-              <Text className="font-sans-bold text-heading text-ink">Where from?</Text>
+              <Text className="font-display text-heading text-ink">Where from?</Text>
               <Text className="mt-1 font-sans text-ui text-muted">
                 Pick a shop on this Wave. We’ll buy exactly what’s on their menu.
               </Text>
@@ -224,7 +224,7 @@ export function ShopSelectionScreen() {
                 })
               }
               accessibilityRole="button"
-              className="mt-8 rounded-card bg-surface p-4 active:bg-hairline"
+              className="mt-8 rounded-card border border-hairline bg-surface p-4 active:bg-hairline"
             >
               <Text className="font-sans-medium text-body text-ink">
                 Can’t find the shop you want?

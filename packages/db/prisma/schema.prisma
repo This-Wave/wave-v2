@@ -211,6 +211,10 @@ model Profile {
   /// team, say). Its orders are stamped `Order.isTest`, it is left out of every
   /// count, and with Telegram configured each thing it does is reported live.
   isTest            Boolean     @default(false) @map("is_test")
+  /// First time this account opened the web app from a home-screen icon
+  /// (display-mode: standalone). Null = never seen installed. Super admin sees
+  /// it next to notification status.
+  pwaInstalledAt    DateTime?   @map("pwa_installed_at")
   createdAt         DateTime    @default(now()) @map("created_at")
   updatedAt         DateTime    @updatedAt @map("updated_at")
 
@@ -449,6 +453,15 @@ model Order {
   orderType OrderType @default(buy_for_me) @map("order_type")
 
   itemDescription  String   @map("item_description")
+  /// Pickup only (since 2026-11-26): the person in Accra handing the package
+  /// over. Wave's student is always the receiver, so the rider needs whoever
+  /// is on the other end. Null on older pickups and on other order types.
+  senderName       String?  @map("sender_name")
+  senderPhone      String?  @map("sender_phone")
+  /// Where exactly to meet the sender: landmark, gate, shop counter.
+  pickupNotes      String?  @map("pickup_notes")
+  /// small | medium | large. Tells the rider what to bring; does not change the fee.
+  packageSize      String?  @map("package_size")
   productId        String?  @map("product_id")
   itemPrice        Decimal? @map("item_price") @db.Decimal(10, 2)
   deliveryFee      Decimal  @map("delivery_fee") @db.Decimal(10, 2)
@@ -968,4 +981,67 @@ model RefundRequest {
   @@index([universityId, status])
   @@index([orderId])
   @@map("refund_request")
+}
+
+
+// --- Growth: guests, business leads, admin messages (2026-11-26) -------------
+
+/// Someone who pressed "Look around first" and gave a first name. No account,
+/// no phone: just who looked, at which campus, and when. Each one is also sent
+/// to the Telegram chat.
+model GuestVisit {
+  id           String   @id @default(uuid())
+  firstName    String   @map("first_name")
+  universityId String?  @map("university_id")
+  userAgent    String?  @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("guest_visits")
+}
+
+enum BusinessLeadKind {
+  /// Stock collected from one place in Accra, brought to campus in bulk.
+  bulk_pickup
+  /// A shop on Wave listing things students can't get on campus.
+  shop_listing
+}
+
+/// A campus business owner who answered the "Own a business on campus?" card.
+/// A lead, not an account: Wave calls them back.
+model BusinessLead {
+  id           String           @id @default(uuid())
+  profileId    String?          @map("profile_id")
+  fullName     String           @map("full_name")
+  phone        String
+  businessName String           @map("business_name")
+  universityId String?          @map("university_id")
+  kind         BusinessLeadKind
+  details      String?
+  /// new | contacted | closed
+  status       String           @default("new")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("business_leads")
+}
+
+/// One SMS or push message sent from the admin Messages page, with how many it
+/// reached. The text itself is kept so staff can see what was said.
+model AdminMessage {
+  id         String   @id @default(uuid())
+  /// sms | push
+  channel    String
+  /// e.g. "everyone", "campus:<id>", "phones"
+  audience   String
+  title      String?
+  body       String
+  recipients Int
+  delivered  Int
+  failed     Int
+  sentById   String   @map("sent_by_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("admin_messages")
 }

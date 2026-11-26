@@ -21,7 +21,7 @@ export function SettingsGroup({ title, children }: { title: string; children: Re
   return (
     <View className="mb-6">
       <Text className="mb-2 px-1 font-sans-medium text-meta uppercase text-muted">{title}</Text>
-      <View className="overflow-hidden rounded-card bg-surface">{children}</View>
+      <View className="overflow-hidden rounded-card border border-hairline bg-surface">{children}</View>
     </View>
   );
 }

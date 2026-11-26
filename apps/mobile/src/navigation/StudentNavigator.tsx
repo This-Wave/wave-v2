@@ -8,6 +8,7 @@ import { ChooseServiceScreen } from "../screens/student/ChooseServiceScreen";
 import { ShopSelectionScreen } from "../screens/student/ShopSelectionScreen";
 import { ShopMenuScreen } from "../screens/student/ShopMenuScreen";
 import { SuggestShopScreen } from "../screens/student/SuggestShopScreen";
+import { BusinessInterestScreen } from "../screens/student/BusinessInterestScreen";
 import { SuggestOrderSummaryScreen } from "../screens/student/SuggestOrderSummaryScreen";
 import { OrderSummaryScreen } from "../screens/student/OrderSummaryScreen";
 import { PaymentScreen } from "../screens/student/PaymentScreen";
@@ -59,6 +60,7 @@ export type StudentStackParamList = {
   // placeholder promises typing — see ShopSelectionScreen.
   ShopSelection: (WaveParams & { focusSearch?: boolean }) | undefined;
   ShopMenu: { shopId: string; shopName: string } & WaveParams;
+  BusinessInterest: undefined;
   SuggestShop: {
     initialQuery?: string;
     /** Restored after a guest signs up mid-form (see GuestAccountSheet). */
@@ -117,6 +119,7 @@ export function StudentNavigator() {
         <Stack.Screen name="ShopSelection" component={ShopSelectionScreen} />
         <Stack.Screen name="ShopMenu" component={ShopMenuScreen} />
         <Stack.Screen name="SuggestShop" component={SuggestShopScreen} />
+        <Stack.Screen name="BusinessInterest" component={BusinessInterestScreen} />
         <Stack.Screen name="SuggestOrderSummary" component={SuggestOrderSummaryScreen} />
         <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
         <Stack.Screen name="Payment" component={PaymentScreen} />

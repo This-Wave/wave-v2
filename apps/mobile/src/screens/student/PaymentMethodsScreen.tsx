@@ -39,7 +39,7 @@ export function PaymentMethodsScreen() {
             <Row title="Card" meta="Visa or Mastercard" chevron={false} />
           </RowGroup>
 
-          <View className="mt-6 rounded-card bg-surface p-5">
+          <View className="mt-6 rounded-card border border-hairline bg-surface p-5">
             <Text className="mb-1 font-sans-semibold text-meta text-muted">
               WHY THERE'S NOTHING TO SET UP
             </Text>

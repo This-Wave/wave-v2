@@ -154,9 +154,21 @@ export function detectInstallPlatform(userAgent: string): InstallPlatform {
   return "none";
 }
 
-export async function hasDismissedInstallHint(): Promise<boolean> {
+/**
+ * "Not now" snoozes the popup for three days rather than forever (owner,
+ * 2026-11-26): installing is how a student gets delivery notifications on an
+ * iPhone, so one dismissal should not end the conversation. A value of "1"
+ * from the old permanent dismissal reads as long ago, so those people are
+ * asked once more.
+ */
+export const INSTALL_HINT_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
+
+export async function hasDismissedInstallHint(now: number = Date.now()): Promise<boolean> {
   try {
-    return (await AsyncStorage.getItem(DISMISSED_KEY)) === "1";
+    const raw = await AsyncStorage.getItem(DISMISSED_KEY);
+    if (!raw) return false;
+    const at = Number(raw);
+    return Number.isFinite(at) && at > 1 && now - at < INSTALL_HINT_SNOOZE_MS;
   } catch {
     // Storage unavailable — treat as dismissed. Wave cannot tell whether it has
     // already asked, and nagging on every launch is worse than not asking. This
@@ -168,7 +180,7 @@ export async function hasDismissedInstallHint(): Promise<boolean> {
 
 export async function markInstallHintDismissed(): Promise<void> {
   try {
-    await AsyncStorage.setItem(DISMISSED_KEY, "1");
+    await AsyncStorage.setItem(DISMISSED_KEY, String(Date.now()));
   } catch {
     // Non-critical.
   }

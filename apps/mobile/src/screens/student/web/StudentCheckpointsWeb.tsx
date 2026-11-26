@@ -24,7 +24,7 @@ export function StudentCheckpointsWeb() {
     <Screen>
       <ScreenBody bottomInset={48}>
         <Gutter className="pb-8 pt-8">
-          <Text className="font-sans-bold text-heading text-ink">Checkpoints</Text>
+          <Text className="font-display text-heading text-ink">Checkpoints</Text>
           <Text className="mt-1 font-sans text-ui text-muted">
             Your runner meets you at one of these. You choose which when you place an order.
           </Text>
@@ -49,7 +49,7 @@ export function StudentCheckpointsWeb() {
               {checkpoints.map((cp) => (
                 <View
                   key={cp.id}
-                  className="rounded-card bg-surface p-5"
+                  className="rounded-card border border-hairline bg-surface p-5"
                   style={{ width: cardWidth, maxWidth: "100%" }}
                 >
                   <View className="mb-4 h-10 w-10 items-center justify-center rounded-pill bg-canvas">

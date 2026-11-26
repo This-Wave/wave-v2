@@ -110,7 +110,7 @@ export function ShopMenuScreen() {
             scheduledDate={params.scheduledDate}
             isSpecialOrder={params.isSpecialOrder}
           />
-          <Text className="mb-1 font-sans-bold text-heading text-ink">{params.shopName}</Text>
+          <Text className="mb-1 font-display text-heading text-ink">{params.shopName}</Text>
           <Text className="mb-6 font-sans text-body text-muted">
             {isDesktop
               ? "Add items from the menu. We buy exactly this list."

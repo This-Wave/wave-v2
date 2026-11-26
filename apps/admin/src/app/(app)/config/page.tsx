@@ -29,8 +29,17 @@ const GROUPS: { title: string; keys: { key: string; label: string; suffix?: stri
         key: "delivery_fee_base",
         label: "Base delivery fee",
         suffix: "GH₵",
-        hint: "Every order except a pickup from an Accra zone, which uses the zone fee below.",
+        hint: "Used when an order has no package size (older app, suggested shop). A zone add-on is added on top.",
       },
+    ],
+  },
+  {
+    title: "Package sizes",
+    keys: [
+      { key: "size_price_ripple", label: "Ripple · documents, charger · up to 3 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
+      { key: "size_price_wave", label: "Wave · clothes, a laptop · up to 8 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
+      { key: "size_price_swell", label: "Swell · food trays, gift boxes · up to 15 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
+      { key: "size_price_tide", label: "Tide · cartons, appliances · up to 25 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
     ],
   },
   {

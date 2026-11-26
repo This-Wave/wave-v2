@@ -52,7 +52,7 @@ export function PinEntryScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-2">
-          <Text className="mb-2 font-sans-bold text-heading text-ink">Ask for the code</Text>
+          <Text className="mb-2 font-display text-heading text-ink">Ask for the code</Text>
           <Text className="mb-10 font-sans text-body text-muted">
             {order?.student?.fullName ?? "The student"} has a six-digit code by text. Type it in to
             close this delivery at {order?.checkpoint?.name ?? "the checkpoint"}.

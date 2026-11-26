@@ -13,6 +13,8 @@ import {
   showInstallPrompt,
   type InstallPlatform,
 } from "../lib/installPrompt";
+import { reportAppInstalled } from "../lib/growth";
+import { hasAcceptedCookies, onCookiesAccepted } from "./CookieConsent";
 
 /**
  * "Put Wave on your home screen."
@@ -36,7 +38,12 @@ export function InstallHint() {
   useEffect(() => {
     if (Platform.OS !== "web" || typeof window === "undefined") return;
     if (!profile) return;
-    if (isStandalone()) return;
+    // Opened from the home-screen icon: tell the API once, for the owner's
+    // installs list, and there is nothing to suggest.
+    if (isStandalone()) {
+      reportAppInstalled();
+      return;
+    }
 
     let cancelled = false;
     const detected = detectInstallPlatform(window.navigator.userAgent);
@@ -44,8 +51,16 @@ export function InstallHint() {
 
     // Delayed rather than immediate: a card that appears the instant a screen
     // paints reads as an ad.
+    let stopWaitingForCookies = () => {};
     const reveal = async () => {
       if (cancelled) return;
+      // Never on top of the cookie notice: wait until it has been accepted.
+      if (!hasAcceptedCookies()) {
+        stopWaitingForCookies = onCookiesAccepted(() => {
+          timer = setTimeout(() => void reveal(), 1500);
+        });
+        return;
+      }
       if (await hasDismissedInstallHint()) return;
       if (cancelled) return;
       setPlatform(detected);
@@ -72,6 +87,7 @@ export function InstallHint() {
     return () => {
       cancelled = true;
       unsubscribe();
+      stopWaitingForCookies();
       if (timer) clearTimeout(timer);
     };
   }, [profile]);
@@ -123,12 +139,12 @@ export function InstallHint() {
         }}
       >
         <Text className="font-sans-bold text-body" style={{ color: colors.ink }}>
-          Add Wave to your home screen
+          Get delivery updates on your phone
         </Text>
         <Text className="mt-1 font-sans text-caption" style={{ color: colors.muted }}>
           {platform === "ios"
-            ? "Tap the Share button in Safari, then choose Add to Home Screen. Wave opens full screen, like an app."
-            : "Wave opens full screen and loads faster, and you won't have to find this page again."}
+            ? "Add Wave to your Home Screen: tap Share in Safari, then Add to Home Screen. Open it from there and turn on notifications, and we'll tell you when your parcel reaches your checkpoint."
+            : "Install Wave and turn on notifications. We'll tell you the moment your parcel reaches your checkpoint."}
         </Text>
 
         <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
@@ -160,7 +176,7 @@ export function InstallHint() {
             }}
           >
             <Text className="font-sans-medium text-caption" style={{ color: colors.muted }}>
-              {platform === "ios" ? "Got it" : "Not now"}
+              Not now
             </Text>
           </Pressable>
         </View>

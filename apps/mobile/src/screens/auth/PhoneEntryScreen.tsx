@@ -57,7 +57,7 @@ export function PhoneEntryScreen({ navigation }: Props) {
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-4">
-          <Text className="mb-2 font-sans-bold text-heading text-ink">What's your number?</Text>
+          <Text className="mb-2 font-display text-heading text-ink">What's your number?</Text>
           <Text className="mb-10 font-sans text-body text-muted">
             {fromGuest ? "Your basket is saved." : "We'll text you a six-digit code."}
           </Text>

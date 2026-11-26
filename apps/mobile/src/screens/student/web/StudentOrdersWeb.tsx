@@ -58,7 +58,7 @@ export function StudentOrdersWeb() {
         onRefresh={() => void refetch()}
       >
         <Gutter className="pb-8 pt-8">
-          <Text className="font-sans-bold text-heading text-ink">Orders</Text>
+          <Text className="font-display text-heading text-ink">Orders</Text>
           <Text className="mt-1 font-sans text-ui text-muted">
             Track live deliveries and review what you’ve already received.
           </Text>
@@ -70,7 +70,7 @@ export function StudentOrdersWeb() {
             {live.map((o) => (
               <View
                 key={o.id}
-                className="flex-row items-center gap-4 rounded-card bg-surface px-5 py-4"
+                className="flex-row items-center gap-4 rounded-card border border-hairline bg-surface px-5 py-4"
               >
                 <Thumb uri={o.shop?.logoUrl} size={52} />
                 <View className="min-w-0 flex-1">
@@ -101,7 +101,7 @@ export function StudentOrdersWeb() {
             {unpaid.map((o) => (
               <View
                 key={o.id}
-                className="flex-row items-center gap-4 rounded-card bg-surface px-5 py-4"
+                className="flex-row items-center gap-4 rounded-card border border-hairline bg-surface px-5 py-4"
               >
                 <Thumb uri={o.shop?.logoUrl} size={52} />
                 <View className="min-w-0 flex-1">
@@ -158,7 +158,7 @@ export function StudentOrdersWeb() {
               }
             />
           ) : (
-            <View className="overflow-hidden rounded-card bg-surface">
+            <View className="overflow-hidden rounded-card border border-hairline bg-surface">
               <View className="flex-row border-b border-hairline px-5 py-3">
                 <Text className="flex-[2] font-sans-semibold text-meta text-muted">SHOP</Text>
                 <Text className="flex-1 font-sans-semibold text-meta text-muted">DATE</Text>

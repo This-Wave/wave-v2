@@ -23,7 +23,7 @@ import { Skeleton } from "../../components/v6";
 export function HomeSkeleton() {
   return (
     <View
-      className="rounded-card bg-surface p-4"
+      className="rounded-card border border-hairline bg-surface p-4"
       accessible
       accessibilityRole="progressbar"
       accessibilityLabel="Loading your orders"

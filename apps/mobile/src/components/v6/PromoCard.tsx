@@ -32,10 +32,10 @@ export function PromoCard({
   onPress: () => void;
 }) {
   return (
-    <View className="overflow-hidden rounded-card bg-surface p-5">
+    <View className="overflow-hidden rounded-card border border-hairline bg-surface p-5">
       <View className="flex-row">
         <View className="min-w-0 flex-1 pr-3">
-          <Text className="font-sans-bold text-heading-sm text-ink">{headline}</Text>
+          <Text className="font-display text-heading-sm text-ink">{headline}</Text>
           <Text className="mt-1.5 font-sans text-body text-muted">{body}</Text>
         </View>
 

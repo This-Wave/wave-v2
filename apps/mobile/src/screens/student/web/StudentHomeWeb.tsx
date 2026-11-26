@@ -31,6 +31,7 @@ import { useBuyForMeStatus, useServiceStatus } from "../../../lib/serviceStatus"
 import { formatGhsCompact, isStandardRunDay } from "../../../lib/pricing";
 import { useDropoffPoints } from "../../../lib/checkpoints";
 import { useViewerUniversityId } from "../../../store/authStore";
+import { BusinessPromoCard } from "../../../components/BusinessPromoCard";
 import {
   openOrderTracking,
   openShopMenu,
@@ -86,13 +87,13 @@ export function StudentHomeWeb() {
       <ScreenBody bottomInset={48}>
         <Gutter className="flex-row items-end justify-between pb-8 pt-8">
           <View className="flex-1 pr-6">
-            <Text className="font-sans-bold text-heading text-ink">
+            <Text className="font-display text-heading text-ink">
               {buyForMeLaunched ? "Browse shops" : "Move a package"}
             </Text>
             <Text className="mt-1 font-sans text-ui text-muted">
               {buyForMeLaunched
                 ? "Order from off-campus shops. We buy and bring it in to your checkpoint."
-                : "We collect from one checkpoint and drop at another. Shop orders are coming soon."}
+                : "We collect from one checkpoint and drop at another."}
             </Text>
           </View>
           <Pressable
@@ -180,11 +181,14 @@ export function StudentHomeWeb() {
               </View>
               <View style={{ flex: 1, minWidth: 320 }}>
                 <PromoCard
-                  headline="Shop orders are coming"
-                  body="We're signing up shops around campus now. Tell us where you actually buy — the places the most people ask for open first."
+                  headline="Need something from a shop in Accra?"
+                  body="Name the shop and what you need. We pick it up and bring it to your checkpoint."
                   cta="Suggest a shop"
                   onPress={() => navigation.navigate("SuggestShop", waveDate)}
                 />
+              </View>
+              <View style={{ flex: 1, minWidth: 320 }}>
+                <BusinessPromoCard onPress={() => navigation.navigate("BusinessInterest")} />
               </View>
             </View>
           </Gutter>
@@ -272,7 +276,7 @@ export function StudentHomeWeb() {
         ) : null}
 
         <Gutter className="mt-12 mb-4">
-          <View className="flex-row items-center justify-between rounded-card bg-surface p-5">
+          <View className="flex-row items-center justify-between rounded-card border border-hairline bg-surface p-5">
             <View className="flex-1 pr-4">
               <Text className="font-sans-medium text-ui text-ink">Can’t find your shop?</Text>
               <Text className="mt-1 font-sans text-body text-muted">
@@ -323,7 +327,7 @@ function ShopTile({
 function LiveStrip({ order, onTrack }: { order: Order; onTrack: () => void }) {
   const pill = statusPill(order.status, !!order.companyId);
   return (
-    <View className="flex-row items-center gap-4 rounded-card bg-surface px-5 py-4">
+    <View className="flex-row items-center gap-4 rounded-card border border-hairline bg-surface px-5 py-4">
       <Thumb uri={order.shop?.logoUrl} size={52} />
       <View className="min-w-0 flex-1">
         <View className="mb-1 flex-row items-center gap-2">

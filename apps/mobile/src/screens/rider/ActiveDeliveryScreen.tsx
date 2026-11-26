@@ -133,16 +133,16 @@ export function ActiveDeliveryScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-2">
-          <Text className="mb-8 font-sans-bold text-heading text-ink">
+          <Text className="mb-8 font-display text-heading text-ink">
             {step === "at_shop" ? "Go and collect it" : "Take it to the checkpoint"}
           </Text>
 
-          <View className="mb-7 rounded-card bg-surface p-5">
+          <View className="mb-7 rounded-card border border-hairline bg-surface p-5">
             <Steps steps={steps} currentIndex={step === "at_shop" ? 1 : 2} />
           </View>
 
           <Text className="mb-2 font-sans-medium text-body text-ink">What to buy</Text>
-          <View className="mb-7 rounded-card bg-surface p-4">
+          <View className="mb-7 rounded-card border border-hairline bg-surface p-4">
             {order?.items?.length ? (
               order.items.map((item, i) => (
                 <View
@@ -165,6 +165,30 @@ export function ActiveDeliveryScreen() {
               <Text className="font-sans text-body text-ink">{order?.itemDescription ?? "—"}</Text>
             )}
           </View>
+
+          {order?.senderName ? (
+            <View className="mb-7 rounded-card border border-hairline bg-surface p-4">
+              <Text className="font-sans text-meta text-muted">Collect from</Text>
+              <Text className="mt-1 font-sans-medium text-body text-ink">{order.senderName}</Text>
+              {order.senderPhone ? (
+                <Text
+                  accessibilityRole="link"
+                  onPress={() => void Linking.openURL(`tel:${order.senderPhone}`)}
+                  className="mt-0.5 font-sans text-body text-ink underline"
+                >
+                  Call {order.senderPhone}
+                </Text>
+              ) : null}
+              {order.pickupNotes ? (
+                <Text className="mt-2 font-sans text-body text-muted">{order.pickupNotes}</Text>
+              ) : null}
+              {order.packageSize ? (
+                <Text className="mt-2 font-sans text-body text-muted">
+                  Package: {order.packageSize}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
 
           {isShopPickup ? (
             <View className="mb-7 rounded-card bg-warning-bg p-4">

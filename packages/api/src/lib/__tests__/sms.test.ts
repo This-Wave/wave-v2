@@ -123,6 +123,42 @@ describe("empty-wallet fallback", () => {
 });
 
 /**
+ * mNotify 403s the otp flag for a sender ID that has not registered the URL its
+ * OTPs are used on. Live on 2026-11-26 this stopped every sign-in code.
+ */
+describe("sender-not-set-up-for-OTP fallback", () => {
+  const notOtpReady = axiosError(403, {
+    message:
+      "This message was sent as a high-priority OTP (priority is high, or sms_type is otp), but your sender id 'TACCBooking' isn't set up for OTPs yet. To send OTPs, add the URL where your OTPs are used to t",
+  });
+
+  it("retries an OTP as a standard send", async () => {
+    post.mockRejectedValueOnce(notOtpReady).mockResolvedValueOnce({ data: { status: "success" } });
+
+    await expect(sendOtpSms({ ...base, otp: "123456" })).resolves.toBeUndefined();
+
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(post.mock.calls[1]![1]).not.toHaveProperty("sms_type");
+  });
+
+  it("logs that it fell back", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    post.mockRejectedValueOnce(notOtpReady).mockResolvedValueOnce({ data: { status: "success" } });
+
+    await sendOtpSms({ ...base, otp: "123456" });
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("not set up for OTPs"));
+  });
+
+  it("does not retry another 403", async () => {
+    post.mockRejectedValue(axiosError(403, { message: "invalid api key" }));
+
+    await expect(sendOtpSms({ ...base, otp: "123456" })).rejects.toBeInstanceOf(SmsSendError);
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
  * `SmsSendError` exists so a failure can be logged without the request body,
  * which for these sends contains the OTP or the delivery PIN in plaintext.
  */

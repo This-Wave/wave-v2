@@ -37,16 +37,12 @@ export const FULL = 64;
 export const NAV_BOTTOM_GAP = 0;
 
 /**
- * Docked, full-width tab bar for phone and narrow web (canvas, 2026-10-21).
- * Hidden on wide desktop, where `SideNav` takes over.
- *
- * It replaces the floating pill. The pill needed a shadow to read as floating,
- * and v6 keeps shadow for the search capsule and sheets only; it also covered
- * the last row of every list. A docked bar with a hairline top edge is the
- * pattern every phone user already knows (Jakob's law), the labels never
- * disappear (recognition over recall), and each tab is a full-height target
- * (Fitts's law). The current tab gets the lime pill behind its icon: the one
- * accent, used once.
+ * v7 floating pill nav (owner, 2026-11-26: "i love the whole floating pill nav
+ * bar at the bottom"). A Sacramento pill held 16px off the edges. It sits in
+ * its own row rather than over the content, so it never hides the last list
+ * row (the reason v6 docked it). The current tab grows into a lime pill with
+ * its label; the others are icons with accessible names. Hidden on desktop,
+ * where `SideNav` takes over.
  */
 export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { isDesktop } = useLayout();
@@ -57,64 +53,55 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   }
 
   return (
-    <View
-      accessibilityRole="tablist"
-      className="flex-row border-t border-hairline bg-surface px-2 pt-1.5"
-      style={{ paddingBottom: Math.max(insets.bottom, 12) }}
-    >
-      {state.routes.map((route, index) => {
-        const focused = state.index === index;
-        const { options } = descriptors[route.key];
-        const label = (options.tabBarLabel as string) ?? route.name;
-        const Icon = ICONS[route.name] ?? HomeIcon;
+    <View className="bg-canvas px-4 pt-2" style={{ paddingBottom: Math.max(insets.bottom, 14) }}>
+      <View
+        accessibilityRole="tablist"
+        className="h-[66px] flex-row items-center justify-around rounded-pill bg-ink px-2"
+        style={{ shadowColor: "#000000", shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
+      >
+        {state.routes.map((route, index) => {
+          const focused = state.index === index;
+          const { options } = descriptors[route.key];
+          const label = (options.tabBarLabel as string) ?? route.name;
+          const Icon = ICONS[route.name] ?? HomeIcon;
 
-        return (
-          <Pressable
-            key={route.key}
-            accessibilityRole="tab"
-            accessibilityState={focused ? { selected: true } : {}}
-            accessibilityLabel={
-              options.tabBarBadge != null ? `${label}, ${String(options.tabBarBadge)} active` : label
-            }
-            onPress={() => {
-              const event = navigation.emit({
-                type: "tabPress",
-                target: route.key,
-                canPreventDefault: true,
-              });
-              if (!focused && !event.defaultPrevented) {
-                navigation.navigate(route.name);
+          return (
+            <Pressable
+              key={route.key}
+              accessibilityRole="tab"
+              accessibilityState={focused ? { selected: true } : {}}
+              accessibilityLabel={
+                options.tabBarBadge != null ? `${label}, ${String(options.tabBarBadge)} active` : label
               }
-            }}
-            className="min-h-[56px] flex-1 items-center justify-center gap-1 active:opacity-70"
-          >
-            <View
-              className={`relative h-[30px] w-14 items-center justify-center rounded-pill ${
-                focused ? "bg-lime" : ""
+              onPress={() => {
+                const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
+                if (!focused && !event.defaultPrevented) {
+                  navigation.navigate(route.name);
+                }
+              }}
+              className={`h-12 flex-row items-center justify-center gap-1.5 rounded-pill active:opacity-80 ${
+                focused ? "bg-lime px-4" : "w-12"
               }`}
             >
-              <Icon size={22} color={focused ? colors.ink : colors.muted} strokeWidth={focused ? 2 : 1.8} />
+              <Icon size={21} color={focused ? colors.onLime : "#a9c2b8"} strokeWidth={2.1} />
+              {focused ? (
+                <Text numberOfLines={1} className="font-sans-bold text-meta text-on-lime">
+                  {label}
+                </Text>
+              ) : null}
               {options.tabBarBadge != null ? (
                 <View
-                  className="absolute -right-1 -top-1 min-h-[18px] min-w-[18px] items-center justify-center rounded-pill bg-ink px-1"
+                  className="absolute right-0.5 top-0.5 min-h-[16px] min-w-[16px] items-center justify-center rounded-pill bg-lime px-1"
                   accessibilityElementsHidden
                   importantForAccessibility="no-hide-descendants"
                 >
-                  <Text className="font-sans-semibold text-caption text-white">
-                    {String(options.tabBarBadge)}
-                  </Text>
+                  <Text className="font-sans-bold text-caption text-on-lime">{String(options.tabBarBadge)}</Text>
                 </View>
               ) : null}
-            </View>
-            <Text
-              numberOfLines={1}
-              className={`text-caption ${focused ? "font-sans-semibold text-ink" : "font-sans-medium text-muted"}`}
-            >
-              {label}
-            </Text>
-          </Pressable>
-        );
-      })}
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }

@@ -1,3 +1,4 @@
+import { PACKAGE_SIZES } from "../constants/sizes";
 import { z } from "zod";
 import {
   DELIVERY_DAYS,
@@ -68,6 +69,16 @@ export const createOrderSchema = z
      * basket.
      */
     itemDescription: z.string().min(1).max(500).optional(),
+    /**
+     * Pickup only: who hands the package over in Accra, where to meet them, and
+     * roughly how big it is. Optional on the wire so an app already open on a
+     * phone keeps working through a deploy; the Send a package screen requires
+     * the sender's name and phone.
+     */
+    senderName: z.string().trim().min(2).max(80).optional(),
+    senderPhone: z.string().trim().min(9).max(15).optional(),
+    pickupNotes: z.string().trim().max(300).optional(),
+    packageSize: z.enum(PACKAGE_SIZES).optional(),
   })
   // --- buy_for_me -----------------------------------------------------------
   .refine((v) => (v.orderType === "buy_for_me" ? !!v.shopId : true), {

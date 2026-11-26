@@ -24,6 +24,8 @@ interface AuthState {
    * session holds, because everything a student browses is per campus.
    */
   guestUniversityId: string | null;
+  /** The first name a guest gave before looking around (since 2026-11-26). */
+  guestFirstName: string | null;
   /** Set while a guest is in the sign-up flow they started at checkout. */
   signingUpFromGuest: boolean;
   /** Where to land after that sign-up. Consumed once by the student navigator. */
@@ -32,7 +34,7 @@ interface AuthState {
   clearSession: () => void;
   setProfile: (profile: Profile | null) => void;
   setHydrating: (isHydrating: boolean) => void;
-  startGuest: (universityId: string) => void;
+  startGuest: (universityId: string, firstName?: string) => void;
   /** A guest pressed Pay: remember where, and open sign-up. */
   beginSignupFromGuest: (resume: ResumeTarget) => void;
   /**
@@ -51,6 +53,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   profile: null,
   isHydrating: true,
   guestUniversityId: null,
+  guestFirstName: null,
   signingUpFromGuest: false,
   resume: null,
   setSession: (accessToken, refreshToken) => set({ accessToken, refreshToken }),
@@ -60,6 +63,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       refreshToken: null,
       profile: null,
       guestUniversityId: null,
+      guestFirstName: null,
       signingUpFromGuest: false,
       resume: null,
     }),
@@ -68,7 +72,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setProfile: (profile) =>
     set(profile ? { profile, guestUniversityId: null, signingUpFromGuest: false } : { profile }),
   setHydrating: (isHydrating) => set({ isHydrating }),
-  startGuest: (universityId) => set({ guestUniversityId: universityId, signingUpFromGuest: false }),
+  startGuest: (universityId, firstName) =>
+    set({ guestUniversityId: universityId, guestFirstName: firstName ?? null, signingUpFromGuest: false }),
   beginSignupFromGuest: (resume) => set({ resume, signingUpFromGuest: true }),
   cancelSignupFromGuest: () => set({ signingUpFromGuest: false }),
   takeResume: () => {
@@ -76,7 +81,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (resume) set({ resume: null });
     return resume;
   },
-  endGuest: () => set({ guestUniversityId: null, signingUpFromGuest: false, resume: null }),
+  endGuest: () => set({ guestUniversityId: null, guestFirstName: null, signingUpFromGuest: false, resume: null }),
 }));
 
 /** True while browsing without an account. */

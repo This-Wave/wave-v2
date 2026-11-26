@@ -59,7 +59,7 @@ export function PaymentReturnScreen() {
       <ScreenBody bottomInset={16}>
         <Gutter className="items-center pt-16">
           <ActivityIndicator color={colors.ink} />
-          <Text className="mb-2 mt-6 text-center font-sans-bold text-heading text-ink">
+          <Text className="mb-2 mt-6 text-center font-display text-heading text-ink">
             Confirming your payment
           </Text>
           <Text className="text-center font-sans text-body text-muted">

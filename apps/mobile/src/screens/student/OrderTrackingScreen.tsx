@@ -89,7 +89,7 @@ export function OrderTrackingScreen() {
         <Gutter>
           <View className="mb-6">
             {pill ? <StatusPill label={pill.label} tone={pill.tone} /> : null}
-            <Text className="mt-3 font-sans-bold text-heading text-ink">
+            <Text className="mt-3 font-display text-heading text-ink">
               {headline(order?.status)}
             </Text>
             <Text className="mt-1 font-sans text-body text-muted">
@@ -102,7 +102,7 @@ export function OrderTrackingScreen() {
           </View>
 
           {packedByWave ? (
-            <View className="mb-6 flex-row items-center justify-between rounded-card bg-surface p-5">
+            <View className="mb-6 flex-row items-center justify-between rounded-card border border-hairline bg-surface p-5">
               <Text className="font-sans-medium text-body text-muted">Order number</Text>
               <Text
                 className="font-sans-bold text-ink"
@@ -138,12 +138,12 @@ export function OrderTrackingScreen() {
             </View>
           ) : null}
 
-          <View className="mb-6 rounded-card bg-surface p-5">
+          <View className="mb-6 rounded-card border border-hairline bg-surface p-5">
             {order ? <Steps steps={orderSteps(order)} currentIndex={currentStepIndex(order.status)} /> : null}
           </View>
 
           {rider ? (
-            <View className="mb-6 flex-row items-center gap-3 rounded-card bg-surface p-4">
+            <View className="mb-6 flex-row items-center gap-3 rounded-card border border-hairline bg-surface p-4">
               <Thumb size={44} />
               <View className="flex-1">
                 <Text className="font-sans-medium text-body text-ink">{rider.fullName}</Text>
@@ -172,7 +172,7 @@ export function OrderTrackingScreen() {
           </RowGroup>
 
           {ledger ? (
-            <View className="mt-6 rounded-card bg-surface p-5">
+            <View className="mt-6 rounded-card border border-hairline bg-surface p-5">
               <Ledger ledger={ledger} />
             </View>
           ) : null}
