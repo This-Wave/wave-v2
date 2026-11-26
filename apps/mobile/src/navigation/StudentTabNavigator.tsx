@@ -19,7 +19,7 @@ function GuestProfile() {
 export type StudentTabParamList = {
   Home: undefined;
   Orders: undefined;
-  Checkpoints: undefined;
+  Send: undefined;
   Profile: undefined;
 };
 
@@ -46,18 +46,25 @@ export function StudentTabNavigator() {
           component={isGuest ? GuestOrders : OrderHistoryScreen}
           options={{ tabBarLabel: "Orders", tabBarBadge: ordersBadge }}
         />
+        {/* v7 canvas: the middle "+" is a shortcut into Send, never a page of
+            its own, so its press opens the Send flow on the stack. */}
         <Tab.Screen
-          name="Checkpoints"
-          component={CheckpointsTab}
-          options={{ tabBarLabel: "Checkpoints" }}
+          name="Send"
+          component={SendPlaceholder}
+          options={{ tabBarLabel: "Send a package" }}
+          listeners={({ navigation }) => ({
+            tabPress: (e) => {
+              e.preventDefault();
+              navigation.getParent()?.navigate("PickupRequest");
+            },
+          })}
         />
-        <Tab.Screen name="Profile" component={isGuest ? GuestProfile : ProfileScreen} options={{ tabBarLabel: "Profile" }} />
+        <Tab.Screen name="Profile" component={isGuest ? GuestProfile : ProfileScreen} options={{ tabBarLabel: "You" }} />
       </Tab.Navigator>
     </View>
   );
 }
 
-import { CheckpointsScreen } from "../screens/student/CheckpointsScreen";
-function CheckpointsTab() {
-  return <CheckpointsScreen />;
+function SendPlaceholder() {
+  return null;
 }

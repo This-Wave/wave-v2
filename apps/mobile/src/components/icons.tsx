@@ -58,7 +58,7 @@ export const PinDotIcon: Icon = ({ size = 19, color = colors.ink, strokeWidth = 
 export const BoxIcon: Icon = ({ size = 19, color = colors.ink, strokeWidth = 1.7 }) => (
   <Svg {...box({ size })} fill="none">
     <Path
-      d="M3.5 8L12 3.5 20.5 8M3.5 8v9L12 21.5 20.5 17V8"
+      d="M3.5 8L12 3.5 20.5 8M3.5 8v9L12 21.5 20.5 17V8M3.5 8L12 12.5 20.5 8M12 12.5V21.5"
       stroke={color}
       strokeWidth={strokeWidth}
       strokeLinecap="round"
@@ -312,5 +312,32 @@ export const WaveMarkIcon = ({ size = 28 }: { size?: number }) => (
       strokeWidth={76}
       strokeLinecap="round"
     />
+  </Svg>
+);
+
+/** v7: Orders tab (canvas list glyph). */
+export const ListIcon: Icon = ({ size = 20, color = colors.ink, strokeWidth = 2 }) => (
+  <Svg {...box({ size })} fill="none">
+    <Path d="M9 6h11M9 12h11M9 18h11" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+    <Circle cx={4.5} cy={6} r={1.2} fill={color} />
+    <Circle cx={4.5} cy={12} r={1.2} fill={color} />
+    <Circle cx={4.5} cy={18} r={1.2} fill={color} />
+  </Svg>
+);
+
+/** v7: "Your code" tile and the rider Earnings tab (canvas gift glyph). */
+export const GiftIcon: Icon = ({ size = 20, color = colors.ink, strokeWidth = 1.8 }) => (
+  <Svg {...box({ size })} fill="none">
+    <Rect x={3.5} y={8} width={17} height={4} rx={1} stroke={color} strokeWidth={strokeWidth} />
+    <Path d="M5 12v8h14v-8M12 8v12" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />
+    <Path d="M12 8c-1.5-3-5-3.5-5-1.5S10 8 12 8Zm0 0c1.5-3 5-3.5 5-1.5S14 8 12 8Z" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />
+  </Svg>
+);
+
+/** v7: "Suggest a shop" tile (canvas storefront glyph). */
+export const StoreIcon: Icon = ({ size = 20, color = colors.ink, strokeWidth = 1.8 }) => (
+  <Svg {...box({ size })} fill="none">
+    <Path d="M4 9.5V20h16V9.5M3 9.5 4.5 4h15L21 9.5H3Z" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />
+    <Path d="M9.5 20v-5h5v5" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />
   </Svg>
 );

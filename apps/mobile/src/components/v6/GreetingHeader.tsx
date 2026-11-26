@@ -63,17 +63,20 @@ export function GreetingHeader({
           onPress={onPressAvatar}
           accessibilityRole="button"
           accessibilityLabel={`${name}. Open your profile`}
-          className="h-11 w-11 items-center justify-center overflow-hidden rounded-pill border-2 border-hairline bg-surface active:opacity-80"
+          className="h-11 w-11 items-center justify-center overflow-hidden rounded-pill bg-wash active:opacity-80"
         >
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={{ width: 44, height: 44 }} resizeMode="cover" />
+          ) : shown.trim() && shown !== "there" ? (
+            // v7 canvas: the initial on wash.
+            <Text className="font-display text-subheading text-ink">{shown.trim()[0]!.toUpperCase()}</Text>
           ) : (
             <UserIcon size={22} color={colors.ink} strokeWidth={1.8} />
           )}
         </Pressable>
 
         <View className="min-w-0 flex-1 px-3">
-          <Text className="font-sans text-meta text-muted">Hello,</Text>
+          <Text className="font-sans text-meta text-muted">{greeting()}</Text>
           <Text className="font-sans-bold text-subheading text-ink" numberOfLines={1}>
             {shown}
           </Text>
@@ -83,7 +86,7 @@ export function GreetingHeader({
           onPress={onPressBell}
           accessibilityRole="button"
           accessibilityLabel={alert ? "Your orders. You have an order in progress" : "Your orders"}
-          className="h-11 w-11 items-center justify-center rounded-pill border-2 border-hairline bg-surface active:opacity-80"
+          className="h-11 w-11 items-center justify-center rounded-input border-2 border-hairline bg-surface active:opacity-80"
         >
           <BellIcon size={20} color={colors.ink} strokeWidth={1.8} />
           {alert ? (
@@ -105,4 +108,10 @@ export function GreetingHeader({
       {children ? <View className="mt-5">{children}</View> : null}
     </View>
   );
+}
+
+/** "Good morning" / "Good afternoon" / "Good evening", by the phone's clock. */
+function greeting(): string {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }

@@ -29,7 +29,7 @@ export function CodeTicket({ pin, caption = "Your code", note, large }: { pin?: 
     <View className="items-center rounded-card bg-wash px-5 py-6" style={{ overflow: "hidden" }}>
       <View className="absolute -left-3 top-1/2 h-6 w-6 rounded-pill bg-canvas" style={{ marginTop: -12 }} />
       <View className="absolute -right-3 top-1/2 h-6 w-6 rounded-pill bg-canvas" style={{ marginTop: -12 }} />
-      <Text className="font-sans-bold text-meta text-ink-700">{caption}</Text>
+      {caption ? <Text className="font-sans-bold text-meta text-ink-700">{caption}</Text> : null}
       <Animated.Text
         accessibilityLabel={pin ? `Code ${pin.split("").join(" ")}` : "Code loading"}
         className="font-display text-ink"

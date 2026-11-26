@@ -50,6 +50,7 @@ module.exports = {
         hairline: "#eeede7",
         // --- v7 ---
         "on-lime": "#0b2a21",
+        "on-ink": "#fdfcf8", // text on an ink fill (status pills, chips)
         line: "#d9ded9",
         link: "#02833f",
         wash: "#eafbe3", // dividers, input underlines (Bebe)
