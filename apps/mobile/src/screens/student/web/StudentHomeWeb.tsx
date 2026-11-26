@@ -31,6 +31,7 @@ import { useBuyForMeStatus, useServiceStatus } from "../../../lib/serviceStatus"
 import { formatGhsCompact, isStandardRunDay } from "../../../lib/pricing";
 import { useDropoffPoints } from "../../../lib/checkpoints";
 import { useViewerUniversityId } from "../../../store/authStore";
+import { BusinessPromoCard } from "../../../components/BusinessPromoCard";
 import {
   openOrderTracking,
   openShopMenu,
@@ -185,6 +186,9 @@ export function StudentHomeWeb() {
                   cta="Suggest a shop"
                   onPress={() => navigation.navigate("SuggestShop", waveDate)}
                 />
+              </View>
+              <View style={{ flex: 1, minWidth: 320 }}>
+                <BusinessPromoCard onPress={() => navigation.navigate("BusinessInterest")} />
               </View>
             </View>
           </Gutter>

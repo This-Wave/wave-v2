@@ -25,6 +25,8 @@ import { queryClient } from "./src/lib/queryClient";
 import { clearSkipTransition, initReducedMotionPreference, markHistoryNavigation } from "./src/lib/navigationMotion";
 import { ToastHost } from "./src/components/v6";
 import { InstallHint } from "./src/components/InstallHint";
+import { CookieConsent } from "./src/components/CookieConsent";
+import { NotificationsNudge } from "./src/components/NotificationsNudge";
 import { captureInstallPrompt } from "./src/lib/installPrompt";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import { initMobileSentry, wrapWithSentry } from "./src/lib/sentry";
@@ -114,6 +116,8 @@ function App() {
                 <WebPushListener />
                 <ToastHost />
                 <InstallHint />
+                <NotificationsNudge />
+                <CookieConsent />
                 <StatusBar style="dark" />
               </NavigationContainer>
             </NotificationProvider>

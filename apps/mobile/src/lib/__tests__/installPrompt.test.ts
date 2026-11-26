@@ -29,6 +29,7 @@ import {
   hasDeferredPrompt,
   hasDismissedInstallHint,
   markInstallHintDismissed,
+  INSTALL_HINT_SNOOZE_MS,
   onInstallPromptAvailable,
   showInstallPrompt,
   type BeforeInstallPromptEvent,
@@ -83,6 +84,17 @@ describe("dismissal", () => {
     expect(await hasDismissedInstallHint()).toBe(false);
     await markInstallHintDismissed();
     expect(await hasDismissedInstallHint()).toBe(true);
+  });
+
+  test("the snooze ends after three days", async () => {
+    await markInstallHintDismissed();
+    const later = Date.now() + INSTALL_HINT_SNOOZE_MS + 1000;
+    expect(await hasDismissedInstallHint(later)).toBe(false);
+  });
+
+  test("the old permanent dismissal asks once more", async () => {
+    getItem.mockImplementation(async () => "1");
+    expect(await hasDismissedInstallHint()).toBe(false);
   });
 
   test("unavailable storage reads as dismissed rather than showing every launch", async () => {

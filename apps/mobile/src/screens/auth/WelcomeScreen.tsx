@@ -3,7 +3,8 @@ import { Animated, Easing, Pressable, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
-import { Button, Gutter, Row, RowGroup, Screen, ScreenBody, Sheet } from "../../components/v6";
+import { Button, Field, Gutter, Row, RowGroup, Screen, ScreenBody, Sheet } from "../../components/v6";
+import { recordGuestVisit } from "../../lib/growth";
 import { colors } from "../../theme/tokens";
 import { useUniversities } from "../../lib/checkpoints";
 import { useAuthStore } from "../../store/authStore";
@@ -41,15 +42,26 @@ export function WelcomeScreen({ navigation }: Props) {
   const { data: universities } = useUniversities();
   const startGuest = useAuthStore((s) => s.startGuest);
 
-  // Looking around needs a campus, because shops and checkpoints are per
-  // campus. With one campus live there is nothing to ask.
+  // Looking around asks two things: a first name (so the team knows who is
+  // browsing, and Home can say hello), and a campus when more than one is live,
+  // because shops and checkpoints are per campus.
+  const [guestName, setGuestName] = useState("");
+  const [guestCampus, setGuestCampus] = useState<string | null>(null);
+
   function lookAround() {
     if (!universities?.length) return;
-    if (universities.length === 1) {
-      startGuest(universities[0]!.id);
-      return;
-    }
+    setGuestCampus(universities.length === 1 ? universities[0]!.id : null);
     setPickingCampus(true);
+  }
+
+  const trimmedName = guestName.trim();
+  const canStartGuest = trimmedName.length > 0 && !!guestCampus;
+
+  function startLooking() {
+    if (!canStartGuest || !guestCampus) return;
+    setPickingCampus(false);
+    recordGuestVisit(trimmedName, guestCampus);
+    startGuest(guestCampus, trimmedName);
   }
 
   return (
@@ -127,20 +139,37 @@ export function WelcomeScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <Sheet visible={pickingCampus} onClose={() => setPickingCampus(false)} title="Your campus">
-        <RowGroup>
-          {(universities ?? []).map((u) => (
-            <Row
-              key={u.id}
-              title={u.name}
-              meta={`${u.city}, ${u.country}`}
-              onPress={() => {
-                setPickingCampus(false);
-                startGuest(u.id);
-              }}
-            />
-          ))}
-        </RowGroup>
+      <Sheet
+        visible={pickingCampus}
+        onClose={() => setPickingCampus(false)}
+        title="Before you look around"
+        footer={<Button label="Start looking" disabled={!canStartGuest} onPress={startLooking} />}
+      >
+        <View className="gap-5">
+          <Field
+            label="Your first name"
+            value={guestName}
+            onChangeText={setGuestName}
+            placeholder="e.g. Ama"
+            maxLength={40}
+            autoFocus
+          />
+          {(universities?.length ?? 0) > 1 ? (
+            <View>
+              <Text className="mb-2 font-sans-medium text-body text-ink">Your campus</Text>
+              <RowGroup>
+                {(universities ?? []).map((u) => (
+                  <Row
+                    key={u.id}
+                    title={u.name}
+                    meta={guestCampus === u.id ? "Selected" : `${u.city}, ${u.country}`}
+                    onPress={() => setGuestCampus(u.id)}
+                  />
+                ))}
+              </RowGroup>
+            </View>
+          ) : null}
+        </View>
       </Sheet>
     </Screen>
   );
