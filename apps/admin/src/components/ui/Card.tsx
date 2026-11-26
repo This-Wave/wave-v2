@@ -9,15 +9,12 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
   );
 }
 
+/** v7 canvas figure card: label, then the number in Nunito; `accent` inks it. */
 export function StatTile({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
   return (
-    <div className="flex-1 rounded-card border border-border bg-surface p-[22px] shadow-card">
-      <div
-        className={`text-[30px] font-display font-black leading-none text-ink`}
-      >
-        {value}
-      </div>
-      <div className="mt-2 text-[12.5px] font-bold text-ink">{label}</div>
+    <div className={`flex-1 rounded-card border p-5 ${accent ? "border-ink bg-ink" : "border-border bg-surface"}`}>
+      <div className={`text-[13px] ${accent ? "text-[#fdfcf8]" : "text-muted"}`}>{label}</div>
+      <div className={`mt-1 font-display text-[34px] font-black leading-none ${accent ? "text-[#fdfcf8]" : "text-ink"}`}>{value}</div>
     </div>
   );
 }

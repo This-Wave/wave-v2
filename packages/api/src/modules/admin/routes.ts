@@ -112,6 +112,8 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const riderUni = uni.universityId ? { rider: { universityId: uni.universityId } } : {};
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
+    const startOfWeek = new Date(startOfToday);
+    startOfWeek.setDate(startOfWeek.getDate() - ((startOfWeek.getDay() + 6) % 7)); // Monday
 
     const [
       totalOrders,
@@ -124,6 +126,10 @@ export async function adminRoutes(fastify: FastifyInstance) {
       ordersToday,
       activeRiders,
       revenueTodayResult,
+      deliveredToday,
+      ridersOnline,
+      weekResult,
+      weekNewStudents,
     ] = await Promise.all([
       fastify.prisma.order.count({ where: { ...uni, isTest: false } }),
       fastify.prisma.profile.count({ where: { ...uni, isTest: false } }),
@@ -158,6 +164,15 @@ export async function adminRoutes(fastify: FastifyInstance) {
         },
         _sum: { totalAmount: true },
       }),
+      fastify.prisma.order.count({ where: { ...uni, isTest: false, status: "delivered", deliveredAt: { gte: startOfToday } } }),
+      fastify.prisma.profile.count({ where: { role: "rider", isActive: true, isAvailable: true, ...uni } }),
+      // The dashboard's "This week" card: money taken and deliveries since Monday.
+      fastify.prisma.order.aggregate({
+        where: { ...uni, isTest: false, createdAt: { gte: startOfWeek }, status: { notIn: ["cancelled", "refunded", "payment_pending", "pending"] } },
+        _sum: { totalAmount: true },
+        _count: { _all: true },
+      }),
+      fastify.prisma.profile.count({ where: { ...uni, isTest: false, role: "student", createdAt: { gte: startOfWeek } } }),
     ]);
 
     return reply.send({
@@ -171,6 +186,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
       ordersToday,
       activeRiders,
       revenueToday: revenueTodayResult._sum.totalAmount ?? 0,
+      deliveredToday,
+      ridersOnline,
+      weekRevenue: weekResult._sum.totalAmount ?? 0,
+      weekOrders: weekResult._count._all,
+      weekNewStudents,
     });
   });
 
@@ -184,6 +204,10 @@ export async function adminRoutes(fastify: FastifyInstance) {
     shop: { select: { name: true } },
     checkpoint: { select: { name: true } },
     rider: { select: { fullName: true } },
+    // v7 tables show the route and size, not only the drop-off.
+    orderType: true,
+    packageSize: true,
+    originCheckpoint: { select: { name: true } },
   } as const;
 
   // `limit` (legacy, used by the Dashboard's Recent Orders widget) returns a

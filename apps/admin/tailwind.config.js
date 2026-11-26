@@ -54,7 +54,12 @@ module.exports = {
         lime: {
           DEFAULT: "#87ea5c",
           faint: "#eefce6",
+          edge: "#6cc947",
         },
+        // v7 canvas
+        wash: "#eafbe3",
+        line: "#d9ded9",
+        info: { bg: "#e7effb", text: "#1f4e8c" },
       },
       fontFamily: {
         sans: ["DM Sans", "sans-serif"],

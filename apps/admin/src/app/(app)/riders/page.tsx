@@ -5,6 +5,11 @@ import { useAdminAuth } from "../../../providers/AdminAuthProvider";
 import { apiFetch } from "../../../lib/api";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 import { approvalWait } from "@wave/shared";
+import { PageHeader } from "../../../components/ui/PageHeader";
+import { FilterTabs } from "../../../components/ui/DataTable";
+import { StatusPill } from "../../../components/ui/StatusPill";
+import { Button } from "../../../components/ui/Button";
+import { localPhone } from "../../../lib/format";
 
 type VerificationStatus = "pending" | "approved" | "rejected";
 
@@ -21,14 +26,11 @@ interface Verification {
 }
 
 const TABS: { key: VerificationStatus; label: string }[] = [
-  { key: "pending", label: "Pending" },
-  { key: "approved", label: "Approved" },
-  { key: "rejected", label: "Rejected" },
+  { key: "pending", label: "Waiting" },
+  { key: "approved", label: "Verified" },
+  { key: "rejected", label: "Turned down" },
 ];
 
-function initials(name: string): string {
-  return name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
-}
 
 export default function RidersPage() {
   const { accessToken, can } = useAdminAuth();
@@ -36,6 +38,7 @@ export default function RidersPage() {
   const [verifications, setVerifications] = useState<Verification[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!accessToken) return;
@@ -67,160 +70,106 @@ export default function RidersPage() {
     }
   }
 
+  const selected = verifications?.find((v) => v.id === picked) ?? verifications?.[0] ?? null;
+  const ID_LABEL: Record<string, string> = { ghana_card: "Ghana Card", student_id: "Student ID", passport: "Passport", voter_id: "Voter ID", drivers_license: "Driver's licence" };
+
   return (
     <div className="px-10 py-8">
-      <div className="mb-6">
-        <h1 className="text-[26px] font-display font-black text-ink">Rider Verifications</h1>
-        <p className="mt-0.5 text-[13px] text-muted">Review submitted IDs and selfies</p>
-      </div>
+      <PageHeader title="Riders" subtitle="Verification and who can work" />
 
       {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
 
-      <div className="mb-5 inline-flex rounded-control border border-border bg-surface p-1">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`rounded-tile px-4 py-2 text-[12px] font-semibold ${
-              tab === t.key ? "bg-ink text-white" : "text-muted"
-            }`}
-          >
-            {t.label}
-            {t.key === "pending" && verifications && tab === "pending" && can("riders.verify") ? ` (${verifications.length})` : ""}
-          </button>
-        ))}
-      </div>
+      <FilterTabs
+        tabs={TABS.map((t) => ({
+          key: t.key,
+          label: `${t.label}${t.key === "pending" && verifications && tab === "pending" ? ` (${verifications.length})` : ""}`,
+        }))}
+        active={tab}
+        onChange={(k) => {
+          setTab(k);
+          setPicked(null);
+        }}
+      />
 
-      <div className="overflow-hidden rounded-card border border-border bg-surface">
-        <table className="w-full text-left text-[13px]">
-          <thead>
-            <tr className="border-b border-border bg-canvas text-[12.5px] font-bold text-ink">
-              <th className="px-4 py-3 font-semibold">Rider</th>
-              <th className="px-4 py-3 font-semibold">Phone</th>
-              <th className="px-4 py-3 font-semibold">{tab === "pending" && can("riders.verify") ? "Waiting" : "Submitted"}</th>
-              <th className="px-4 py-3 font-semibold">ID</th>
-              <th className="px-4 py-3 font-semibold">Selfie</th>
-              <th className="px-4 py-3 font-semibold">Status</th>
-              {tab === "pending" && can("riders.verify") ? <th className="px-4 py-3 font-semibold">Actions</th> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {!verifications ? (
-              <tr>
-                <td className="px-4 py-6 text-muted" colSpan={7}>
-                  Loading…
-                </td>
+      {/* v7 canvas: the queue on the left, the chosen rider's documents and the
+          decision on the right. */}
+      <div className="grid grid-cols-[1fr_1fr] gap-6">
+        <div className="overflow-hidden rounded-card border border-border bg-surface">
+          <table className="w-full text-left text-[13.5px]">
+            <thead>
+              <tr className="border-b border-border text-[12.5px] font-bold text-ink">
+                <th className="h-10 px-4 font-bold">Rider</th>
+                <th className="h-10 px-4 font-bold">ID</th>
+                <th className="h-10 px-4 font-bold">Sent</th>
+                <th className="h-10 px-4 font-bold" />
               </tr>
-            ) : verifications.length === 0 ? (
-              <tr>
-                <td className="px-4 py-6 text-muted" colSpan={7}>
-                  No {tab} verifications.
-                </td>
-              </tr>
-            ) : (
-              verifications.map((v, i) => (
-                <tr key={v.id} className={i < verifications.length - 1 ? "border-b border-border" : ""}>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-lime text-[11px] font-bold text-ink">
-                        {initials(v.rider.fullName)}
-                      </div>
-                      <span className="font-medium text-ink">{v.rider.fullName}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-[12px] text-muted">{v.rider.phone}</td>
-                  <td className="px-4 py-3">
-                    {/* How long this person has been unable to work, not just the
-                        date they applied. A queue that shows dates lets a rider
-                        sit for a week without anything looking wrong. */}
-                    {(() => {
-                      const wait = approvalWait(v.createdAt);
-                      if (v.status !== "pending") {
-                        return (
-                          <span className="text-muted">
-                            {new Date(v.createdAt).toLocaleDateString()}
-                          </span>
-                        );
-                      }
-                      return (
-                        <span
-                          className={
-                            wait.overdue ? "font-semibold text-danger-text" : "text-muted"
-                          }
-                          title={new Date(v.createdAt).toLocaleString()}
-                        >
-                          waiting {wait.label}
-                          {wait.overdue ? " — overdue" : ""}
-                        </span>
-                      );
-                    })()}
-                  </td>
-                  <td className="px-4 py-3">
-                    {v.idImageUrl ? (
-                      <a href={v.idImageUrl} target="_blank" rel="noreferrer" title={v.idNumber}>
-                        {/* eslint-disable-next-line @next/next/no-img-element -- external Supabase-signed URLs, not worth configuring next/image remote patterns for */}
-                        <img
-                          src={v.idImageUrl}
-                          alt={`${v.rider.fullName}'s ${v.idType.replace("_", " ")}`}
-                          className="h-10 w-14 rounded-tile border border-border object-cover"
-                        />
-                      </a>
-                    ) : (
-                      <div className="h-10 w-14 rounded-tile border border-border bg-surface-muted" title={v.idNumber} />
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {v.selfieUrl ? (
-                      <a href={v.selfieUrl} target="_blank" rel="noreferrer">
-                        {/* eslint-disable-next-line @next/next/no-img-element -- external Supabase-signed URLs, not worth configuring next/image remote patterns for */}
-                        <img
-                          src={v.selfieUrl}
-                          alt={`${v.rider.fullName}'s selfie`}
-                          className="h-10 w-10 rounded-tile border border-border object-cover"
-                        />
-                      </a>
-                    ) : (
-                      <div className="h-10 w-10 rounded-tile border border-border bg-surface-muted" />
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-pill px-[11px] py-[5px] text-[11px] font-semibold ${
-                        v.status === "approved"
-                          ? "bg-success-bg text-ink"
-                          : v.status === "rejected"
-                            ? "bg-danger-bg text-danger-text"
-                            : "bg-warning-bg text-warning-text"
-                      }`}
+            </thead>
+            <tbody>
+              {!verifications ? (
+                <tr><td className="px-4 py-6 text-muted" colSpan={4}>Loading…</td></tr>
+              ) : verifications.length === 0 ? (
+                <tr><td className="px-4 py-6 text-muted" colSpan={4}>No riders here.</td></tr>
+              ) : (
+                verifications.map((v) => {
+                  const wait = approvalWait(v.createdAt);
+                  const on = selected?.id === v.id;
+                  return (
+                    <tr
+                      key={v.id}
+                      onClick={() => setPicked(v.id)}
+                      aria-selected={on}
+                      className={`cursor-pointer border-b border-border/70 last:border-b-0 ${on ? "bg-wash" : "hover:bg-canvas"}`}
                     >
-                      {v.status}
-                    </span>
-                  </td>
-                  {tab === "pending" && can("riders.verify") ? (
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleReview(v.id, "rejected")}
-                          disabled={actioning === v.id}
-                          className="rounded-tile border border-border bg-surface px-3 py-1.5 text-[11px] font-semibold text-danger-text disabled:opacity-50"
-                        >
-                          Reject
-                        </button>
-                        <button
-                          onClick={() => handleReview(v.id, "approved")}
-                          disabled={actioning === v.id}
-                          className="rounded-tile bg-lime px-3 py-1.5 text-[11px] font-semibold text-ink disabled:opacity-50"
-                        >
-                          Approve
-                        </button>
-                      </div>
-                    </td>
-                  ) : null}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                      <td className="h-12 px-4 font-bold text-ink">{v.rider.fullName}</td>
+                      <td className="px-4 text-ink">{ID_LABEL[v.idType] ?? v.idType.replace(/_/g, " ")}</td>
+                      <td className={`px-4 ${v.status === "pending" && wait.overdue ? "font-bold text-danger-text" : "text-ink"}`}>
+                        {v.status === "pending" ? wait.label : new Date(v.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4">
+                        <StatusPill
+                          label={v.status === "pending" ? "Review" : v.status === "approved" ? "Verified" : "Turned down"}
+                          tone={v.status === "pending" ? "warn" : v.status === "approved" ? "good" : "bad"}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {selected ? (
+          <div className="rounded-card border border-border bg-surface p-5">
+            <h2 className="text-[15px] font-bold text-ink">
+              {selected.rider.fullName} · {ID_LABEL[selected.idType] ?? selected.idType.replace(/_/g, " ")}
+            </h2>
+            <p className="mb-4 text-[13px] text-muted">{localPhone(selected.rider.phone)} · {selected.idNumber}</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { url: selected.idImageUrl, alt: "ID" },
+                { url: selected.selfieUrl, alt: "Selfie" },
+              ].map((d) =>
+                d.url ? (
+                  <a key={d.alt} href={d.url} target="_blank" rel="noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- signed Supabase URLs */}
+                    <img src={d.url} alt={`${selected.rider.fullName}'s ${d.alt}`} className="h-44 w-full rounded-control border border-border object-cover" />
+                  </a>
+                ) : (
+                  <div key={d.alt} className="flex h-44 items-center justify-center rounded-control bg-surface-muted text-[12px] text-muted">
+                    No {d.alt.toLowerCase()} photo
+                  </div>
+                ),
+              )}
+            </div>
+            {selected.status === "pending" && can("riders.verify") ? (
+              <div className="mt-4 flex gap-2">
+                <Button label="Approve" disabled={actioning === selected.id} onClick={() => void handleReview(selected.id, "approved")} />
+                <Button label="Reject" variant="secondary" disabled={actioning === selected.id} onClick={() => void handleReview(selected.id, "rejected")} />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );

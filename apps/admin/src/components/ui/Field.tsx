@@ -14,14 +14,14 @@ export const FOCUS_RING =
   "focus-visible:ring-offset-surface";
 
 const CONTROL =
-  "min-h-[42px] w-full rounded-control border border-border bg-surface px-3.5 py-2 text-[13.5px] text-ink " +
+  "min-h-[48px] w-full rounded-control border-2 border-line bg-surface px-4 py-2 text-[14.5px] font-medium text-ink " +
   // #a8a8a8 on white is 2.5:1; placeholders are text and owe 4.5:1.
   `placeholder:text-muted focus:border-ink disabled:opacity-50 ${FOCUS_RING}`;
 
 function Label({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[12px] font-semibold text-muted">
+      <span className="mb-1.5 block text-[13.5px] font-bold text-ink">
         {label}
         {/* `text-faint` is #a8a8a8 — 2.38:1 on white. "optional" is the word
             that tells someone they may skip a field, so it is exactly the sort

@@ -167,33 +167,61 @@ export default function ConfigPage() {
   }
 
   const other = rows?.filter((r) => !KNOWN_KEYS.includes(r.key)) ?? [];
+  const SIZES = [
+    { key: "size_price_ripple", name: "Ripple", for: "Documents, charger, small items", kg: 3 },
+    { key: "size_price_wave", name: "Wave", for: "Clothes, shoes, a laptop", kg: 8 },
+    { key: "size_price_swell", name: "Swell", for: "Food trays, gift boxes, small appliances", kg: 15 },
+    { key: "size_price_tide", name: "Tide", for: "Wholesale cartons, home appliances", kg: 25 },
+  ];
+  const input = (key: string, prefix?: string, suffix?: string) => (
+    <div className="flex h-10 w-[130px] items-center gap-1 rounded-control border-2 border-line bg-surface px-3 focus-within:border-ink">
+      {prefix ? <span className="text-[13px] text-muted">{prefix}</span> : null}
+      <input
+        id={key}
+        aria-label={key.replace(/_/g, " ")}
+        value={draft[key] ?? ""}
+        onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+        readOnly={!canEdit}
+        inputMode="decimal"
+        className="min-w-0 flex-1 bg-transparent text-[14px] font-bold text-ink outline-none"
+      />
+      {suffix ? <span className="text-[13px] text-muted">{suffix}</span> : null}
+    </div>
+  );
+  const row = (label: string, control: React.ReactNode, hint?: string) => (
+    <div className="flex items-center justify-between gap-4 border-b border-border/70 py-3 last:border-b-0">
+      <div>
+        <p className="text-[14px] text-ink">{label}</p>
+        {hint ? <p className="text-[12px] text-muted">{hint}</p> : null}
+      </div>
+      {control}
+    </div>
+  );
 
   return (
     <div className="px-10 py-8">
-      <PageHeader title="Config" subtitle="Ordering, pricing and scheduling" />
-
-      {/* First on the page: when something is on fire, this is what you came for. */}
-      <div className="mb-8 max-w-[720px]">
-        <ServiceSwitches />
-      </div>
-
-      <div className="mb-7 flex max-w-[720px] gap-3 rounded-control bg-wave-lime p-4">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0">
-          <circle cx="12" cy="12" r="9" stroke="#083400" strokeWidth="1.7" />
-          <path d="M12 11v5.5M12 7.8v.4" stroke="#083400" strokeWidth="1.9" strokeLinecap="round" />
-        </svg>
-        <p className="text-[12.5px] leading-5 text-ink">
-          Changes apply to <strong className="font-semibold">new orders only</strong>. Orders already
-          placed keep the fee, discount and surcharge they were created with.
-        </p>
-      </div>
+      <PageHeader
+        title="Config"
+        subtitle="Prices, schedule and services. Changes apply to new orders only."
+        action={
+          canEdit ? (
+            <div className="flex items-center gap-2">
+              {dirtyKeys.length > 0 ? (
+                <Button label="Discard" variant="secondary" onClick={handleDiscard} disabled={saving} />
+              ) : null}
+              <Button
+                label={saving ? "Saving" : "Save changes"}
+                onClick={handleSave}
+                disabled={saving || dirtyKeys.length === 0}
+              />
+            </div>
+          ) : null
+        }
+      />
 
       {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
       {saveError ? (
-        <p
-          role="alert"
-          className="mb-5 max-w-[720px] rounded-control border border-border bg-surface px-4 py-3 text-[13px] text-ink"
-        >
+        <p role="alert" className="mb-5 rounded-control border border-danger-border bg-danger-bg px-4 py-3 text-[13px] text-danger-text">
           {saveError}
         </p>
       ) : null}
@@ -201,82 +229,76 @@ export default function ConfigPage() {
       {rows === null ? (
         <p className="text-[13.5px] text-muted">Loading…</p>
       ) : (
-        <>
-          <div className="flex flex-wrap gap-10">
-            {GROUPS.map((group) => (
-              <div key={group.title} className="min-w-[300px] flex-1">
-                <h2 className="mb-[18px] text-[17px] font-semibold text-ink">{group.title}</h2>
-                {group.keys.map((f) => (
-                  <div key={f.key} className="mb-5">
-                    <label className="mb-2 block text-[12.5px] font-medium text-muted" htmlFor={f.key}>
-                      {f.label}
-                    </label>
-                    <div className="flex h-[46px] max-w-[320px] items-center gap-2 rounded-control border border-border bg-surface px-4 focus-within:border-wave-500">
-                      {f.suffix === "GH₵" ? <span className="text-[14px] text-muted">GH₵</span> : null}
-                      <input
-                        id={f.key}
-                        value={draft[f.key] ?? ""}
-                        onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
-                        inputMode="decimal"
-                        className="min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none"
-                      />
-                      {f.suffix && f.suffix !== "GH₵" ? (
-                        <span className="text-[14px] text-muted">{f.suffix}</span>
-                      ) : null}
-                    </div>
-                    <p className="mt-[7px] text-[11.5px] text-muted">{f.hint}</p>
-                  </div>
-                ))}
+        <div className="grid grid-cols-[1fr_380px] gap-6">
+          <div className="space-y-6">
+            <section>
+              <h2 className="mb-3 text-[15px] font-bold text-ink">Package sizes</h2>
+              <div className="overflow-hidden rounded-card border border-border bg-surface">
+                <table className="w-full text-left text-[13.5px]">
+                  <thead>
+                    <tr className="border-b border-border text-[12.5px] font-bold text-ink">
+                      <th className="h-10 px-4">Size</th>
+                      <th className="h-10 px-4">For</th>
+                      <th className="h-10 px-4">Up to</th>
+                      <th className="h-10 px-4">Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {SIZES.map((sz) => (
+                      <tr key={sz.key} className="border-b border-border/70 last:border-b-0">
+                        <td className="h-14 px-4 font-bold text-ink">{sz.name}</td>
+                        <td className="px-4 text-ink">{sz.for}</td>
+                        <td className="px-4 text-ink">{sz.kg} kg</td>
+                        <td className="px-4">{input(sz.key, "GH₵")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
+              <p className="mt-2 text-[12px] text-muted">Before the pickup zone add-on.</p>
+            </section>
+
+            <section>
+              <h2 className="mb-3 text-[15px] font-bold text-ink">Discounts</h2>
+              <div className="rounded-card border border-border bg-surface px-4">
+                {row("Loyalty discount", input("loyalty_discount_pct", undefined, "%"), "Off the delivery fee only")}
+                {row("Deliveries before it unlocks", input("loyalty_threshold"))}
+              </div>
+            </section>
+
+            <section>
+              <h2 className="mb-3 text-[15px] font-bold text-ink">Pricing and payouts</h2>
+              <div className="rounded-card border border-border bg-surface px-4">
+                {row("Base delivery fee", input("delivery_fee_base", "GH₵"), "When an order has no size")}
+                {row("Rider share of the fee", input("rider_earning_pct", undefined, "%"), "Paid when the student's code closes the delivery")}
+                {row("Max goods total", input("goods_cost_max_ghs", "GH₵"), "Suggested-shop till limit")}
+                {other.map((r) => row(r.description ?? r.key, input(r.key)))}
+              </div>
+              {!canEdit ? <p className="mt-2 text-[12.5px] text-muted">Your role can see pricing but not change it.</p> : null}
+              <p className="mt-2 text-[12px] text-muted">
+                {dirtyKeys.length > 0
+                  ? `${dirtyKeys.length} unsaved ${dirtyKeys.length === 1 ? "change" : "changes"}.`
+                  : savedAt
+                    ? `Last saved ${savedAt}.`
+                    : "No unsaved changes."}
+              </p>
+            </section>
           </div>
 
-          {other.length > 0 ? (
-            <div className="mt-2">
-              <h2 className="mb-[18px] text-[17px] font-semibold text-ink">Other</h2>
-              {other.map((r) => (
-                <div key={r.key} className="mb-5">
-                  <label className="mb-2 block text-[12.5px] font-medium text-muted" htmlFor={r.key}>
-                    {r.description ?? r.key}
-                  </label>
-                  <input
-                    id={r.key}
-                    value={draft[r.key] ?? ""}
-                    onChange={(e) => setDraft((d) => ({ ...d, [r.key]: e.target.value }))}
-                    readOnly={!canEdit}
-                    className="h-[46px] w-full max-w-[320px] rounded-control border border-border bg-surface px-4 text-[14px] text-ink outline-none focus:border-wave-500"
-                  />
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {canEdit ? (
-            <div className="mt-3 flex gap-3">
-              <Button
-                label={saving ? "Saving…" : "Save changes"}
-                onClick={handleSave}
-                disabled={saving || dirtyKeys.length === 0}
-              />
-              <Button
-                label="Discard"
-                variant="secondary"
-                onClick={handleDiscard}
-                disabled={saving || dirtyKeys.length === 0}
-              />
-            </div>
-          ) : (
-            <p className="mt-3 text-[12.5px] text-muted">Your role can see pricing but not change it.</p>
-          )}
-
-          <p className="mt-[22px] text-[12px] text-muted">
-            {dirtyKeys.length > 0
-              ? `${dirtyKeys.length} unsaved ${dirtyKeys.length === 1 ? "change" : "changes"}.`
-              : savedAt
-                ? `Last saved ${savedAt}.`
-                : "No unsaved changes."}
-          </p>
-        </>
+          <aside className="space-y-6">
+            <section>
+              <h2 className="mb-3 text-[15px] font-bold text-ink">Services</h2>
+              <ServiceSwitches />
+            </section>
+            <section>
+              <h2 className="mb-3 text-[15px] font-bold text-ink">Schedule</h2>
+              <div className="rounded-card border border-border bg-surface px-4">
+                {row("Delivery days", <span className="text-[14px] font-bold text-ink">Every day</span>)}
+                {row("Order cutoff", <span className="text-[14px] font-bold text-ink">12 noon</span>)}
+              </div>
+            </section>
+          </aside>
+        </div>
       )}
 
       <div className="mt-8">

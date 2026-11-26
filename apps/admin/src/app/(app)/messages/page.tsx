@@ -133,7 +133,7 @@ export default function MessagesPage() {
   ];
 
   return (
-    <div>
+    <div className="px-10 py-8">
       <PageHeader title="Messages" subtitle="Send a push notification or an SMS to students." />
       {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
 
