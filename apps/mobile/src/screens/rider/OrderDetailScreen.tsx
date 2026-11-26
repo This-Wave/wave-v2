@@ -6,13 +6,11 @@ import {
   ActionBar,
   Button,
   Gutter,
-  Row,
-  RowGroup,
   Screen,
   ScreenBody,
-  Thumb,
   TopBar,
 } from "../../components/v6";
+import { RouteLine } from "../../components/v7/Signature";
 import { useOrder } from "../../lib/orders";
 import { useAcceptOrder } from "../../lib/rider";
 import { apiErrorMessage } from "../../lib/apiError";
@@ -63,33 +61,45 @@ export function OrderDetailScreen() {
         <Gutter className="pt-2">
           <Text className="font-sans text-body text-muted">You'd earn</Text>
           <Text
-            className="mb-8 mt-1 font-sans-bold text-ink"
+            className="mb-6 mt-1 font-display text-ink"
             style={{ fontSize: 48, lineHeight: 52 }}
           >
-            {order ? formatGhs(Number(order.deliveryFee)) : "—"}
+            {order ? formatGhs(Number(order.estimatedEarning ?? order.deliveryFee)) : "—"}
           </Text>
 
-          <Text className="mb-2 font-sans-bold text-body text-ink">The job</Text>
-          <RowGroup>
-            <Row
-              title={order?.shop?.name ?? "Shop"}
-              meta={order?.shop?.locationText ?? "Buy from here"}
-              leading={<Thumb uri={order?.shop?.logoUrl} />}
-              chevron={false}
+          {/* v7: the route first (where you go), then the pickup details the
+              sender gave, then what it is. Student contact stays hidden until
+              the job is accepted. */}
+          <View className="mb-4 rounded-card border border-hairline bg-surface p-4">
+            <RouteLine
+              fromLabel="Collect from"
+              from={order?.orderType === "pickup" ? (order?.senderName ?? order?.originCheckpoint?.name ?? "Accra") : (order?.shop?.name ?? "Shop")}
+              fromSub={order?.orderType === "pickup" ? order?.originCheckpoint?.name : order?.shop?.locationText}
+              toLabel="Deliver to"
+              to={order?.checkpoint?.name ?? "Campus"}
+              toSub={order?.deliveryDay ? `${capitalise(order.deliveryDay)}'s Wave` : null}
             />
-            <Row
-              title={order?.checkpoint?.name ?? "Checkpoint"}
-              meta="Hand over here"
-              chevron={false}
-            />
-            <Row
-              title={order?.deliveryDay ? `${capitalise(order.deliveryDay)}'s Wave` : "—"}
-              meta="Goes out on"
-              chevron={false}
-            />
-          </RowGroup>
+          </View>
 
-          <Text className="mb-2 mt-7 font-sans-bold text-body text-ink">What to buy</Text>
+          {order?.pickupNotes || order?.packageSize ? (
+            <View className="mb-4 rounded-card border border-hairline bg-surface px-4 py-1">
+              {order.packageSize ? (
+                <View className="flex-row justify-between border-b border-hairline py-3">
+                  <Text className="font-sans text-body text-muted">Package</Text>
+                  <Text className="font-sans-bold text-body text-ink">{capitalise(order.packageSize)} size</Text>
+                </View>
+              ) : null}
+              {(order.pickupNotes ?? "").split(" · ").filter(Boolean).map((line) => (
+                <View key={line} className="border-b border-hairline py-3">
+                  <Text className="font-sans text-body text-ink">{line}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          <Text className="mb-2 mt-3 font-sans-bold text-body text-ink">
+            {order?.orderType === "pickup" ? "What it is" : "What to buy"}
+          </Text>
           <View className="rounded-card border border-hairline bg-surface p-4">
             <Text className="font-sans text-body text-ink">{order?.itemDescription ?? "—"}</Text>
           </View>
