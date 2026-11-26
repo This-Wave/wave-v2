@@ -83,7 +83,7 @@ export function RiderProfileScreen() {
               ) : null}
               <View className={isDesktop ? "mt-6 border-t border-hairline pt-5" : undefined}>
                 <View className="mb-2 flex-row items-center justify-between">
-                  <Text className="font-sans-semibold text-meta text-muted">VERIFICATION</Text>
+                  <Text className="font-sans-bold text-body text-ink">Verification</Text>
                   <StatusPill label={pill.label} tone={pill.tone} />
                 </View>
                 <Text className="font-sans text-body text-ink">

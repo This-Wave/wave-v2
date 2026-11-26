@@ -298,7 +298,7 @@ function PaymentMethodsPanel({ onClose }: { onClose: () => void }) {
         <Row title="Card" meta="Visa or Mastercard" chevron={false} />
       </RowGroup>
       <View className="mt-5 rounded-card bg-canvas p-4">
-        <Text className="mb-1 font-sans-semibold text-meta text-muted">WHY NOTHING TO SET UP</Text>
+        <Text className="mb-1 font-sans-bold text-body text-ink">Why nothing to set up</Text>
         <Text className="font-sans text-body text-ink">
           Paystack handles the payment. Wave never stores your card or wallet details.
         </Text>

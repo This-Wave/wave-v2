@@ -65,10 +65,10 @@ export function ShopOrdersScreen() {
           ) : isDesktop ? (
             <View className="overflow-hidden rounded-card border border-hairline bg-surface">
               <View className="flex-row border-b border-hairline px-5 py-3">
-                <Text className="flex-[2] font-sans-semibold text-meta text-muted">STUDENT</Text>
-                <Text className="flex-[2] font-sans-semibold text-meta text-muted">ITEMS</Text>
-                <Text className="flex-1 font-sans-semibold text-meta text-muted">TOTAL</Text>
-                <Text className="w-28 font-sans-semibold text-meta text-muted">STATUS</Text>
+                <Text className="flex-[2] font-sans-bold text-body text-ink">Student</Text>
+                <Text className="flex-[2] font-sans-bold text-body text-ink">Items</Text>
+                <Text className="flex-1 font-sans-bold text-body text-ink">Total</Text>
+                <Text className="w-28 font-sans-bold text-body text-ink">Status</Text>
               </View>
               {orders.map((order, i) => (
                 <OrderRow

@@ -17,6 +17,7 @@ import {
   Thumb,
   TopBar,
 } from "../../components/v6";
+import { RouteLine } from "../../components/v7/Signature";
 import { useOrder } from "../../lib/orders";
 import { buildOrderLedger } from "../../lib/ledger";
 import { currentStepIndex, orderSteps, shortOrderRef, statusPill } from "./orderPresenters";
@@ -67,15 +68,22 @@ export function OrderDetailScreen() {
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-2">
           <StatusPill label={pill.label} tone={pill.tone} />
-          <Text className="mt-3 font-display text-heading text-ink">
-            {order.shop?.name ?? "Package pickup"}
+          <Text accessibilityRole="header" className="mt-3 font-display text-heading text-ink">
+            {order.orderType === "pickup" ? order.itemDescription || "Package pickup" : (order.shop?.name ?? "Your order")}
           </Text>
-          {order.orderType === "pickup" && order.originCheckpoint ? (
-            <Text className="mt-1 font-sans text-body text-muted">
-              {order.originCheckpoint.name} → {order.checkpoint?.name}
-            </Text>
+          <Text className="mb-5 mt-1 font-sans text-body text-muted">{whenLine(order)}</Text>
+          {order.orderType === "pickup" ? (
+            <View className="mb-7 rounded-card border border-hairline bg-surface p-4">
+              <RouteLine
+                fromLabel="From"
+                from={order.senderName ?? order.originCheckpoint?.name ?? "Accra"}
+                fromSub={order.senderName ? order.originCheckpoint?.name : null}
+                toLabel="To you at"
+                to={order.checkpoint?.name ?? "your pickup point"}
+                progress={order.status === "delivered" ? 1 : undefined}
+              />
+            </View>
           ) : null}
-          <Text className="mb-7 mt-1 font-sans text-body text-muted">{whenLine(order)}</Text>
 
           <Text className="mb-3 font-sans-bold text-subheading text-ink">What you ordered</Text>
           <RowGroup>

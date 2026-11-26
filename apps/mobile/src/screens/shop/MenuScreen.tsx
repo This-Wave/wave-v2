@@ -135,9 +135,9 @@ export function MenuScreen() {
             <>
               <View className="overflow-hidden rounded-card border border-hairline bg-surface">
                 <View className="flex-row border-b border-hairline px-5 py-3">
-                  <Text className="flex-[2] font-sans-semibold text-meta text-muted">ITEM</Text>
-                  <Text className="flex-1 font-sans-semibold text-meta text-muted">PRICE</Text>
-                  <Text className="w-36 font-sans-semibold text-meta text-muted">STATUS</Text>
+                  <Text className="flex-[2] font-sans-bold text-body text-ink">Item</Text>
+                  <Text className="flex-1 font-sans-bold text-body text-ink">Price</Text>
+                  <Text className="w-36 font-sans-bold text-body text-ink">Status</Text>
                 </View>
                 {filtered.map((product, i) => (
                   <Pressable

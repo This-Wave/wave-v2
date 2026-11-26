@@ -139,8 +139,8 @@ export function MyOrdersScreen() {
                         <Text className="flex-[2] font-sans-semibold text-meta text-muted">
                           SHOP
                         </Text>
-                        <Text className="flex-1 font-sans-semibold text-meta text-muted">DATE</Text>
-                        <Text className="w-28 font-sans-semibold text-meta text-muted">FEE</Text>
+                        <Text className="flex-1 font-sans-bold text-body text-ink">Date</Text>
+                        <Text className="w-28 font-sans-bold text-body text-ink">Fee</Text>
                       </View>
                       {past.map((order, i) => (
                         <PastRow key={order.id} order={order} last={i === past.length - 1} />

@@ -167,9 +167,9 @@ export function OrderFeedScreen() {
           ) : isDesktop ? (
             <View className="overflow-hidden rounded-card border border-hairline bg-surface">
               <View className="flex-row border-b border-hairline px-5 py-3">
-                <Text className="flex-[2] font-sans-semibold text-meta text-muted">SHOP</Text>
-                <Text className="flex-[2] font-sans-semibold text-meta text-muted">ROUTE</Text>
-                <Text className="w-28 font-sans-semibold text-meta text-muted">FEE</Text>
+                <Text className="flex-[2] font-sans-bold text-body text-ink">Shop</Text>
+                <Text className="flex-[2] font-sans-bold text-body text-ink">Route</Text>
+                <Text className="w-28 font-sans-bold text-body text-ink">Fee</Text>
               </View>
               {orders.map((order, i) => (
                 <FeedRow

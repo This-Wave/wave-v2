@@ -20,7 +20,7 @@ import { colors } from "../../theme/tokens";
 export function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <View className="mb-6">
-      <Text className="mb-2 px-1 font-sans-medium text-meta uppercase text-muted">{title}</Text>
+      <Text className="mb-2 px-1 font-sans-bold text-body text-ink">{title}</Text>
       <View className="overflow-hidden rounded-card border border-hairline bg-surface">{children}</View>
     </View>
   );
@@ -77,7 +77,7 @@ export function SettingsRow({
 
       <View className="min-w-0 flex-1">
         <Text
-          className={`font-sans-medium text-ui ${danger ? "text-danger" : "text-ink"}`}
+          className={`font-sans-bold text-ui ${danger ? "text-danger" : "text-ink"}`}
           numberOfLines={1}
         >
           {label}

@@ -24,7 +24,7 @@ export function DeliveryPinSnippet({
 
   return (
     <View className="mb-6 rounded-card border border-hairline bg-surface p-4">
-      <Text className="mb-1 font-sans-semibold text-meta text-muted">DELIVERY CODE</Text>
+      <Text className="mb-1 font-sans-bold text-body text-ink">Delivery code</Text>
       {isLoading ? (
         <Text className="font-sans text-body text-muted">Loading code…</Text>
       ) : isError || !pin ? (
