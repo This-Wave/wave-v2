@@ -8,6 +8,7 @@ import { PageHeader } from "../../../components/ui/PageHeader";
 import { DataTable, FilterTabs, type Column } from "../../../components/ui/DataTable";
 import { StatusPill } from "../../../components/ui/StatusPill";
 import { StatTile } from "../../../components/ui/Card";
+import { localPhone } from "../../../lib/format";
 
 interface Person {
   id: string;
@@ -103,7 +104,7 @@ export default function GrowthPage() {
   ];
   const leadColumns: Column<Lead>[] = [
     { header: "Business", render: (l) => <span className="font-medium text-ink">{l.businessName}</span> },
-    { header: "Contact", width: "w-[220px]", render: (l) => `${l.fullName} · ${l.phone}` },
+    { header: "Contact", width: "w-[220px]", render: (l) => `${l.fullName} · ${localPhone(l.phone)}` },
     {
       header: "Wants",
       width: "w-[170px]",
@@ -115,14 +116,14 @@ export default function GrowthPage() {
 
   const t = engagement?.totals;
   return (
-    <div>
+    <div className="px-10 py-8">
       <PageHeader title="Growth" subtitle="Home-screen installs, notifications, guests and business leads." />
       {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
         <StatTile value={t ? String(t.students) : "…"} label="Students" />
         <StatTile value={t ? String(t.installed) : "…"} label="On home screen" accent />
-        <StatTile value={t ? String(t.notificationsOn) : "…"} label="Notifications on" accent />
+        <StatTile value={t ? String(t.notificationsOn) : "…"} label="Notifications on" />
         <StatTile value={guests ? String(guests.length) : "…"} label="Guests" />
         <StatTile value={leads ? String(leads.length) : "…"} label="Business leads" />
       </div>

@@ -177,7 +177,7 @@ function WhoDelivers({
   return (
     <Card className="space-y-4 p-6">
       <h2 className="text-[15px] font-semibold">Who delivers</h2>
-      <div role="radiogroup" aria-label="Who delivers" className="flex max-w-[460px] gap-1 rounded-full bg-surface-muted p-1">
+      <div role="radiogroup" aria-label="Who delivers" className="flex max-w-[460px] gap-2">
         {(["company", "independent"] as const).map((m) => (
           <button
             key={m}
@@ -186,7 +186,7 @@ function WhoDelivers({
             aria-checked={data.mode === m}
             disabled={busy}
             onClick={() => data.mode !== m && save(m)}
-            className={`min-h-[40px] flex-1 rounded-full text-[13.5px] ${data.mode === m ? "bg-surface font-semibold text-ink shadow-sm" : "text-muted"}`}
+            className={`min-h-[40px] flex-1 rounded-control border-2 text-[13.5px] font-bold ${data.mode === m ? "border-ink bg-ink text-[#fdfcf8]" : "border-line bg-surface text-ink"}`}
           >
             {m === "company" ? company.name : "Independent riders"}
           </button>
@@ -309,7 +309,7 @@ function Rate({ company, accessToken, onDone }: { company: Company; accessToken:
   return (
     <Card className="space-y-4 p-6">
       <h2 className="text-[15px] font-semibold">Rate per delivery</h2>
-      <div role="radiogroup" aria-label="Rate type" className="flex max-w-[420px] gap-1 rounded-full bg-surface-muted p-1">
+      <div role="radiogroup" aria-label="Rate type" className="flex max-w-[420px] gap-2">
         {([["", "Not set"], ["flat", "GH₵ each"], ["percent", "% of fee"]] as const).map(([k, label]) => (
           <button
             key={k}
@@ -317,7 +317,7 @@ function Rate({ company, accessToken, onDone }: { company: Company; accessToken:
             role="radio"
             aria-checked={type === k}
             onClick={() => setType(k)}
-            className={`min-h-[38px] flex-1 rounded-full text-[13px] ${type === k ? "bg-surface font-semibold text-ink shadow-sm" : "text-muted"}`}
+            className={`min-h-[38px] flex-1 rounded-control border-2 text-[13px] font-bold ${type === k ? "border-ink bg-ink text-[#fdfcf8]" : "border-line bg-surface text-ink"}`}
           >
             {label}
           </button>

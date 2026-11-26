@@ -21,7 +21,7 @@ function makePrisma() {
   return {
     order: {
       count: vi.fn().mockResolvedValue(0),
-      aggregate: vi.fn().mockResolvedValue({ _sum: { totalAmount: 0 } }),
+      aggregate: vi.fn().mockResolvedValue({ _sum: { totalAmount: 0 }, _count: { _all: 0 } }),
     },
     profile: { count: vi.fn().mockResolvedValue(0) },
     shop: { count: vi.fn(), findFirst: vi.fn().mockResolvedValue(null) },
@@ -37,6 +37,23 @@ beforeEach(() => {
 });
 
 describe("GET /admin/stats", () => {
+  test("reports this week's money, orders and new students for the dashboard", async () => {
+    const prisma = makePrisma();
+    prisma.shop.count.mockResolvedValue(0);
+    prisma.order.aggregate
+      .mockResolvedValueOnce({ _sum: { totalAmount: 1440 }, _count: { _all: 24 } })
+      .mockResolvedValueOnce({ _sum: { totalAmount: 8950 }, _count: { _all: 142 } });
+    // Profile counts in order: users, active riders, riders online, new students.
+    prisma.profile.count.mockResolvedValueOnce(300).mockResolvedValueOnce(9).mockResolvedValueOnce(4).mockResolvedValueOnce(12);
+
+    const app = await buildTestApp(adminRoutes, { prisma, user: ADMIN });
+    const res = await app.inject({ method: "GET", url: "/stats" });
+    await app.close();
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ revenueToday: 1440, weekRevenue: 8950, weekOrders: 142, ridersOnline: 4, weekNewStudents: 12 });
+  });
+
   test("counts shops still awaiting approval", async () => {
     const prisma = makePrisma();
     // First shop.count is the total, second is the unverified filter.

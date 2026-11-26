@@ -12,6 +12,7 @@ import { Button, RowAction } from "../../../components/ui/Button";
 import { Modal } from "../../../components/ui/Modal";
 import { FormError, SelectField, TextField } from "../../../components/ui/Field";
 import { Card } from "../../../components/ui/Card";
+import { localPhone } from "../../../lib/format";
 
 interface CampusAdmin {
   id: string;
@@ -90,7 +91,7 @@ export default function CampusAdminsPage() {
   const columns: Column<CampusAdmin>[] = [
     { header: "Name", render: (a) => <span className="font-semibold">{a.fullName}</span> },
     { header: "University", render: (a) => <span>{a.adminUniversity?.name ?? "—"}</span> },
-    { header: "Phone", width: "w-[170px]", render: (a) => <span className="text-muted">{a.phone}</span> },
+    { header: "Phone", width: "w-[170px]", render: (a) => <span className="text-muted">{localPhone(a.phone)}</span> },
     {
       header: "Status",
       width: "w-[130px]",

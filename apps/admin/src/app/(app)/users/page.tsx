@@ -8,6 +8,7 @@ import { PageHeader } from "../../../components/ui/PageHeader";
 import { DataTable, FilterTabs, type Column } from "../../../components/ui/DataTable";
 import { StatusPill } from "../../../components/ui/StatusPill";
 import { RowAction } from "../../../components/ui/Button";
+import { localPhone, shortDate } from "../../../lib/format";
 
 type Role = "student" | "rider" | "shop_owner" | "admin";
 type RoleFilter = Role | "all";
@@ -111,7 +112,7 @@ export default function UsersPage() {
       header: "Name",
       render: (u) => <span className="font-semibold">{u.fullName}</span>,
     },
-    { header: "Phone", render: (u) => <span className="text-muted">{u.phone}</span> },
+    { header: "Phone", render: (u) => <span className="text-ink">{localPhone(u.phone)}</span> },
     {
       header: "Role",
       width: "w-[150px]",
@@ -121,7 +122,7 @@ export default function UsersPage() {
       header: "Joined",
       width: "w-[130px]",
       render: (u) => (
-        <span className="text-muted">{new Date(u.createdAt).toLocaleDateString()}</span>
+        <span className="text-ink">{shortDate(u.createdAt)}</span>
       ),
     },
     {
