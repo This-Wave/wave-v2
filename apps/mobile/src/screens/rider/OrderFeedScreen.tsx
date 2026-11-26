@@ -128,7 +128,7 @@ export function OrderFeedScreen() {
             <ActiveDeliveryCard
               order={activeRun}
               title={activeRun.shop?.name ?? "Package pickup"}
-              trailing={formatGhs(Number(activeRun.deliveryFee))}
+              trailing={formatGhs(Number(activeRun.estimatedEarning ?? activeRun.deliveryFee))}
               onPress={() => navigation.navigate("ActiveDelivery", { orderId: activeRun.id })}
             />
           </Gutter>
