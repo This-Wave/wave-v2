@@ -499,7 +499,7 @@ const CONTROL = `min-h-[38px] w-full rounded-control border border-border bg-sur
 function FilterInput({ label, wide, children }: { label: string; wide?: boolean; children: React.ReactNode }) {
   return (
     <label className={wide ? "w-[260px]" : "w-[160px]"}>
-      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">{label}</span>
+      <span className="mb-1 block text-[12.5px] font-bold text-ink">{label}</span>
       {children}
     </label>
   );
@@ -507,7 +507,7 @@ function FilterInput({ label, wide, children }: { label: string; wide?: boolean;
 
 function Th({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <th className={`h-11 px-[22px] text-[11px] font-semibold uppercase tracking-[0.06em] text-muted ${className}`}>
+    <th className={`h-11 px-[22px] text-[12.5px] font-bold text-ink ${className}`}>
       {children}
     </th>
   );
@@ -541,7 +541,7 @@ function EventDetail({ event }: { event: AuditEventDto }) {
       <div>
         {keys.length > 0 ? (
           <div className="mb-4">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">Change</p>
+            <p className="mb-2 text-[12.5px] font-bold text-ink">Change</p>
             <table className="w-full text-[12.5px]">
               <tbody>
                 {keys.map((k) => (
@@ -557,7 +557,7 @@ function EventDetail({ event }: { event: AuditEventDto }) {
         ) : null}
         {event.metadata ? (
           <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">Details</p>
+            <p className="mb-2 text-[12.5px] font-bold text-ink">Details</p>
             <pre className="max-h-[240px] overflow-auto whitespace-pre-wrap break-all rounded-control border border-border bg-surface p-3 font-mono text-[11.5px] leading-5 text-ink">
               {JSON.stringify(event.metadata, null, 2)}
             </pre>

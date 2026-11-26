@@ -30,7 +30,7 @@ export function DataTable<T>({ columns, rows, rowKey, emptyMessage }: DataTableP
             {columns.map((col) => (
               <th
                 key={col.header}
-                className={`h-11 px-[22px] text-[11px] font-semibold uppercase tracking-[0.06em] text-muted ${
+                className={`h-11 px-[22px] text-[12.5px] font-bold text-ink ${
                   col.width ?? ""
                 } ${col.align === "right" ? "text-right" : ""}`}
               >
