@@ -104,7 +104,7 @@ function OrderHistoryMobile() {
             </Gutter>
             <Gutter style={{ gap: 12 }}>
               {unpaid.map((o) => (
-                <View key={o.id} className="rounded-card bg-surface p-4">
+                <View key={o.id} className="rounded-card border border-hairline bg-surface p-4">
                   <View className="mb-3 flex-row items-center gap-3">
                     <Thumb uri={o.shop?.logoUrl} size={44} />
                     <View className="flex-1">
@@ -190,7 +190,7 @@ function OrderHistoryMobile() {
                 canReorder && o.status === "delivered" && o.shop ? (
                   <View
                     key={o.id}
-                    className="flex-row items-center gap-3 rounded-card bg-surface px-4 py-3"
+                    className="flex-row items-center gap-3 rounded-card border border-hairline bg-surface px-4 py-3"
                   >
                     <Pressable
                       onPress={() => openOrderDetail(navigation, o.id)}
@@ -252,7 +252,7 @@ function OrderHistoryMobile() {
 function LiveRow({ order, navigation }: { order: Order; navigation: Nav }) {
   const pill = statusPill(order.status, !!order.companyId);
   return (
-    <View className="rounded-card bg-surface p-4">
+    <View className="rounded-card border border-hairline bg-surface p-4">
       <View className="mb-3 flex-row items-center gap-3">
         <Thumb uri={order.shop?.logoUrl} size={44} />
         <View className="flex-1">

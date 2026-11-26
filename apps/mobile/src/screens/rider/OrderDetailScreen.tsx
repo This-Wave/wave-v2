@@ -90,7 +90,7 @@ export function OrderDetailScreen() {
           </RowGroup>
 
           <Text className="mb-2 mt-7 font-sans-medium text-body text-ink">What to buy</Text>
-          <View className="rounded-card bg-surface p-4">
+          <View className="rounded-card border border-hairline bg-surface p-4">
             <Text className="font-sans text-body text-ink">{order?.itemDescription ?? "—"}</Text>
           </View>
 
@@ -99,7 +99,7 @@ export function OrderDetailScreen() {
               <Text className="mb-2 mt-7 font-sans-medium text-body text-ink">
                 Notes from the student
               </Text>
-              <View className="rounded-card bg-surface p-4">
+              <View className="rounded-card border border-hairline bg-surface p-4">
                 <Text className="font-sans text-body text-ink">{order.notes}</Text>
               </View>
             </>

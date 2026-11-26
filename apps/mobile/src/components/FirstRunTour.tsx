@@ -125,7 +125,7 @@ export function FirstRunTour({ role }: { role: SelfServeProfileRole }) {
               </Pressable>
             </View>
 
-            <Text className="mb-3 font-sans-bold text-heading text-ink">{card.title}</Text>
+            <Text className="mb-3 font-display text-heading text-ink">{card.title}</Text>
             <Text className="mb-8 font-sans text-ui text-muted">{card.body}</Text>
 
             <Button

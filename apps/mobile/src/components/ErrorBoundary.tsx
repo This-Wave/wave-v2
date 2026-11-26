@@ -32,7 +32,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <View className="flex-1 items-center justify-center bg-canvas px-8">
-          <Text className="text-center font-sans-bold text-heading-sm text-ink">Something went wrong</Text>
+          <Text className="text-center font-display text-heading-sm text-ink">Something went wrong</Text>
           <Text className="mt-2 text-center font-sans text-body text-muted">
             Wave hit an unexpected error. Try again, or restart the app if this keeps happening.
           </Text>

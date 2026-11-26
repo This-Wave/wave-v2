@@ -138,7 +138,7 @@ export function ProfileSetupScreen({ route }: Props) {
     <Screen>
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-12">
-          <Text className="mb-2 font-sans-bold text-heading text-ink">{copy.title}</Text>
+          <Text className="mb-2 font-display text-heading text-ink">{copy.title}</Text>
           {copy.blurb ? (
             <Text className="mb-10 font-sans text-body text-muted">{copy.blurb}</Text>
           ) : (

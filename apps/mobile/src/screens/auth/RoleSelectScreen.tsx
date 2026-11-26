@@ -56,7 +56,7 @@ export function RoleSelectScreen({ navigation }: Props) {
     <Screen>
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-12">
-          <Text className="mb-2 font-sans-bold text-heading text-ink">How will you use Wave?</Text>
+          <Text className="mb-2 font-display text-heading text-ink">How will you use Wave?</Text>
           <Text className="mb-10 font-sans text-body text-muted">
             You can only pick one — this decides what the app does for you.
           </Text>

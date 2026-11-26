@@ -32,7 +32,7 @@ export function Ledger({ ledger }: { ledger: OrderLedger }) {
 
       <View className="flex-row items-center justify-between pt-4">
         <Text className="font-sans-medium text-ui text-ink">{ledger.totalLabel}</Text>
-        <Text className="font-sans-bold text-heading-sm text-ink">
+        <Text className="font-display text-heading-sm text-ink">
           {formatGhsCompact(ledger.total)}
         </Text>
       </View>

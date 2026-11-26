@@ -42,7 +42,7 @@ export function ShopSettingsScreen() {
         <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-8 pt-4"}>
           {isDesktop ? (
             <>
-              <Text className="font-sans-bold text-heading text-ink">Settings</Text>
+              <Text className="font-display text-heading text-ink">Settings</Text>
               <Text className="mt-1 font-sans text-ui text-muted">
                 Storefront status and account for {shop?.name ?? "your shop"}.
               </Text>

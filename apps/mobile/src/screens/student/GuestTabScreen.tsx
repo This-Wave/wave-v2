@@ -14,7 +14,7 @@ export function GuestTabScreen({ tab }: { tab: "Orders" | "Profile" }) {
     <Screen>
       <ScreenBody>
         <Gutter className="pt-16">
-          <Text accessibilityRole="header" className="mb-2 font-sans-bold text-heading text-ink">
+          <Text accessibilityRole="header" className="mb-2 font-display text-heading text-ink">
             {tab === "Orders" ? "Your orders" : "Your profile"}
           </Text>
           <Text className="mb-8 font-sans text-body text-muted">

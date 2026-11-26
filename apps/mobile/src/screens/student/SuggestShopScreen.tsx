@@ -111,7 +111,7 @@ export function SuggestShopScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter>
-          <Text className="mb-2 font-sans-bold text-heading text-ink">Can't find the shop?</Text>
+          <Text className="mb-2 font-display text-heading text-ink">Can't find the shop?</Text>
           <Text className="mb-8 font-sans text-body text-muted">
             Tell us where it is and what you need. We'll send a runner, and they'll tell you what it
             cost before you pay for the items. The more people ask for a place, the sooner it gets

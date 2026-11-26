@@ -60,7 +60,7 @@ export function MomoApprove({
           <MobileIcon size={40} color={colors.ink} strokeWidth={1.8} />
         </View>
         <View className="items-center gap-2" accessibilityLiveRegion="polite">
-          <Text className="text-center font-sans-bold text-heading text-ink">Approve on your phone</Text>
+          <Text className="text-center font-display text-heading text-ink">Approve on your phone</Text>
           <Text className="font-sans-bold text-ink" style={{ fontSize: 40, lineHeight: 44 }}>
             {amountLabel}
           </Text>

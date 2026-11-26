@@ -33,7 +33,7 @@ export function ChooseServiceScreen() {
 
       <ScreenBody bottomInset={32}>
         <Gutter>
-          <Text className="mb-2 font-sans-bold text-heading text-ink">What do you need?</Text>
+          <Text className="mb-2 font-display text-heading text-ink">What do you need?</Text>
           <Text className="mb-8 font-sans text-body text-muted">
             For {formatFullDay(date)}
             {params.isSpecialOrder
@@ -90,7 +90,7 @@ function ServiceRow({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${title}. ${body}`}
-      className="mb-3 flex-row items-center gap-4 rounded-card bg-surface p-5 active:bg-hairline"
+      className="mb-3 flex-row items-center gap-4 rounded-card border border-hairline bg-surface p-5 active:bg-hairline"
     >
       <View className="h-11 w-11 items-center justify-center rounded-pill bg-lime-faint">
         {icon}

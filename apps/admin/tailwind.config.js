@@ -13,16 +13,16 @@ module.exports = {
           200: "#d9f7c8",
           500: "#87ea5c",
           600: "#6fd943",
-          700: "#083400",
+          700: "#154b3e",
           lime: "#87ea5c",
         },
-        ink: "#083400",
-        canvas: "#f7f7f7",
-        muted: "#6a6a6a",
+        ink: "#154b3e",
+        canvas: "#fafbf9",
+        muted: "#5e6d66",
         faint: "#a8a8a8",
         border: {
-          DEFAULT: "#ebebeb",
-          divider: "#ebebeb",
+          DEFAULT: "#e6e9e4",
+          divider: "#eeede7",
         },
         surface: {
           DEFAULT: "#FFFFFF",
@@ -30,7 +30,7 @@ module.exports = {
           subtle: "#f7f7f7",
         },
         success: {
-          text: "#083400",
+          text: "#0b2a21",
           bg: "#87ea5c",
         },
         danger: {
@@ -48,7 +48,7 @@ module.exports = {
           border: "#EFE0C2",
         },
         admin: {
-          text: "#083400",
+          text: "#0b2a21",
           bg: "#87ea5c",
         },
         lime: {
@@ -57,12 +57,13 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ["Geist", "sans-serif"],
-        mono: ["Geist", "monospace"],
+        sans: ["DM Sans", "sans-serif"],
+        mono: ["DM Sans", "monospace"],
+        display: ["Nunito", "DM Sans", "sans-serif"],
       },
       borderRadius: {
-        card: "12px",
-        control: "8px",
+        card: "16px",
+        control: "12px",
         pill: "9999px",
         well: "8px",
         tile: "8px",

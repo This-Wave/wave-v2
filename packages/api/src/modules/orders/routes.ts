@@ -35,7 +35,7 @@ import {
   perAccount,
 } from "../../plugins/rateLimit";
 import { riderEarningFor, riderEarningPct } from "../riders/earningRate";
-import { resolveFeature } from "@wave/shared";
+import { SIZE_INFO, deliveryFeeFor, normalizeGhanaLocalDigits, resolveFeature, sizeConfigKey, toGhanaE164 } from "@wave/shared";
 import { pausedFor, pausedReply } from "../switches/routes";
 import { isBetaTester } from "../beta/access";
 import { activeDelivery } from "../companies/mode";
@@ -174,7 +174,20 @@ export async function orderRoutes(fastify: FastifyInstance) {
       }
       // A pickup collected in a zone costs that zone's fee, which replaces the
       // base fee. Everything else, and a campus-to-campus move, is the base fee.
-      const deliveryFee = origin?.zone ? Number(origin.zone.deliveryFee) : baseDeliveryFee;
+      // v7 (2026-11-26): the fee is the package size's price plus the pickup
+      // zone's add-on. An order without a size (older app, suggested shop)
+      // uses the base fee in the size's place, which is what it cost before.
+      let sizePrice: number | null = null;
+      if (input.orderType === "pickup" && input.packageSize) {
+        const row = await fastify.prisma.platformConfig.findUnique({ where: { key: sizeConfigKey(input.packageSize) } });
+        const fallback = SIZE_INFO.find((x) => x.key === input.packageSize)?.defaultPrice ?? baseDeliveryFee;
+        sizePrice = Number(row?.value ?? fallback);
+      }
+      const deliveryFee = deliveryFeeFor({
+        sizePrice,
+        baseFee: baseDeliveryFee,
+        zoneAddOn: origin?.zone ? Number(origin.zone.deliveryFee) : 0,
+      });
 
       // --- The basket, and with it the price -------------------------------
       //
@@ -249,6 +262,16 @@ export async function orderRoutes(fastify: FastifyInstance) {
           checkpointId: input.checkpointId,
           universityId,
           itemDescription: basket.description,
+          ...(input.orderType === "pickup"
+            ? {
+                senderName: input.senderName ?? null,
+                senderPhone: input.senderPhone
+                  ? toGhanaE164(normalizeGhanaLocalDigits(input.senderPhone))
+                  : null,
+                pickupNotes: input.pickupNotes || null,
+                packageSize: input.packageSize ?? null,
+              }
+            : {}),
           itemPrice: chargeableItemsTotal,
           deliveryFee,
           discountApplied: discountPct,

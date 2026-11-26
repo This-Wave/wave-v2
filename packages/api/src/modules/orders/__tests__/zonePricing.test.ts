@@ -34,7 +34,9 @@ function makePrisma(checkpoints: { id: string; zone: ReturnType<typeof zone> | n
     serviceSwitch: { findMany: vi.fn().mockResolvedValue([]) },
     platformConfig: {
       findUnique: vi.fn(({ where }: { where: { key: string } }) =>
-        Promise.resolve(where.key === "delivery_fee_base" ? { value: "50.00" } : null),
+        Promise.resolve(
+          where.key === "delivery_fee_base" ? { value: "50.00" } : where.key === "size_price_swell" ? { value: "75.00" } : null,
+        ),
       ),
     },
     studentDeliveryStats: { findUnique: vi.fn().mockResolvedValue(null) },
@@ -51,6 +53,7 @@ async function pickup(
   from: string,
   to: string,
   checkpoints: { id: string; zone: ReturnType<typeof zone> | null }[],
+  extra: Record<string, unknown> = {},
 ) {
   const prisma = makePrisma(checkpoints);
   const app = await buildTestApp(orderRoutes, { prisma, user: STUDENT });
@@ -65,6 +68,7 @@ async function pickup(
       deliveryDay: "sunday",
       isSpecialOrder: false,
       scheduledDate: upcomingSunday(),
+      ...extra,
     },
   });
   await app.close();
@@ -74,14 +78,49 @@ async function pickup(
 beforeEach(() => vi.clearAllMocks());
 
 describe("POST /orders — Accra zone pricing", () => {
-  test("a pickup collected in a zone is charged that zone's fee", async () => {
+  // v7 (2026-11-26): fee = size price (or the base fee without a size) + the zone's add-on.
+  test("without a size: base fee plus the zone add-on", async () => {
     const { res, created } = await pickup(ZONE_POINT, CAMPUS, [
-      { id: ZONE_POINT, zone: zone("80.00") },
+      { id: ZONE_POINT, zone: zone("30.00") },
       { id: CAMPUS, zone: null },
     ]);
     expect(res.statusCode).toBe(201);
     expect(created.deliveryFee).toBe(80);
     expect(created.totalAmount).toBe(80);
+  });
+
+  test("with a size: that size's price plus the zone add-on", async () => {
+    const { res, created } = await pickup(
+      ZONE_POINT,
+      CAMPUS,
+      [
+        { id: ZONE_POINT, zone: zone("10.00") },
+        { id: CAMPUS, zone: null },
+      ],
+      { packageSize: "swell", senderName: "Auntie Esi", senderPhone: "0245550101" },
+    );
+    expect(res.statusCode).toBe(201);
+    expect(created.deliveryFee).toBe(85);
+    expect(created.senderPhone).toBe("+233245550101");
+    expect(created.packageSize).toBe("swell");
+  });
+
+  test("a size with no configured price falls back to its default", async () => {
+    const { created } = await pickup(
+      ZONE_POINT,
+      CAMPUS,
+      [
+        { id: ZONE_POINT, zone: zone("0.00") },
+        { id: CAMPUS, zone: null },
+      ],
+      { packageSize: "tide" },
+    );
+    expect(created.deliveryFee).toBe(150);
+  });
+
+  test("an unknown size is refused", async () => {
+    const { res } = await pickup(ZONE_POINT, CAMPUS, [{ id: ZONE_POINT, zone: zone("0.00") }, { id: CAMPUS, zone: null }], { packageSize: "medium" });
+    expect(res.statusCode).toBe(400);
   });
 
   test("a campus-to-campus move is the base fee", async () => {

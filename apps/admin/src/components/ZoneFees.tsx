@@ -73,10 +73,10 @@ export function ZoneFees() {
 
   return (
     <section className="max-w-[720px]">
-      <h2 className="mb-1 text-[17px] font-semibold text-ink">Accra zones</h2>
+      <h2 className="mb-1 text-[17px] font-semibold text-ink">Accra zone add-ons</h2>
       <p className="mb-[18px] text-[12.5px] text-muted">
-        A pickup collected in a zone costs that zone&rsquo;s fee instead of the base fee. Deliveries
-        always end at a campus checkpoint.
+        Each zone&rsquo;s fee is an add-on: price = package size + zone add-on (0 = no extra).
+        Deliveries always end at a campus checkpoint.
       </p>
       {error ? <FetchErrorBanner message={error} onRetry={load} /> : null}
       {zones === null ? (

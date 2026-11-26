@@ -50,7 +50,7 @@ export function WaveCalendarScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter>
-          <Text accessibilityRole="header" className="mb-6 font-sans-bold text-heading text-ink">
+          <Text accessibilityRole="header" className="mb-6 font-display text-heading text-ink">
             When do you need it?
           </Text>
 
@@ -145,7 +145,7 @@ function DayOption({
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
       accessibilityLabel={`${title}, ${meta}`}
-      className={`flex-row items-center gap-3.5 rounded-card bg-surface p-4 active:opacity-90 ${
+      className={`flex-row items-center gap-3.5 rounded-card border border-hairline bg-surface p-4 active:opacity-90 ${
         selected ? "border-2 border-ink" : "border border-hairline"
       }`}
     >

@@ -23,6 +23,11 @@ const RUN_SHEET_SELECT = {
   orderType: true,
   scheduledDate: true,
   itemDescription: true,
+  // Pickups: who hands it over in Accra. The rider collecting needs to call them.
+  senderName: true,
+  senderPhone: true,
+  pickupNotes: true,
+  packageSize: true,
   deliveryFee: true,
   riderId: true,
   companyId: true,
@@ -130,7 +135,7 @@ export async function dispatchRoutes(fastify: FastifyInstance) {
     const { orders } = await sheetOrders(request.user!.companyId!, date);
     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const lines = [
-      ["Order", "Status", "From", "To", "Campus", "Items", "Student", "Rider"].map(esc).join(","),
+      ["Order", "Status", "From", "To", "Campus", "Items", "Size", "Sender", "Sender phone", "Pickup notes", "Student", "Rider"].map(esc).join(","),
       ...orders.map((o) =>
         [
           o.id.slice(0, 8),
@@ -139,6 +144,10 @@ export async function dispatchRoutes(fastify: FastifyInstance) {
           o.checkpoint?.name,
           o.university?.name,
           o.itemDescription,
+          o.packageSize ?? "",
+          o.senderName ?? "",
+          o.senderPhone ?? "",
+          o.pickupNotes ?? "",
           o.studentFirstName,
           o.rider?.fullName ?? "",
         ]

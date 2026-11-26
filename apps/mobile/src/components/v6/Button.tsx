@@ -44,21 +44,23 @@ export function Button({
 }: ButtonProps) {
   const inert = disabled || loading;
 
+  // v7 (2026-11-26): sticker buttons. 12px corners, a 4px bottom edge that
+  // presses down, uppercase bold label. Lime always carries `on-lime` text.
   const surface =
     variant === "primary"
       ? inert
-        ? "bg-surface-muted"
-        : "bg-lime active:bg-lime-600"
+        ? "bg-hairline border-b-4 border-line"
+        : "bg-lime border-b-4 border-lime-edge active:border-b-2 active:translate-y-0.5"
       : variant === "inverse"
         ? inert
-          ? "bg-surface-muted"
-          : "bg-ink"
+          ? "bg-hairline border-b-4 border-line"
+          : "bg-ink border-b-4 border-ink-700 active:border-b-2 active:translate-y-0.5"
         : variant === "ghost"
-          ? "border border-ink bg-transparent active:bg-hairline"
+          ? "border-2 border-b-4 border-line bg-surface active:border-b-2 active:translate-y-0.5"
           : "bg-transparent";
 
   const labelColor =
-    variant === "inverse" ? (inert ? "text-subtle" : "text-white") : inert ? "text-subtle" : "text-ink";
+    variant === "inverse" ? (inert ? "text-subtle" : "text-white") : inert ? "text-muted" : variant === "primary" ? "text-on-lime" : "text-ink";
 
   return (
     <Pressable
@@ -69,7 +71,7 @@ export function Button({
       // Without this the spinner is silent — the label vanishes and a screen
       // reader has nothing to report while the request is in flight.
       accessibilityValue={loading ? { text: "Working" } : undefined}
-      className={`min-h-[52px] flex-row items-center justify-center gap-2 rounded-pill px-6 py-3 ${surface} ${
+      className={`min-h-[56px] flex-row items-center justify-center gap-2 rounded-input px-6 py-3 ${surface} ${
         full ? "w-full" : ""
       }`}
     >
@@ -78,7 +80,7 @@ export function Button({
       ) : (
         <>
           {icon ? <View>{icon}</View> : null}
-          <Text className={`font-sans-medium text-ui ${labelColor}`}>{label}</Text>
+          <Text className={`font-sans-bold text-ui uppercase tracking-wider ${labelColor}`}>{label}</Text>
         </>
       )}
     </Pressable>

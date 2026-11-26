@@ -17,7 +17,7 @@ const STEPS = [
  */
 export function HowPickupWorks() {
   return (
-    <View className="rounded-card bg-surface p-5" accessible accessibilityRole="summary">
+    <View className="rounded-card border border-hairline bg-surface p-5" accessible accessibilityRole="summary">
       <Text className="mb-4 font-sans-medium text-body text-ink">How a pickup works</Text>
       {STEPS.map((step, i) => (
         <View key={step.title} className={`flex-row ${i === STEPS.length - 1 ? "" : "mb-4"}`}>

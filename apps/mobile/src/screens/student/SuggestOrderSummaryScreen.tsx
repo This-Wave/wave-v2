@@ -97,10 +97,10 @@ export function SuggestOrderSummaryScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter>
-          <Text className="mb-8 font-sans-bold text-heading text-ink">Check this over</Text>
+          <Text className="mb-8 font-display text-heading text-ink">Check this over</Text>
 
           <Text className="mb-2 font-sans-medium text-body text-ink">Your list</Text>
-          <View className="mb-6 rounded-card bg-surface p-4">
+          <View className="mb-6 rounded-card border border-hairline bg-surface p-4">
             {params.manualItems.map((item, i) => (
               <View
                 key={i}
@@ -131,7 +131,7 @@ export function SuggestOrderSummaryScreen() {
           <Text className="mb-3 mt-8 font-sans-medium text-subheading text-ink">
             What you pay now
           </Text>
-          <View className="rounded-card bg-surface p-5">
+          <View className="rounded-card border border-hairline bg-surface p-5">
             <Line label="Delivery" value={formatGhs(estimate.deliveryFee)} />
             {estimate.surchargeAmount > 0 ? (
               <Line
@@ -149,7 +149,7 @@ export function SuggestOrderSummaryScreen() {
             <View className="mt-1 h-px bg-hairline" />
             <View className="flex-row items-center justify-between pt-4">
               <Text className="font-sans-medium text-ui text-ink">Total now</Text>
-              <Text className="font-sans-bold text-heading-sm text-ink">
+              <Text className="font-display text-heading-sm text-ink">
                 {formatGhsCompact(estimate.total)}
               </Text>
             </View>

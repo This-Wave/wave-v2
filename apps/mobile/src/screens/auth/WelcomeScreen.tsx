@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Pressable, Text, View } from "react-native";
+import { useState } from "react";
+import { Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
-import { Button, Gutter, Row, RowGroup, Screen, ScreenBody, Sheet } from "../../components/v6";
+import { Button, Field, Gutter, Row, RowGroup, Screen, ScreenBody, Sheet } from "../../components/v6";
+import { recordGuestVisit } from "../../lib/growth";
+import { Illustration, Rise } from "../../components/v7/Illustration";
 import { colors } from "../../theme/tokens";
 import { useUniversities } from "../../lib/checkpoints";
 import { useAuthStore } from "../../store/authStore";
-import { useReducedMotion } from "../../hooks/useReducedMotion";
 import { supabase } from "../../lib/supabase";
 import { useWave } from "../../lib/wave";
 
@@ -41,65 +42,67 @@ export function WelcomeScreen({ navigation }: Props) {
   const { data: universities } = useUniversities();
   const startGuest = useAuthStore((s) => s.startGuest);
 
-  // Looking around needs a campus, because shops and checkpoints are per
-  // campus. With one campus live there is nothing to ask.
+  // Looking around asks two things: a first name (so the team knows who is
+  // browsing, and Home can say hello), and a campus when more than one is live,
+  // because shops and checkpoints are per campus.
+  const [guestName, setGuestName] = useState("");
+  const [guestCampus, setGuestCampus] = useState<string | null>(null);
+
   function lookAround() {
     if (!universities?.length) return;
-    if (universities.length === 1) {
-      startGuest(universities[0]!.id);
-      return;
-    }
+    setGuestCampus(universities.length === 1 ? universities[0]!.id : null);
     setPickingCampus(true);
   }
 
+  const trimmedName = guestName.trim();
+  const canStartGuest = trimmedName.length > 0 && !!guestCampus;
+
+  function startLooking() {
+    if (!canStartGuest || !guestCampus) return;
+    setPickingCampus(false);
+    recordGuestVisit(trimmedName, guestCampus);
+    startGuest(guestCampus, trimmedName);
+  }
+
   return (
-    <Screen className="bg-ink">
-      <View className="flex-1 bg-ink" style={{ overflow: "hidden" }}>
+    <Screen>
+      <View className="flex-1 bg-canvas">
         <ScreenBody bottomInset={16}>
-          <Gutter className="pt-8">
-            <View className="mb-16 flex-row items-center gap-2.5">
-              <View className="h-10 w-10 items-center justify-center rounded-card bg-lime">
-                <WaveMark size={24} color={colors.ink} />
+          <Gutter className="pt-6">
+            <View className="flex-row items-center gap-2.5">
+              <View className="h-9 w-9 items-center justify-center rounded-input bg-ink">
+                <WaveMark size={22} color={colors.lime} />
               </View>
-              <Text className="font-sans-bold text-white" style={{ fontSize: 26, lineHeight: 30, letterSpacing: -0.5 }}>
+              <Text className="font-sans-bold text-ink" style={{ fontSize: 24, letterSpacing: -0.8 }}>
                 wave
               </Text>
             </View>
-
-            <Text
-              accessibilityRole="header"
-              className="mb-5 font-sans-bold text-white"
-              style={{ fontSize: 46, lineHeight: 48, letterSpacing: -1.6 }}
-            >
-              Town shops,{"\n"}to your hall.
-            </Text>
-            <Text className="font-sans text-white" style={{ fontSize: 18, lineHeight: 24, opacity: 0.85 }}>
-              Every day. Order by noon.
-            </Text>
           </Gutter>
-          <WaveLines />
+          <View className="flex-1 items-center justify-center px-gutter" style={{ gap: 18, minHeight: 460 }}>
+            <Rise>
+              <Illustration name="box" width={290} height={220} />
+            </Rise>
+            <Rise delay={80}>
+              <Text accessibilityRole="header" className="text-center font-display text-display text-ink">
+                Stay in.{"\n"}We'll fetch it.
+              </Text>
+            </Rise>
+            <Rise delay={160}>
+              <Text className="text-center font-sans text-ui text-muted" style={{ lineHeight: 24 }}>
+                Your things from Accra, on campus every day.
+              </Text>
+            </Rise>
+          </View>
         </ScreenBody>
 
         <View className="gap-3 px-gutter pb-9">
           {wave ? (
-            <View className="self-start rounded-pill px-3 py-1.5" style={{ backgroundColor: "rgba(255,255,255,0.14)" }}>
-              <Text className="font-sans-medium text-meta text-white">
-                {wave.name} · closes in {wave.countdown}
-              </Text>
-            </View>
+            <Text className="text-center font-sans-medium text-meta text-muted">
+              {wave.name} · order by noon · closes in {wave.countdown}
+            </Text>
           ) : null}
           <Button label="Get started" onPress={() => navigation.replace("PhoneEntry")} />
-          {/* Outline on the panel: the ink "inverse" button would vanish here. */}
-          <Pressable
-            onPress={lookAround}
-            disabled={!universities?.length}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !universities?.length }}
-            className="min-h-[52px] items-center justify-center rounded-pill px-6 py-3 active:opacity-80"
-            style={{ borderWidth: 1.5, borderColor: "rgba(255,255,255,0.7)" }}
-          >
-            <Text className="font-sans-medium text-ui text-white">Look around first</Text>
-          </Pressable>
+          <Button label="Look around" variant="ghost" onPress={lookAround} disabled={!universities?.length} />
 
           {__DEV__ ? (
             <View className="flex-row justify-center gap-4 pt-1">
@@ -107,7 +110,7 @@ export function WelcomeScreen({ navigation }: Props) {
                 <Text
                   key={login.label}
                   accessibilityRole="button"
-                  className="font-sans text-meta text-white"
+                  className="font-sans text-meta text-muted"
                   onPress={() =>
                     supabase.auth
                       .signInWithPassword({ phone: login.phone, password: login.password })
@@ -127,67 +130,39 @@ export function WelcomeScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <Sheet visible={pickingCampus} onClose={() => setPickingCampus(false)} title="Your campus">
-        <RowGroup>
-          {(universities ?? []).map((u) => (
-            <Row
-              key={u.id}
-              title={u.name}
-              meta={`${u.city}, ${u.country}`}
-              onPress={() => {
-                setPickingCampus(false);
-                startGuest(u.id);
-              }}
-            />
-          ))}
-        </RowGroup>
+      <Sheet
+        visible={pickingCampus}
+        onClose={() => setPickingCampus(false)}
+        title="Before you look around"
+        footer={<Button label="Start looking" disabled={!canStartGuest} onPress={startLooking} />}
+      >
+        <View className="gap-5">
+          <Field
+            label="Your first name"
+            value={guestName}
+            onChangeText={setGuestName}
+            placeholder="e.g. Ama"
+            maxLength={40}
+            autoFocus
+          />
+          {(universities?.length ?? 0) > 1 ? (
+            <View>
+              <Text className="mb-2 font-sans-medium text-body text-ink">Your campus</Text>
+              <RowGroup>
+                {(universities ?? []).map((u) => (
+                  <Row
+                    key={u.id}
+                    title={u.name}
+                    meta={guestCampus === u.id ? "Selected" : `${u.city}, ${u.country}`}
+                    onPress={() => setGuestCampus(u.id)}
+                  />
+                ))}
+              </RowGroup>
+            </View>
+          ) : null}
+        </View>
       </Sheet>
     </Screen>
-  );
-}
-
-/** Three drifting wave lines from the canvas (board 22); still when motion is reduced. */
-function WaveLines() {
-  const reduceMotion = useReducedMotion();
-  const drift = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (reduceMotion) return;
-    const loop = Animated.loop(
-      Animated.timing(drift, { toValue: 1, duration: 9000, easing: Easing.linear, useNativeDriver: true }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [drift, reduceMotion]);
-  const tones = ["rgba(255,255,255,0.10)", "rgba(255,255,255,0.18)", colors.lime];
-  const path =
-    "M0 24 Q 32.5 0 65 24 T 130 24 T 195 24 T 260 24 T 325 24 T 390 24 T 455 24 T 520 24 T 585 24 T 650 24 T 715 24 T 780 24";
-  return (
-    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" className="mt-12" style={{ height: 170 }}>
-      {tones.map((stroke, i) => (
-        <Animated.View
-          key={stroke}
-          style={{
-            position: "absolute",
-            top: i * 52,
-            left: 0,
-            transform: [
-              {
-                translateX: drift.interpolate({
-                  inputRange: [0, 1],
-                  // Each line moves at its own pace; all loop on a 130px period.
-                  outputRange: [0, -130 * (i + 1)],
-                }),
-              },
-            ],
-          }}
-        >
-          <Svg width={780 + 390} height={48} viewBox="0 0 1170 48">
-            <Path d={path} stroke={stroke} strokeWidth={10} strokeLinecap="round" fill="none" />
-            <Path d={path} stroke={stroke} strokeWidth={10} strokeLinecap="round" fill="none" transform="translate(780 0)" />
-          </Svg>
-        </Animated.View>
-      ))}
-    </View>
   );
 }
 

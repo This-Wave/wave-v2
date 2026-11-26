@@ -95,7 +95,7 @@ export function Confirm({
         accessibilityRole="none"
       >
         <View
-          className="w-full rounded-card bg-surface p-6"
+          className="w-full rounded-card border border-hairline bg-surface p-6"
           accessibilityRole="alert"
           accessibilityLabel={title}
         >
