@@ -3,252 +3,194 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wave · Parcels from Accra, dropped on campus</title>
-<meta name="description" content="Wave collects your parcels from Accra and brings them to a checkpoint at Ashesi. Every day. Opens Friday 27 November.">
-<meta name="theme-color" content="#87ea5c">
+<title>Wave · Your stuff from Accra, on campus</title>
+<meta name="description" content="Someone in Accra hands us your package. We bring it to Ashesi the same day, and you collect it on campus with a 6-digit code. Order by 12 noon.">
+<meta name="theme-color" content="#ffffff">
 <link rel="canonical" href="https://usewavenow.com/">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://usewavenow.com/">
+<meta property="og:type" content="website"><meta property="og:url" content="https://usewavenow.com/">
 <meta property="og:title" content="Wave · Stay in. We'll fetch it.">
-<meta property="og:description" content="Parcels from Accra, dropped at your campus checkpoint. Opens Friday 27 November.">
+<meta property="og:description" content="Your things from Accra, on campus the same day. Order by 12 noon.">
 <meta property="og:image" content="https://usewavenow.com/assets/hero.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,900&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Nunito:wght@800;900&display=swap" rel="stylesheet">
 <style>
-  /* Palette: packages/shared/palettes.cjs. No gradients, no shadows,
-     radii 12 / 8 / pill only. Lime is fill-only and carries deep green text. */
-  :root {
-    --sacramento: #154b3e;
-    --lime: #87ea5c;
-    --on-accent: #0b2a21;
-    --canvas: #ffffff;
-    --card: #fdfcf8;
-    --muted: #5e6d66;
-    --onyx: #30473f;
-    --hairline: #eeede7;
-    --gutter: clamp(16px, 5vw, 64px);
-    color-scheme: light;
-  }
-  * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
-  body {
-    margin: 0;
-    background: var(--canvas);
-    color: var(--sacramento);
-    font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    font-size: 18px;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-  }
-  img { display: block; max-width: 100%; height: auto; }
-  a { color: inherit; }
-  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 var(--gutter); }
 
-  /* Buttons. 56px tall: a big target on a phone (Fitts). */
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-height: 56px; padding: 0 32px;
-    border-radius: 9999px;
-    font-weight: 700; font-size: 18px; letter-spacing: -0.01em;
-    text-decoration: none;
-    transition: transform 160ms cubic-bezier(.2,.8,.2,1);
-  }
-  .btn:active { transform: scale(0.97); }
-  .btn:focus-visible, a:focus-visible { outline: 3px solid var(--on-accent); outline-offset: 3px; }
-  .btn-ink { background: var(--sacramento); color: #fff; }
-  .btn-lime { background: var(--lime); color: var(--on-accent); }
-  .dark a:focus-visible, .dark .btn:focus-visible { outline-color: var(--lime); }
+body{margin:0}
+a{color:#02833f}a:hover{color:#154b3e}
+.ph{width:390px;height:844px;background:#ffffff;border-radius:40px;overflow:hidden;position:relative;flex:none;border:1px solid #e3e2dc;display:flex;flex-direction:column;box-sizing:border-box}
+.col{display:flex;flex-direction:column;gap:12px}
+.lab{font-size:14px;font-weight:700;color:#30473f}
+.d{font-family:'Nunito',system-ui,sans-serif;font-weight:900;letter-spacing:-0.02em;color:#154b3e;margin:0;line-height:1.1}
+.t{font-size:17px;line-height:1.45;color:#5e6d66;margin:0}
+.s{font-size:15px;line-height:1.4;color:#5e6d66;margin:0}
+.b{font-weight:700;color:#154b3e}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;height:56px;border-radius:12px;background:#87ea5c;color:#0b2a21;font-size:15px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border:0;border-bottom:4px solid #6cc947;box-sizing:border-box;width:100%;text-decoration:none;font-family:inherit;cursor:pointer;transition:transform .12s,border-bottom-width .12s}
+.btn:active{transform:translateY(2px);border-bottom-width:2px}
+.btn2{background:#ffffff;color:#154b3e;border:2px solid #d9ded9;border-bottom-width:4px}
+.btn.off{background:#eeede7;color:#9aa8a1;border-bottom-color:#dfded8}
+.btn.sm{height:44px;width:auto;padding:0 18px;font-size:13px}
+.lbl{font-size:15px;font-weight:700;color:#154b3e;margin:0 0 8px}
+.in{height:56px;border:2px solid #dde2dc;border-radius:12px;box-shadow:inset 0 1px 2px rgba(11,42,33,.04);padding:0 16px;display:flex;align-items:center;font-size:17px;font-weight:500;color:#154b3e;box-sizing:border-box;background:#ffffff}
+.in.ph-t{color:#9aa8a1}
+.in.focus{border-color:#154b3e}
+.card{border:1px solid #e6e9e4;border-radius:16px;padding:16px;background:#ffffff;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.pick{border:2px solid #e3e7e2;border-radius:14px;padding:14px 16px;background:#ffffff;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;gap:12px;box-sizing:border-box}
+.pick.sel{border-color:#154b3e;background:#eafbe3}
+.chip{display:inline-flex;align-items:center;height:36px;padding:0 14px;border-radius:12px;border:2px solid #d9ded9;font-size:14px;font-weight:700;color:#154b3e;background:#ffffff;box-sizing:border-box}
+.chip.on{background:#154b3e;border-color:#154b3e;color:#fdfcf8}
+.link{color:#02833f;font-weight:700;text-decoration:none}
+.sk{background:#eeede7;border-radius:8px}
+.top{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 8px}
+.iconbtn{width:44px;height:44px;border-radius:12px;border:2px solid #eeede7;display:flex;align-items:center;justify-content:center;background:#ffffff;box-sizing:border-box}
+.body{flex:1;padding:8px 24px 0;display:flex;flex-direction:column;gap:16px;overflow:hidden}
+.foot{padding:16px 24px 28px;display:flex;flex-direction:column;gap:12px}
+.nav{position:absolute;left:24px;right:24px;bottom:20px;height:66px;border-radius:9999px;background:#154b3e;display:flex;align-items:center;justify-content:space-around;padding:0 10px;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.nav .it{text-decoration:none;width:48px;height:48px;border-radius:9999px;display:flex;align-items:center;justify-content:center;color:#a9c2b8}
+.nav .it.on{width:auto;padding:0 16px;gap:6px;background:#87ea5c;color:#0b2a21;font-size:14px;font-weight:700}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#ffffff;border-radius:24px 24px 0 0;padding:12px 24px 28px;box-shadow:0 -8px 30px rgba(11,42,33,.12);display:flex;flex-direction:column;gap:16px}
+.grab{width:40px;height:5px;border-radius:9999px;background:#d9ded9;align-self:center}
+.dim{position:absolute;inset:0;background:rgba(15,28,24,.35)}
+.ticket{background:#eafbe3;border-radius:16px;padding:20px;position:relative;text-align:center}
+.ticket:before,.ticket:after{content:"";position:absolute;top:50%;width:20px;height:20px;border-radius:9999px;background:#ffffff;transform:translateY(-50%)}
+.ticket:before{left:-10px}.ticket:after{right:-10px}
+.code{font-family:'Nunito',system-ui,sans-serif;font-weight:900;font-size:48px;letter-spacing:.12em;color:#154b3e;font-variant-numeric:tabular-nums}
+.bad{background:#fdecea;color:#8e2616;border-radius:12px;padding:14px 16px;font-size:15px;font-weight:500}
+.bar{background:#154b3e;color:#fdfcf8;font-size:13px;font-weight:700;text-align:center;padding:8px}
+.rise{animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
+.r1{animation-delay:.07s}.r2{animation-delay:.14s}.r3{animation-delay:.21s}.r4{animation-delay:.28s}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes shimmer{0%{opacity:.55}50%{opacity:1}100%{opacity:.55}}
+.sk{animation:shimmer 1.4s ease-in-out infinite}
+@keyframes navIn{from{opacity:0;transform:translateY(24px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes pillOn{from{transform:scale(.6);opacity:.4}to{transform:none;opacity:1}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(135,234,92,.7)}70%{box-shadow:0 0 0 10px rgba(135,234,92,0)}100%{box-shadow:0 0 0 0 rgba(135,234,92,0)}}
+@keyframes drawRoute{from{stroke-dasharray:0 100}}
+.live-dot{width:10px;height:10px;border-radius:9999px;background:#87ea5c;display:inline-block;animation:pulse 1.8s infinite}
+.panel{background:#154b3e;color:#fdfcf8;border-radius:0 0 28px 28px;padding:20px 24px 72px;position:relative}
+.lift{margin-top:-56px;position:relative;z-index:1}
+.tile{border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px;text-decoration:none;box-shadow:0 1px 2px rgba(11,42,33,.05),0 8px 20px rgba(11,42,33,.08);transition:transform .2s}
+.tile:active{transform:scale(.97)}
+.dd{position:relative}
+.menu{position:absolute;left:0;right:0;top:calc(100% + 6px);background:#ffffff;border-radius:14px;padding:6px;box-shadow:0 4px 16px rgba(0,0,0,.10);z-index:5;animation:rise .25s cubic-bezier(.2,.8,.2,1) both}
+.opt{display:flex;justify-content:space-between;align-items:center;padding:12px 12px;border-radius:10px;font-size:15px;font-weight:700;color:#154b3e}
+.opt.on{background:#eafbe3}
+@media (prefers-reduced-motion: reduce){.rise,.sk,.nav,.nav .it.on,.live-dot,.menu{animation:none}.card:hover{transform:none}}
+/* ---- motion (owner: many animations; never glow, coloured shadows or pulsing dots) ---- */
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes flow{to{stroke-dashoffset:-40}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes drop{0%{opacity:0;transform:translateY(-14px) scale(.9)}60%{opacity:1;transform:translateY(3px) scale(1.02)}100%{transform:none}}
+@keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.06);opacity:1}100%{transform:none}}
+@keyframes nudge{0%,80%,100%{transform:none}88%{transform:translateX(4px)}}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes tick{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+img.float{animation:float 4.5s ease-in-out infinite}
+.flow{animation:flow 1.6s linear infinite}
+.body>*{animation:rise .55s cubic-bezier(.2,.8,.2,1) both}
+.body>*:nth-child(2){animation-delay:.06s}.body>*:nth-child(3){animation-delay:.12s}.body>*:nth-child(4){animation-delay:.18s}.body>*:nth-child(5){animation-delay:.24s}.body>*:nth-child(6){animation-delay:.3s}.body>*:nth-child(n+7){animation-delay:.36s}
+.foot{animation:rise .55s .3s cubic-bezier(.2,.8,.2,1) both}
+.sheet{animation:slideUp .45s cubic-bezier(.2,.8,.2,1) both}
+.dim{animation:fadeIn .35s both}
+.nav .it.on{animation:pop .5s .25s cubic-bezier(.2,.8,.2,1) both}
+.code{display:inline-block;animation:drop .7s .2s cubic-bezier(.2,.8,.2,1) both}
+.pick.sel{animation:pop .4s cubic-bezier(.2,.8,.2,1) both}
+.chip.on{animation:pop .4s .1s both}
+.btn .arrow{display:inline-block;animation:nudge 2.4s ease-in-out infinite}
+.clock-hand{transform-origin:12px 12px;animation:tick 2s ease-in-out infinite}
+.fillbar{transform-origin:left;animation:fill 1s .3s cubic-bezier(.2,.8,.2,1) both}
+.btn:hover{transform:translateY(-1px)}
+@media (prefers-reduced-motion: reduce){img.float,.flow,.body>*,.foot,.sheet,.dim,.nav .it.on,.code,.pick.sel,.chip.on,.btn .arrow,.clock-hand,.fillbar{animation:none!important}}
 
-  /* Hero */
-  .hero { background: var(--lime); color: var(--on-accent); overflow: hidden; }
-  .bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 24px; }
-  .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 700; font-size: 26px; letter-spacing: -0.04em; }
-  .brand svg { width: 40px; height: 40px; flex: none; }
-  .bar-right { display: flex; align-items: center; gap: 20px; font-weight: 700; font-size: 16px; white-space: nowrap; }
-  @media (max-width: 480px) { .bar-right .pre { display: none; } }
-  .bar-right a { text-decoration: none; }
-  .bar-right a:hover { text-decoration: underline; text-underline-offset: 4px; }
-  .hero-body { padding: clamp(48px, 9vw, 96px) 0 40px; }
-  h1 {
-    margin: 0;
-    font-weight: 900;
-    font-size: clamp(52px, 11vw, 112px);
-    line-height: 0.95;
-    letter-spacing: -0.045em;
-  }
-  .lede { margin: 24px 0 32px; font-weight: 700; font-size: clamp(20px, 2.6vw, 26px); line-height: 1.35; max-width: 30ch; }
-  .arch {
-    margin: 24px auto 0;
-    width: min(100%, 760px);
-    background: var(--card);
-    border-radius: 9999px 9999px 0 0;
-    padding: clamp(72px, 17vw, 120px) 24px 0;
-  }
-  .arch img { margin: 0 auto; width: min(76%, 420px); }
 
-  /* What is Wave */
-  section { padding: clamp(64px, 10vw, 112px) 0; }
-  h2 { margin: 0 0 20px; font-weight: 900; font-size: clamp(36px, 6vw, 56px); line-height: 1.02; letter-spacing: -0.035em; }
-  .intro { margin: 0; max-width: 34ch; font-size: clamp(19px, 2.2vw, 22px); }
-  .facts { list-style: none; margin: 40px 0 0; padding: 0; border-top: 1px solid var(--hairline); }
-  .facts li {
-    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px 32px;
-    padding: 20px 0; border-bottom: 1px solid var(--hairline);
-  }
-  .facts b { font-weight: 700; letter-spacing: -0.01em; }
-  .facts span { color: var(--onyx); }
-  @media (max-width: 560px) { .facts li { grid-template-columns: 1fr; } }
+body{font-family:'DM Sans',system-ui,sans-serif;background:#ffffff;color:#154b3e}
 
-  /* Steps */
-  .steps-sec { background: var(--card); border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); }
-  .steps { list-style: none; margin: 48px 0 0; padding: 0; }
-  .step { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 24px; position: relative; padding: 20px 0; }
-  .step + .step::before {
-    /* The dotted line between numbers: one path, three stops (Goal-Gradient). */
-    content: ""; position: absolute; left: 27px; top: -20px; height: 40px;
-    border-left: 3px dotted var(--sacramento);
-  }
-  .num {
-    width: 56px; height: 56px; border-radius: 9999px;
-    display: grid; place-items: center;
-    background: var(--sacramento); color: #fff; font-weight: 900; font-size: 24px;
-    position: relative; z-index: 1;
-  }
-  .step:last-child .num { background: var(--lime); color: var(--on-accent); }
-  .step h3 { margin: 0; font-weight: 900; font-size: clamp(22px, 3.2vw, 32px); letter-spacing: -0.03em; line-height: 1.1; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .chip { display: inline-flex; align-items: center; min-height: 32px; padding: 0 14px; border-radius: 9999px; font-size: 15px; font-weight: 700; background: var(--sacramento); color: #fff; }
-  .chip.out { background: transparent; color: var(--sacramento); border: 2px solid var(--sacramento); }
-  .step img { width: 140px; }
-  @media (max-width: 640px) {
-    .step { grid-template-columns: 56px minmax(0, 1fr); }
-    .step img { display: none; }
-  }
 
-  /* Waitlist */
-  .dark { background: var(--sacramento); color: #fff; }
-  .dark h2 { color: #fff; }
-  .sub { margin: 0 0 32px; font-weight: 700; font-size: clamp(20px, 2.6vw, 26px); color: #cfe0d8; }
-  .dark .btn { width: 100%; max-width: 520px; }
-  .fine { margin: 20px 0 0; font-size: 16px; color: #cfe0d8; }
-  .fine a { color: #fff; font-weight: 700; text-underline-offset: 3px; }
+.scroller{overflow-y:auto;overflow-x:hidden;height:100%;scroll-behavior:smooth}
+.sec{padding:0 24px}
+.rv{opacity:1}
+@supports (animation-timeline: view()){
+  .rv{animation:rv linear both;animation-timeline:view();animation-range:entry 0% entry 60%}
+  .rv.d1{animation-range:entry 10% entry 70%}.rv.d2{animation-range:entry 20% entry 80%}
+  .draw{stroke-dasharray:1000;stroke-dashoffset:1000;animation:draw linear both;animation-timeline:view();animation-range:entry 20% cover 60%}
+  .flip{animation:flip linear both;animation-timeline:view();animation-range:entry 10% entry 80%}
+  .drift{animation:drift linear both;animation-timeline:view();animation-range:cover 0% cover 100%}
+}
+@keyframes rv{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes flip{from{opacity:0;transform:perspective(600px) rotateX(55deg) translateY(30px)}to{opacity:1;transform:none}}
+@keyframes drift{from{transform:translateY(24px) rotate(-2deg)}to{transform:translateY(-24px) rotate(2deg)}}
+@media (prefers-reduced-motion: reduce){.rv,.draw,.flip,.drift{animation:none!important;opacity:1!important;stroke-dashoffset:0!important;transform:none!important}}
+.moment{display:inline-flex;align-items:center;gap:10px;padding:10px 16px 10px 10px;border:2px solid #d9ded9;border-bottom-width:4px;border-radius:12px;background:#ffffff;font-weight:700;color:#154b3e;font-size:15px}
+.moment span{width:40px;height:40px;border-radius:9999px;background:#eafbe3;display:flex;align-items:center;justify-content:center}
 
-  footer { background: var(--sacramento); color: #cfe0d8; font-size: 15px; border-top: 1px solid #2a5e51; }
-  footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 32px; justify-content: space-between; padding-top: 28px; padding-bottom: 28px; }
-  footer nav { display: flex; flex-wrap: wrap; gap: 8px 24px; }
-  footer a { color: #fff; text-decoration: none; }
-  footer a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
-  /* Open-state copy: swapped in by the script below from launch day on. */
-  [data-open="true"] .pre { display: none; }
-  [data-open="false"] .post { display: none; }
+@media (max-width: 820px){
+  .s{display:flex!important;flex-direction:column!important;align-items:stretch!important;padding:64px 20px!important;gap:24px!important}
+  .hd{padding:16px 20px!important}.hd nav a:not(.btn){display:none}
+  .ft{padding:40px 20px 32px!important}
+  h1.d{font-size:44px!important}h2.d{font-size:34px!important}
+  .s img{max-width:100%;height:auto!important}
+  .s .btn{width:100%}
+  .s div[style*="width: 460px"],.s div[style*="width: 320px"]{width:100%!important;flex-direction:column}
+  .s svg[width="1200"]{display:none}
+  .s .t{font-size:17px!important}
+  .s div[style*="gap: 48px; position: relative"]{flex-direction:column!important;gap:28px!important}
+  .s .code{font-size:52px!important;letter-spacing:.08em!important}
+  .s .ticket{padding:28px 16px!important}
+}
+html{scroll-behavior:smooth}
+body{overflow-x:hidden}
+.s>*{min-width:0}
 
-  @media (prefers-reduced-motion: no-preference) {
-    .rise { animation: rise 600ms cubic-bezier(.2,.8,.2,1) both; }
-    .rise.d1 { animation-delay: 80ms; } .rise.d2 { animation-delay: 160ms; } .rise.d3 { animation-delay: 240ms; }
-    @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-  }
 </style>
-<script>
-  // Launch is Fri 27 Nov 2026, 00:00 Accra (UTC+0). From then on the badge reads
-  // "Open now" and the hero leads with the app instead of the waitlist.
-  document.documentElement.dataset.open = String(Date.now() >= Date.UTC(2026, 10, 27));
-</script>
 </head>
 <body>
-<header class="hero">
-  <div class="wrap">
-    <div class="bar">
-      <a class="brand" href="/" aria-label="Wave home">
-        <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#154b3e"/><g transform="translate(6.4 7.04) scale(1.0667)"><path d="M24 3c-9.6 0-17.5 7.6-17.5 17C6.5 33 24 45 24 45s17.5-12 17.5-25C41.5 10.6 33.6 3 24 3z" fill="#87ea5c"/><path d="M12.5 21 q2.9 -4.2 5.75 0 t5.75 0 t5.75 0 t5.75 0" fill="none" stroke="#154b3e" stroke-width="3.6" stroke-linecap="round"/></g></svg>
-        wave
-      </a>
-      <div class="bar-right">
-        <span class="pre">Opens Fri 27 Nov</span>
-        <a href="https://app.usewavenow.com">Open the app</a>
-      </div>
-    </div>
-    <div class="hero-body">
-      <h1 class="rise">Stay in.<br>We'll fetch it.</h1>
-      <p class="lede rise d1">Parcels from Accra, dropped at your campus checkpoint.</p>
-      <div class="rise d2">
-        <a class="btn btn-ink pre" href="https://forms.gle/ZfED3zbmTGzUBJR16">Join the waitlist</a>
-        <a class="btn btn-ink post" href="https://app.usewavenow.com">Open the app</a>
-      </div>
-    </div>
-    <div class="arch rise d3">
-      <img src="/assets/hero.png" width="774" height="580" alt="A student lifting a parcel out of an open box">
-    </div>
+<div>
+<header class="hd" style="display: flex; justify-content: space-between; align-items: center; padding: 24px 120px"><span style="display: inline-flex; align-items: center; gap: 8px; font-size: 25px; font-weight: 700; letter-spacing: -0.04em; color: #154b3e"><svg width="36" height="36" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="12" fill="#154b3e"/><g transform="translate(5.3 5.3) scale(0.78)"><path d="M24 3c-9.6 0-17.5 7.6-17.5 17C6.5 33 24 45 24 45s17.5-12 17.5-25C41.5 10.6 33.6 3 24 3z" fill="#87ea5c"/><path d="M12.5 21 q2.9 -4.2 5.75 0 t5.75 0 t5.75 0 t5.75 0" fill="none" stroke="#154b3e" stroke-width="3.6" stroke-linecap="round"/></g></svg>wave</span><nav style="display: flex; gap: 32px; align-items: center; font-weight: 700; font-size: 15px; letter-spacing: .05em; text-transform: uppercase"><a href="#how" style="color: #5e6d66; text-decoration: none">How it works</a><a href="#business" style="color: #5e6d66; text-decoration: none">Businesses</a><a href="https://app.usewavenow.com" class="btn sm">Open the app</a></nav></header>
+<section class="s" style="padding-left: 120px; padding-right: 120px; padding-top: 48px; padding-bottom: 96px; display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center">
+  <div style="display: flex; flex-direction: column; gap: 28px">
+    <h1 class="d rise" style="font-size: 72px">Stay in.<br>We'll fetch it.</h1>
+    <p class="t rise r1" style="font-size: 21px; max-width: 520px">Someone in Accra hands us your package. We bring it to Ashesi the same day, and you collect it on campus with a 6-digit code.</p>
+    <div class="rise r2" style="display: flex; gap: 14px; width: 460px"><a href="https://app.usewavenow.com" class="btn ">Get started</a><a href="#how" class="btn btn2">How it works</a></div>
   </div>
-</header>
-
-<main>
-  <section aria-labelledby="what">
-    <div class="wrap">
-      <h2 id="what">What is Wave?</h2>
-      <p class="intro">A delivery app for Ashesi students. We collect your parcels from Accra and bring them to a checkpoint on campus, so you never make the trip.</p>
-      <ul class="facts">
-        <li><b>Every day</b><span>Order by 12 noon, get it the same day.</span></li>
-        <li><b>Campus checkpoints</b><span>Collect at a spot on campus near you.</span></li>
-        <li><b>Live tracking</b><span>Watch it go from packed to your checkpoint.</span></li>
-        <li><b>Your own code</b><span>Six digits. Only you can collect.</span></li>
-        <li><b>On your phone</b><span>No download. Open the link, add it to your home screen.</span></li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="steps-sec" aria-labelledby="how">
-    <div class="wrap">
-      <h2 id="how">Three taps. Then nap.</h2>
-      <ol class="steps">
-        <li class="step">
-          <span class="num" aria-hidden="true">1</span>
-          <div><h3>Say what to pick up</h3></div>
-          <img src="/assets/step1.png" width="280" height="210" alt="" loading="lazy">
-        </li>
-        <li class="step">
-          <span class="num" aria-hidden="true">2</span>
-          <div>
-            <h3>Pay with MoMo or card</h3>
-            <div class="chips"><span class="chip">MTN MoMo</span><span class="chip">Telecel Cash</span><span class="chip out">Card</span></div>
-          </div>
-          <img src="/assets/step2.png" width="280" height="210" alt="" loading="lazy">
-        </li>
-        <li class="step">
-          <span class="num" aria-hidden="true">3</span>
-          <div><h3>Show your code. Collect.</h3></div>
-          <img src="/assets/step3.png" width="280" height="210" alt="" loading="lazy">
-        </li>
-      </ol>
-    </div>
-  </section>
-
-  <section class="dark" id="waitlist" aria-labelledby="first">
-    <div class="wrap">
-      <h2 id="first" class="pre">Be first in line.</h2>
-      <h2 class="post">We're open.</h2>
-      <p class="sub pre">Your code drops Friday.</p>
-      <p class="sub post">Your first parcel is three taps away.</p>
-      <a class="btn btn-lime pre" href="https://forms.gle/ZfED3zbmTGzUBJR16">Join the waitlist</a>
-      <a class="btn btn-lime post" href="https://app.usewavenow.com">Open the app</a>
-      <p class="fine pre">We'll ask for your name, WhatsApp number and hall.</p>
-    </div>
-  </section>
-</main>
-
-<footer>
-  <div class="wrap">
-    <span>&copy; 2026 Ride the Wave</span>
-    <nav aria-label="Contact and legal">
-      <a href="mailto:ridethewavelogistics@gmail.com">ridethewavelogistics@gmail.com</a>
-      <a href="https://wa.me/233550076503">WhatsApp 055 007 6503</a>
-      <a href="https://app.usewavenow.com/legal/terms.html">Terms</a>
-      <a href="https://app.usewavenow.com/legal/privacy.html">Privacy</a>
-    </nav>
+  <div class="rise r3" style="display: flex; justify-content: center"><img class="float" src="/assets/hero.png" alt="" style="width: 520px; height: 440px; object-fit: contain; display: block; "></div>
+</section>
+<section class="s" style="padding-left: 120px; padding-right: 120px; padding-top: 96px; padding-bottom: 96px; background: #eafbe3; display: grid; grid-template-columns: 1fr 1.2fr; gap: 64px; align-items: center">
+  <div style="display: flex; flex-direction: column; gap: 18px"><h2 class="d rv" style="font-size: 56px">What's stuck in Accra?</h2><p class="t rv d1" style="font-size: 19px">If someone in Accra can hand it over, it can be on campus tonight.</p></div>
+  <div class="rv d2" style="display: flex; flex-wrap: wrap; gap: 12px"><div style="overflow: hidden; width: 100%"><div style="display: flex; gap: 10px; width: max-content; animation: marquee 22s linear infinite"><span class="moment" style="flex: none"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#154b3e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg></span>The charger you left at home</span><span class="moment" style="flex: none"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#154b3e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></span>Final project supplies from Osu</span><span class="moment" style="flex: none"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#154b3e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M12 8c-2-4-6-4-6-1s6 1 6 1 6 2 6-1-4-3-6 1"/></svg></span>Christmas gifts from family</span><span class="moment" style="flex: none"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#154b3e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/></svg></span>Food Mum packed this morning</span><span class="moment" style="flex: none"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#154b3e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9l2-5h12l2 5"/><path d="M4 9h16v11H4z"/><path d="M9 20v-6h6v6"/></svg></span>An online order sent to your aunt</span><span class="moment" style="flex: none"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#154b3e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/></svg></span>Notes a friend printed in Legon</span><span class="moment" style="flex: none"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#154b3e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg></span>The charger you left at home</span><span class="moment" style="flex: none"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#154b3e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></span>Final project supplies from Osu</span><span class="moment" style="flex: none"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#154b3e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M12 8c-2-4-6-4-6-1s6 1 6 1 6 2 6-1-4-3-6 1"/></svg></span>Christmas gifts from family</span><span class="moment" style="flex: none"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#154b3e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/></svg></span>Food Mum packed this morning</span><span class="moment" style="flex: none"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#154b3e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9l2-5h12l2 5"/><path d="M4 9h16v11H4z"/><path d="M9 20v-6h6v6"/></svg></span>An online order sent to your aunt</span><span class="moment" style="flex: none"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#154b3e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/></svg></span>Notes a friend printed in Legon</span></div></div></div>
+</section>
+<section class="s" style="padding-left: 120px; padding-right: 120px; padding-top: 120px; padding-bottom: 120px; display: flex; flex-direction: column; gap: 56px">
+  <h2 id="how" class="d rv" style="font-size: 56px">Three steps. No trip.</h2>
+  <div style="position: relative">
+    <svg width="1200" height="40" viewBox="0 0 1200 40" style="position: absolute; left: 28px; top: 8px" aria-hidden="true"><path d="M0 20 q50 -18 100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0" fill="none" stroke="#eeede7" stroke-width="5" stroke-linecap="round"/><path class="draw" d="M0 20 q50 -18 100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0 t100 0" fill="none" stroke="#87ea5c" stroke-width="5" stroke-linecap="round" pathLength="1000"/></svg>
+    <div style="display: flex; gap: 48px; position: relative"><div class="rv" style="flex: 1; display: flex; flex-direction: column; gap: 10px; align-items: flex-start"><span style="width: 56px; height: 56px; border-radius: 9999px; background: #154b3e; display: flex; align-items: center; justify-content: center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fdfcf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/></svg></span><p class="b" style="margin: 8px 0 0; font-size: 24px">Tell us who's sending</p><p class="t" style="max-width: 300px">Pick them from your contacts. Add where in Accra to meet.</p></div><div class="rv d1" style="flex: 1; display: flex; flex-direction: column; gap: 10px; align-items: flex-start"><span style="width: 56px; height: 56px; border-radius: 9999px; background: #154b3e; display: flex; align-items: center; justify-content: center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fdfcf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg></span><p class="b" style="margin: 8px 0 0; font-size: 24px">We collect it</p><p class="t" style="max-width: 300px">A rider calls them and picks it up in one of 5 Accra zones.</p></div><div class="rv d2" style="flex: 1; display: flex; flex-direction: column; gap: 10px; align-items: flex-start"><span style="width: 56px; height: 56px; border-radius: 9999px; background: #87ea5c; display: flex; align-items: center; justify-content: center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0b2a21" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span><p class="b" style="margin: 8px 0 0; font-size: 24px">Collect it on campus</p><p class="t" style="max-width: 300px">On campus, off campus or Berekuso. Show your code.</p></div></div>
   </div>
+</section>
+<section class="s" style="padding-left: 120px; padding-right: 120px; padding-top: 96px; padding-bottom: 96px; border-top: 2px solid #eeede7; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center">
+  <div class="ticket flip" style="padding: 48px 24px"><p class="s" style="font-weight: 700">Your code</p><div class="code" style="font-size: 88px">730 256</div></div>
+  <div style="display: flex; flex-direction: column; gap: 18px"><h2 class="d rv" style="font-size: 56px">Only you can collect.</h2><p class="t rv d1" style="font-size: 19px">Every package gets its own 6-digit code. The rider only hands it over when you show it.</p></div>
+</section>
+<section class="s" style="padding-left: 120px; padding-right: 120px; padding-top: 96px; padding-bottom: 96px; background: #fdfcf8; border-top: 2px solid #eeede7; display: grid; grid-template-columns: 1.2fr 1fr; gap: 64px; align-items: center">
+  <div style="display: flex; flex-direction: column; gap: 18px"><h2 class="d rv" style="font-size: 56px">Every day. Order by noon.</h2><p class="t rv d1" style="font-size: 19px">Book before 12 noon and it reaches your pickup point that evening. Track it the whole way.</p><div class="rv d2" style="display: flex; gap: 8px"><span class="chip on">On campus</span><span class="chip on">Off campus</span><span class="chip on">Berekuso</span></div></div>
+  <div class="drift" style="display: flex; justify-content: center"><img class="float" src="/assets/step3.png" alt="" style="width: 420px; height: 320px; object-fit: contain; display: block; "></div>
+</section>
+<section class="s" style="padding-left: 120px; padding-right: 120px; padding-top: 96px; padding-bottom: 96px; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center">
+  <div class="rv" style="display: flex; justify-content: center"><img class="float" src="/assets/step2.png" alt="" style="width: 340px; height: 260px; object-fit: contain; display: block; "></div>
+  <div style="display: flex; flex-direction: column; gap: 16px"><h2 id="business" class="d rv" style="font-size: 48px">Run a business on campus?</h2><p class="t rv d1" style="font-size: 19px">We bring your stock up from Accra in one trip, or list your shop for students. We don't deliver between halls.</p><a href="https://app.usewavenow.com" class="link rv d2" style="font-size: 19px">Tell us about it</a></div>
+</section>
+<section class="s" style="background: #eafbe3; padding-left: 120px; padding-right: 120px; padding-top: 112px; padding-bottom: 112px; display: flex; justify-content: space-between; align-items: center; gap: 48px">
+  <div style="display: flex; flex-direction: column; gap: 14px"><h2 class="d rv" style="font-size: 60px; max-width: 760px">Need something from Accra?</h2><p class="t rv d1" style="font-size: 19px">Order by 12 noon. Collect it tonight.</p></div>
+  <div class="rv d1" style="width: 320px"><a href="https://app.usewavenow.com" class="btn ">Get started</a></div>
+</section>
+<footer class="ft" style="background: #ffffff; border-top: 2px solid #eeede7; padding: 48px 120px 36px; display: flex; flex-direction: column; gap: 24px">
+  <span style="display: inline-flex; align-items: center; gap: 8px; font-size: 24px; font-weight: 700; letter-spacing: -0.04em; color: #154b3e"><svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="12" fill="#154b3e"/><g transform="translate(5.3 5.3) scale(0.78)"><path d="M24 3c-9.6 0-17.5 7.6-17.5 17C6.5 33 24 45 24 45s17.5-12 17.5-25C41.5 10.6 33.6 3 24 3z" fill="#87ea5c"/><path d="M12.5 21 q2.9 -4.2 5.75 0 t5.75 0 t5.75 0 t5.75 0" fill="none" stroke="#154b3e" stroke-width="3.6" stroke-linecap="round"/></g></svg>wave</span>
+  <div style="display: flex; flex-wrap: wrap; gap: 10px 28px; font-size: 15px; font-weight: 700"><a href="mailto:support@usewavenow.com" style="color: #02833f; text-decoration: none">support@usewavenow.com</a><a href="https://wa.me/233550076503" style="color: #02833f; text-decoration: none">WhatsApp 055 007 6503</a><a href="https://app.usewavenow.com/legal/terms.html" style="color: #5e6d66; text-decoration: none">Terms</a><a href="https://app.usewavenow.com/legal/privacy.html" style="color: #5e6d66; text-decoration: none">Privacy</a></div>
+  <p style="margin: 0; color: #5e6d66; font-size: 13px">© 2026 Ride the Wave · Ashesi University, Berekuso</p>
 </footer>
+</div>
 </body>
 </html>
