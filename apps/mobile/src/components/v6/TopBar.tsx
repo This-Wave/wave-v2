@@ -1,9 +1,8 @@
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import type { ReactNode } from "react";
 import { ChevronLeftIcon, WaveMarkIcon } from "../icons";
 import { colors } from "../../theme/tokens";
 import { useLayout } from "../../hooks/useLayout";
-import { IconCircle } from "./Controls";
 
 /**
  * The mark and the wordmark, side by side.
@@ -47,27 +46,32 @@ export function TopBar({
       className="h-16 flex-row items-center justify-between"
       style={{ paddingHorizontal: gutter }}
     >
-      <View className="w-10">
+      <View className="w-11">
         {onBack ? (
-          <IconCircle onPress={onBack} accessibilityLabel="Go back">
+          // v7: square back key with a 2px edge (canvas .iconbtn).
+          <Pressable
+            onPress={onBack}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            hitSlop={6}
+            className="h-11 w-11 items-center justify-center rounded-input border-2 border-hairline bg-surface active:bg-canvas"
+          >
             <ChevronLeftIcon size={20} color={colors.ink} strokeWidth={2} />
-          </IconCircle>
+          </Pressable>
         ) : null}
       </View>
-      {/* A title earns the centre when there is one: on a checkout step,
-          "Payment" tells a student more than the logo does. The mark takes the
-          space only when it would otherwise be empty, so every screen carries
-          the brand without a bar ever holding back, title and logo at once. */}
       {title ? (
-        <Text className="flex-1 text-center font-sans-bold text-ui text-ink" numberOfLines={1}>
+        <Text
+          accessibilityRole="header"
+          className="flex-1 text-center font-sans-bold text-ui text-ink"
+          numberOfLines={1}
+        >
           {title}
         </Text>
       ) : (
-        <View className="flex-1 items-center">
-          <BrandLockup size={24} />
-        </View>
+        <View className="flex-1" />
       )}
-      <View className="w-10 items-end">{trailing}</View>
+      <View className="w-11 items-end">{trailing}</View>
     </View>
   );
 }

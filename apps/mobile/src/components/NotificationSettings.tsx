@@ -51,23 +51,26 @@ export function NotificationPrompt() {
   const { state, busy, error, turnOn } = useWebPush();
   if (state !== "off" && state !== "needs-install") return null;
 
+  // v7 canvas "Turn on delivery updates": a plain card on white (the v6
+  // version was white text for a dark panel, which vanished on v7's white).
   return (
-    <View className="mt-6 rounded-card p-4" style={{ borderWidth: 1, borderColor: "rgba(255,255,255,0.25)" }}>
-      <Text className="mb-1 font-sans-semibold text-ui text-white">Know when it moves</Text>
-      <Text className="font-sans text-body text-white" style={{ opacity: 0.85 }}>
-        {state === "needs-install"
-          ? ADD_TO_HOME
-          : (error ?? "Get a notification when a rider takes your order and when it reaches your checkpoint.")}
+    <View className="mt-6 items-center rounded-card border border-hairline bg-surface p-5" style={{ gap: 10 }}>
+      <View className="h-14 w-14 items-center justify-center rounded-pill bg-lime">
+        <BellIcon size={24} color={colors.onLime} strokeWidth={2} />
+      </View>
+      <Text className="text-center font-display text-subheading text-ink">Turn on delivery updates</Text>
+      <Text className="text-center font-sans text-body text-muted">
+        {state === "needs-install" ? ADD_TO_HOME : (error ?? "On the way, at your checkpoint, collected.")}
       </Text>
       {state === "off" ? (
         <Pressable
           onPress={turnOn}
           disabled={busy}
           accessibilityRole="button"
-          className="mt-3 min-h-[44px] items-center justify-center self-start rounded-pill px-5 active:opacity-80"
-          style={{ borderWidth: 1.5, borderColor: "rgba(255,255,255,0.7)", opacity: busy ? 0.6 : 1 }}
+          className="mt-1 min-h-[44px] items-center justify-center self-stretch rounded-input border-b-4 border-lime-edge bg-lime px-5 active:opacity-80"
+          style={{ opacity: busy ? 0.6 : 1 }}
         >
-          <Text className="font-sans-medium text-ui text-white">{busy ? "Turning on…" : "Turn on notifications"}</Text>
+          <Text className="font-sans-bold text-meta uppercase tracking-wider text-on-lime">{busy ? "Turning on" : "Turn on"}</Text>
         </Pressable>
       ) : null}
     </View>

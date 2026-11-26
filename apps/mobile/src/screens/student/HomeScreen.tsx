@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import {
   ActiveDeliveryCard,
+  Button,
   CardGrid,
   CardRail,
   Gutter,
@@ -16,30 +17,28 @@ import {
   SearchCapsule,
   SectionTitle,
   GreetingHeader,
-  HowPickupWorks,
-  MoveItAgain,
   ServicePausedNotice,
   SuggestShopCard,
   SkeletonCard,
   WaveStrip,
   QuickTiles,
-  PromoCard,
 } from "../../components/v6";
 import { useLayout } from "../../hooks/useLayout";
 import { openOrderTracking } from "../../lib/desktopNavigate";
 import { useShops } from "../../lib/shops";
-import { LIVE_ORDER_STATUSES, useMyOrders, useRecentPickupRoutes } from "../../lib/orders";
+import { LIVE_ORDER_STATUSES, useMyOrders } from "../../lib/orders";
 import { useWave } from "../../lib/wave";
 import { useBuyForMeStatus, useServiceStatus } from "../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
-import { useAuthStore } from "../../store/authStore";
+import { useAuthStore, useIsGuest } from "../../store/authStore";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
 import { HomeSkeleton } from "./HomeSkeleton";
 import { StudentHomeWeb } from "./web/StudentHomeWeb";
-import { BusinessPromoCard } from "../../components/BusinessPromoCard";
 import type { ServiceMode } from "../../components/v6";
 import type { Shop } from "../../types";
-import { BoxIcon, PlusIcon } from "../../components/icons";
+import { GiftIcon, PlusIcon, StoreIcon } from "../../components/icons";
+import { Illustration } from "../../components/v7/Illustration";
+import { OrderCardRow, ParcelHero } from "../../components/v7/OrderCards";
 import { colors } from "../../theme/tokens";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
@@ -58,12 +57,14 @@ export function HomeScreen() {
 function HomeScreenMobile() {
   const navigation = useNavigation<Nav>();
   const { launched: buyForMeLaunched, settled: serviceSettled } = useBuyForMeStatus();
-  const pickupRoutes = useRecentPickupRoutes();
   const { data: shops, isLoading: shopsLoading } = useShops({
     enabled: serviceSettled && buyForMeLaunched,
   });
   const { data: orders } = useMyOrders();
-  const ordersLoaded = orders !== undefined;
+  // A guest has no orders to fetch (the query never runs), so for them the
+  // list is simply empty rather than forever loading.
+  const isGuest = useIsGuest();
+  const ordersLoaded = isGuest || orders !== undefined;
   const wave = useWave();
   const [mode, setMode] = useState<ServiceMode>("buy");
   const { data: service } = useServiceStatus();
@@ -107,6 +108,7 @@ function HomeScreenMobile() {
   }, [orders, shops]);
 
   const active = (orders ?? []).filter((o) => LIVE_ORDER_STATUSES.includes(o.status));
+  const recent = (orders ?? []).filter((o) => o.status === "delivered").slice(0, 3);
 
   return (
     <Screen>
@@ -121,12 +123,17 @@ function HomeScreenMobile() {
           alert={active.length > 0 || !!unpaid}
           onPressAvatar={() => navigation.navigate("Tabs", { screen: "Profile" })}
           onPressBell={() => navigation.navigate("Tabs", { screen: "Orders" })}
+          note={
+            effectiveMode === "pickup" && active[0] ? (
+              <ParcelHero order={active[0]} onTrack={() => openOrderTracking(navigation, active[0]!.id)} />
+            ) : undefined
+          }
           title={
             !ordersLoaded
               ? undefined
               : active.length > 0
                 ? `${active.length} parcel${active.length === 1 ? "" : "s"} on the way`
-                : "Nothing on the way yet"
+                : undefined
           }
         >
           {buyForMeLaunched ? (
@@ -151,30 +158,44 @@ function HomeScreenMobile() {
               action already lives. The reference puts them on the page below
               its header, but Wave's panel *is* the action zone — moving them
               out would make three distinct blocks to cross before the content. */}
-          <QuickTiles
-            actions={[
-              {
-                label: "Send a package",
-                icon: <BoxIcon size={21} color={colors.ink} strokeWidth={1.9} />,
-                disabled: !!paused?.paused,
-                onPress: () => navigation.navigate("PickupRequest", waveDate),
-              },
-              {
-                label: "Suggest a shop",
-                icon: <PlusIcon size={21} color={colors.ink} strokeWidth={2} />,
-                onPress: () => navigation.navigate("SuggestShop", waveDate),
-              },
-            ]}
-          />
+          {/* v7 canvas: three round keys. Hidden on the empty Home, where the
+              one big Send button below does this job. */}
+          {!ordersLoaded || active.length > 0 || !!unpaid || buyForMeLaunched ? (
+            <QuickTiles
+              actions={[
+                {
+                  label: "Send",
+                  icon: <PlusIcon size={22} color={colors.onLime} strokeWidth={2.2} />,
+                  disabled: !!paused?.paused,
+                  onPress: () => navigation.navigate("PickupRequest", waveDate),
+                },
+                {
+                  label: "Suggest a shop",
+                  icon: <StoreIcon size={21} color={colors.ink} strokeWidth={1.9} />,
+                  onPress: () => navigation.navigate("SuggestShop", waveDate),
+                },
+                {
+                  label: "Your code",
+                  icon: <GiftIcon size={21} color={colors.ink} strokeWidth={1.9} />,
+                  onPress: () =>
+                    active[0]
+                      ? navigation.navigate("PickupPin", { orderId: active[0].id })
+                      : navigation.navigate("Tabs", { screen: "Orders" }),
+                },
+              ]}
+            />
+          ) : null}
         </GreetingHeader>
 
         {/* The Wave's deadline, on the one tinted ground on the screen. Below
             the panel rather than inside it: in the panel it stopped reading as
             something you could press, and the panel was carrying three
             unrelated jobs. */}
-        <Gutter className="pt-5">
-          <WaveStrip wave={wave} onPress={() => navigation.navigate("WaveCalendar")} />
-        </Gutter>
+        {effectiveMode !== "pickup" ? (
+          <Gutter className="pt-5">
+            <WaveStrip wave={wave} onPress={() => navigation.navigate("WaveCalendar")} />
+          </Gutter>
+        ) : null}
 
         {/* Both services, once there are two. */}
         {buyForMeLaunched ? (
@@ -221,13 +242,15 @@ function HomeScreenMobile() {
           </Gutter>
         ) : null}
 
-        {active.length > 0 ? (
+        {/* More than one parcel: the first is the card above, the rest are
+            rows here. Buy for me keeps the old cards. */}
+        {active.length > (effectiveMode === "pickup" ? 1 : 0) ? (
           <Gutter className="pt-5">
-            <Text className="mb-3 font-display text-heading-sm text-ink">
-              {active.length === 1 ? "Active delivery" : `Active deliveries (${active.length})`}
+            <Text className="mb-3 font-sans-bold text-ui text-ink">
+              {effectiveMode === "pickup" ? "Also on the way" : "Active deliveries"}
             </Text>
             <View style={{ gap: 8 }}>
-              {active.map((order) => (
+              {active.slice(effectiveMode === "pickup" ? 1 : 0).map((order) => (
                 <ActiveDeliveryCard
                   key={order.id}
                   order={order}
@@ -242,57 +265,41 @@ function HomeScreenMobile() {
             gets the thing it actually needs: the route, again. */}
         {effectiveMode === "pickup" ? (
           <>
-            {/* A route this student has sent before is one tap. Absent for
-                anyone who has not sent a package yet. */}
-            {/* Gated here as well as inside the component: `MoveItAgain`
-                returns null for a student with no routes, but the Gutter around
-                it does not, so its `pt-5` was left behind as a phantom gap
-                between the Wave strip and the card below. */}
-            {pickupRoutes.length > 0 ? (
-              <Gutter className="pt-5">
-                <MoveItAgain
-                  onPick={(route) =>
-                    navigation.navigate("PickupRequest", {
-                      ...waveDate,
-                      fromId: route.originId,
-                      toId: route.destinationId,
-                    })
-                  }
-                />
+            {ordersLoaded && active.length === 0 && !unpaid ? (
+              <Gutter className="items-center pt-2">
+                <Illustration name="pillow" width={220} height={150} />
+                <Text accessibilityRole="header" className="mt-4 text-center font-display text-heading text-ink">
+                  Nothing on the way yet
+                </Text>
+                <Text className="mb-5 mt-2 text-center font-sans text-body text-muted">
+                  Someone in Accra can hand it over today.
+                </Text>
+                <View className="self-stretch">
+                  <Button
+                    label="Send a package"
+                    icon={<PlusIcon size={18} color={colors.onLime} strokeWidth={2.2} />}
+                    disabled={!!paused?.paused}
+                    onPress={() => navigation.navigate("PickupRequest", waveDate)}
+                  />
+                </View>
               </Gutter>
             ) : null}
-
-            {/* Before Buy for me launches, Pickup is the whole product and the
-                screen is otherwise empty: explain it, and give students the one
-                lever that fills the catalogue. */}
-            {!buyForMeLaunched ? (
-              <>
-                {/* Only for someone who has not sent a package: the routes
-                    above say more to anyone who has. Waits for the orders to
-                    load, or the card appears for a second and then vanishes
-                    under someone who has sent plenty. */}
-                {ordersLoaded && pickupRoutes.length === 0 ? (
-                  // pt-5 like every other section under the panel, so the first
-                  // card sits the same distance down whichever one it is.
-                  <Gutter className="pt-5">
-                    <HowPickupWorks />
-                  </Gutter>
-                ) : null}
-                {/* The ad space. Before launch the thing worth a student's
-                    attention is the half of Wave that is coming, and its button
-                    is what decides which shops arrive first. */}
-                <Gutter className="pt-3">
-                  <PromoCard
-                    headline="Need something from a shop in Accra?"
-                    body="Name the shop and what you need. We pick it up and bring it to your checkpoint."
-                    cta="Suggest a shop"
-                    onPress={() => navigation.navigate("SuggestShop", waveDate)}
-                  />
-                </Gutter>
-                <Gutter className="pt-3">
-                  <BusinessPromoCard onPress={() => navigation.navigate("BusinessInterest")} />
-                </Gutter>
-              </>
+            <Gutter className="pt-5">
+              <WaveStrip wave={wave} onPress={() => navigation.navigate("WaveCalendar")} />
+            </Gutter>
+            {recent.length > 0 ? (
+              <Gutter className="pt-6">
+                <Text className="mb-3 font-sans-bold text-ui text-ink">Recent</Text>
+                <View style={{ gap: 8 }}>
+                  {recent.map((o) => (
+                    <OrderCardRow
+                      key={o.id}
+                      order={o}
+                      onPress={() => navigation.navigate("OrderDetail", { orderId: o.id })}
+                    />
+                  ))}
+                </View>
+              </Gutter>
             ) : null}
           </>
         ) : (

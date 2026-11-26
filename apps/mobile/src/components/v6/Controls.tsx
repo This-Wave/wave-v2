@@ -72,11 +72,11 @@ export function Chip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: !!selected }}
-      className={`min-h-[44px] justify-center rounded-pill px-4 py-2 ${
-        selected ? "bg-ink" : "border border-hairline bg-surface"
+      className={`min-h-[40px] justify-center rounded-input border-2 px-4 py-1.5 ${
+        selected ? "border-ink bg-ink" : "border-line bg-surface"
       }`}
     >
-      <Text className={`font-sans-medium text-body ${selected ? "text-white" : "text-ink"}`}>
+      <Text className={`font-sans-bold text-body ${selected ? "text-on-ink" : "text-ink"}`}>
         {label}
       </Text>
     </Pressable>
@@ -91,18 +91,18 @@ type PillTone = "neutral" | "active" | "done" | "danger";
  * them would signal anything.
  */
 export function StatusPill({ label, tone = "neutral" }: { label: string; tone?: PillTone }) {
+  // v7 canvas: live and finished states are an ink tab with light text; a
+  // problem is red; anything else sits quietly on the hairline.
   const skin =
-    tone === "active"
-      ? "bg-lime"
-      : tone === "done"
-        ? "bg-lime-faint"
-        : tone === "danger"
-          ? "bg-danger-bg"
-          : "bg-hairline";
-  const ink = tone === "danger" ? "text-danger" : "text-ink";
+    tone === "active" || tone === "done"
+      ? "bg-ink"
+      : tone === "danger"
+        ? "bg-danger-bg"
+        : "bg-hairline";
+  const ink = tone === "active" || tone === "done" ? "text-on-ink" : tone === "danger" ? "text-danger" : "text-ink";
   return (
-    <View className={`self-start rounded-pill px-3 py-1 ${skin}`}>
-      <Text className={`font-sans-semibold text-meta ${ink}`}>{label}</Text>
+    <View className={`self-start rounded-input px-3 py-1.5 ${skin}`}>
+      <Text className={`font-sans-bold text-meta ${ink}`}>{label}</Text>
     </View>
   );
 }

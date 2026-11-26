@@ -8,15 +8,14 @@ import {
   Button,
   Field,
   Gutter,
-  Row,
-  RowGroup,
   Screen,
   ScreenBody,
   Sheet,
 } from "../../components/v6";
-import { CheckIcon } from "../../components/icons";
+import { CheckIcon, ChevronDownIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
-import { useUniversities } from "../../lib/checkpoints";
+import { useDropoffPoints, useUniversities } from "../../lib/checkpoints";
+import { usePickupPointStore } from "../../store/pickupPointStore";
 import { completeProfile } from "../../lib/profile";
 import { useAuthStore } from "../../store/authStore";
 import { LegalNotice } from "../../components/LegalNotice";
@@ -46,11 +45,11 @@ const COPY: Record<
   // order (canvas board 26). Student ID and email are optional and live on
   // Profile, where they can be added later.
   student: {
-    title: "What's your name?",
+    title: "Almost there",
     blurb: "",
-    cta: "Start using Wave",
+    cta: "Start",
     askStudentId: false,
-    emailHint: "Optional — we'll email you when a shop you suggested goes live.",
+    emailHint: "",
   },
   rider: {
     title: "Who are you?",
@@ -106,6 +105,12 @@ export function ProfileSetupScreen({ route }: Props) {
   const setProfile = useAuthStore((s) => s.setProfile);
 
   const university = universities?.find((u) => u.id === universityId) ?? universities?.[0];
+  const { data: points } = useDropoffPoints(university?.id);
+  const defaultPoint = usePickupPointStore((st) => st.defaultId);
+  const setDefaultPoint = usePickupPointStore((st) => st.setDefault);
+  const [pickingPoint, setPickingPoint] = useState(false);
+  const point =
+    points?.find((cp) => cp.id === defaultPoint) ?? points?.find((cp) => /^on campus/i.test(cp.name)) ?? points?.[0];
 
   async function handleContinue() {
     if (!university) {
@@ -137,12 +142,16 @@ export function ProfileSetupScreen({ route }: Props) {
   return (
     <Screen>
       <ScreenBody bottomInset={16}>
-        <Gutter className="pt-12">
-          <Text className="mb-2 font-display text-heading text-ink">{copy.title}</Text>
+        <Gutter className="pt-8">
+          {/* v7 canvas: the last stretch of sign-up, shown as a nearly full bar. */}
+          <View className="mb-6 h-1.5 overflow-hidden rounded-pill bg-hairline">
+            <View className="h-full rounded-pill bg-lime" style={{ width: "90%" }} />
+          </View>
+          <Text accessibilityRole="header" className="mb-2 font-display text-heading text-ink">{copy.title}</Text>
           {copy.blurb ? (
-            <Text className="mb-10 font-sans text-body text-muted">{copy.blurb}</Text>
+            <Text className="mb-8 font-sans text-body text-muted">{copy.blurb}</Text>
           ) : (
-            <View className="mb-8" />
+            <View className="mb-4" />
           )}
 
           {role === "rider" ? (
@@ -157,8 +166,8 @@ export function ProfileSetupScreen({ route }: Props) {
                       onPress={() => setRiderType(option.value)}
                       accessibilityRole="button"
                       accessibilityState={{ selected: isSelected }}
-                      className={`flex-row items-start gap-3 rounded-card px-4 py-3.5 ${
-                        isSelected ? "bg-lime-faint" : "bg-surface"
+                      className={`flex-row items-start gap-3 rounded-card border-2 px-4 py-3.5 ${
+                        isSelected ? "border-ink bg-wash" : "border-line bg-surface"
                       }`}
                     >
                       <View className="flex-1">
@@ -179,7 +188,7 @@ export function ProfileSetupScreen({ route }: Props) {
 
           <View className="mb-6">
             <Field
-              label="Full name"
+              label={role === "student" ? "Your name" : "Full name"}
               value={fullName}
               onChangeText={setFullName}
               placeholder="Kwame Mensah"
@@ -202,27 +211,28 @@ export function ProfileSetupScreen({ route }: Props) {
             </View>
           ) : null}
 
-          {role !== "student" ? (
+          <View className="mb-6">
+            <Text className="mb-2 font-sans-bold text-body text-ink">Campus</Text>
+            <SelectBox label={university?.name ?? "Choose your campus"} onPress={() => setPicking(true)} />
+          </View>
+
+          {role === "student" && points && points.length > 0 ? (
+            <View className="mb-6">
+              <Text className="mb-2 font-sans-bold text-body text-ink">Where you usually collect</Text>
+              <SelectBox label={point?.name ?? "Choose a pickup point"} onPress={() => setPickingPoint(true)} />
+            </View>
+          ) : null}
+
           <View className="mb-6">
             <Field
-              label="Email"
+              label={role === "student" ? "Email (optional)" : "Email"}
               value={email}
               onChangeText={setEmail}
-              placeholder="you@ashesi.edu.gh"
-              hint={copy.emailHint}
+              placeholder={role === "student" ? "For receipts" : "you@ashesi.edu.gh"}
+              hint={copy.emailHint || undefined}
               keyboardType="email-address"
             />
           </View>
-          ) : null}
-
-          <Text className="mb-2 font-sans-bold text-body text-ink">Campus</Text>
-          <RowGroup>
-            <Row
-              title={university?.name ?? "Choose your campus"}
-              meta={university ? `${university.city}, ${university.country}` : undefined}
-              onPress={() => setPicking(true)}
-            />
-          </RowGroup>
 
           {error ? <Text className="mt-4 font-sans text-body text-danger">{error}</Text> : null}
           <LegalNotice accepted={acceptedLegal} onChange={setAcceptedLegal} />
@@ -240,6 +250,31 @@ export function ProfileSetupScreen({ route }: Props) {
         />
       </ActionBar>
 
+      <Sheet visible={pickingPoint} onClose={() => setPickingPoint(false)} title="Where you usually collect">
+        <View style={{ gap: 8 }}>
+          {(points ?? []).map((cp) => (
+            <Pressable
+              key={cp.id}
+              onPress={() => {
+                setDefaultPoint(cp.id);
+                setPickingPoint(false);
+              }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: point?.id === cp.id }}
+              className={`flex-row items-center gap-3 rounded-card border-2 px-4 py-3.5 ${
+                point?.id === cp.id ? "border-ink bg-wash" : "border-line bg-surface"
+              }`}
+            >
+              <View className="flex-1">
+                <Text className="font-sans-bold text-body text-ink">{cp.name}</Text>
+                {cp.description ? <Text className="font-sans text-meta text-muted">{cp.description}</Text> : null}
+              </View>
+              {point?.id === cp.id ? <CheckIcon size={18} color={colors.ink} strokeWidth={2.2} /> : null}
+            </Pressable>
+          ))}
+        </View>
+      </Sheet>
+
       <Sheet visible={picking} onClose={() => setPicking(false)} title="Your campus">
         <View className="gap-1">
           {(universities ?? []).map((u) => (
@@ -251,8 +286,8 @@ export function ProfileSetupScreen({ route }: Props) {
               }}
               accessibilityRole="button"
               accessibilityState={{ selected: university?.id === u.id }}
-              className={`flex-row items-center gap-3 rounded-card px-4 py-3.5 ${
-                university?.id === u.id ? "bg-lime-faint" : "bg-canvas"
+              className={`flex-row items-center gap-3 rounded-card border-2 px-4 py-3.5 ${
+                university?.id === u.id ? "border-ink bg-wash" : "border-line bg-surface"
               }`}
             >
               <View className="flex-1">
@@ -269,5 +304,20 @@ export function ProfileSetupScreen({ route }: Props) {
         </View>
       </Sheet>
     </Screen>
+  );
+}
+
+/** v7 canvas select box: a 56px field with the value and a down chevron. */
+function SelectBox({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      className="min-h-[56px] flex-row items-center justify-between rounded-input border-2 border-line bg-surface px-4"
+    >
+      <Text className="font-sans-bold text-ui text-ink">{label}</Text>
+      <ChevronDownIcon size={20} color={colors.ink} strokeWidth={2} />
+    </Pressable>
   );
 }

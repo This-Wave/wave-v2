@@ -1,5 +1,5 @@
 import { Text, TextInput, View } from "react-native";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { normalizeGhanaLocalDigits } from "@wave/shared";
 import { colors } from "../../theme/tokens";
 
@@ -36,6 +36,7 @@ export function PhoneField({
   error,
 }: PhoneFieldProps) {
   const id = useId();
+  const [focused, setFocused] = useState(false);
 
   return (
     <View>
@@ -44,16 +45,17 @@ export function PhoneField({
           {label}
         </Text>
       ) : null}
-      <View
-        className={`min-h-[52px] flex-row items-center rounded-input border bg-surface px-4 ${
-          error ? "border-danger" : "border-hairline"
-        }`}
-      >
-        <Text className="font-sans-medium text-ui text-muted">+233 </Text>
+      {/* v7 canvas: the country code in its own box, the number beside it. */}
+      <View className="flex-row" style={{ gap: 8 }}>
+        <View className="min-h-[56px] w-[88px] items-center justify-center rounded-input border-2 border-line bg-surface">
+          <Text className="font-sans-bold text-ui text-ink">+233</Text>
+        </View>
         <TextInput
-          value={value}
+          value={groupDigits(value)}
           onChangeText={(text) => onChangeText(normalizeGhanaLocalDigits(text))}
-          placeholder={placeholder}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder={placeholder ?? "24 123 4567"}
           placeholderTextColor={colors.muted}
           keyboardType="phone-pad"
           accessibilityLabel={label ?? "Phone number"}
@@ -63,7 +65,10 @@ export function PhoneField({
           aria-labelledby={label ? `${id}-label` : undefined}
           aria-describedby={error ? `${id}-error` : undefined}
           aria-invalid={error ? true : undefined}
-          className="min-h-[52px] flex-1 py-3 font-sans-bold text-ui text-ink"
+          className={`min-h-[56px] flex-1 rounded-input border-2 bg-surface px-4 font-sans-medium text-ui text-ink ${
+            error ? "border-danger" : focused ? "border-ink" : "border-line"
+          }`}
+          style={{ outlineStyle: "none" } as object}
         />
       </View>
       {error ? (
@@ -78,4 +83,9 @@ export function PhoneField({
       ) : null}
     </View>
   );
+}
+
+/** "241234567" → "24 123 4567", as the canvas shows a Ghana number. */
+function groupDigits(d: string): string {
+  return [d.slice(0, 2), d.slice(2, 5), d.slice(5)].filter(Boolean).join(" ");
 }
