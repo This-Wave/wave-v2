@@ -11,6 +11,10 @@ import {
   TopBar,
 } from "../../components/v6";
 import { RouteLine } from "../../components/v7/Signature";
+import { InfoRow } from "../../components/v7/InfoRows";
+import { parsePickupNotes } from "../../lib/pickupNotes";
+import { SIZE_INFO } from "@wave/shared";
+import { shortOrderRef } from "../student/orderPresenters";
 import { useOrder } from "../../lib/orders";
 import { useAcceptOrder } from "../../lib/rider";
 import { apiErrorMessage } from "../../lib/apiError";
@@ -53,24 +57,26 @@ export function OrderDetailScreen() {
     }
   }
 
+  const d = parsePickupNotes(order?.pickupNotes);
+  const sizeInfo = SIZE_INFO.find((x) => x.key === order?.packageSize) ?? null;
+  const rows: [string, string | null | undefined][] = [
+    ["Building", d.building],
+    ["Landmark", d.landmark],
+    ["Handover", d.handover],
+    ["Package", order?.packageSize ? `${capitalise(order.packageSize)}${sizeInfo ? ` · up to ${sizeInfo.maxKg} kg` : ""}` : null],
+    [order?.orderType === "pickup" ? "What it is" : "What to buy", order?.itemDescription],
+  ];
+  const earn = order ? Number(order.estimatedEarning ?? order.deliveryFee) : null;
+
   return (
     <Screen narrow>
-      <TopBar onBack={() => navigation.goBack()} />
+      <TopBar title={order ? `Job ${shortOrderRef(order.id)}` : "Job"} onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>
-        <Gutter className="pt-2">
-          <Text className="font-sans text-body text-muted">You'd earn</Text>
-          <Text
-            className="mb-6 mt-1 font-display text-ink"
-            style={{ fontSize: 48, lineHeight: 52 }}
-          >
-            {order ? formatGhs(Number(order.estimatedEarning ?? order.deliveryFee)) : "—"}
-          </Text>
-
-          {/* v7: the route first (where you go), then the pickup details the
-              sender gave, then what it is. Student contact stays hidden until
-              the job is accepted. */}
-          <View className="mb-4 rounded-card border border-hairline bg-surface p-4">
+        {/* v7 canvas: where you go, what you'll find there, then the sender's
+            words. Student contact stays hidden until the job is accepted. */}
+        <Gutter className="pt-1" style={{ gap: 12 }}>
+          <View className="rounded-card border border-hairline bg-surface p-4">
             <RouteLine
               fromLabel="Collect from"
               from={order?.orderType === "pickup" ? (order?.senderName ?? order?.originCheckpoint?.name ?? "Accra") : (order?.shop?.name ?? "Shop")}
@@ -81,47 +87,31 @@ export function OrderDetailScreen() {
             />
           </View>
 
-          {order?.pickupNotes || order?.packageSize ? (
-            <View className="mb-4 rounded-card border border-hairline bg-surface px-4 py-1">
-              {order.packageSize ? (
-                <View className="flex-row justify-between border-b border-hairline py-3">
-                  <Text className="font-sans text-body text-muted">Package</Text>
-                  <Text className="font-sans-bold text-body text-ink">{capitalise(order.packageSize)} size</Text>
-                </View>
-              ) : null}
-              {(order.pickupNotes ?? "").split(" · ").filter(Boolean).map((line) => (
-                <View key={line} className="border-b border-hairline py-3">
-                  <Text className="font-sans text-body text-ink">{line}</Text>
-                </View>
+          <View className="rounded-card border border-hairline bg-surface px-4">
+            {rows
+              .filter(([, v]) => !!v)
+              .map(([k, v], i, all) => (
+                <InfoRow key={k} label={k} value={v} last={i === all.length - 1} />
               ))}
-            </View>
-          ) : null}
-
-          <Text className="mb-2 mt-3 font-sans-bold text-body text-ink">
-            {order?.orderType === "pickup" ? "What it is" : "What to buy"}
-          </Text>
-          <View className="rounded-card border border-hairline bg-surface p-4">
-            <Text className="font-sans text-body text-ink">{order?.itemDescription ?? "—"}</Text>
           </View>
 
-          {order?.notes ? (
-            <>
-              <Text className="mb-2 mt-7 font-sans-bold text-body text-ink">
-                Notes from the student
-              </Text>
-              <View className="rounded-card border border-hairline bg-surface p-4">
-                <Text className="font-sans text-body text-ink">{order.notes}</Text>
-              </View>
-            </>
+          {d.instructions || order?.notes ? (
+            <View className="rounded-card bg-wash p-4">
+              <Text className="font-sans-bold text-body text-ink">Instructions</Text>
+              <Text className="mt-1 font-sans text-body text-ink-700">{d.instructions ?? order?.notes}</Text>
+            </View>
           ) : null}
         </Gutter>
       </ScreenBody>
 
       <ActionBar>
-        <View className="gap-2">
-          <Button label="Accept this order" onPress={handleAccept} loading={acceptOrder.isPending} />
-          <Button label="Pass" variant="quiet" onPress={() => navigation.goBack()} />
+        <View className="mb-3 flex-row items-end justify-between">
+          <Text className="font-sans text-ui text-muted">{order?.estimatedEarning ? "You earn" : "Delivery fee"}</Text>
+          <Text className="font-display text-ink" style={{ fontSize: 28, lineHeight: 32 }}>
+            {earn !== null ? formatGhs(earn) : "—"}
+          </Text>
         </View>
+        <Button label="Accept job" onPress={handleAccept} loading={acceptOrder.isPending} />
       </ActionBar>
     </Screen>
   );

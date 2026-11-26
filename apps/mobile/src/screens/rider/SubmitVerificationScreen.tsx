@@ -15,7 +15,7 @@ import {
   ScreenBody,
   TopBar,
 } from "../../components/v6";
-import { CameraIcon, CheckIcon } from "../../components/icons";
+import { CheckIcon, PlusIcon, UserIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useAuthStore } from "../../store/authStore";
 import {
@@ -196,14 +196,14 @@ export function SubmitVerificationScreen() {
 
   return (
     <Screen narrow>
-      <TopBar onBack={() => navigation.goBack()} />
+      <TopBar title="Get verified" onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>
-        <Gutter className="pt-2">
-          <Text className="mb-2 font-display text-heading text-ink">Verify yourself</Text>
-          <Text className="mb-8 font-sans text-body text-muted">
-            Wave checks every rider before they carry a student's order. This takes a minute.
-          </Text>
+        <Gutter className="pt-1">
+          <View className="mb-5 h-1.5 overflow-hidden rounded-pill bg-hairline">
+            <View className="h-full rounded-pill bg-lime" style={{ width: idPhoto && selfie ? "90%" : idPhoto ? "60%" : "45%" }} />
+          </View>
+          <Text accessibilityRole="header" className="mb-5 font-display text-heading text-ink">Your ID</Text>
 
           {existing?.status === "rejected" ? (
             <View className="mb-7 rounded-card bg-danger-bg p-4">
@@ -215,15 +215,21 @@ export function SubmitVerificationScreen() {
             </View>
           ) : null}
 
-          <Text className="mb-2 font-sans-bold text-body text-ink">Which ID?</Text>
-          <View className="mb-7 flex-row flex-wrap gap-2">
+          {/* v7 canvas: the ID type as pick cards, not chips. */}
+          <View className="mb-6" style={{ gap: 10 }} accessibilityRole="radiogroup" accessibilityLabel="Which ID">
             {allowedIdTypes.map((type) => (
-              <Chip
+              <Pressable
                 key={type}
-                label={ID_TYPE_LABELS[type]}
-                selected={idType === type}
                 onPress={() => setIdType(type)}
-              />
+                accessibilityRole="radio"
+                accessibilityState={{ checked: idType === type }}
+                className={`min-h-[56px] flex-row items-center justify-between rounded-card border-2 px-4 ${
+                  idType === type ? "border-ink bg-wash" : "border-line bg-surface"
+                }`}
+              >
+                <Text className="font-sans-bold text-ui text-ink">{ID_TYPE_LABELS[type]}</Text>
+                {idType === type ? <CheckIcon size={18} color={colors.ink} strokeWidth={2.2} /> : null}
+              </Pressable>
             ))}
           </View>
 
@@ -236,15 +242,10 @@ export function SubmitVerificationScreen() {
             />
           </View>
 
-          <Text className="mb-2 font-sans-bold text-body text-ink">Photo of your ID</Text>
-          <PhotoSlot
-            uri={idPhoto?.uri}
-            hint="Tap to choose a photo of your ID"
-            onPress={pickIdPhoto}
-          />
-
-          <Text className="mb-2 mt-7 font-sans-bold text-body text-ink">A selfie</Text>
-          <PhotoSlot uri={selfie?.uri} hint="Tap to take a selfie" onPress={takeSelfie} />
+          <View style={{ gap: 12 }}>
+            <PhotoSlot uri={idPhoto?.uri} hint="Front of the card" onPress={pickIdPhoto} />
+            <PhotoSlot uri={selfie?.uri} hint="A selfie" icon="person" onPress={takeSelfie} />
+          </View>
 
           {isExternal ? (
             <>
@@ -332,7 +333,7 @@ export function SubmitVerificationScreen() {
 
       <ActionBar>
         <Button
-          label="Send for review"
+          label="Submit"
           onPress={handleSubmit}
           disabled={!canSubmit}
           loading={isSubmitting}
@@ -345,30 +346,34 @@ export function SubmitVerificationScreen() {
 function PhotoSlot({
   uri,
   hint,
+  icon = "plus",
   onPress,
 }: {
   uri?: string;
   hint: string;
+  icon?: "plus" | "person";
   onPress: () => void;
 }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      // `hint` is the only thing naming which document this slot wants, and
-      // once a photo is chosen the Text disappears behind the Image — so the
-      // slot went from "camera, Front of your ID" to silent at exactly the
-      // point the user needs to know which one they already did.
+      // `hint` names which document this slot wants; once a photo is chosen
+      // the text sits behind the image, so the name carries it.
       accessibilityLabel={uri ? `${hint}. Photo added.` : hint}
       accessibilityHint={uri ? "Opens the picker to replace it" : "Opens the photo picker"}
-      className="h-40 items-center justify-center overflow-hidden rounded-card bg-surface-muted"
+      className="h-32 items-center justify-center overflow-hidden rounded-card border-2 border-dashed border-line bg-surface"
     >
       {uri ? (
         <Image source={{ uri }} className="h-full w-full" resizeMode="cover" />
       ) : (
         <>
-          <CameraIcon size={22} color={colors.muted} strokeWidth={1.7} />
-          <Text className="mt-2 font-sans text-body text-muted">{hint}</Text>
+          {icon === "person" ? (
+            <UserIcon size={22} color={colors.ink} strokeWidth={1.9} />
+          ) : (
+            <PlusIcon size={22} color={colors.ink} strokeWidth={2} />
+          )}
+          <Text className="mt-2 font-sans-bold text-body text-ink">{hint}</Text>
         </>
       )}
     </Pressable>

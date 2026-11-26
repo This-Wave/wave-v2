@@ -1,187 +1,125 @@
-import { useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
-import {
-  BrandBar,
-  Chip,
-  Empty,
-  Gutter,
-  PageTitle,
-  Row,
-  RowGroup,
-  Screen,
-  ScreenBody,
-  Skeleton,
-  StatusPill,
-} from "../../components/v6";
+import { useMemo } from "react";
+import { Text, View } from "react-native";
+import { Empty, Gutter, PageTitle, Screen, ScreenBody, Skeleton } from "../../components/v6";
+import { BoxIcon } from "../../components/icons";
+import { colors } from "../../theme/tokens";
 import { useRiderEarnings } from "../../lib/rider";
-import { useLayout } from "../../hooks/useLayout";
-import { formatGhs } from "../../lib/pricing";
+import { formatGhsCompact } from "../../lib/pricing";
+import type { RiderEarning } from "../../types";
 
-type RangeKey = "today" | "week" | "all";
-const RANGES: { key: RangeKey; label: string }[] = [
-  { key: "today", label: "Today" },
-  { key: "week", label: "This week" },
-  { key: "all", label: "All time" },
-];
+const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 
-function isSameDay(a: Date, b: Date) {
-  return a.toDateString() === b.toDateString();
+/** Monday 00:00 of the week `d` falls in. */
+function weekStart(d: Date): Date {
+  const s = new Date(d);
+  const back = (s.getDay() + 6) % 7; // Monday = 0
+  s.setDate(s.getDate() - back);
+  s.setHours(0, 0, 0, 0);
+  return s;
 }
 
-function isSameWeek(a: Date, b: Date) {
-  const start = new Date(b);
-  start.setDate(b.getDate() - b.getDay());
-  start.setHours(0, 0, 0, 0);
-  return a.getTime() >= start.getTime();
-}
-
+/**
+ * v7 canvas "Earnings": this week's total as the figure, a bar per day (today
+ * in lime), paid vs pending, then each job. Amounts are what the rider earned,
+ * straight from their earning rows.
+ */
 export function EarningsScreen() {
-  const [range, setRange] = useState<RangeKey>("today");
   const { data: earnings, isLoading } = useRiderEarnings();
-  const { isDesktop } = useLayout();
 
-  const filtered = useMemo(() => {
-    if (!earnings) return [];
-    // Read the clock inside the memo: a `now` computed during render is a new
-    // object every pass, so listing it as a dependency would recompute on every
-    // render and omitting it left the dependency list dishonest.
+  const { week, bars, paid, pending, todayIdx } = useMemo(() => {
     const now = new Date();
-    return earnings.filter((e) => {
-      const created = new Date(e.createdAt);
-      if (range === "today") return isSameDay(created, now);
-      if (range === "week") return isSameWeek(created, now);
-      return true;
-    });
-  }, [earnings, range]);
-
-  const total = filtered.reduce((sum, e) => sum + Number(e.amount), 0);
-  const pendingTotal = filtered
-    .filter((e) => e.status === "pending")
-    .reduce((sum, e) => sum + Number(e.amount), 0);
+    const start = weekStart(now);
+    const list = (earnings ?? []).filter((e) => new Date(e.createdAt) >= start);
+    const perDay = [0, 0, 0, 0, 0, 0, 0];
+    for (const e of list) perDay[(new Date(e.createdAt).getDay() + 6) % 7]! += Number(e.amount);
+    const sum = (rows: RiderEarning[]) => rows.reduce((t, e) => t + Number(e.amount), 0);
+    return {
+      week: sum(list),
+      bars: perDay,
+      paid: sum((earnings ?? []).filter((e) => e.status === "paid")),
+      pending: sum((earnings ?? []).filter((e) => e.status === "pending")),
+      todayIdx: (now.getDay() + 6) % 7,
+    };
+  }, [earnings]);
+  const max = Math.max(...bars, 1);
 
   return (
     <Screen>
-      <BrandBar />
       <ScreenBody bottomInset={24}>
-        <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-6 pt-4"}>
-          {isDesktop ? (
-            <>
-              <Text className="font-display text-heading text-ink">Earnings</Text>
-              <Text className="mt-1 font-sans text-ui text-muted">
-                What you’ve earned from closed deliveries.
-              </Text>
-            </>
-          ) : (
-            <PageTitle>Earnings</PageTitle>
-          )}
+        <Gutter className="pb-4 pt-6">
+          <PageTitle>Earnings</PageTitle>
         </Gutter>
 
-        {isDesktop ? (
-          <Gutter className="mb-6">
-            <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-              {RANGES.map((r) => (
-                <Chip
-                  key={r.key}
-                  label={r.label}
-                  selected={range === r.key}
-                  onPress={() => setRange(r.key)}
-                />
-              ))}
-            </View>
-          </Gutter>
-        ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
-            className="mb-6 grow-0"
-          >
-            {RANGES.map((r) => (
-              <Chip
-                key={r.key}
-                label={r.label}
-                selected={range === r.key}
-                onPress={() => setRange(r.key)}
-              />
-            ))}
-          </ScrollView>
-        )}
-
-        <Gutter className="mb-8">
+        <Gutter style={{ gap: 12 }}>
           {isLoading ? (
-            <Skeleton height={80} radius={12} />
+            <Skeleton height={220} radius={16} />
           ) : (
-            <View>
-              <Text className="font-sans text-body text-muted">
-                {RANGES.find((r) => r.key === range)?.label}
+            <View className="rounded-card border border-hairline bg-surface p-4">
+              <Text className="font-sans text-body text-muted">This week</Text>
+              <Text className="mt-1 font-display text-ink" style={{ fontSize: 44, lineHeight: 48 }}>
+                {formatGhsCompact(week)}
               </Text>
-              <Text
-                className="mt-1 font-display text-ink"
-                style={{ fontSize: 44, lineHeight: 48 }}
+              <View
+                className="mt-4 flex-row items-end"
+                style={{ gap: 8, height: 96 }}
+                accessible
+                accessibilityLabel={`By day: ${bars.map((b, i) => `${DAYS[i]} ${formatGhsCompact(b)}`).join(", ")}`}
               >
-                {formatGhs(total)}
-              </Text>
-              <Text className="mt-1 font-sans text-body text-muted">
-                {filtered.length} {filtered.length === 1 ? "delivery" : "deliveries"}
-              </Text>
+                {bars.map((b, i) => (
+                  <View key={i} className="flex-1 items-center justify-end" style={{ height: 96 }}>
+                    <View
+                      className={`w-full rounded-input ${i === todayIdx ? "bg-lime" : "bg-wash"}`}
+                      style={{ height: Math.max(8, (b / max) * 88) }}
+                    />
+                  </View>
+                ))}
+              </View>
+              <View className="mt-2 flex-row" style={{ gap: 8 }}>
+                {DAYS.map((d, i) => (
+                  <Text key={i} className="flex-1 text-center font-sans text-caption text-muted">
+                    {d}
+                  </Text>
+                ))}
+              </View>
             </View>
           )}
-        </Gutter>
 
-        <Gutter>
-          {isLoading ? (
-            <View className="gap-2">
-              <Skeleton height={64} radius={12} />
-              <Skeleton height={64} radius={12} />
+          <View className="flex-row" style={{ gap: 12 }}>
+            <View className="flex-1 rounded-card border border-hairline bg-surface p-4">
+              <Text className="font-sans text-body text-muted">Paid</Text>
+              <Text className="mt-1 font-display text-heading-sm text-ink">{formatGhsCompact(paid)}</Text>
             </View>
-          ) : filtered.length === 0 ? (
-            <Empty
-              title="Nothing yet"
-              body="Completed deliveries show up here as soon as they're closed."
-            />
+            <View className="flex-1 rounded-card border border-hairline bg-surface p-4">
+              <Text className="font-sans text-body text-muted">Pending</Text>
+              <Text className="mt-1 font-display text-heading-sm text-ink">{formatGhsCompact(pending)}</Text>
+            </View>
+          </View>
+
+          {!isLoading && (earnings ?? []).length === 0 ? (
+            <Empty title="Nothing yet" body="Each delivery you finish lands here." />
           ) : (
-            <RowGroup>
-              {filtered.map((earning) => (
-                <Row
-                  key={earning.id}
-                  title={earning.order?.shop?.name ?? "Delivery"}
-                  meta={new Date(earning.createdAt).toLocaleDateString([], {
-                    day: "numeric",
-                    month: "short",
-                  })}
-                  chevron={false}
-                  trailing={
-                    <View className="items-end gap-1">
-                      <Text className="font-sans-bold text-body text-ink">
-                        +{formatGhs(Number(earning.amount))}
-                      </Text>
-                      <StatusPill
-                        label={earning.status === "pending" ? "Pending" : "Paid"}
-                        tone={earning.status === "pending" ? "neutral" : "done"}
-                      />
-                    </View>
-                  }
-                />
-              ))}
-            </RowGroup>
+            (earnings ?? []).slice(0, 30).map((e) => (
+              <View
+                key={e.id}
+                className="flex-row items-center rounded-card border border-hairline bg-surface px-4 py-3.5"
+                style={{ gap: 12 }}
+              >
+                <View className="h-11 w-11 items-center justify-center rounded-input bg-wash">
+                  <BoxIcon size={20} color={colors.ink} strokeWidth={1.9} />
+                </View>
+                <View className="min-w-0 flex-1">
+                  <Text className="font-sans-bold text-ui text-ink" numberOfLines={1}>
+                    {e.order?.shop?.name ?? "Pickup"}
+                  </Text>
+                  <Text className="font-sans text-meta text-muted">
+                    {new Date(e.createdAt).toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })}
+                    {e.status === "pending" ? " · pending" : ""}
+                  </Text>
+                </View>
+                <Text className="font-sans-bold text-meta text-ink-700">{formatGhsCompact(Number(e.amount))}</Text>
+              </View>
+            ))
           )}
-
-          {/*
-            The "Request Payout" button was removed rather than wired. There is
-            no payout endpoint, no payout model, and no record of a rider's
-            payment details anywhere in the schema — so it could only ever have
-            done nothing, and a rider tapping it would reasonably assume their
-            money was on its way. What is true is stated instead.
-          */}
-          {!isLoading && pendingTotal > 0 ? (
-            <View className="mt-6 rounded-card border border-hairline bg-surface p-5">
-              <Text className="mb-1 font-sans-bold text-body text-ink">Awaiting payout</Text>
-              <Text className="font-sans text-body text-ink">
-                {formatGhs(pendingTotal)} is settled by the Wave team directly. There's nothing to
-                request here.
-              </Text>
-            </View>
-          ) : null}
         </Gutter>
       </ScreenBody>
     </Screen>

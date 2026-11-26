@@ -1,13 +1,12 @@
 import { useState } from "react";
-import { Text } from "react-native";
+import { Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
 import { ActionBar, Button, CodeInput, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
+import { Keypad } from "../../components/v7/Keypad";
 import { useOrder } from "../../lib/orders";
 import { useDeliverOrder } from "../../lib/rider";
-import { resetRiderTabs } from "../../lib/navigationFlows";
-import { showToast } from "../../store/toastStore";
 import { apiErrorMessage } from "../../lib/apiError";
 
 type Route = RouteProp<RiderStackParamList, "PinEntry">;
@@ -32,8 +31,10 @@ export function PinEntryScreen() {
     setError(null);
     try {
       await deliverOrder.mutateAsync({ orderId: params.orderId, pin });
-      showToast("Delivery complete.", "success");
-      resetRiderTabs(navigation, "MyOrders");
+      navigation.replace("Delivered", {
+        orderId: params.orderId,
+        earned: order?.estimatedEarning ? Number(order.estimatedEarning) : null,
+      });
     } catch (err) {
       // Use the API's own words. It now counts down the remaining tries and
       // explains the lockout ("ask the student to tap Resend PIN"), and a
@@ -46,40 +47,47 @@ export function PinEntryScreen() {
     }
   }
 
+  const first = order?.student?.fullName?.trim().split(/\s+/)[0];
+
   return (
     <Screen narrow>
-      <TopBar onBack={() => navigation.goBack()} />
+      <TopBar title="Hand over" onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-2">
-          <Text className="mb-2 font-display text-heading text-ink">Ask for the code</Text>
-          <Text className="mb-10 font-sans text-body text-muted">
-            {order?.student?.fullName ?? "The student"} has a six-digit code by text. Type it in to
-            close this delivery at {order?.checkpoint?.name ?? "the checkpoint"}.
+          <Text accessibilityRole="header" className="mb-5 text-center font-display text-heading text-ink">
+            {first ? `Enter ${first}'s code` : "Enter the code"}
           </Text>
 
-          <CodeInput
-            value={pin}
-            onChangeText={setPin}
-            state={error ? "error" : "default"}
-            accessibilityLabel="6-digit delivery PIN"
-          />
+          {/* The digits are a secret said beside other people: a screen reader
+              hears how many are in, never which (see CodeInput). */}
+          <View accessible accessibilityLabel={`${pin.length} of 6 digits entered`} accessibilityLiveRegion="polite">
+            <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+              <CodeInput value={pin} editable={false} state={error ? "error" : "default"} />
+            </View>
+          </View>
 
           {error ? (
-            <Text
-              accessibilityLiveRegion="assertive"
-              role="alert"
-              className="mt-4 text-center font-sans text-body text-danger"
-            >
+            <Text accessibilityLiveRegion="assertive" role="alert" className="mt-4 text-center font-sans text-body text-danger">
               {error}
             </Text>
           ) : null}
+
+          <View className="mt-6">
+            <Keypad
+              onDigit={(d) => {
+                setError(null);
+                setPin((p) => (p.length < 6 ? p + d : p));
+              }}
+              onDelete={() => setPin((p) => p.slice(0, -1))}
+            />
+          </View>
         </Gutter>
       </ScreenBody>
 
       <ActionBar>
         <Button
-          label="Confirm delivery"
+          label="Hand it over"
           onPress={handleConfirm}
           loading={deliverOrder.isPending}
           disabled={pin.length < 6}

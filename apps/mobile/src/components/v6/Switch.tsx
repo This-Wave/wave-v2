@@ -56,7 +56,7 @@ export function Switch({
       hitSlop={{ top: 9, bottom: 9, left: 0, right: 0 }}
       style={disabled ? { opacity: 0.5 } : undefined}
       className={`h-[26px] w-[44px] justify-center rounded-pill px-0.5 ${
-        value ? "bg-ink" : "border border-muted bg-surface"
+        value ? "bg-lime" : "border border-muted bg-surface"
       }`}
     >
       <View
