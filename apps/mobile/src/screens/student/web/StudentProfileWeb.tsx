@@ -1,185 +1,157 @@
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../../navigation/StudentNavigator";
-import {
-  LoyaltyStamps,
-  SettingsGroup,
-  SettingsRow,
-  Confirm,
-  Gutter,
-  Screen,
-  ScreenBody,
-} from "../../../components/v6";
+import { Button, Confirm, Field } from "../../../components/v6";
+import { Illustration } from "../../../components/v7/Illustration";
+import { InfoRow, TextLink, localPhone } from "../../../components/v7/InfoRows";
 import { useAuthStore } from "../../../store/authStore";
-import { useMyOrders } from "../../../lib/orders";
-import { signOut } from "../../../lib/auth";
-import { formatGhs, isStandardRunDay } from "../../../lib/pricing";
-import { openPaymentMethods } from "../../../lib/desktopNavigate";
-import { DEFAULT_LOYALTY_THRESHOLD } from "@wave/shared";
-import {
-  hasSupportContact,
-  openSupportContact,
-  supportContactLabel,
-} from "../../../lib/support";
-import { BetaProgram } from "../../../components/BetaProgram";
-import {
-  CardIcon,
-  LogoutIcon,
-  MenuIcon,
-  MessageIcon,
-  PinIcon,
-  PlusIcon,
-} from "../../../components/icons";
-import { colors } from "../../../theme/tokens";
-import { getLegalLinks, openLegalLink } from "../../../lib/legal";
 import { useLoyalty } from "../../../lib/loyalty";
-import { describeWave } from "../../../lib/wave";
-import { NotificationSettings } from "../../../components/NotificationSettings";
+import { useUniversities } from "../../../lib/checkpoints";
+import { useMyOrders } from "../../../lib/orders";
+import { useWebPush } from "../../../hooks/useWebPush";
+import { updateProfile } from "../../../lib/profile";
+import { signOut } from "../../../lib/auth";
+import { getLegalLinks, openLegalLink } from "../../../lib/legal";
+import { hasSupportContact, openSupportContact, supportContactLabel } from "../../../lib/support";
+import { BetaProgram } from "../../../components/BetaProgram";
 
-/** Desktop profile — account panel + settings column. */
 /**
- * Suggesting from Profile has no Wave chosen, and the flow ends in an order, so
- * it needs one: the next open Wave, which the student can still change.
+ * v7 canvas "Web you": who you are and your loyalty on the left; delivery
+ * updates, your senders and the business door on the right.
  */
-function nextWaveParams(): { scheduledDate: string; isSpecialOrder: boolean } {
-  const next = describeWave();
-  const date = next?.date ?? new Date();
-  return { scheduledDate: date.toISOString(), isSpecialOrder: !isStandardRunDay(date) };
-}
-
 export function StudentProfileWeb() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const profile = useAuthStore((s) => s.profile);
-  const { data: orders } = useMyOrders();
-  const [confirmLogout, setConfirmLogout] = useState(false);
-
-  const completed = (orders ?? []).filter((o) => o.status === "delivered").length;
-  const saved = (orders ?? []).reduce((sum, o) => {
-    const pct = Number(o.discountApplied ?? 0);
-    const fee = Number(o.deliveryFee ?? 0);
-    return sum + (fee * pct) / 100;
-  }, 0);
-  const unlocked = completed >= DEFAULT_LOYALTY_THRESHOLD;
-  const legal = getLegalLinks();
+  const setProfile = useAuthStore((s) => s.setProfile);
   const { data: loyalty } = useLoyalty();
+  const { data: universities } = useUniversities();
+  const { data: orders } = useMyOrders();
+  const push = useWebPush();
+  const legal = getLegalLinks();
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [email, setEmail] = useState(profile?.email ?? "");
+  const [saving, setSaving] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  const stamps = loyalty?.stamps ?? 0;
+  const threshold = loyalty?.threshold ?? 6;
+  const delivered = loyalty?.totalDeliveries ?? 0;
+  const left = Math.max(threshold - stamps, 0);
+  const line =
+    loyalty?.rewardReady || loyalty?.rewardPending
+      ? `${delivered} deliveries · ${loyalty.discountPct}% off your next one`
+      : `${delivered} ${delivered === 1 ? "delivery" : "deliveries"} · ${left} more for ${loyalty?.discountPct ?? 20}% off`;
+  const campus = universities?.find((u) => u.id === profile?.universityId)?.name;
+  const senders = new Set((orders ?? []).map((o) => o.senderName).filter(Boolean)).size;
+  const name = profile?.fullName ?? "Student";
 
   return (
-    <Screen>
-      <ScreenBody bottomInset={48}>
-        <Gutter className="pb-8 pt-8">
-          <Text className="font-display text-heading text-ink">Account</Text>
-          <Text className="mt-1 font-sans text-ui text-muted">
-            Your Wave profile and delivery preferences.
-          </Text>
-        </Gutter>
-
-        <Gutter>
-          <View className="flex-row flex-wrap" style={{ gap: 24 }}>
-            <View className="rounded-card border border-hairline bg-surface p-6" style={{ flex: 1, minWidth: 280 }}>
-              <Text className="font-display text-heading-sm text-ink">
-                {profile?.fullName ?? "Student"}
-              </Text>
-              <Text className="mt-2 font-sans text-body text-muted">
-                {[profile?.studentId, profile?.phone].filter(Boolean).join(" · ") || "—"}
-              </Text>
-
-              {/* The same stamp card as the phone, so the discount looks like
-                  one thing across both layouts. The amount saved is web-only:
-                  there is room for it here and it is the payoff the stamps are
-                  working towards. */}
-              <View className="mt-6 border-t border-hairline pt-5">
-                <LoyaltyStamps
-                  stamps={loyalty?.stamps ?? 0}
-                  threshold={loyalty?.threshold}
-                  discountPct={loyalty?.discountPct}
-                  pending={loyalty?.rewardPending}
-                />
-                {unlocked && saved > 0 ? (
-                  <Text className="mt-3 font-sans text-body text-muted">
-                    Saved <Text className="font-sans-semibold text-ink">{formatGhs(saved)}</Text>{" "}
-                    across {completed} deliveries.
-                  </Text>
-                ) : null}
-              </View>
+    <View className="flex-1 bg-canvas" style={{ marginHorizontal: -28, paddingHorizontal: 48, paddingTop: 40 }}>
+      <Text accessibilityRole="header" className="mb-6 font-display text-ink" style={{ fontSize: 48, lineHeight: 54 }}>
+        You
+      </Text>
+      <View className="flex-row" style={{ gap: 28 }}>
+        <View className="flex-1" style={{ gap: 14 }}>
+          <View className="flex-row items-center" style={{ gap: 16 }}>
+            <View className="h-20 w-20 items-center justify-center rounded-pill bg-wash">
+              <Text className="font-display text-heading text-ink">{name.trim()[0]?.toUpperCase()}</Text>
             </View>
-
-            <View style={{ flex: 1, minWidth: 280 }}>
-              <NotificationSettings />
-
-              <SettingsGroup title="Deliveries">
-                <SettingsRow
-                  icon={<PinIcon size={18} color={colors.ink} strokeWidth={1.8} />}
-                  label="Delivery checkpoints"
-                  value="Where your runner meets you"
-                  onPress={() => navigation.navigate("Checkpoints")}
-                />
-                <SettingsRow
-                  icon={<CardIcon size={18} color={colors.ink} strokeWidth={1.8} />}
-                  label="Payment"
-                  value="How you pay for deliveries"
-                  onPress={() => openPaymentMethods(navigation)}
-                  last
-                />
-              </SettingsGroup>
-
-              <SettingsGroup title="Wave">
-                <SettingsRow
-                  icon={<PlusIcon size={18} color={colors.ink} strokeWidth={2} />}
-                  label="Suggest a shop"
-                  value="Somewhere you'd like Wave to buy from"
-                  onPress={() => navigation.navigate("SuggestShop", nextWaveParams())}
-                  last={!hasSupportContact()}
-                />
-                {hasSupportContact() ? (
-                  <SettingsRow
-                    icon={<MessageIcon size={18} color={colors.ink} strokeWidth={1.8} />}
-                    label="Help & support"
-                    value={supportContactLabel()}
-                    onPress={() => void openSupportContact()}
-                    last
-                  />
-                ) : null}
-              </SettingsGroup>
-
-              <BetaProgram />
-
-              {legal.terms || legal.privacy ? (
-                <SettingsGroup title="Legal">
-                  {legal.terms ? (
-                    <SettingsRow
-                      icon={<MenuIcon size={18} color={colors.ink} strokeWidth={1.8} />}
-                      label="Terms of service"
-                      onPress={() => void openLegalLink(legal.terms)}
-                      last={!legal.privacy}
-                    />
-                  ) : null}
-                  {legal.privacy ? (
-                    <SettingsRow
-                      icon={<MenuIcon size={18} color={colors.ink} strokeWidth={1.8} />}
-                      label="Privacy policy"
-                      onPress={() => void openLegalLink(legal.privacy)}
-                      last
-                    />
-                  ) : null}
-                </SettingsGroup>
-              ) : null}
-
-              <SettingsGroup title="Account">
-                <SettingsRow
-                  icon={<LogoutIcon size={18} color={colors.danger} strokeWidth={1.8} />}
-                  label="Log out"
-                  danger
-                  chevron={false}
-                  onPress={() => setConfirmLogout(true)}
-                  last
-                />
-              </SettingsGroup>
+            <View>
+              <Text className="font-sans-bold text-subheading text-ink">{name}</Text>
+              <Text className="font-sans text-ui text-muted">{line}</Text>
             </View>
           </View>
-        </Gutter>
-      </ScreenBody>
+          <View className="h-2.5 overflow-hidden rounded-pill bg-hairline">
+            <View className="h-full rounded-pill bg-lime" style={{ width: `${Math.min(stamps / threshold, 1) * 100}%` }} />
+          </View>
+          <View className="rounded-card border border-hairline bg-surface px-5">
+            <InfoRow label="Phone" value={localPhone(profile?.phone)} />
+            {editingEmail ? (
+              <View className="border-b border-hairline py-3" style={{ gap: 10 }}>
+                <Field label="Email" value={email} onChangeText={setEmail} placeholder="For receipts" keyboardType="email-address" error={emailError} />
+                <View className="flex-row" style={{ gap: 8 }}>
+                  <Button
+                    label="Save"
+                    small
+                    full={false}
+                    loading={saving}
+                    onPress={() => {
+                      setSaving(true);
+                      setEmailError(null);
+                      void updateProfile({ email: email.trim() || null })
+                        .then((next) => {
+                          setProfile(next);
+                          setEditingEmail(false);
+                        })
+                        .catch(() => setEmailError("Couldn't save email."))
+                        .finally(() => setSaving(false));
+                    }}
+                  />
+                  <Button label="Cancel" variant="quiet" small full={false} onPress={() => setEditingEmail(false)} />
+                </View>
+              </View>
+            ) : (
+              <InfoRow label="Email" value={profile?.email || "Add"} onPress={() => setEditingEmail(true)} />
+            )}
+            <InfoRow label="Campus" value={campus ?? "Ashesi University"} />
+            <InfoRow label="Pickup point" value="Change" onPress={() => navigation.navigate("Checkpoints")} />
+            <InfoRow label="Payment" value="MoMo or card" onPress={() => navigation.navigate("PaymentMethods")} last />
+          </View>
+          <BetaProgram />
+        </View>
+
+        <View className="flex-1" style={{ gap: 14 }}>
+          {push.state === "off" || push.state === "needs-install" ? (
+            <View className="flex-row items-center rounded-card border border-hairline bg-surface p-5" style={{ gap: 16 }}>
+              <Illustration name="pillow" width={110} height={80} />
+              <View className="flex-1">
+                <Text className="font-sans-bold text-subheading text-ink">Delivery updates are off</Text>
+                <Text className="font-sans text-body text-muted">
+                  {push.state === "needs-install"
+                    ? "Add Wave to your Home Screen to get them."
+                    : "Get a ping when your parcel reaches your checkpoint."}
+                </Text>
+              </View>
+              {push.state === "off" ? <Button label="Turn on" small full={false} loading={push.busy} onPress={() => void push.turnOn()} /> : null}
+            </View>
+          ) : null}
+
+          <View className="rounded-card border border-hairline bg-surface px-5">
+            <InfoRow label="Saved senders" value={String(senders)} />
+            <InfoRow label="Delivery updates" value={push.state === "on" ? "On" : push.state === "unsupported" ? "Not on this browser" : "Off"} />
+            {hasSupportContact() ? (
+              <InfoRow label="Help" value={supportContactLabel()} onPress={() => void openSupportContact()} last />
+            ) : null}
+          </View>
+
+          <Pressable
+            onPress={() => navigation.navigate("BusinessInterest")}
+            accessibilityRole="button"
+            className="flex-row items-center justify-between rounded-card border border-hairline bg-surface p-5"
+          >
+            <View>
+              <Text className="font-sans-bold text-ui text-ink">Own a business on campus?</Text>
+              <Text className="font-sans text-body text-muted">We bring your stock from Accra.</Text>
+            </View>
+            <Text className="font-sans-bold text-ui text-link">Tell us</Text>
+          </Pressable>
+
+          <TextLink label="Sign out" tone="muted" onPress={() => setConfirmLogout(true)} />
+          {legal.terms || legal.privacy ? (
+            <View className="flex-row" style={{ gap: 16 }}>
+              {legal.terms ? (
+                <Text accessibilityRole="link" onPress={() => void openLegalLink(legal.terms)} className="font-sans text-meta text-muted underline">Terms</Text>
+              ) : null}
+              {legal.privacy ? (
+                <Text accessibilityRole="link" onPress={() => void openLegalLink(legal.privacy)} className="font-sans text-meta text-muted underline">Privacy</Text>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
+      </View>
 
       <Confirm
         visible={confirmLogout}
@@ -192,6 +164,6 @@ export function StudentProfileWeb() {
         }}
         onCancel={() => setConfirmLogout(false)}
       />
-    </Screen>
+    </View>
   );
 }

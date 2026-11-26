@@ -1,223 +1,184 @@
 import { useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../../navigation/StudentNavigator";
-import {
-  Button,
-  Chip,
-  Empty,
-  Gutter,
-  ListError,
-  ListSkeleton,
-  ProgressRail,
-  Screen,
-  ScreenBody,
-  StatusPill,
-  Thumb,
-} from "../../../components/v6";
-import { ChevronRightIcon } from "../../../components/icons";
-import { colors } from "../../../theme/tokens";
-import { useMyOrders } from "../../../lib/orders";
+import { Button, Chip, Empty, ListError, ListSkeleton, StatusPill } from "../../../components/v6";
+import { useDeliveryPin, useMyOrders } from "../../../lib/orders";
 import { formatGhsCompact } from "../../../lib/pricing";
 import { resetToPayment } from "../../../lib/navigationFlows";
-import { orderProgress, statusPill } from "../orderPresenters";
-import { openOrderDetail, openOrderTracking } from "../../../lib/desktopNavigate";
+import { statusPill, trackerSteps } from "../orderPresenters";
+import { openOrderTracking } from "../../../lib/desktopNavigate";
+import { CodeTicket, RouteLine } from "../../../components/v7/Signature";
+import { Illustration } from "../../../components/v7/Illustration";
+import { orderRoute, orderTitle } from "../../../components/v7/OrderCards";
+import { localPhone } from "../../../components/v7/InfoRows";
 import type { Order } from "../../../types";
 
 type Nav = NativeStackNavigationProp<StudentStackParamList>;
-
 const LIVE = ["confirmed", "rider_assigned", "en_route", "at_checkpoint"];
 
-/** Desktop orders page — table-style list, not a phone stack. */
+/**
+ * v7 canvas "Web orders": the list on the left (All / Active / Past), the
+ * chosen order on the right with its route, code and progress. No page change
+ * to look at an order.
+ */
 export function StudentOrdersWeb() {
   const navigation = useNavigation<Nav>();
-  const { data: orders, isLoading, isError, refetch, isRefetching } = useMyOrders();
-  const [filter, setFilter] = useState<"all" | "delivered" | "cancelled">("all");
+  const { data: orders, isLoading, isError, refetch } = useMyOrders();
+  const [filter, setFilter] = useState<"all" | "active" | "past">("all");
+  const [picked, setPicked] = useState<string | null>(null);
 
-  const live = useMemo(() => (orders ?? []).filter((o) => LIVE.includes(o.status)), [orders]);
-  const unpaid = useMemo(
-    () => (orders ?? []).filter((o) => o.status === "payment_pending"),
-    [orders],
-  );
-  const past = useMemo(() => {
-    const rest = (orders ?? []).filter(
-      (o) => !LIVE.includes(o.status) && o.status !== "payment_pending",
-    );
-    if (filter === "delivered") return rest.filter((o) => o.status === "delivered");
-    if (filter === "cancelled")
-      return rest.filter((o) => o.status === "cancelled" || o.status === "refunded");
-    return rest;
+  const list = useMemo(() => {
+    const all = orders ?? [];
+    if (filter === "active") return all.filter((o) => LIVE.includes(o.status) || o.status === "payment_pending");
+    if (filter === "past") return all.filter((o) => !LIVE.includes(o.status) && o.status !== "payment_pending");
+    return all;
   }, [orders, filter]);
+  const selected = list.find((o) => o.id === picked) ?? list[0] ?? null;
 
   return (
-    <Screen>
-      <ScreenBody
-        bottomInset={48}
-        refreshing={isRefetching}
-        onRefresh={() => void refetch()}
-      >
-        <Gutter className="pb-8 pt-8">
-          <Text className="font-display text-heading text-ink">Orders</Text>
-          <Text className="mt-1 font-sans text-ui text-muted">
-            Track live deliveries and review what you’ve already received.
-          </Text>
-        </Gutter>
-
-        {live.length > 0 ? (
-          <Gutter className="mb-10" style={{ gap: 12 }}>
-            <Text className="mb-1 font-display text-heading-sm text-ink">Happening now</Text>
-            {live.map((o) => (
-              <View
-                key={o.id}
-                className="flex-row items-center gap-4 rounded-card border border-hairline bg-surface px-5 py-4"
-              >
-                <Thumb uri={o.shop?.logoUrl} size={52} />
-                <View className="min-w-0 flex-1">
-                  <View className="mb-1 flex-row items-center gap-2">
-                    <Text className="font-sans-bold text-ui text-ink" numberOfLines={1}>
-                      {o.shop?.name ?? "Package pickup"}
-                    </Text>
-                    <StatusPill {...statusPill(o.status, !!o.companyId)} />
-                  </View>
-                  <Text className="mb-2 font-sans text-body text-muted" numberOfLines={1}>
-                    {o.itemDescription}
-                  </Text>
-                  <ProgressRail ratio={orderProgress(o.status)} />
-                </View>
-                <Button
-                  label="Track"
-                  full={false}
-                  onPress={() => openOrderTracking(navigation, o.id)}
-                />
-              </View>
-            ))}
-          </Gutter>
-        ) : null}
-
-        {unpaid.length > 0 ? (
-          <Gutter className="mb-10" style={{ gap: 12 }}>
-            <Text className="mb-1 font-display text-heading-sm text-ink">Waiting for payment</Text>
-            {unpaid.map((o) => (
-              <View
-                key={o.id}
-                className="flex-row items-center gap-4 rounded-card border border-hairline bg-surface px-5 py-4"
-              >
-                <Thumb uri={o.shop?.logoUrl} size={52} />
-                <View className="min-w-0 flex-1">
-                  <Text className="font-sans-bold text-ui text-ink" numberOfLines={1}>
-                    {o.shop?.name ?? "Your order"}
-                  </Text>
-                  <Text className="font-sans text-body text-muted">
-                    {formatGhsCompact(Number(o.totalAmount ?? 0))} · not paid yet
-                  </Text>
-                </View>
-                <Button
-                  label="Pay"
-                  full={false}
-                  onPress={() =>
-                    resetToPayment(navigation, {
-                      orderId: o.id,
-                      totalAmount: Number(o.totalAmount),
-                    })
-                  }
-                />
-              </View>
-            ))}
-          </Gutter>
-        ) : null}
-
-        <Gutter className="mb-4">
-          <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-            <Chip label="All" selected={filter === "all"} onPress={() => setFilter("all")} />
-            <Chip
-              label="Delivered"
-              selected={filter === "delivered"}
-              onPress={() => setFilter("delivered")}
-            />
-            <Chip
-              label="Cancelled"
-              selected={filter === "cancelled"}
-              onPress={() => setFilter("cancelled")}
-            />
-          </View>
-        </Gutter>
-
-        <Gutter>
-          {isLoading ? (
-            <ListSkeleton rows={5} />
-          ) : isError ? (
-            <ListError onRetry={() => void refetch()} />
-          ) : past.length === 0 ? (
-            <Empty
-              title="Nothing here yet"
-              body={
-                filter === "all"
-                  ? "Your finished orders will collect here."
-                  : "No orders match this filter."
-              }
-            />
-          ) : (
-            <View className="overflow-hidden rounded-card border border-hairline bg-surface">
-              <View className="flex-row border-b border-hairline px-5 py-3">
-                <Text className="flex-[2] font-sans-bold text-body text-ink">Shop</Text>
-                <Text className="flex-1 font-sans-bold text-body text-ink">Date</Text>
-                <Text className="flex-1 font-sans-bold text-body text-ink">Total</Text>
-                <Text className="w-28 font-sans-bold text-body text-ink">Status</Text>
-              </View>
-              {past.map((o, i) => (
-                <PastRow
-                  key={o.id}
-                  order={o}
-                  last={i === past.length - 1}
-                  onPress={() => openOrderDetail(navigation, o.id)}
-                />
-              ))}
-            </View>
-          )}
-        </Gutter>
-      </ScreenBody>
-    </Screen>
-  );
-}
-
-function PastRow({
-  order,
-  last,
-  onPress,
-}: {
-  order: Order;
-  last: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      className={`flex-row items-center px-5 py-4 active:bg-canvas ${
-        last ? "" : "border-b border-hairline"
-      }`}
-    >
-      <View className="flex-[2] flex-row items-center gap-3 pr-3">
-        <Thumb uri={order.shop?.logoUrl} size={40} />
-        <Text className="flex-1 font-sans-bold text-body text-ink" numberOfLines={1}>
-          {order.shop?.name ?? "Package pickup"}
+    <View className="flex-1 flex-row bg-canvas" style={{ marginHorizontal: -28 }}>
+      <View className="border-r border-hairline" style={{ width: 420, paddingHorizontal: 28, paddingTop: 40 }}>
+        <Text accessibilityRole="header" className="font-display text-ink" style={{ fontSize: 48, lineHeight: 54 }}>
+          Orders
         </Text>
+        <View className="mb-4 mt-4 flex-row" style={{ gap: 8 }}>
+          <Chip label="All" selected={filter === "all"} onPress={() => setFilter("all")} />
+          <Chip label="Active" selected={filter === "active"} onPress={() => setFilter("active")} />
+          <Chip label="Past" selected={filter === "past"} onPress={() => setFilter("past")} />
+        </View>
+        {isLoading ? (
+          <ListSkeleton rows={4} />
+        ) : isError ? (
+          <ListError onRetry={() => void refetch()} />
+        ) : list.length === 0 ? (
+          <Empty title="Nothing here" body="Your orders show up here." />
+        ) : (
+          <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 28 }}>
+            {list.map((o) => {
+              const on = selected?.id === o.id;
+              const pill = statusPill(o.status, !!o.companyId);
+              const when = o.status === "delivered" ? (o.deliveredAt ?? o.scheduledDate) : null;
+              return (
+                <Pressable
+                  key={o.id}
+                  onPress={() => setPicked(o.id)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={`${orderTitle(o)}, ${pill.label}`}
+                  className={`flex-row items-center rounded-card border-2 px-4 py-3.5 ${on ? "border-ink bg-wash" : "border-line bg-surface"}`}
+                  style={{ gap: 12 }}
+                >
+                  <View className="min-w-0 flex-1">
+                    <Text className="font-sans-bold text-ui text-ink" numberOfLines={1}>{orderTitle(o)}</Text>
+                    <Text className="font-sans text-meta text-muted" numberOfLines={1}>
+                      {[orderRoute(o), when ? new Date(when).toLocaleDateString([], { day: "numeric", month: "short" }) : null]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </Text>
+                  </View>
+                  <Text className="font-sans-bold text-meta text-ink-700">{o.status === "payment_pending" ? "Not paid" : pill.label}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
       </View>
-      <Text className="flex-1 font-sans text-body text-muted">{dayOf(order)}</Text>
-      <Text className="flex-1 font-sans-bold text-body text-ink">
-        {formatGhsCompact(Number(order.totalAmount ?? 0))}
-      </Text>
-      <View className="w-28">
-        <StatusPill {...statusPill(order.status, !!order.companyId)} />
+
+      <View className="flex-1" style={{ paddingHorizontal: 48, paddingTop: 40 }}>
+        {selected ? (
+          <OrderPane order={selected} navigation={navigation} />
+        ) : !isLoading ? (
+          <View className="flex-1 items-center justify-center" style={{ gap: 12 }}>
+            <Illustration name="pillow" width={240} height={170} />
+            <Text className="font-display text-heading text-ink">No orders yet</Text>
+            <Button label="Send a package" full={false} onPress={() => navigation.navigate("PickupRequest")} />
+          </View>
+        ) : null}
       </View>
-      <ChevronRightIcon size={18} color={colors.icon} strokeWidth={2} />
-    </Pressable>
+    </View>
   );
 }
 
-function dayOf(order: Order): string {
-  const iso = order.deliveredAt ?? order.scheduledDate;
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" });
+function OrderPane({ order, navigation }: { order: Order; navigation: Nav }) {
+  const pill = statusPill(order.status, !!order.companyId);
+  const live = LIVE.includes(order.status);
+  const { data: pin } = useDeliveryPin(live && !order.companyId ? order.id : undefined);
+  const steps = trackerSteps(order);
+  const size = order.packageSize ? `${order.packageSize[0]!.toUpperCase()}${order.packageSize.slice(1)} size` : null;
+  const when = order.deliveredAt
+    ? `collected ${new Date(order.deliveredAt).toLocaleDateString([], { day: "numeric", month: "short" })}`
+    : order.scheduledDate
+      ? `arrives ${new Date(order.scheduledDate).toLocaleDateString([], { weekday: "long" })}`
+      : null;
+
+  return (
+    <View style={{ gap: 20 }}>
+      <View>
+        <StatusPill label={order.status === "payment_pending" ? "Not paid" : pill.label} tone={pill.tone} />
+        <Text accessibilityRole="header" className="mt-3 font-display text-ink" style={{ fontSize: 44, lineHeight: 50 }}>
+          {orderTitle(order)}
+        </Text>
+        <Text className="mt-1 font-sans text-ui text-muted">{[size, when].filter(Boolean).join(" · ")}</Text>
+      </View>
+
+      <View className="flex-row" style={{ gap: 20 }}>
+        <View className="flex-1 rounded-card border border-hairline bg-surface p-5">
+          <RouteLine
+            fromLabel="From"
+            from={
+              order.orderType === "pickup"
+                ? [order.senderName, order.originCheckpoint?.name?.split(" & ")[0]].filter(Boolean).join(", ") || "Accra"
+                : (order.shop?.name ?? "The shop")
+            }
+            fromSub={localPhone(order.senderPhone)}
+            toLabel="To you at"
+            to={order.checkpoint?.name ?? "your pickup point"}
+          />
+        </View>
+        {live && pin ? (
+          <View className="flex-1">
+            <CodeTicket pin={pin} />
+          </View>
+        ) : null}
+      </View>
+
+      <View className="flex-row" style={{ gap: 8 }}>
+        {steps.map((s) => (
+          <View key={s.label} className="flex-1" style={{ gap: 8 }}>
+            <View className={`h-1.5 rounded-pill ${s.done ? "bg-lime" : "bg-hairline"}`} />
+            <Text className={`font-sans text-meta ${s.done ? "font-sans-bold text-ink" : "text-muted"}`}>
+              {s.label.replace(/^Picked up in .*/, "Picked up")}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      <View className="flex-row" style={{ gap: 10 }}>
+        {order.status === "payment_pending" ? (
+          <Button
+            label={`Pay ${formatGhsCompact(Number(order.totalAmount ?? 0))}`}
+            full={false}
+            onPress={() => resetToPayment(navigation, { orderId: order.id, totalAmount: Number(order.totalAmount) })}
+          />
+        ) : live ? (
+          <Button label="Track" full={false} onPress={() => openOrderTracking(navigation, order.id)} />
+        ) : order.orderType === "pickup" ? (
+          <Button
+            label="Send again"
+            full={false}
+            onPress={() =>
+              navigation.navigate("PickupRequest", {
+                fromId: order.originCheckpointId ?? undefined,
+                toId: order.checkpointId ?? undefined,
+                senderName: order.senderName ?? undefined,
+                senderPhone: order.senderPhone ?? undefined,
+              })
+            }
+          />
+        ) : null}
+      </View>
+    </View>
+  );
 }

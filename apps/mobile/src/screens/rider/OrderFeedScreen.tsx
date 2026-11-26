@@ -5,7 +5,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
 import {
   ActiveDeliveryCard,
-  GreetingHeader,
+  PageTitle,
   Empty,
   Gutter,
   ListError,
@@ -20,11 +20,14 @@ import { RouteLine } from "../../components/v7/Signature";
 import { ChevronRightIcon } from "../../components/icons";
 import { colors } from "../../theme/tokens";
 import { useAuthStore } from "../../store/authStore";
-import { useAvailableOrders, useMyDeliveries, useSetAvailability } from "../../lib/rider";
+import { useAcceptOrder, useAvailableOrders, useMyDeliveries, useSetAvailability } from "../../lib/rider";
+import { parsePickupNotes } from "../../lib/pickupNotes";
+import { showToast } from "../../store/toastStore";
+import { apiErrorMessage } from "../../lib/apiError";
 import { useWave } from "../../lib/wave";
 import { useLayout } from "../../hooks/useLayout";
 import { openRiderClaim } from "../../lib/desktopNavigate";
-import { formatGhs } from "../../lib/pricing";
+import { formatGhs, formatGhsCompact } from "../../lib/pricing";
 import type { Order } from "../../types";
 
 /**
@@ -57,7 +60,16 @@ export function OrderFeedScreen() {
 
   // Desktop has its own "Available" page heading, so the section label would be
   // a second one.
-  const showHeading = !isDesktop && online && !!orders && orders.length > 0;
+
+  const acceptOrder = useAcceptOrder();
+  async function accept(orderId: string) {
+    try {
+      await acceptOrder.mutateAsync(orderId);
+      navigation.navigate("ActiveDelivery", { orderId });
+    } catch (err) {
+      showToast(apiErrorMessage(err, "Couldn't take this job. Another rider may have it. Pull to refresh."), "danger");
+    }
+  }
 
   function handleToggle(value: boolean) {
     setOnline(value);
@@ -92,34 +104,29 @@ export function OrderFeedScreen() {
             </View>
           </Gutter>
         ) : (
-          /* Going online is the rider's first move of the day, so it sits in
-             the panel where the student's "Send a package" sits. */
-          <GreetingHeader
-            name={profile?.fullName ?? "there"}
-            avatarUrl={profile?.avatarUrl}
-            alert={!!activeRun}
-            onPressAvatar={() => navigation.navigate("Tabs", { screen: "Profile" })}
-            onPressBell={() => navigation.navigate("Tabs", { screen: "MyOrders" })}
-          >
-            <View className="flex-row items-center gap-3 rounded-card border border-hairline bg-surface px-4 py-3.5">
-              <View className="min-w-0 flex-1">
-                <Text className="font-sans-bold text-ui text-ink">
-                  {online ? "You're online" : "You're offline"}
-                </Text>
-                <Text className="font-sans text-body text-muted" numberOfLines={1}>
-                  {online
-                    ? (wave ? `${wave.name} · closes in ${wave.countdown}` : "Next Wave")
-                    : "Turn on to see and claim orders"}
-                </Text>
-              </View>
-              <Switch
-                value={online}
-                onValueChange={handleToggle}
-                accessibilityLabel="Available for deliveries"
-                accessibilityHint="Turn off to stop new orders appearing in your feed"
-              />
+          /* v7 canvas: the day and job count, "Jobs", and the online switch as
+             one ink pill in the corner. */
+          <Gutter className="flex-row items-end justify-between pb-2 pt-6">
+            <View className="min-w-0 flex-1 pr-3">
+              <Text className="font-sans text-meta text-muted">
+                {[wave?.dateLabel.split(" ")[0], online && orders ? `${orders.length} ${orders.length === 1 ? "job" : "jobs"}` : null]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </Text>
+              <PageTitle>Jobs</PageTitle>
             </View>
-          </GreetingHeader>
+            <Pressable
+              onPress={() => handleToggle(!online)}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: online }}
+              accessibilityLabel="Available for deliveries"
+              className={`min-h-[40px] flex-row items-center rounded-input px-4 ${online ? "bg-ink" : "border-2 border-line bg-surface"}`}
+              style={{ gap: 8 }}
+            >
+              <View className={`h-2 w-2 rounded-pill ${online ? "bg-lime" : "bg-subtle"}`} />
+              <Text className={`font-sans-bold text-body ${online ? "text-on-ink" : "text-ink"}`}>{online ? "Online" : "Offline"}</Text>
+            </Pressable>
+          </Gutter>
         )}
 
         {activeRun ? (
@@ -134,16 +141,11 @@ export function OrderFeedScreen() {
           </Gutter>
         ) : null}
 
-        {showHeading ? (
-          <Gutter className="pt-6">
-            <Text className="mb-3 font-display text-heading-sm text-ink">Jobs</Text>
-          </Gutter>
-        ) : null}
 
         {/* The heading is what clears the greeting panel, so without it the
             body needs its own top padding — otherwise the error card and the
             skeleton sit flush against the panel's rounded edge. */}
-        <Gutter className={!isDesktop && !showHeading ? "pt-6" : undefined}>
+        <Gutter className={!isDesktop ? "pt-4" : undefined}>
           {/* Offline outranks every other state, error included. It has to be
               checked here rather than left to `orders` being absent, because
               the cached rows survive the switch — react-query keeps the data of
@@ -188,17 +190,27 @@ export function OrderFeedScreen() {
                 const pickup = order.orderType === "pickup";
                 const pay = order.estimatedEarning ? Number(order.estimatedEarning) : Number(order.deliveryFee);
                 return (
-                  <View key={order.id} className="rounded-card border border-hairline bg-surface p-4" style={{ gap: 12 }}>
+                  <Pressable
+                    key={order.id}
+                    onPress={() => openRiderClaim(navigation, order.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${pickup ? "Pickup" : (order.shop?.name ?? "Shop order")}, you earn ${formatGhs(pay)}. Open the job`}
+                    className="rounded-card border border-hairline bg-surface p-4"
+                    style={{ gap: 12 }}
+                  >
                     <View className="flex-row items-center justify-between">
                       <Text className="font-sans-bold text-ui text-ink">{pickup ? "Pickup" : (order.shop?.name ?? "Shop order")}</Text>
-                      <View className="items-end">
-                        <Text className="font-display text-heading-sm text-ink">{formatGhs(pay)}</Text>
-                        {order.estimatedEarning ? <Text className="font-sans text-caption text-muted">you earn</Text> : null}
-                      </View>
+                      <Text className="font-display text-heading-sm text-ink">{formatGhsCompact(pay)}</Text>
                     </View>
                     <RouteLine
                       fromLabel="Collect"
-                      from={pickup ? (order.originCheckpoint?.name ?? "Accra") : (order.shop?.locationText ?? order.shop?.name ?? "Accra")}
+                      from={
+                        pickup
+                          ? [order.originCheckpoint?.name?.split(" & ")[0], parsePickupNotes(order.pickupNotes).building?.split(",")[0]]
+                              .filter(Boolean)
+                              .join(" · ") || "Accra"
+                          : (order.shop?.locationText ?? order.shop?.name ?? "Accra")
+                      }
                       toLabel="Deliver"
                       to={order.checkpoint?.name ?? "Campus"}
                     />
@@ -206,9 +218,15 @@ export function OrderFeedScreen() {
                       <Text className="font-sans-bold text-meta text-muted">
                         {order.packageSize ? `${order.packageSize[0]!.toUpperCase()}${order.packageSize.slice(1)} size` : order.itemDescription}
                       </Text>
-                      <Button label="View job" full={false} onPress={() => openRiderClaim(navigation, order.id)} />
+                      <Button
+                        label="Accept"
+                        small
+                        full={false}
+                        loading={acceptOrder.isPending && acceptOrder.variables === order.id}
+                        onPress={() => void accept(order.id)}
+                      />
                     </View>
-                  </View>
+                  </Pressable>
                 );
               })}
             </View>

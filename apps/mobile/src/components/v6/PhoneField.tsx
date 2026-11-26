@@ -31,7 +31,7 @@ interface PhoneFieldProps {
 export function PhoneField({
   value,
   onChangeText,
-  placeholder = "54 321 0000",
+  placeholder = "24 123 4567",
   label,
   error,
 }: PhoneFieldProps) {

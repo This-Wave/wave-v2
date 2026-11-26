@@ -2,6 +2,7 @@ import { Modal, Pressable, Text, View } from "react-native";
 import type { ReactNode } from "react";
 import { CloseIcon } from "../icons";
 import { colors } from "../../theme/tokens";
+import { useLayout } from "../../hooks/useLayout";
 
 /**
  * Bottom sheet. The one place the system uses real elevation — it floats over
@@ -20,35 +21,38 @@ export function Sheet({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const { isDesktop } = useLayout();
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType={isDesktop ? "fade" : "slide"}
       onRequestClose={onClose}
       accessibilityViewIsModal
     >
-      <View className="flex-1 justify-end">
+      {/* v7 canvas: a bottom sheet on phones, a centred dialog on desktop. */}
+      <View className={`flex-1 ${isDesktop ? "items-center justify-center" : "justify-end"}`}>
         <Pressable
           onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel="Dismiss sheet"
-          className="flex-1"
+          className={isDesktop ? "absolute inset-0" : "flex-1"}
           style={{ backgroundColor: "rgba(15,28,24,0.35)" }}
         />
         <Pressable
           onPress={() => undefined}
+          style={isDesktop ? { width: 480, maxWidth: "92%" } : undefined}
           accessibilityRole="none"
           importantForAccessibility="yes"
           accessibilityLabel={title}
         >
           <View
             className="bg-surface px-gutter pb-8 pt-3"
-            style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
+            style={isDesktop ? { borderRadius: 16 } : { borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
             accessibilityRole="summary"
           >
             {/* v7 canvas: grab handle, Nunito title, square close key. */}
-            <View className="mb-4 h-[5px] w-10 self-center rounded-pill bg-line" />
+            {isDesktop ? <View className="h-3" /> : <View className="mb-4 h-[5px] w-10 self-center rounded-pill bg-line" />}
             <View className="mb-4 flex-row items-center justify-between" style={{ gap: 12 }}>
               <Text className="flex-1 font-display text-heading text-ink" accessibilityRole="header">
                 {title ?? ""}

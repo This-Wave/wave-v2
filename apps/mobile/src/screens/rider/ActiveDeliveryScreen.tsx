@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Linking, Text, View } from "react-native";
+import { Linking, Pressable, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RiderStackParamList } from "../../navigation/RiderNavigator";
@@ -7,17 +7,12 @@ import {
   ActionBar,
   Button,
   Gutter,
-  IconCircle,
-  Row,
-  RowGroup,
   Screen,
   ScreenBody,
-  Steps,
-  Thumb,
   TopBar,
 } from "../../components/v6";
 import { PhoneIcon } from "../../components/icons";
-import { RouteLine } from "../../components/v7/Signature";
+import { parsePickupNotes } from "../../lib/pickupNotes";
 import { colors } from "../../theme/tokens";
 import { useOrder } from "../../lib/orders";
 import { useUpdateOrderStatus } from "../../lib/rider";
@@ -76,32 +71,6 @@ export function ActiveDeliveryScreen() {
   const costRecorded = !!order?.items?.length && order.items.every((i) => i.actualUnitPrice !== null);
   const goodsPaid = !!order?.goodsPaidAt;
 
-  const steps = [
-    { label: "Order accepted", detail: "It's yours" },
-    {
-      label: `Collect from ${origin.name ?? (order?.orderType === "pickup" ? "the sender" : "the shop")}`,
-      detail: origin.locationText ?? undefined,
-    },
-    // Only a shop_pickup has this step: no menu on Wave means no price until
-    // someone stands at the till and reports one.
-    ...(isShopPickup
-      ? [
-          {
-            label: "Record what you paid",
-            detail: costRecorded
-              ? goodsPaid
-                ? "Student has paid"
-                : "Waiting for the student to pay"
-              : "Before you hand anything over",
-          },
-        ]
-      : []),
-    {
-      label: `Carry to ${order?.checkpoint?.name ?? "the checkpoint"}`,
-      detail: step === "en_route" ? "On the way" : "Not yet",
-    },
-    { label: "Take the student's PIN", detail: "Closes the delivery" },
-  ];
 
   async function handleAdvance() {
     // A shop_pickup cannot leave the shop as "picked up" until the till total
@@ -137,165 +106,112 @@ export function ActiveDeliveryScreen() {
     }
   }
 
+  const d = parsePickupNotes(order?.pickupNotes);
+  const address =
+    order?.orderType === "pickup"
+      ? [d.building, d.landmark ? d.landmark.charAt(0).toLowerCase() + d.landmark.slice(1) : null].filter(Boolean).join(", ") ||
+        order.originCheckpoint?.name
+      : origin.locationText;
+  // Canvas progress: accepted, collected, at campus, handed over.
+  const segment = step === "at_shop" ? 1 : 2;
+
   return (
     <Screen>
-      <TopBar onBack={() => navigation.goBack()} />
+      <TopBar title="Active job" onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>
-        <Gutter className="pt-2">
-          <Text accessibilityRole="header" className="mb-5 font-display text-heading text-ink">
-            {step === "at_shop" ? "Go and collect it" : "Bring it to campus"}
+        <Gutter className="pt-1">
+          <View className="mb-5 flex-row" style={{ gap: 6 }} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 4, now: segment }}>
+            {[0, 1, 2, 3].map((i) => (
+              <View key={i} className={`h-1.5 flex-1 rounded-pill ${i < segment ? "bg-lime" : "bg-hairline"}`} />
+            ))}
+          </View>
+
+          <Text accessibilityRole="header" className="font-display text-heading text-ink">
+            {step === "at_shop" ? (isShopPickup || order?.orderType !== "pickup" ? "Go to the shop" : "Go to pickup") : "Go to campus"}
+          </Text>
+          <Text className="mb-5 mt-1 font-sans text-ui text-muted">
+            {step === "at_shop" ? (address ?? "Pickup address on the way") : `${dropoff?.name ?? "The checkpoint"}${order?.checkpoint?.description ? `, ${order.checkpoint.description}` : ""}`}
           </Text>
 
-          {order?.orderType === "pickup" ? (
-            <View className="mb-4 rounded-card border border-hairline bg-surface p-4">
-              <RouteLine
-                fromLabel="Collect from"
-                from={order.senderName ?? order.originCheckpoint?.name ?? "Accra"}
-                fromSub={order.originCheckpoint?.name}
-                toLabel="Deliver to"
-                to={order.checkpoint?.name ?? "Campus"}
-                progress={step === "at_shop" ? 0.15 : 0.65}
+          <View style={{ gap: 12 }}>
+            {order?.senderName ? (
+              <ContactCard
+                name={order.senderName}
+                meta={["Sender", d.handover].filter(Boolean).join(" · ")}
+                phone={order.senderPhone}
               />
+            ) : null}
+            {order?.student ? (
+              <ContactCard
+                name={order.student.fullName}
+                meta={`Receives at ${dropoff?.name ?? "the checkpoint"}`}
+                phone={order.student.phone}
+              />
+            ) : null}
+          </View>
+
+          {d.instructions ? (
+            <View className="mt-3 rounded-card bg-wash p-4">
+              <Text className="font-sans-bold text-body text-ink">Instructions</Text>
+              <Text className="mt-1 font-sans text-body text-ink-700">{d.instructions}</Text>
             </View>
           ) : null}
 
-          {order?.senderName ? (
-            <View className="mb-4 rounded-card border border-hairline bg-surface px-4 py-1">
-              <View className="flex-row items-center py-3" style={{ gap: 12 }}>
-                <View className="min-w-0 flex-1">
-                  <Text className="font-sans text-meta text-muted">Sender</Text>
-                  <Text className="mt-0.5 font-sans-bold text-ui text-ink">{order.senderName}</Text>
-                  {order.senderPhone ? (
-                    <Text className="font-sans text-body text-muted">{order.senderPhone}</Text>
+          {order?.packageSize || order?.itemDescription ? (
+            <Text className="mt-3 font-sans text-body text-muted">
+              {[order?.packageSize ? `${order.packageSize[0]!.toUpperCase()}${order.packageSize.slice(1)} size` : null, order?.itemDescription]
+                .filter(Boolean)
+                .join(" · ")}
+            </Text>
+          ) : null}
+
+          {order?.items?.length ? (
+            <View className="mt-3 rounded-card border border-hairline bg-surface px-4">
+              {order.items.map((item, i) => (
+                <View key={item.id} className={`flex-row items-center justify-between py-3 ${i > 0 ? "border-t border-hairline" : ""}`}>
+                  <Text className="flex-1 font-sans text-body text-ink">{item.quantity}× {item.name}</Text>
+                  {item.unitPrice ? (
+                    <Text className="font-sans text-body text-muted">{formatGhs(Number(item.unitPrice) * item.quantity)}</Text>
                   ) : null}
-                </View>
-                {order.senderPhone ? (
-                  <IconCircle
-                    tone="lime"
-                    accessibilityLabel={`Call ${order.senderName}`}
-                    onPress={() => void Linking.openURL(`tel:${order.senderPhone}`)}
-                  >
-                    <PhoneIcon size={18} color={colors.ink} strokeWidth={1.8} />
-                  </IconCircle>
-                ) : null}
-              </View>
-              {order.packageSize ? (
-                <View className="flex-row justify-between border-t border-hairline py-3">
-                  <Text className="font-sans text-body text-muted">Package</Text>
-                  <Text className="font-sans-bold text-body text-ink">
-                    {order.packageSize[0]!.toUpperCase() + order.packageSize.slice(1)} size
-                  </Text>
-                </View>
-              ) : null}
-              {(order.pickupNotes ?? "").split(" · ").filter(Boolean).map((line) => (
-                <View key={line} className="border-t border-hairline py-3">
-                  <Text className="font-sans text-body text-ink">{line}</Text>
                 </View>
               ))}
             </View>
           ) : null}
 
-          <View className="mb-7 rounded-card border border-hairline bg-surface p-5">
-            <Steps steps={steps} currentIndex={step === "at_shop" ? 1 : 2} />
-          </View>
-
-          <Text className="mb-2 font-sans-bold text-body text-ink">
-            {order?.orderType === "pickup" ? "What it is" : "What to buy"}
-          </Text>
-          <View className="mb-7 rounded-card border border-hairline bg-surface p-4">
-            {order?.items?.length ? (
-              order.items.map((item, i) => (
-                <View
-                  key={item.id}
-                  className={`flex-row items-center justify-between py-2 ${
-                    i > 0 ? "border-t border-hairline" : ""
-                  }`}
-                >
-                  <Text className="flex-1 font-sans text-body text-ink">
-                    {item.quantity}× {item.name}
-                  </Text>
-                  {item.unitPrice ? (
-                    <Text className="font-sans text-body text-muted">
-                      {formatGhs(Number(item.unitPrice) * item.quantity)}
-                    </Text>
-                  ) : null}
-                </View>
-              ))
-            ) : (
-              <Text className="font-sans text-body text-ink">{order?.itemDescription ?? "—"}</Text>
-            )}
-          </View>
-
           {isShopPickup ? (
-            <View className="mb-7 rounded-card bg-warning-bg p-4">
-              <Text className="font-sans-bold text-body text-warning">
-                This shop isn't on Wave
-              </Text>
+            <View className="mt-3 rounded-card bg-warning-bg p-4">
+              <Text className="font-sans-bold text-body text-warning">This shop isn't on Wave</Text>
               <Text className="mt-1 font-sans text-body text-warning">
                 {costRecorded
                   ? goodsPaid
                     ? "The student has paid for the goods. You can complete the handover."
                     : "Waiting for the student to pay for the goods. You can't hand over until they do."
-                  : "There are no prices on file. Buy the list, then record exactly what you paid — the student is charged that amount."}
+                  : "There are no prices on file. Buy the list, then record exactly what you paid. The student is charged that amount."}
               </Text>
             </View>
           ) : null}
 
-          {/* Wave stores a free-text `locationText`, never coordinates, so
-              tapping this runs a map *search* rather than dropping a pin
-              (see lib/maps.ts). Said plainly here so a rider expecting
-              turn-by-turn to an exact spot isn't misled into trusting it
-              (review 04-ux-design, M3). */}
-          <RowGroup>
-            <Row
-              title={origin.name ?? (order?.orderType === "pickup" ? "Sender" : "Shop")}
-              meta={destination || "No location on file"}
-              leading={<Thumb uri={order?.shop?.logoUrl} />}
-              onPress={destination ? () => openMapsSearch(destination) : undefined}
-            />
-            {/* The student's number is legitimately needed now — the order is
-                claimed and a handover has to be coordinated. */}
-            {order?.student?.phone ? (
-              <Row
-                title={order.student.fullName}
-                meta="Meeting you at the checkpoint"
-                chevron={false}
-                trailing={
-                  <IconCircle
-                    tone="lime"
-                    accessibilityLabel={`Call ${order.student.fullName}`}
-                    onPress={() => Linking.openURL(`tel:${order.student!.phone}`)}
-                  >
-                    <PhoneIcon size={18} color={colors.ink} strokeWidth={1.8} />
-                  </IconCircle>
-                }
-              />
-            ) : null}
-            {/* The drop-off had no navigation at all — the rider could open the
-                shop in maps but not the checkpoint they were carrying to
-                (review 11-campus, H3). Uses the recorded coordinates when an
-                admin has entered them, and falls back to a name search when not,
-                which is still most checkpoints today. */}
-            {dropoff ? (
-              <Row
-                title={dropoff.name}
-                meta={
-                  dropoff.latitude && dropoff.longitude
-                    ? "Drop-off — tap for directions"
-                    : "Drop-off — tap to search the map"
-                }
-                onPress={() => openCheckpointInMaps(dropoff)}
-              />
-            ) : null}
-          </RowGroup>
-
-          {destination ? (
-            <Text className="mt-3 font-sans text-meta text-muted">
-              Tapping it searches your map app for that area. Wave has no exact pin.
-              Ask around when you get close.
+          {/* Wave stores free text, not coordinates, for the pickup, so Maps
+              opens on a search; the checkpoint uses its pin when an admin has
+              set one. */}
+          <View className="mt-4 self-start">
+            <Text
+              accessibilityRole="link"
+              onPress={() =>
+                step === "at_shop"
+                  ? destination
+                    ? openMapsSearch(destination)
+                    : undefined
+                  : dropoff
+                    ? openCheckpointInMaps(dropoff)
+                    : undefined
+              }
+              className="font-sans-bold text-ui text-link"
+            >
+              Open in Maps
             </Text>
-          ) : null}
+          </View>
         </Gutter>
       </ScreenBody>
 
@@ -305,7 +221,7 @@ export function ActiveDeliveryScreen() {
             isShopPickup && !costRecorded
               ? "Record what you paid"
               : step === "at_shop"
-                ? "I've picked it up"
+                ? "I've collected it"
                 : "I'm at the checkpoint"
           }
           onPress={handleAdvance}
@@ -313,5 +229,30 @@ export function ActiveDeliveryScreen() {
         />
       </ActionBar>
     </Screen>
+  );
+}
+
+/** v7 canvas contact card: initial, name, role line, a square call key. */
+function ContactCard({ name, meta, phone }: { name: string; meta: string; phone?: string | null }) {
+  return (
+    <View className="flex-row items-center rounded-card border border-hairline bg-surface p-4" style={{ gap: 12 }}>
+      <View className="h-11 w-11 items-center justify-center rounded-pill bg-wash">
+        <Text className="font-display text-ui text-ink">{name.trim()[0]?.toUpperCase()}</Text>
+      </View>
+      <View className="min-w-0 flex-1">
+        <Text className="font-sans-bold text-ui text-ink" numberOfLines={1}>{name}</Text>
+        <Text className="font-sans text-meta text-muted" numberOfLines={1}>{meta}</Text>
+      </View>
+      {phone ? (
+        <Pressable
+          onPress={() => void Linking.openURL(`tel:${phone}`)}
+          accessibilityRole="button"
+          accessibilityLabel={`Call ${name}`}
+          className="h-11 w-11 items-center justify-center rounded-input border-2 border-hairline bg-surface"
+        >
+          <PhoneIcon size={18} color={colors.ink} strokeWidth={1.9} />
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
