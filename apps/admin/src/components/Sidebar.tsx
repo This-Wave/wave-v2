@@ -14,6 +14,8 @@ import {
   MapPin,
   Package,
   Lightbulb,
+  MessageSquare,
+  Sparkles,
   Settings2,
   ShieldCheck,
   Store,
@@ -58,6 +60,8 @@ export function Sidebar({
     { href: "/audit", label: "Activity log", icon: Activity, permission: "ops.read" },
     { href: "/refunds", label: "Refund requests", icon: Banknote, permission: can("refunds.approve") ? "refunds.approve" : "refunds.request" },
     { href: "/beta", label: "Beta testers", icon: FlaskConical, permission: "ops.read" },
+    { href: "/growth", label: "Growth", icon: Sparkles, permission: "growth.read" },
+    { href: "/messages", label: "Messages", icon: MessageSquare, permission: "messages.send" },
     { href: "/campus-admins", label: "Campus admins", icon: Building2, permission: "campus_admins.manage" },
     { href: "/staff", label: "Staff", icon: ShieldCheck, permission: "staff.manage" },
   ];
