@@ -30,7 +30,7 @@ import { LIVE_ORDER_STATUSES, useMyOrders } from "../../lib/orders";
 import { useWave } from "../../lib/wave";
 import { useBuyForMeStatus, useServiceStatus } from "../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../lib/pricing";
-import { useAuthStore } from "../../store/authStore";
+import { useAuthStore, useIsGuest } from "../../store/authStore";
 import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
 import { HomeSkeleton } from "./HomeSkeleton";
 import { StudentHomeWeb } from "./web/StudentHomeWeb";
@@ -61,7 +61,10 @@ function HomeScreenMobile() {
     enabled: serviceSettled && buyForMeLaunched,
   });
   const { data: orders } = useMyOrders();
-  const ordersLoaded = orders !== undefined;
+  // A guest has no orders to fetch (the query never runs), so for them the
+  // list is simply empty rather than forever loading.
+  const isGuest = useIsGuest();
+  const ordersLoaded = isGuest || orders !== undefined;
   const wave = useWave();
   const [mode, setMode] = useState<ServiceMode>("buy");
   const { data: service } = useServiceStatus();

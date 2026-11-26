@@ -6,14 +6,15 @@ import { Platform, Pressable, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { ActionBar, Button, Field, Gutter, Screen, ScreenBody, Sheet, TopBar } from "../../components/v6";
-import { CalendarIcon, CheckIcon, ChevronRightIcon, PinDotIcon, PinIcon, UserIcon } from "../../components/icons";
+import { ActionBar, Button, Field, Gutter, PhoneField, Screen, ScreenBody, Sheet, TopBar } from "../../components/v6";
+import { CalendarIcon, CheckIcon, GiftIcon, ChevronDownIcon, ChevronRightIcon, PinDotIcon, UserIcon } from "../../components/icons";
+import { RouteLine } from "../../components/v7/Signature";
 import { colors } from "../../theme/tokens";
 import { pickupFeeFor, useCheckpoints, usePricing } from "../../lib/checkpoints";
 import { useCreateOrder } from "../../lib/orders";
 import { useIsGuest, useViewerUniversityId } from "../../store/authStore";
-import { DEFAULT_DELIVERY_FEE_GHS, SIZE_INFO, type PackageSize } from "@wave/shared";
-import { deliveryDayFor, formatFullDay, formatGhs, isStandardRunDay, toApiDate, upcomingRunDays } from "../../lib/pricing";
+import { DEFAULT_DELIVERY_FEE_GHS, SIZE_INFO, normalizeGhanaLocalDigits, type PackageSize } from "@wave/shared";
+import { deliveryDayFor, formatFullDay, formatGhs, formatGhsCompact, isStandardRunDay, toApiDate, upcomingRunDays } from "../../lib/pricing";
 import { Rise } from "../../components/v7/Illustration";
 
 type Route = RouteProp<StudentStackParamList, "PickupRequest">;
@@ -114,7 +115,7 @@ export function PickupRequestScreen() {
         checkpointId: to.id,
         itemDescription: description.trim(),
         senderName: senderName.trim(),
-        senderPhone: senderPhone.trim(),
+        senderPhone: `0${senderPhone}`,
         pickupNotes: pickupNotes || undefined,
         packageSize: size,
         deliveryDay: deliveryDayFor(scheduled, isSpecialOrder),
@@ -127,13 +128,13 @@ export function PickupRequestScreen() {
     }
   }
 
-  const titles = ["Who's sending it?", "Where do we collect?", "What is it?", "Review"];
+  const titles = ["Who's sending it?", "Where do we collect?", "How big is it?", "Review"];
   const back = () => (step === 0 ? navigation.goBack() : setStep((s) => (s - 1) as Step));
   const next = () => (step === 3 ? void pay() : setStep((s) => (s + 1) as Step));
 
   return (
     <Screen narrow>
-      <TopBar title="Send a package" onBack={back} />
+      <TopBar title={step === 3 ? "Review" : "Send a package"} onBack={back} />
       <View className="mx-gutter h-1.5 overflow-hidden rounded-pill bg-hairline" accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 4, now: step + 1 }}>
         <View className="h-1.5 rounded-pill bg-lime" style={{ width: `${((step + 1) / 4) * 100}%` }} />
       </View>
@@ -158,21 +159,17 @@ export function PickupRequestScreen() {
                       void pickContact().then((c) => {
                         if (!c) return;
                         if (c.name) setSenderName(c.name);
-                        if (c.phone) setSenderPhone(c.phone);
+                        if (c.phone) setSenderPhone(normalizeGhanaLocalDigits(c.phone).slice(0, 9));
                       })
                     }
                   />
                 ) : null}
                 <Field label="Sender's name" value={senderName} onChangeText={setSenderName} placeholder="Full name" maxLength={80} />
-                <Field
-                  label="Sender's phone"
-                  value={senderPhone}
-                  onChangeText={setSenderPhone}
-                  keyboardType="phone-pad"
-                  placeholder="024 123 4567"
-                  hint="The rider calls this number to collect."
-                  maxLength={15}
-                />
+                <View>
+                  {/* v7 canvas: +233 beside the number; stored as local digits. */}
+                  <PhoneField label="Sender's phone" value={senderPhone} onChangeText={(d) => setSenderPhone(d.slice(0, 9))} />
+                  <Text className="mt-2 font-sans text-meta text-muted">The rider calls this number to collect.</Text>
+                </View>
               </View>
             </Rise>
           ) : null}
@@ -189,12 +186,12 @@ export function PickupRequestScreen() {
                     className="min-h-[56px] flex-row items-center justify-between rounded-input border-2 border-line bg-surface px-4"
                   >
                     <Text className="font-sans-bold text-ui text-ink">{from?.name ?? "Choose an area"}</Text>
-                    <ChevronRightIcon size={18} color={colors.ink} strokeWidth={2.2} />
+                    <ChevronDownIcon size={20} color={colors.ink} strokeWidth={2.2} />
                   </Pressable>
                 </View>
                 <View className="flex-row" style={{ gap: 12 }}>
                   <View className="flex-1"><Field label="Building or shop" value={building} onChangeText={setBuilding} placeholder="Shell station" maxLength={60} /></View>
-                  <View className="w-28"><Field label="Floor" value={floor} onChangeText={setFloor} placeholder="Ground" maxLength={20} /></View>
+                  <View className="flex-1"><Field label="Floor or unit" value={floor} onChangeText={setFloor} placeholder="Ground" maxLength={20} /></View>
                 </View>
                 <Field label="Landmark" value={landmark} onChangeText={setLandmark} placeholder="Opposite Legon main gate" maxLength={80} />
                 <View>
@@ -265,21 +262,34 @@ export function PickupRequestScreen() {
           {step === 3 ? (
             <Rise key="s3" delay={60}>
               <View style={{ gap: 12 }}>
-                <View className="rounded-card border border-hairline bg-surface p-4">
-                  <PickerRow icon={<PinIcon size={18} color={colors.ink} strokeWidth={1.9} />} label={`Pickup · ${from?.name ?? ""}`} value={`${senderName.trim()} · ${senderPhone.trim()}`} placeholder="" onPress={() => setStep(0)} />
-                  <Text className="ml-11 font-sans text-meta text-muted" numberOfLines={2}>{pickupNotes}</Text>
-                  <View className="my-1 ml-4 h-4 border-l border-dashed border-line" />
-                  <PickerRow icon={<PinDotIcon size={18} color={colors.ink} strokeWidth={1.9} />} label="You, at" value={to?.name} placeholder="" onPress={() => setStep(1)} />
-                </View>
+                {/* v7 canvas review: the route card (sender to you), the size
+                    with Edit, and the code promise on wash. */}
+                <Pressable
+                  onPress={() => setStep(0)}
+                  accessibilityRole="button"
+                  accessibilityHint="Change the sender or pickup details"
+                  className="rounded-card border border-hairline bg-surface p-4"
+                >
+                  <RouteLine
+                    fromLabel={`Pickup · ${from?.name ?? ""}`}
+                    from={senderName.trim()}
+                    fromSub={pickupNotes.split(" · ")[0] || null}
+                    toLabel="You, at"
+                    to={to?.name ?? "your pickup point"}
+                    toSub={scheduled ? formatFullDay(scheduled) : null}
+                  />
+                </Pressable>
                 <View className="flex-row items-center justify-between rounded-card border border-hairline bg-surface p-4">
                   <View className="flex-1">
-                    <Text className="font-sans-bold text-body text-ink">{sizes.find((x) => x.key === size)?.label} size</Text>
-                    <Text className="font-sans text-meta text-muted" numberOfLines={1}>{description.trim()} · {scheduled ? formatFullDay(scheduled) : ""}</Text>
+                    <Text className="font-sans-bold text-body text-ink">
+                      {sizes.find((x) => x.key === size)?.label} size · up to {sizes.find((x) => x.key === size)?.maxKg} kg
+                    </Text>
+                    <Text className="font-sans text-meta text-muted" numberOfLines={1}>{description.trim()}</Text>
                   </View>
                   <Text accessibilityRole="link" onPress={() => setStep(2)} className="font-sans-bold text-body text-link">Edit</Text>
                 </View>
-                <View className="flex-row items-center  rounded-card bg-wash p-4" style={{ gap: 12 }}>
-                  <CheckIcon size={22} color={colors.ink} strokeWidth={2.2} />
+                <View className="flex-row items-center rounded-card bg-wash p-4" style={{ gap: 12 }}>
+                  <GiftIcon size={22} color={colors.ink} strokeWidth={1.9} />
                   <View className="flex-1">
                     <Text className="font-sans-bold text-body text-ink">Only you can collect</Text>
                     <Text className="font-sans text-meta text-ink-700">Your 6-digit code comes after you pay.</Text>
@@ -294,14 +304,22 @@ export function PickupRequestScreen() {
 
       <ActionBar>
         {error ? <Text className="mb-3 font-sans text-body text-danger">{error}</Text> : null}
-        {step >= 2 ? (
+        {step === 3 ? (
           <View className="mb-3 flex-row items-baseline justify-between">
             <Text className="font-sans text-ui text-muted">Total</Text>
             <Text className="font-display text-heading-sm text-ink">{formatGhs(fee)}</Text>
           </View>
         ) : null}
         <Button
-          label={step === 3 ? (isGuest ? `Continue · ${formatGhs(fee)}` : `Pay ${formatGhs(fee)}`) : "Next"}
+          label={
+            step === 3
+              ? isGuest
+                ? `Continue · ${formatGhs(fee)}`
+                : `Pay ${formatGhs(fee)}`
+              : step === 2 && size
+                ? `Next · ${formatGhsCompact(fee)}`
+                : "Next"
+          }
           onPress={next}
           loading={createOrder.isPending}
           disabled={!canNext}
