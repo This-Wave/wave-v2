@@ -5,6 +5,7 @@ import { stackScreenOptions, tabsStackScreenOptions } from "../lib/navigationMot
 import { RiderTabNavigator, type RiderTabParamList } from "./RiderTabNavigator";
 import { OrderDetailScreen } from "../screens/rider/OrderDetailScreen";
 import { ActiveDeliveryScreen } from "../screens/rider/ActiveDeliveryScreen";
+import { DeliveredScreen } from "../screens/rider/DeliveredScreen";
 import { PinEntryScreen } from "../screens/rider/PinEntryScreen";
 import { RecordGoodsCostScreen } from "../screens/rider/RecordGoodsCostScreen";
 import { SubmitVerificationScreen } from "../screens/rider/SubmitVerificationScreen";
@@ -18,6 +19,7 @@ export type RiderStackParamList = {
   OrderDetail: { orderId: string };
   ActiveDelivery: { orderId: string };
   PinEntry: { orderId: string };
+  Delivered: { orderId: string; earned?: number | null };
   RecordGoodsCost: { orderId: string };
   SubmitVerification: undefined;
 };
@@ -79,6 +81,7 @@ export function RiderNavigator() {
         <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
         <Stack.Screen name="ActiveDelivery" component={ActiveDeliveryScreen} />
         <Stack.Screen name="PinEntry" component={PinEntryScreen} />
+        <Stack.Screen name="Delivered" component={DeliveredScreen} />
         <Stack.Screen name="RecordGoodsCost" component={RecordGoodsCostScreen} />
         <Stack.Screen name="SubmitVerification" component={SubmitVerificationScreen} />
       </Stack.Navigator>

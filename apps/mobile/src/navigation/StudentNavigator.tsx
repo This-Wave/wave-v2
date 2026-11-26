@@ -98,7 +98,15 @@ export type StudentStackParamList = {
    * again" hands over a route the student has sent before. The form still has
    * to be filled in and submitted.
    */
-  PickupRequest: (WaveParams & { fromId?: string; toId?: string; description?: string }) | undefined;
+  PickupRequest:
+    | (Partial<WaveParams> & {
+        fromId?: string;
+        toId?: string;
+        description?: string;
+        senderName?: string;
+        senderPhone?: string;
+      })
+    | undefined;
   OrderTracking: { orderId: string };
   OrderDetail: { orderId: string };
   PickupPin: { orderId: string };

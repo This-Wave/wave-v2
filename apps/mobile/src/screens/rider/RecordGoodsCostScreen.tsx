@@ -76,17 +76,19 @@ export function RecordGoodsCostScreen() {
 
   return (
     <Screen narrow>
-      <TopBar onBack={() => navigation.goBack()} />
+      <TopBar title="Shop receipt" onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>
         <Gutter>
-          <Text className="mb-2 font-display text-heading text-ink">What did you pay?</Text>
-          <Text className="mb-8 font-sans text-body text-muted">
-            Enter the price of ONE of each item — we'll do the multiplication. The student pays this
-            before you hand anything over, so get it right the first time: it can't be changed.
+          <Text accessibilityRole="header" className="font-display text-heading text-ink">What did the shop charge?</Text>
+          <Text className="mb-6 mt-1 font-sans text-ui text-muted">
+            {[order?.suggestion?.name ?? order?.shop?.name, `${items.length} ${items.length === 1 ? "item" : "items"}`].filter(Boolean).join(" · ")}
+          </Text>
+          <Text className="mb-4 font-sans text-body text-muted">
+            Price of one of each. It can't be changed once sent.
           </Text>
 
-          <View className="gap-3">
+          <View style={{ gap: 12 }}>
             {items.map((item) => (
               <View key={item.id} className="rounded-card border border-hairline bg-surface p-4">
                 <Text className="mb-1 font-sans-bold text-body text-ink">{item.name}</Text>
@@ -115,13 +117,10 @@ export function RecordGoodsCostScreen() {
 
           <View className="mt-6 rounded-card border border-hairline bg-surface p-5">
             <View className="flex-row items-center justify-between">
-              <Text className="font-sans-bold text-ui text-ink">Total for the goods</Text>
+              <Text className="font-sans-bold text-ui text-ink">Total paid at the shop</Text>
               <Text className="font-display text-heading-sm text-ink">{formatGhs(total)}</Text>
             </View>
-            <Text className="mt-2 font-sans text-body text-muted">
-              The delivery fee was already paid when the order was placed. This is the shopping
-              only.
-            </Text>
+            <Text className="mt-2 font-sans text-meta text-muted">The student pays this before you deliver.</Text>
           </View>
 
           {error ? <Text className="mt-4 font-sans text-body text-danger">{error}</Text> : null}
@@ -130,7 +129,7 @@ export function RecordGoodsCostScreen() {
 
       <ActionBar>
         <Button
-          label="Send to the student"
+          label="Send to student"
           onPress={handleSubmit}
           loading={record.isPending}
           disabled={!allFilled}

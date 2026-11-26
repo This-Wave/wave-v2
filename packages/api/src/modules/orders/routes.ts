@@ -433,7 +433,36 @@ export async function orderRoutes(fastify: FastifyInstance) {
     const { id } = request.params as { id: string };
     const order = await findOrderForUser(fastify.prisma, id, request.user!);
     if (!order) return reply.code(404).send({ error: "Order not found" });
-    return reply.send({ order: redactClosedOrderContacts(order, request.user!.role) });
+    const safe = redactClosedOrderContacts(order, request.user!.role);
+    // A rider opening one job sees the same "you earn" figure the feed showed,
+    // under the same flag and rate, rather than the student's fee.
+    if (request.user!.role === "rider") {
+      // Best effort: the estimate never stands between a rider and the job.
+      try {
+        const rider = await fastify.prisma.profile.findUnique({
+          where: { id: request.user!.id },
+          select: { universityId: true, riderType: true },
+        });
+        const flagRows = await fastify.prisma.featureFlag.findMany({
+          where: { key: "rider_earnings_preview" },
+          select: { key: true, universityId: true, state: true },
+        });
+        const show =
+          !!rider &&
+          resolveFeature("rider_earnings_preview", rider.universityId, flagRows, {
+            isBetaTester: await isBetaTester(fastify, request.user!.id),
+          });
+        if (show) {
+          const pct = await riderEarningPct({ fastify, log: request.log, riderType: rider!.riderType });
+          return reply.send({
+            order: { ...safe, estimatedEarning: riderEarningFor(Number(order.deliveryFee), pct).toFixed(2) },
+          });
+        }
+      } catch (err) {
+        request.log.warn({ err, orderId: id }, "rider earning estimate failed; sending the order without it");
+      }
+    }
+    return reply.send({ order: safe });
   });
 
   fastify.patch("/:id/accept", { preHandler: [fastify.authenticate, fastify.requireRole("rider")] }, async (request, reply) => {

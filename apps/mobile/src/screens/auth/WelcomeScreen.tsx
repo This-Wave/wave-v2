@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../navigation/AuthNavigator";
-import { Button, Field, Gutter, Row, RowGroup, Screen, ScreenBody, Sheet } from "../../components/v6";
+import { Button, Field, Gutter, PhoneField, Row, RowGroup, Screen, ScreenBody, Sheet } from "../../components/v6";
+import { useLayout } from "../../hooks/useLayout";
+import { GHANA_LOCAL_PHONE_LENGTH, toGhanaE164 } from "@wave/shared";
 import { recordGuestVisit } from "../../lib/growth";
 import { Illustration, Rise } from "../../components/v7/Illustration";
 import { WaveMarkIcon } from "../../components/icons";
@@ -38,6 +40,10 @@ export function WelcomeScreen({ navigation }: Props) {
   const [pickingCampus, setPickingCampus] = useState(false);
   const { data: universities } = useUniversities();
   const startGuest = useAuthStore((s) => s.startGuest);
+  const { isDesktop } = useLayout();
+  const [localNumber, setLocalNumber] = useState("");
+  const [sending, setSending] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   // Looking around asks two things: a first name (so the team knows who is
   // browsing, and Home can say hello), and a campus when more than one is live,
@@ -59,6 +65,106 @@ export function WelcomeScreen({ navigation }: Props) {
     setPickingCampus(false);
     recordGuestVisit(trimmedName, guestCampus);
     startGuest(guestCampus, trimmedName);
+  }
+
+  const lookSheet = (
+    <Sheet
+        visible={pickingCampus}
+        onClose={() => setPickingCampus(false)}
+        title="What should we call you?"
+        footer={<Button label="Look around" disabled={!canStartGuest} onPress={startLooking} />}
+      >
+        <View style={{ gap: 20 }}>
+          <Field
+            label="First name"
+            value={guestName}
+            onChangeText={setGuestName}
+            placeholder="Ama"
+            hint="No account needed to look around."
+            maxLength={40}
+            autoFocus
+          />
+          {(universities?.length ?? 0) > 1 ? (
+            <View>
+              <Text className="mb-2 font-sans-bold text-body text-ink">Your campus</Text>
+              <RowGroup>
+                {(universities ?? []).map((u) => (
+                  <Row
+                    key={u.id}
+                    title={u.name}
+                    meta={guestCampus === u.id ? "Selected" : `${u.city}, ${u.country}`}
+                    onPress={() => setGuestCampus(u.id)}
+                  />
+                ))}
+              </RowGroup>
+            </View>
+          ) : null}
+        </View>
+      </Sheet>
+  );
+
+  async function sendCode() {
+    setSending(true);
+    setPhoneError(null);
+    const phone = toGhanaE164(localNumber);
+    const { error } = await supabase.auth.signInWithOtp({ phone });
+    setSending(false);
+    if (error) {
+      setPhoneError(error.message);
+      return;
+    }
+    navigation.replace("OtpVerify", { phone });
+  }
+
+  if (isDesktop) {
+    // v7 canvas "Web start": the promise on a wash half, sign-in on the
+    // other, so a laptop visitor can start without a second page.
+    return (
+      // The auth stack sits in a narrow column on web; this one screen fills
+      // the window like the canvas, so it lifts itself out of that column.
+      <View
+        className="flex-row bg-canvas"
+        style={{ position: "fixed" as "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}
+      >
+        <View className="flex-1 bg-wash" style={{ paddingHorizontal: 64, paddingTop: 48, paddingBottom: 48 }}>
+          <View className="flex-row items-center" style={{ gap: 10 }}>
+            <WaveMarkIcon size={36} />
+            <Text className="font-sans-bold text-ink" style={{ fontSize: 26, letterSpacing: -0.8 }}>wave</Text>
+          </View>
+          <View className="flex-1 justify-center" style={{ gap: 18 }}>
+            <Rise>
+              <Text accessibilityRole="header" className="font-display text-ink" style={{ fontSize: 72, lineHeight: 76 }}>
+                Stay in.{"\n"}We'll fetch it.
+              </Text>
+            </Rise>
+            <Rise delay={80}>
+              <Text className="font-sans text-subheading text-muted">Your things from Accra, on campus every day.</Text>
+            </Rise>
+          </View>
+          <View className="items-end">
+            <Illustration name="box" width={420} height={310} />
+          </View>
+        </View>
+        <View className="justify-center" style={{ width: 560, paddingHorizontal: 80, gap: 20 }}>
+          <Text className="font-display text-heading text-ink">Sign in or sign up</Text>
+          <PhoneField label="Phone number" value={localNumber} onChangeText={setLocalNumber} error={phoneError} />
+          <Button
+            label="Continue"
+            loading={sending}
+            disabled={localNumber.length < GHANA_LOCAL_PHONE_LENGTH}
+            onPress={() => void sendCode()}
+          />
+          <Text
+            accessibilityRole="button"
+            onPress={lookAround}
+            className="text-center font-sans-bold text-ui text-link"
+          >
+            Look around first
+          </Text>
+        </View>
+        {lookSheet}
+      </View>
+    );
   }
 
   return (
@@ -120,39 +226,7 @@ export function WelcomeScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <Sheet
-        visible={pickingCampus}
-        onClose={() => setPickingCampus(false)}
-        title="What should we call you?"
-        footer={<Button label="Look around" disabled={!canStartGuest} onPress={startLooking} />}
-      >
-        <View style={{ gap: 20 }}>
-          <Field
-            label="First name"
-            value={guestName}
-            onChangeText={setGuestName}
-            placeholder="Ama"
-            hint="No account needed to look around."
-            maxLength={40}
-            autoFocus
-          />
-          {(universities?.length ?? 0) > 1 ? (
-            <View>
-              <Text className="mb-2 font-sans-bold text-body text-ink">Your campus</Text>
-              <RowGroup>
-                {(universities ?? []).map((u) => (
-                  <Row
-                    key={u.id}
-                    title={u.name}
-                    meta={guestCampus === u.id ? "Selected" : `${u.city}, ${u.country}`}
-                    onPress={() => setGuestCampus(u.id)}
-                  />
-                ))}
-              </RowGroup>
-            </View>
-          ) : null}
-        </View>
-      </Sheet>
+      {lookSheet}
     </Screen>
   );
 }

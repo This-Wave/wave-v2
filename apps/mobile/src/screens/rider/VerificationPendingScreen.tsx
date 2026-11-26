@@ -7,7 +7,9 @@ import { ActionBar, Button, Gutter, Screen, ScreenBody } from "../../components/
 import { useVerificationStatus } from "../../lib/rider";
 import { fetchMyProfile } from "../../lib/profile";
 import { useAuthStore } from "../../store/authStore";
-import { supabase } from "../../lib/supabase";
+import { signOut } from "../../lib/auth";
+import { hasSupportContact, openSupportContact } from "../../lib/support";
+import { Illustration } from "../../components/v7/Illustration";
 
 /**
  * Where a rider waits.
@@ -51,59 +53,35 @@ export function VerificationPendingScreen() {
   return (
     <Screen>
       <ScreenBody bottomInset={16}>
-        <Gutter className="pt-16">
-          <Text className="mb-2 font-display text-heading text-ink">
-            {rejected ? "We couldn't verify you" : "Verification submitted"}
+        {/* v7 canvas: the waiting illustration and one plain line. */}
+        <Gutter className="items-center pt-16" style={{ gap: 12 }}>
+          <Illustration name="pillow" width={230} height={160} />
+          <Text accessibilityRole="header" className="text-center font-display text-heading text-ink">
+            {rejected ? "We couldn't verify you" : "We're checking your ID"}
           </Text>
-
-          {rejected ? (
-            <>
-              <Text className="mb-6 font-sans text-body text-muted">
-                An admin reviewed your documents and couldn&apos;t approve them. You can fix the
-                problem and send them again.
-              </Text>
-              {verification?.rejectionReason ? (
-                <View className="mb-6 rounded-card border border-hairline bg-surface px-4 py-3.5">
-                  <Text className="mb-1 font-sans-bold text-body text-ink">Reason given</Text>
-                  <Text className="font-sans text-body text-muted">
-                    {verification.rejectionReason}
-                  </Text>
-                </View>
-              ) : null}
-            </>
-          ) : (
-            <Text className="mb-6 font-sans text-body text-muted">
-              An admin is reviewing your ID. This usually takes about a day. We&apos;ll let you know
-              as soon as you&apos;re approved — you can close the app.
-            </Text>
-          )}
-
-          <View className="rounded-card border border-hairline bg-surface px-4 py-3.5">
-            <Text className="mb-1 font-sans-bold text-body text-ink">Why we check</Text>
-            <Text className="font-sans text-body text-muted">
-              Riders handle other people&apos;s money and shopping, so every rider is identified
-              before taking a first order.
-            </Text>
-          </View>
+          <Text className="text-center font-sans text-ui text-muted">
+            {rejected ? "You can fix it and send your documents again." : "Usually within a day. We'll text you."}
+          </Text>
+          {rejected && verification?.rejectionReason ? (
+            <View className="mt-2 self-stretch rounded-card bg-wash p-4">
+              <Text className="font-sans-bold text-body text-ink">Reason given</Text>
+              <Text className="mt-1 font-sans text-body text-ink-700">{verification.rejectionReason}</Text>
+            </View>
+          ) : null}
         </Gutter>
       </ScreenBody>
 
       <ActionBar>
-        <View className="gap-2">
+        <View style={{ gap: 4 }}>
           {rejected ? (
-            <Button
-              label="Send documents again"
-              onPress={() => navigation.navigate("SubmitVerification")}
-            />
-          ) : (
-            <Button
-              label="Check status"
-              onPress={handleCheck}
-              loading={checking || isFetching}
-              variant="primary"
-            />
-          )}
-          <Button label="Sign out" variant="ghost" onPress={() => void supabase.auth.signOut()} />
+            <Button label="Send documents again" onPress={() => navigation.navigate("SubmitVerification")} />
+          ) : hasSupportContact() ? (
+            <Button label="Contact support" variant="ghost" onPress={() => void openSupportContact()} />
+          ) : null}
+          {!rejected ? (
+            <Button label="Check status" variant="quiet" onPress={handleCheck} loading={checking || isFetching} />
+          ) : null}
+          <Button label="Sign out" variant="quiet" onPress={() => void signOut()} />
         </View>
       </ActionBar>
     </Screen>
