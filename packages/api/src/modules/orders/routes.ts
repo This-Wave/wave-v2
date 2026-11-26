@@ -13,6 +13,7 @@ import {
   isDayClosed,
 } from "@wave/shared";
 import { calculateDiscount, calculateOrderTotal, isStandardDeliveryDay } from "./discount";
+import { evaluateFirstOrderPromo } from "./promo";
 import {
   buildManualBasket,
   priceCatalogueBasket,
@@ -121,10 +122,11 @@ export async function orderRoutes(fastify: FastifyInstance) {
           studentId: request.user!.id,
           status: "payment_pending",
           discountApplied: { gt: 0 },
+          promoCode: null,
         },
         select: { id: true },
       });
-      const discountPct =
+      const loyaltyPct =
         !rewardHeldOpen &&
         calculateDiscount({
           stamps: stats?.rewardStamps ?? 0,
@@ -134,6 +136,18 @@ export async function orderRoutes(fastify: FastifyInstance) {
         }) > 0
           ? configuredDiscountPct
           : 0;
+
+      // A first-order code replaces the loyalty discount, never adds to it (a
+      // first order has no stamp card anyway). Rejected codes are a 400 with
+      // the reason, so the app can say why rather than silently charge more.
+      let discountPct = loyaltyPct;
+      let promoCode: string | null = null;
+      if (input.promoCode) {
+        const promo = await evaluateFirstOrderPromo(fastify.prisma, request.user!.id, input.promoCode);
+        if (!promo.ok) return reply.code(400).send({ error: promo.error });
+        discountPct = Math.max(loyaltyPct, promo.pct);
+        promoCode = promo.pct >= loyaltyPct ? promo.code : null;
+      }
 
       // Both checkpoints must exist on the student's own campus. Without this a
       // student could name any checkpoint UUID in the country as their origin.
@@ -275,6 +289,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
           itemPrice: chargeableItemsTotal,
           deliveryFee,
           discountApplied: discountPct,
+          promoCode,
           surchargeApplied: surchargePct,
           totalAmount,
           deliveryDay: deliveryDayOf(scheduledDate),
@@ -427,6 +442,15 @@ export async function orderRoutes(fastify: FastifyInstance) {
     return reply.send({
       orders: orders.map((o) => redactStudentContactForShop(o, request.user!)),
     });
+  });
+
+  // The app checks a code before the order exists, to show the price it will
+  // pay. Creating the order re-checks it: this answer is a preview, not a hold.
+  fastify.get("/promo", { preHandler: fastify.authenticate }, async (request, reply) => {
+    const { code } = request.query as { code?: string };
+    if (!code) return reply.code(400).send({ error: "Add a code" });
+    const promo = await evaluateFirstOrderPromo(fastify.prisma, request.user!.id, code);
+    return reply.send(promo.ok ? { valid: true, code: promo.code, pct: promo.pct } : { valid: false, error: promo.error });
   });
 
   fastify.get("/:id", { preHandler: fastify.authenticate }, async (request, reply) => {

@@ -11,10 +11,19 @@ import { CalendarIcon, CheckIcon, GiftIcon, ChevronDownIcon, ChevronRightIcon, P
 import { RouteLine } from "../../components/v7/Signature";
 import { colors } from "../../theme/tokens";
 import { pickupFeeFor, useCheckpoints, usePricing } from "../../lib/checkpoints";
-import { useCreateOrder, useMyOrders } from "../../lib/orders";
+import { checkPromoCode, useCreateOrder, useMyOrders } from "../../lib/orders";
+import { PromoBox } from "../../components/v7/PromoBox";
 import { useLayout } from "../../hooks/useLayout";
 import { useIsGuest, useViewerUniversityId } from "../../store/authStore";
-import { DEFAULT_DELIVERY_FEE_GHS, SIZE_INFO, normalizeGhanaLocalDigits, type PackageSize } from "@wave/shared";
+import {
+  DEFAULT_DELIVERY_FEE_GHS,
+  DEFAULT_FIRST_ORDER_PROMO_PCT,
+  FIRST_ORDER_PROMO_CODE,
+  SIZE_INFO,
+  normalizeGhanaLocalDigits,
+  normalizePromoCode,
+  type PackageSize,
+} from "@wave/shared";
 import { deliveryDayFor, formatFullDay, formatGhs, formatGhsCompact, isStandardRunDay, toApiDate, upcomingRunDays } from "../../lib/pricing";
 import { Rise } from "../../components/v7/Illustration";
 
@@ -76,6 +85,11 @@ export function PickupRequestScreen() {
   const [size, setSize] = useState<PackageSize | null>(null);
   const [description, setDescription] = useState(params?.description ?? "");
   const [dayIndex, setDayIndex] = useState(0);
+  const [promo, setPromo] = useState<{ code: string; pct: number } | null>(
+    params?.promoCode ? { code: params.promoCode, pct: DEFAULT_FIRST_ORDER_PROMO_PCT } : null,
+  );
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoBusy, setPromoBusy] = useState(false);
 
   const chosenDate = params?.scheduledDate ? new Date(params.scheduledDate) : null;
   const days = useMemo(() => upcomingRunDays(new Date(), 4), []);
@@ -90,6 +104,41 @@ export function PickupRequestScreen() {
   const baseFee = pricing?.baseFee ?? DEFAULT_DELIVERY_FEE_GHS;
   const fee = pickupFeeFor(from, baseFee, sizePrice);
   const zoneAddOn = from?.zone ? Number(from.zone.deliveryFee) : 0;
+  // What the student pays: the code comes off the delivery fee only. The server
+  // prices the order again; this is the preview.
+  const payable = promo ? Math.round(fee * (1 - promo.pct / 100) * 100) / 100 : fee;
+
+  async function applyPromo(raw: string) {
+    setPromoError(null);
+    const code = normalizePromoCode(raw);
+    if (isGuest) {
+      // A guest has no account to check against yet; the code rides along and
+      // is checked when the order is created after sign-up.
+      if (code === FIRST_ORDER_PROMO_CODE) setPromo({ code, pct: DEFAULT_FIRST_ORDER_PROMO_PCT });
+      else setPromoError("That code doesn't exist.");
+      return;
+    }
+    setPromoBusy(true);
+    try {
+      const res = await checkPromoCode(code);
+      if (res.valid) setPromo({ code: res.code, pct: res.pct });
+      else setPromoError(res.error);
+    } catch {
+      setPromoError("Couldn't check that code. Try again.");
+    } finally {
+      setPromoBusy(false);
+    }
+  }
+  const promoBox = (
+    <PromoBox
+      applied={promo}
+      error={promoError}
+      busy={promoBusy}
+      onApply={(c) => void applyPromo(c)}
+      onRemove={() => setPromo(null)}
+      note={isGuest ? "Checked when you sign in" : undefined}
+    />
+  );
 
   const senderOk = senderName.trim().length >= 2 && senderPhone.replace(/\D/g, "").length >= 9;
   const pickupOk = !!from && !!to;
@@ -110,7 +159,7 @@ export function PickupRequestScreen() {
     if (!from || !to || !scheduled || !size) return;
     setError(null);
     if (isGuest) {
-      setAccountPrompt({ route: "PickupRequest", params: { ...params, fromId: from.id, toId: to.id, description } });
+      setAccountPrompt({ route: "PickupRequest", params: { ...params, fromId: from.id, toId: to.id, description, promoCode: promo?.code } });
       return;
     }
     try {
@@ -123,13 +172,20 @@ export function PickupRequestScreen() {
         senderPhone: `0${senderPhone}`,
         pickupNotes: pickupNotes || undefined,
         packageSize: size,
+        promoCode: promo?.code,
         deliveryDay: deliveryDayFor(scheduled, isSpecialOrder),
         scheduledDate: toApiDate(scheduled),
         isSpecialOrder,
       });
       navigation.replace("Payment", { orderId: order.id, totalAmount: Number(order.totalAmount) });
-    } catch {
-      setError("Couldn't create your delivery. Please try again.");
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      if (promo && msg && /code/i.test(msg)) {
+        setPromo(null);
+        setPromoError(msg);
+        return;
+      }
+      setError(msg ?? "Couldn't create your delivery. Please try again.");
     }
   }
 
@@ -347,15 +403,16 @@ export function PickupRequestScreen() {
               <Text className="font-sans-bold text-body text-ink">Only you can collect</Text>
               <Text className="font-sans text-meta text-ink-700">Your code comes after you pay.</Text>
             </View>
+            {promoBox}
           </View>
           <View style={{ gap: 12 }}>
             {error ? <Text className="font-sans text-body text-danger">{error}</Text> : null}
             <View className="flex-row items-end justify-between">
               <Text className="font-sans text-ui text-muted">{size ? `${sizes.find((x) => x.key === size)?.label} size` : "Total"}</Text>
-              <Text className="font-display text-heading-sm text-ink">{formatGhs(fee)}</Text>
+              <Text className="font-display text-heading-sm text-ink">{formatGhs(payable)}</Text>
             </View>
             <Button
-              label={isGuest ? `Continue · ${formatGhs(fee)}` : `Pay ${formatGhs(fee)}`}
+              label={isGuest ? `Continue · ${formatGhs(payable)}` : `Pay ${formatGhs(payable)}`}
               onPress={() => void pay()}
               loading={createOrder.isPending}
               disabled={!(senderOk && pickupOk && itemOk)}
@@ -468,6 +525,7 @@ export function PickupRequestScreen() {
                     <Text className="font-sans text-meta text-ink-700">Your 6-digit code comes after you pay.</Text>
                   </View>
                 </View>
+                {promoBox}
                 <Text className="font-sans text-meta text-muted">We can't carry cash, alcohol, medication, weapons or anything illegal.</Text>
               </View>
             </Rise>
@@ -480,15 +538,15 @@ export function PickupRequestScreen() {
         {step === 3 ? (
           <View className="mb-3 flex-row items-baseline justify-between">
             <Text className="font-sans text-ui text-muted">Total</Text>
-            <Text className="font-display text-heading-sm text-ink">{formatGhs(fee)}</Text>
+            <Text className="font-display text-heading-sm text-ink">{formatGhs(payable)}</Text>
           </View>
         ) : null}
         <Button
           label={
             step === 3
               ? isGuest
-                ? `Continue · ${formatGhs(fee)}`
-                : `Pay ${formatGhs(fee)}`
+                ? `Continue · ${formatGhs(payable)}`
+                : `Pay ${formatGhs(payable)}`
               : step === 2 && size
                 ? `Next · ${formatGhsCompact(fee)}`
                 : "Next"

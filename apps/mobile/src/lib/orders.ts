@@ -151,3 +151,9 @@ export function useCompletedDeliveryCount(): number {
   const { data: orders } = useMyOrders();
   return (orders ?? []).filter((o) => o.status === "delivered").length;
 }
+
+/** Preview a first-order code before the order exists. The server re-checks on create. */
+export async function checkPromoCode(code: string): Promise<{ valid: true; code: string; pct: number } | { valid: false; error: string }> {
+  const { data } = await api.get<{ valid: boolean; code?: string; pct?: number; error?: string }>("/orders/promo", { params: { code } });
+  return data.valid ? { valid: true, code: data.code!, pct: data.pct! } : { valid: false, error: data.error ?? "That code doesn't work." };
+}

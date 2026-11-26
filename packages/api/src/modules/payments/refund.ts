@@ -206,7 +206,8 @@ export async function endOrderWithRefund(
     // Keyed on `order.paidAt`, not on `nextStatus`: the card is only spent once
     // money actually arrived, so an order cancelled before payment never spent
     // one and must not be given a free card here.
-    if (Number(order.discountApplied) > 0 && order.paidAt) {
+    // A promo-discounted order never spent a card, so it gets none back.
+    if (Number(order.discountApplied) > 0 && order.paidAt && !order.promoCode) {
       const thresholdRow = await fastify.prisma.platformConfig.findUnique({
         where: { key: "loyalty_threshold" },
       });
