@@ -71,7 +71,7 @@ export function WelcomeScreen({ navigation }: Props) {
               className="mb-5 font-sans-bold text-white"
               style={{ fontSize: 46, lineHeight: 48, letterSpacing: -1.6 }}
             >
-              Town shops,{"\n"}to your hall.
+              Parcels from Accra,{"\n"}to your campus.
             </Text>
             <Text className="font-sans text-white" style={{ fontSize: 18, lineHeight: 24, opacity: 0.85 }}>
               Every day. Order by noon.

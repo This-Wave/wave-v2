@@ -35,17 +35,20 @@ export function AuthNavigator() {
       <Stack.Navigator
         screenOptions={() => stackScreenOptions("auth")}
         initialRouteName={
-          resumingSignup ? (fromGuest ? "ProfileSetup" : "RoleSelect") : fromGuest ? "PhoneEntry" : "Welcome"
+          resumingSignup ? "ProfileSetup" : fromGuest ? "PhoneEntry" : "Welcome"
         }
       >
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="PhoneEntry" component={PhoneEntryScreen} />
         <Stack.Screen name="OtpVerify" component={OtpVerifyScreen} />
+        {/* Not in the signup path since 2026-11-26: Wave only takes student orders
+            for now, so every new account is a student. Kept registered so it can
+            come back without a navigation change. */}
         <Stack.Screen name="RoleSelect" component={RoleSelectScreen} />
         <Stack.Screen
           name="ProfileSetup"
           component={ProfileSetupScreen}
-          initialParams={fromGuest ? { role: "student" } : undefined}
+          initialParams={{ role: "student" }}
         />
       </Stack.Navigator>
     </WebShell>

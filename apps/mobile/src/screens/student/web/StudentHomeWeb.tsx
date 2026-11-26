@@ -92,7 +92,7 @@ export function StudentHomeWeb() {
             <Text className="mt-1 font-sans text-ui text-muted">
               {buyForMeLaunched
                 ? "Order from off-campus shops. We buy and bring it in to your checkpoint."
-                : "We collect from one checkpoint and drop at another. Shop orders are coming soon."}
+                : "We collect from one checkpoint and drop at another."}
             </Text>
           </View>
           <Pressable
@@ -180,8 +180,8 @@ export function StudentHomeWeb() {
               </View>
               <View style={{ flex: 1, minWidth: 320 }}>
                 <PromoCard
-                  headline="Shop orders are coming"
-                  body="We're signing up shops around campus now. Tell us where you actually buy — the places the most people ask for open first."
+                  headline="Need something from a shop in Accra?"
+                  body="Name the shop and what you need. We pick it up and bring it to your checkpoint."
                   cta="Suggest a shop"
                   onPress={() => navigation.navigate("SuggestShop", waveDate)}
                 />

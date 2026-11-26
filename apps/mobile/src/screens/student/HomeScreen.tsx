@@ -275,8 +275,8 @@ function HomeScreenMobile() {
                     is what decides which shops arrive first. */}
                 <Gutter className="pt-3">
                   <PromoCard
-                    headline="Shop orders are coming"
-                    body="We're signing up shops around campus now. Tell us where you actually buy — the places the most people ask for open first."
+                    headline="Need something from a shop in Accra?"
+                    body="Name the shop and what you need. We pick it up and bring it to your checkpoint."
                     cta="Suggest a shop"
                     onPress={() => navigation.navigate("SuggestShop", waveDate)}
                   />
