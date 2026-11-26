@@ -38,6 +38,27 @@ export function useDropoffPoints(universityId: string | undefined) {
  * The delivery fee a pickup from `origin` will be charged: its zone's fee, or
  * the base fee for a campus checkpoint. Display only — the API decides.
  */
-export function pickupFeeFor(origin: Checkpoint | undefined, baseFee: number): number {
-  return origin?.zone ? Number(origin.zone.deliveryFee) : baseFee;
+export function pickupFeeFor(origin: Checkpoint | undefined, baseFee: number, sizePrice?: number | null): number {
+  // v7: the size's price (or the base fee without one) plus the zone's add-on.
+  return (sizePrice ?? baseFee) + (origin?.zone ? Number(origin.zone.deliveryFee) : 0);
+}
+
+export interface SizePrice {
+  key: "ripple" | "wave" | "swell" | "tide";
+  label: string;
+  examples: string;
+  maxKg: number;
+  price: number;
+}
+
+/** Package sizes and their prices (GET /pricing). */
+export function usePricing() {
+  return useQuery({
+    queryKey: ["pricing"],
+    queryFn: async () => {
+      const { data } = await api.get<{ baseFee: number; sizes: SizePrice[] }>("/pricing");
+      return data;
+    },
+    staleTime: 5 * 60_000,
+  });
 }
