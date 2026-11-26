@@ -35,6 +35,7 @@ import { betaRoutes, adminBetaRoutes } from "./modules/beta/routes";
 import { auditRoutes } from "./modules/audit/routes";
 import { campusAdminRoutes } from "./modules/campusAdmins/routes";
 import { refundRequestRoutes } from "./modules/refundRequests/routes";
+import { growthRoutes, adminGrowthRoutes } from "./modules/growth/routes";
 import { setupSentryFastify } from "./lib/sentry";
 
 declare module "fastify" {
@@ -108,6 +109,8 @@ export function buildApp(): FastifyInstance {
   app.register(companyRoutes, { prefix: "/v1/admin" });
   app.register(dispatchRoutes, { prefix: "/v1/dispatch" });
   app.register(companyListRoutes, { prefix: "/v1/company-list" });
+  app.register(growthRoutes, { prefix: "/v1" });
+  app.register(adminGrowthRoutes, { prefix: "/v1/admin" });
   app.register(hubRoutes, { prefix: "/v1/admin" });
 
   setupSentryFastify(app);

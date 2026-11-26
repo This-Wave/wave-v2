@@ -98,6 +98,10 @@ export const PERMISSIONS = [
   "companies.manage",
   /** Wave's packing point: mark company orders received and ready. */
   "hub.manage",
+  /** Who installed the app and turned notifications on, guest visits, business leads. Owner only. */
+  "growth.read",
+  /** Send SMS and push messages to students from the admin Messages page. Owner only. */
+  "messages.send",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
