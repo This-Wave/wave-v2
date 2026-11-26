@@ -63,7 +63,7 @@ export function PhoneField({
           aria-labelledby={label ? `${id}-label` : undefined}
           aria-describedby={error ? `${id}-error` : undefined}
           aria-invalid={error ? true : undefined}
-          className="min-h-[52px] flex-1 py-3 font-sans-medium text-ui text-ink"
+          className="min-h-[52px] flex-1 py-3 font-sans-bold text-ui text-ink"
         />
       </View>
       {error ? (

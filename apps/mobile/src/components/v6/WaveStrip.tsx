@@ -43,7 +43,7 @@ export function WaveStrip({ wave, onPress }: { wave: WaveInfo | null; onPress: (
         </View>
 
         <View className="min-w-0 flex-1 pr-2">
-          <Text className="font-sans-medium text-ui text-ink" numberOfLines={1}>
+          <Text className="font-sans-bold text-ui text-ink" numberOfLines={1}>
             {closed ? "Today's Wave has closed" : wave.name}
           </Text>
           {/* The arrival date, not the countdown: the time moved to the right

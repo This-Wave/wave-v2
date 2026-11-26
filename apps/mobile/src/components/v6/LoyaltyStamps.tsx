@@ -54,7 +54,7 @@ export function LoyaltyStamps({
       accessibilityValue={{ min: 0, max: progress.threshold, now: filled }}
     >
       <View className="mb-4 flex-row items-baseline justify-between">
-        <Text className="font-sans-medium text-ui text-ink">Delivery stamps</Text>
+        <Text className="font-sans-bold text-ui text-ink">Delivery stamps</Text>
         <Text className="font-sans text-meta text-muted">
           {filled} of {progress.threshold}
         </Text>

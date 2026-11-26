@@ -1,7 +1,7 @@
 export type PillTone = "good" | "neutral" | "warn" | "bad";
 
 const TONE: Record<PillTone, string> = {
-  good: "bg-lime border-transparent text-ink",
+  good: "bg-lime border-transparent text-[#0b2a21]",
   neutral: "bg-canvas border-border text-muted",
   warn: "bg-warning-bg border-warning-border text-warning-text",
   bad: "bg-danger-bg border-danger-border text-danger-text",
@@ -33,7 +33,7 @@ export function toneForStatus(status: string): PillTone {
 export function StatusPill({ label, tone = "neutral" }: { label: string; tone?: PillTone }) {
   return (
     <span
-      className={`inline-block whitespace-nowrap rounded-pill border px-[11px] py-[5px] text-[11px] font-semibold capitalize ${TONE[tone]}`}
+      className={`inline-block whitespace-nowrap rounded-pill border px-3 py-[5px] text-[12px] font-bold first-letter:uppercase ${TONE[tone]}`}
     >
       {label.replace(/_/g, " ")}
     </span>

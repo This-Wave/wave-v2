@@ -74,7 +74,7 @@ export function Calendar({
           <ChevronLeftIcon size={18} color={canGoBack ? colors.ink : colors.subtle} />
         </Pressable>
 
-        <Text className="font-sans-medium text-ui text-ink">
+        <Text className="font-sans-bold text-ui text-ink">
           {MONTHS[month.getMonth()]} {month.getFullYear()}
         </Text>
 

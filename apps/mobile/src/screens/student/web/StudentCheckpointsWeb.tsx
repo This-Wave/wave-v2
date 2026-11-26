@@ -55,7 +55,7 @@ export function StudentCheckpointsWeb() {
                   <View className="mb-4 h-10 w-10 items-center justify-center rounded-pill bg-canvas">
                     <PinIcon size={20} color={colors.ink} strokeWidth={1.7} />
                   </View>
-                  <Text className="font-sans-semibold text-ui text-ink">{cp.name}</Text>
+                  <Text className="font-sans-bold text-ui text-ink">{cp.name}</Text>
                   {cp.description ? (
                     <Text className="mt-1 font-sans text-body text-muted">{cp.description}</Text>
                   ) : (

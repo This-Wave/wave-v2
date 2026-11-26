@@ -126,7 +126,7 @@ function ProfileMobile() {
                   }}
                   className="mt-3 self-start rounded-pill bg-lime px-4 py-2"
                 >
-                  <Text className="font-sans-semibold text-ui text-ink">
+                  <Text className="font-sans-bold text-ui text-ink">
                     {emailSaving ? "Saving…" : "Save email"}
                   </Text>
                 </Pressable>

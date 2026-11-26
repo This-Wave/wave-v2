@@ -155,7 +155,7 @@ function DayOption({
         }`}
       />
       <View className="flex-1">
-        <Text className="font-sans-medium text-ui text-ink">{title}</Text>
+        <Text className="font-sans-bold text-ui text-ink">{title}</Text>
         <Text className="mt-0.5 font-sans text-body text-muted">{meta}</Text>
       </View>
     </Pressable>

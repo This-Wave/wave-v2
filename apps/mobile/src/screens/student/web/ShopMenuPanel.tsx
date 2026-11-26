@@ -73,7 +73,7 @@ export function ShopMenuPanel({
               <Text className="font-sans text-body text-muted">
                 {chosen.reduce((n, l) => n + l.quantity, 0)} items
               </Text>
-              <Text className="font-sans-medium text-ui text-ink">{formatGhs(basketTotal)}</Text>
+              <Text className="font-sans-bold text-ui text-ink">{formatGhs(basketTotal)}</Text>
             </View>
             <Button
               label="Continue"

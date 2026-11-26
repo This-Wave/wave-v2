@@ -96,7 +96,7 @@ export function MyOrdersScreen() {
                         >
                           <Thumb uri={order.shop?.logoUrl} size={52} />
                           <View className="min-w-0 flex-1">
-                            <Text className="font-sans-medium text-ui text-ink" numberOfLines={1}>
+                            <Text className="font-sans-bold text-ui text-ink" numberOfLines={1}>
                               {order.shop?.name ?? "Delivery"}
                             </Text>
                             <Text className="mt-1 font-sans text-body text-muted" numberOfLines={1}>
@@ -159,7 +159,7 @@ export function MyOrdersScreen() {
                           leading={<Thumb uri={order.shop?.logoUrl} />}
                           chevron={false}
                           trailing={
-                            <Text className="font-sans-semibold text-body text-ink">
+                            <Text className="font-sans-bold text-body text-ink">
                               {formatGhs(Number(order.deliveryFee))}
                             </Text>
                           }
@@ -195,7 +195,7 @@ function PastRow({ order, last }: { order: Order; last: boolean }) {
           year: "numeric",
         })}
       </Text>
-      <Text className="w-28 font-sans-semibold text-body text-ink">
+      <Text className="w-28 font-sans-bold text-body text-ink">
         {formatGhs(Number(order.deliveryFee))}
       </Text>
     </View>

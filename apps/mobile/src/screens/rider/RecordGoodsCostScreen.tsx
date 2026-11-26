@@ -115,7 +115,7 @@ export function RecordGoodsCostScreen() {
 
           <View className="mt-6 rounded-card border border-hairline bg-surface p-5">
             <View className="flex-row items-center justify-between">
-              <Text className="font-sans-medium text-ui text-ink">Total for the goods</Text>
+              <Text className="font-sans-bold text-ui text-ink">Total for the goods</Text>
               <Text className="font-display text-heading-sm text-ink">{formatGhs(total)}</Text>
             </View>
             <Text className="mt-2 font-sans text-body text-muted">

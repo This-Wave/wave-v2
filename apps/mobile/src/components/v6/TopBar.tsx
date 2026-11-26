@@ -59,7 +59,7 @@ export function TopBar({
           space only when it would otherwise be empty, so every screen carries
           the brand without a bar ever holding back, title and logo at once. */}
       {title ? (
-        <Text className="flex-1 text-center font-sans-medium text-ui text-ink" numberOfLines={1}>
+        <Text className="flex-1 text-center font-sans-bold text-ui text-ink" numberOfLines={1}>
           {title}
         </Text>
       ) : (

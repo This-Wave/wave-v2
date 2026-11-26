@@ -13,11 +13,11 @@ export function StatTile({ value, label, accent }: { value: string; label: strin
   return (
     <div className="flex-1 rounded-card border border-border bg-surface p-[22px] shadow-card">
       <div
-        className={`text-[30px] font-display font-black leading-none ${accent ? "text-ink" : "text-ink"}`}
+        className={`text-[30px] font-display font-black leading-none text-ink`}
       >
         {value}
       </div>
-      <div className="mt-2 text-[12px] font-medium text-muted">{label}</div>
+      <div className="mt-2 text-[12.5px] font-bold text-ink">{label}</div>
     </div>
   );
 }
