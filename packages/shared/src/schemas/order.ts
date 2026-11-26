@@ -1,3 +1,4 @@
+import { PACKAGE_SIZES } from "../constants/sizes";
 import { z } from "zod";
 import {
   DELIVERY_DAYS,
@@ -48,10 +49,6 @@ export type ManualItemInput = z.infer<typeof manualItemInputSchema>;
  * order with no origin, so they mirror the CHECK constraint in
  * 20260807170100_catalogue_and_suggestions exactly. Change one, change both.
  */
-/** Package sizes for a pickup. Informational: the zone sets the fee. */
-export const PACKAGE_SIZES = ["small", "medium", "large"] as const;
-export type PackageSize = (typeof PACKAGE_SIZES)[number];
-
 export const createOrderSchema = z
   .object({
     orderType: z.enum(ORDER_TYPES).default("buy_for_me"),

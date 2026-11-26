@@ -327,9 +327,9 @@ export function PickupRequestScreen() {
 
 /** Sizes guide the rider. The fee comes from the pickup zone, not the size. */
 const SIZES: Array<{ key: PackageSize; title: string; meta: string }> = [
-  { key: "small", title: "Small", meta: "Documents, phone, charger. Fits in a bag." },
-  { key: "medium", title: "Medium", meta: "Clothes, shoes, a laptop. A shoebox or so." },
-  { key: "large", title: "Large", meta: "Food trays, a small appliance. Carried in both arms." },
+  { key: "ripple", title: "Ripple", meta: "Documents, phone, charger. Fits in a bag." },
+  { key: "wave", title: "Wave", meta: "Clothes, shoes, a laptop. A shoebox or so." },
+  { key: "swell", title: "Swell", meta: "Food trays, a small appliance. Carried in both arms." },
 ];
 
 function Rule({ title, body }: { title: string; body: string }) {

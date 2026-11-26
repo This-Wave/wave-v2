@@ -22,4 +22,5 @@ export * from "./schemas/notification";
 export * from "./schemas/suggestion";
 export * from "./schemas/company";
 export * from "./schemas/growth";
+export * from "./constants/sizes";
 export * from "./types";

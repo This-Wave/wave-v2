@@ -1,3 +1,4 @@
+import { DEFAULT_DELIVERY_FEE_GHS, SIZE_INFO, sizeConfigKey } from "@wave/shared";
 import type { FastifyInstance } from "fastify";
 import { createCheckpointSchema, updateCheckpointSchema } from "@wave/shared";
 import { inCampus, outsideCampus } from "../../lib/scope";
@@ -20,6 +21,18 @@ export async function universityRoutes(fastify: FastifyInstance) {
     });
     return reply.send({
       checkpoints: checkpoints.filter((c) => !c.zone || c.zone.isActive),
+    });
+  });
+
+  /** Public prices: each package size and the base fee. Zone add-ons come with /zones. */
+  fastify.get("/pricing", async (_request, reply) => {
+    const rows = await fastify.prisma.platformConfig.findMany({
+      where: { key: { in: ["delivery_fee_base", ...SIZE_INFO.map((x) => sizeConfigKey(x.key))] } },
+    });
+    const val = (k: string, d: number) => Number(rows.find((r) => r.key === k)?.value ?? d);
+    return reply.send({
+      baseFee: val("delivery_fee_base", DEFAULT_DELIVERY_FEE_GHS),
+      sizes: SIZE_INFO.map((x) => ({ key: x.key, label: x.label, examples: x.examples, maxKg: x.maxKg, price: val(sizeConfigKey(x.key), x.defaultPrice) })),
     });
   });
 
