@@ -211,3 +211,15 @@ export function loyaltyProgressLabel(progress: ReturnType<typeof loyaltyProgress
   const n = progress.remaining;
   return `${n} more ${n === 1 ? "delivery" : "deliveries"} for ${progress.discountPct}% off delivery.`;
 }
+
+/**
+ * The launch code: off the delivery fee of a student's first paid order.
+ * The percentage lives in platform_config (`promo_first_order_pct`, 0 = off).
+ */
+export const FIRST_ORDER_PROMO_CODE = "HELLOHILL";
+export const DEFAULT_FIRST_ORDER_PROMO_PCT = 25;
+
+/** Codes are typed by people: case and spaces don't matter. */
+export function normalizePromoCode(raw: string): string {
+  return raw.replace(/\s+/g, "").toUpperCase();
+}

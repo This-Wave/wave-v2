@@ -173,6 +173,8 @@ export interface Order {
   itemPrice: string | null;
   deliveryFee: string;
   discountApplied: string;
+  /** First-order code that set the discount (e.g. HELLOHILL); null for loyalty. */
+  promoCode?: string | null;
   surchargeApplied: string;
   totalAmount: string;
   status: OrderStatus;

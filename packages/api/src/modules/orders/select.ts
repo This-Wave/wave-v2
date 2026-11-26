@@ -29,6 +29,7 @@ const orderScalars = {
   itemPrice: true,
   deliveryFee: true,
   discountApplied: true,
+  promoCode: true,
   surchargeApplied: true,
   totalAmount: true,
   deliveryDay: true,

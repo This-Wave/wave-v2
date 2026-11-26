@@ -71,7 +71,9 @@ export function buildOrderLedger(order: Order): OrderLedger {
 
   if (discountAmount > 0) {
     lines.push({
-      label: `Loyalty discount (−${trimPct(discountPct)}% of delivery)`,
+      label: order.promoCode
+        ? `${order.promoCode} (−${trimPct(discountPct)}% of delivery)`
+        : `Loyalty discount (−${trimPct(discountPct)}% of delivery)`,
       value: `−${formatGhs(discountAmount)}`,
       kind: "discount",
     });
