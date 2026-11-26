@@ -106,7 +106,7 @@ export function BigNumberField({
 }) {
   return (
     <View className="flex-row items-baseline justify-center gap-1">
-      {prefix ? <Text className="font-sans-medium text-heading-sm text-muted">{prefix}</Text> : null}
+      {prefix ? <Text className="font-display text-heading-sm text-muted">{prefix}</Text> : null}
       <TextInput
         value={value}
         onChangeText={onChangeText}

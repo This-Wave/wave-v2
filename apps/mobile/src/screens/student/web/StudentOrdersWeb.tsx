@@ -66,7 +66,7 @@ export function StudentOrdersWeb() {
 
         {live.length > 0 ? (
           <Gutter className="mb-10" style={{ gap: 12 }}>
-            <Text className="mb-1 font-sans-medium text-heading-sm text-ink">Happening now</Text>
+            <Text className="mb-1 font-display text-heading-sm text-ink">Happening now</Text>
             {live.map((o) => (
               <View
                 key={o.id}
@@ -97,7 +97,7 @@ export function StudentOrdersWeb() {
 
         {unpaid.length > 0 ? (
           <Gutter className="mb-10" style={{ gap: 12 }}>
-            <Text className="mb-1 font-sans-medium text-heading-sm text-ink">Waiting for payment</Text>
+            <Text className="mb-1 font-display text-heading-sm text-ink">Waiting for payment</Text>
             {unpaid.map((o) => (
               <View
                 key={o.id}

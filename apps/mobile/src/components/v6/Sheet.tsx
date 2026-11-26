@@ -49,7 +49,7 @@ export function Sheet({
             accessibilityRole="summary"
           >
             <View className="mb-4 flex-row items-center justify-between">
-              <Text className="font-sans-medium text-heading-sm text-ink" accessibilityRole="header">
+              <Text className="font-display text-heading-sm text-ink" accessibilityRole="header">
                 {title ?? ""}
               </Text>
               <IconCircle onPress={onClose} tone="transparent" accessibilityLabel="Close sheet">
