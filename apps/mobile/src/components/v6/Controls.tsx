@@ -132,7 +132,7 @@ export function SectionTitle({
       accessibilityLabel={onPress ? `${title}, see all` : title}
       className={`flex-row items-center gap-1 ${className}`}
     >
-      <Text className="font-sans-medium text-heading-sm text-ink">{title}</Text>
+      <Text className="font-display text-heading-sm text-ink">{title}</Text>
       {onPress ? <ChevronRightIcon size={20} color={colors.ink} strokeWidth={2} /> : null}
     </Pressable>
   );

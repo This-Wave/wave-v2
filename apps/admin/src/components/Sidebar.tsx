@@ -74,7 +74,7 @@ export function Sidebar({
     <aside className="flex h-screen w-[232px] flex-shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex items-center gap-2.5 px-[18px] pb-[22px] pt-[26px]">
         <span className="text-[19px] font-semibold tracking-tight text-ink">wave</span>
-        <span className="rounded-pill bg-admin-bg px-2.5 py-[3px] text-[10px] font-semibold uppercase tracking-[0.06em] text-admin-text">
+        <span className="rounded-pill bg-admin-bg px-2.5 py-[3px] text-[11px] font-bold text-admin-text">
           {profile?.campus ? "Campus" : "Admin"}
         </span>
       </div>
@@ -82,7 +82,7 @@ export function Sidebar({
       <nav className="flex-1 overflow-y-auto px-3" aria-label="Admin sections">
         {groups.map((group) => (
           <div key={group.label} className="mb-4">
-            <p className="mb-1.5 px-3 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted">
+            <p className="mb-1.5 px-3 text-[12.5px] font-bold text-ink">
               {group.label}
             </p>
             {group.items.map((item) => {

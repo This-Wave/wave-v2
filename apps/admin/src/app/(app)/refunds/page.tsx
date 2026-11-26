@@ -254,7 +254,7 @@ function DecideModal({
     >
       <div className="space-y-4">
         <div className="rounded-control border border-border bg-canvas p-3.5">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted">Their reason</p>
+          <p className="text-[13px] font-bold text-ink">Their reason</p>
           <p className="mt-1 text-[13.5px] text-ink">{target?.row.reason}</p>
           <p className="mt-1 text-[12px] text-muted">
             {target?.row.requestedByName ?? "Campus admin"} · {target?.row.university.name}

@@ -30,7 +30,7 @@ export function MoveItAgain({ onPick }: { onPick: (route: RecentRoute) => void }
 
   return (
     <View>
-      <Text className="mb-3 font-sans-medium text-heading-sm text-ink">Move it again</Text>
+      <Text className="mb-3 font-display text-heading-sm text-ink">Move it again</Text>
       <RowGroup>
         {routes.map((route) => (
           <Row

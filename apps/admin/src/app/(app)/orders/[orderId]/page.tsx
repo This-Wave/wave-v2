@@ -22,6 +22,11 @@ interface OrderDetail {
   scheduledDate: string;
   isSpecialOrder: boolean;
   itemDescription: string;
+  senderName?: string | null;
+  senderPhone?: string | null;
+  pickupNotes?: string | null;
+  packageSize?: string | null;
+  originCheckpoint?: { name: string } | null;
   cancellationReason: string | null;
   createdAt: string;
   student?: { fullName: string; phone: string; studentId: string | null } | null;
@@ -116,7 +121,7 @@ export default function OrderDetailPage() {
 
       <div className="mt-4 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[26px] font-semibold tracking-tight text-ink">Order detail</h1>
+          <h1 className="text-[26px] font-display font-black text-ink">Order detail</h1>
           <p className="mt-1 font-mono text-[12px] text-muted">{order.id}</p>
         </div>
         <div className="flex items-center gap-3">
@@ -170,10 +175,23 @@ export default function OrderDetailPage() {
             {order.isSpecialOrder ? " · special order" : ""}
           </p>
         </DetailCard>
-        <DetailCard title="Shop">
-          <p className="text-ink">{order.shop?.name ?? order.orderType.replace(/_/g, " ")}</p>
-          <p className="text-[12px] text-muted">{order.itemDescription}</p>
-        </DetailCard>
+        {order.orderType === "pickup" ? (
+          <DetailCard title="Sender">
+            <p className="font-medium text-ink">{order.senderName ?? "—"}</p>
+            <p className="text-[12px] text-muted">{order.senderPhone ?? "—"}</p>
+            <p className="mt-1 text-[12px] text-ink">
+              {order.originCheckpoint?.name ?? "—"}
+              {order.packageSize ? ` · ${order.packageSize[0]!.toUpperCase()}${order.packageSize.slice(1)} size` : ""}
+            </p>
+            {order.pickupNotes ? <p className="mt-1 text-[12px] text-muted">{order.pickupNotes}</p> : null}
+            <p className="mt-1 text-[12px] text-muted">{order.itemDescription}</p>
+          </DetailCard>
+        ) : (
+          <DetailCard title="Shop">
+            <p className="text-ink">{order.shop?.name ?? order.orderType.replace(/_/g, " ")}</p>
+            <p className="text-[12px] text-muted">{order.itemDescription}</p>
+          </DetailCard>
+        )}
         <DetailCard title="Rider">
           <p className="text-ink">{order.rider?.fullName ?? "Unassigned"}</p>
           <p className="text-[12px] text-muted">{order.rider?.phone ?? ""}</p>
@@ -229,7 +247,7 @@ export default function OrderDetailPage() {
         <div className="mt-6 overflow-hidden rounded-card border border-border bg-surface">
           <table className="w-full text-left text-[13px]">
             <thead>
-              <tr className="border-b border-border bg-canvas text-[11px] uppercase tracking-wide text-muted">
+              <tr className="border-b border-border bg-canvas text-[12.5px] font-bold text-ink">
                 <th className="px-4 py-3 font-semibold">Item</th>
                 <th className="px-4 py-3 font-semibold">Qty</th>
                 <th className="px-4 py-3 text-right font-semibold">Unit</th>
@@ -292,7 +310,7 @@ export default function OrderDetailPage() {
 function DetailCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-card border border-border bg-surface p-5">
-      <h2 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted">{title}</h2>
+      <h2 className="mb-2 text-[13px] font-bold text-ink">{title}</h2>
       {children}
     </div>
   );
