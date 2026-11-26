@@ -10,6 +10,7 @@ import { Button, RowAction } from "../../../components/ui/Button";
 import { CreateShopModal } from "../../../components/CreateShopModal";
 import { FetchErrorBanner } from "../../../components/FetchErrorBanner";
 import { approvalWait } from "@wave/shared";
+import { localPhone } from "../../../lib/format";
 
 interface Shop {
   id: string;
@@ -98,7 +99,7 @@ export default function ShopsPage() {
       render: (s) => (
         <div>
           <div>{s.owner.fullName}</div>
-          <div className="text-[12px] text-muted">{s.owner.phone}</div>
+          <div className="text-[12px] text-muted">{localPhone(s.owner.phone)}</div>
         </div>
       ),
     },

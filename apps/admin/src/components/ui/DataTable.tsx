@@ -24,13 +24,13 @@ interface DataTableProps<T> {
 export function DataTable<T>({ columns, rows, rowKey, emptyMessage }: DataTableProps<T>) {
   return (
     <Card>
-      <table className="w-full table-fixed border-collapse text-left">
+      <table className="w-full table-auto border-collapse text-left">
         <thead>
-          <tr className="border-b border-border bg-canvas">
+          <tr className="border-b border-border bg-surface">
             {columns.map((col) => (
               <th
                 key={col.header}
-                className={`h-11 px-[22px] text-[12.5px] font-bold text-ink ${
+                className={`h-10 px-4 text-[12.5px] font-bold text-ink ${
                   col.width ?? ""
                 } ${col.align === "right" ? "text-right" : ""}`}
               >
@@ -42,13 +42,13 @@ export function DataTable<T>({ columns, rows, rowKey, emptyMessage }: DataTableP
         <tbody>
           {rows === null ? (
             <tr>
-              <td className="px-[22px] py-7 text-[13.5px] text-muted" colSpan={columns.length}>
+              <td className="px-4 py-7 text-[13.5px] text-muted" colSpan={columns.length}>
                 Loading…
               </td>
             </tr>
           ) : rows.length === 0 ? (
             <tr>
-              <td className="px-[22px] py-7 text-[13.5px] text-muted" colSpan={columns.length}>
+              <td className="px-4 py-7 text-[13.5px] text-muted" colSpan={columns.length}>
                 {emptyMessage}
               </td>
             </tr>
@@ -58,7 +58,7 @@ export function DataTable<T>({ columns, rows, rowKey, emptyMessage }: DataTableP
                 {columns.map((col) => (
                   <td
                     key={col.header}
-                    className={`h-[60px] truncate px-[22px] text-[13.5px] text-ink ${
+                    className={`h-12 whitespace-nowrap px-4 text-[13.5px] text-ink ${
                       col.align === "right" ? "text-right" : ""
                     }`}
                   >
@@ -90,10 +90,9 @@ export function FilterTabs<K extends string>({
         <button
           key={t.key}
           onClick={() => onChange(t.key)}
-          className={`h-10 rounded-control px-[18px] text-[13px] ${
-            active === t.key
-              ? "bg-lime font-semibold text-ink"
-              : "border border-border bg-surface font-medium text-muted"
+          aria-pressed={active === t.key}
+          className={`h-9 rounded-control border-2 px-3.5 text-[13px] font-bold ${
+            active === t.key ? "border-ink bg-ink text-[#fdfcf8]" : "border-line bg-surface text-ink"
           }`}
         >
           {t.label}

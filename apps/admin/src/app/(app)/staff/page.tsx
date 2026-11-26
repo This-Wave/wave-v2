@@ -11,6 +11,7 @@ import { StatusPill } from "../../../components/ui/StatusPill";
 import { Button, RowAction } from "../../../components/ui/Button";
 import { Modal } from "../../../components/ui/Modal";
 import { FormError, SelectField, TextField } from "../../../components/ui/Field";
+import { localPhone } from "../../../lib/format";
 
 interface StaffMember {
   id: string;
@@ -89,7 +90,7 @@ export default function StaffPage() {
     {
       header: "Phone",
       width: "w-[170px]",
-      render: (s) => <span className="text-muted">{s.phone}</span>,
+      render: (s) => <span className="text-ink">{localPhone(s.phone)}</span>,
     },
     {
       header: "Role",

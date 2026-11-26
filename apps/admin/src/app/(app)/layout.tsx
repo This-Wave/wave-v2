@@ -65,7 +65,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-surface-muted">
+    <div className="flex min-h-screen bg-canvas">
       {/* The sidebar is eight links deep and sits before the content in the tab
           order on every page. 2.4.1. */}
       <a

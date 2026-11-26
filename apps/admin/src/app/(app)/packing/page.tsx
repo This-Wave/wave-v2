@@ -139,14 +139,14 @@ export default function PackingPage() {
         title="Packing point"
         subtitle="Orders the delivery company brings in. Pack each into a Wave bag labelled with its order number."
         action={
-          <div className="flex gap-1 rounded-full bg-surface-muted p-1">
+          <div className="flex gap-2">
             {[0, 1].map((o) => (
               <button
                 key={o}
                 type="button"
                 onClick={() => setOffset(o)}
                 aria-pressed={offset === o}
-                className={`min-h-[36px] rounded-full px-4 text-[13px] font-semibold ${offset === o ? "bg-ink text-white" : "text-muted"}`}
+                className={`h-9 rounded-control border-2 px-3.5 text-[13px] font-bold ${offset === o ? "border-ink bg-ink text-[#fdfcf8]" : "border-line bg-surface text-ink"}`}
               >
                 {o === 0 ? "Today" : "Tomorrow"}
               </button>
@@ -156,7 +156,7 @@ export default function PackingPage() {
       />
       {loadError ? <FetchErrorBanner message={loadError} onRetry={load} /> : null}
 
-      <div role="tablist" aria-label="Stage" className="mb-5 flex flex-wrap gap-1 border-b border-border">
+      <div role="tablist" aria-label="Stage" className="mb-5 flex flex-wrap gap-2">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -164,7 +164,7 @@ export default function PackingPage() {
             aria-selected={stage === t.key}
             type="button"
             onClick={() => setStage(t.key)}
-            className={`min-h-[42px] px-3 text-[13.5px] ${stage === t.key ? "font-semibold text-ink shadow-[inset_0_-2px_0_#083400]" : "text-muted"}`}
+            className={`h-9 rounded-control border-2 px-3.5 text-[13px] font-bold ${stage === t.key ? "border-ink bg-ink text-[#fdfcf8]" : "border-line bg-surface text-ink"}`}
           >
             {t.label} · {day?.[t.key].length ?? 0}
           </button>
