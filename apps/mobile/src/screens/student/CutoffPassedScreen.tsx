@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import { ActionBar, Button, Gutter, Screen, ScreenBody, TopBar } from "../../components/v6";
+import { Illustration } from "../../components/v7/Illustration";
 import {
   DEFAULT_DELIVERY_FEE_GHS,
   DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT,
@@ -27,8 +28,11 @@ export function CutoffPassedScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-8">
-          <Text className="mb-2 font-display text-heading text-ink">
-            Today's run is full
+          <View className="mb-4 items-center">
+            <Illustration name="pillow" width={220} height={150} />
+          </View>
+          <Text accessibilityRole="header" className="mb-2 font-display text-heading text-ink">
+            Today's Wave has left
           </Text>
           <Text className="mb-8 font-sans text-body text-muted">
             Orders lock at noon on a run day so runners can shop and get back before evening. The
@@ -36,7 +40,7 @@ export function CutoffPassedScreen() {
           </Text>
 
           <View className="rounded-card border border-hairline bg-surface p-5">
-            <Text className="mb-1 font-sans-semibold text-meta text-muted">NEED IT SOONER?</Text>
+            <Text className="mb-1 font-sans-bold text-body text-ink">Need it sooner?</Text>
             <Text className="font-sans text-body text-ink">
               A rush order can go out ahead of the schedule for {DEFAULT_SPECIAL_ORDER_SURCHARGE_PCT}
               % more on the delivery fee — on a {formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)} fee

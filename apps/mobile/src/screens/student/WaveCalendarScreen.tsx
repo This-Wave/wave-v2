@@ -54,7 +54,7 @@ export function WaveCalendarScreen() {
             When do you need it?
           </Text>
 
-          <Text className="mb-3 font-sans-medium text-body text-ink">
+          <Text className="mb-3 font-sans-bold text-body text-ink">
             Every day · {formatGhsCompact(DEFAULT_DELIVERY_FEE_GHS)}
           </Text>
           <View accessibilityRole="radiogroup" className="mb-8 gap-2.5">
@@ -84,7 +84,7 @@ export function WaveCalendarScreen() {
             />
           </View>
 
-          <Text className="mb-3 font-sans-medium text-body text-ink">Later</Text>
+          <Text className="mb-3 font-sans-bold text-body text-ink">Later</Text>
           <View accessibilityRole="radiogroup" className="flex-row flex-wrap" style={{ marginHorizontal: -4 }}>
             {later.map((d) => {
               const isOn = sameDay(selected, d);

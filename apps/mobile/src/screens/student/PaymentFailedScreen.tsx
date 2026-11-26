@@ -3,8 +3,7 @@ import { useNavigation, useRoute, type RouteProp } from "@react-navigation/nativ
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
 import { ActionBar, Button, Gutter, Screen, ScreenBody } from "../../components/v6";
-import { AlertIcon } from "../../components/icons";
-import { colors } from "../../theme/tokens";
+import { Illustration, Rise } from "../../components/v7/Illustration";
 import { shortOrderRef } from "./orderPresenters";
 import { resetStudentTabs, resetToPayment } from "../../lib/navigationFlows";
 
@@ -25,34 +24,27 @@ export function PaymentFailedScreen() {
   return (
     <Screen narrow>
       <ScreenBody bottomInset={16}>
-        <Gutter className="pt-12">
-          <View className="mb-6 h-14 w-14 items-center justify-center rounded-pill bg-hairline">
-            <AlertIcon size={26} color={colors.ink} strokeWidth={1.8} />
-          </View>
-
-          <Text className="mb-2 font-display text-heading text-ink">
-            We couldn't confirm that
-          </Text>
-          <Text className="mb-8 font-sans text-body text-muted">
-            Your order {shortOrderRef(params.orderId)} is still waiting to be paid for. If money
-            already left your account, it will settle shortly and the order will move on by itself —
-            check back in a few minutes before paying again.
-          </Text>
-
-          <View className="rounded-card border border-hairline bg-surface p-5">
-            <Text className="mb-1 font-sans-semibold text-meta text-muted">NOTHING IS LOST</Text>
-            <Text className="font-sans text-body text-ink">
-              The order is saved exactly as you built it. You can pay for it from your orders list
-              at any time before the run.
+        <Gutter className="items-center pt-12" style={{ gap: 14 }}>
+          <Rise>
+            <Illustration name="pillow" width={220} height={160} />
+          </Rise>
+          <Rise delay={80}>
+            <Text accessibilityRole="header" className="text-center font-display text-heading text-ink">
+              Payment didn't go through
             </Text>
-          </View>
+          </Rise>
+          <Rise delay={140}>
+            <Text className="text-center font-sans text-ui text-muted" style={{ lineHeight: 24 }}>
+              Your order {shortOrderRef(params.orderId)} is saved. If money left your account, it settles on its own in a few minutes.
+            </Text>
+          </Rise>
         </Gutter>
       </ScreenBody>
 
       <ActionBar>
         <View className="gap-2">
           <Button
-            label="Try paying again"
+            label="Try again"
             onPress={() =>
               resetToPayment(navigation, {
                 orderId: params.orderId,
@@ -62,7 +54,7 @@ export function PaymentFailedScreen() {
           />
           <Button
             label="Check my orders"
-            variant="quiet"
+            variant="ghost"
             onPress={() => resetStudentTabs(navigation, "Orders")}
           />
         </View>

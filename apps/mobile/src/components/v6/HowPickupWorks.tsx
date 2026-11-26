@@ -18,7 +18,7 @@ const STEPS = [
 export function HowPickupWorks() {
   return (
     <View className="rounded-card border border-hairline bg-surface p-5" accessible accessibilityRole="summary">
-      <Text className="mb-4 font-sans-medium text-body text-ink">How a pickup works</Text>
+      <Text className="mb-4 font-sans-bold text-body text-ink">How a pickup works</Text>
       {STEPS.map((step, i) => (
         <View key={step.title} className={`flex-row ${i === STEPS.length - 1 ? "" : "mb-4"}`}>
           {/* Ink disc, white numeral: lime is fill-only and white on lime fails
@@ -27,7 +27,7 @@ export function HowPickupWorks() {
             <Text className="font-sans-semibold text-caption text-surface">{i + 1}</Text>
           </View>
           <View className="flex-1">
-            <Text className="font-sans-medium text-body text-ink">{step.title}</Text>
+            <Text className="font-sans-bold text-body text-ink">{step.title}</Text>
             <Text className="mt-0.5 font-sans text-body text-muted">{step.body}</Text>
           </View>
         </View>

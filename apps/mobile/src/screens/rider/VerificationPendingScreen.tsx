@@ -64,7 +64,7 @@ export function VerificationPendingScreen() {
               </Text>
               {verification?.rejectionReason ? (
                 <View className="mb-6 rounded-card border border-hairline bg-surface px-4 py-3.5">
-                  <Text className="mb-1 font-sans-medium text-body text-ink">Reason given</Text>
+                  <Text className="mb-1 font-sans-bold text-body text-ink">Reason given</Text>
                   <Text className="font-sans text-body text-muted">
                     {verification.rejectionReason}
                   </Text>
@@ -79,7 +79,7 @@ export function VerificationPendingScreen() {
           )}
 
           <View className="rounded-card border border-hairline bg-surface px-4 py-3.5">
-            <Text className="mb-1 font-sans-medium text-body text-ink">Why we check</Text>
+            <Text className="mb-1 font-sans-bold text-body text-ink">Why we check</Text>
             <Text className="font-sans text-body text-muted">
               Riders handle other people&apos;s money and shopping, so every rider is identified
               before taking a first order.

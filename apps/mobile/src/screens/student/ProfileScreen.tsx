@@ -76,11 +76,16 @@ function ProfileMobile() {
     <Screen>
       <BrandBar />
       <ScreenBody bottomInset={24}>
-        <Gutter className="pb-8 pt-4">
-          <PageTitle>{profile?.fullName ?? "Student"}</PageTitle>
-          <Text className="mt-2 font-sans text-body text-muted">
-            {[profile?.studentId, profile?.phone].filter(Boolean).join(" · ") || "—"}
-          </Text>
+        <Gutter className="flex-row items-center pb-6 pt-4" style={{ gap: 14 }}>
+          <View className="h-16 w-16 items-center justify-center rounded-pill bg-wash">
+            <Text className="font-display text-heading text-ink">{(profile?.fullName ?? "S").trim()[0]?.toUpperCase()}</Text>
+          </View>
+          <View className="flex-1">
+            <PageTitle>{profile?.fullName ?? "Student"}</PageTitle>
+            <Text className="mt-1 font-sans text-body text-muted">
+              {[profile?.studentId, profile?.phone].filter(Boolean).join(" · ") || "—"}
+            </Text>
+          </View>
         </Gutter>
 
         <Gutter className="mb-8">

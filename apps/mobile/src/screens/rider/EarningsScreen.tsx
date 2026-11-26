@@ -175,7 +175,7 @@ export function EarningsScreen() {
           */}
           {!isLoading && pendingTotal > 0 ? (
             <View className="mt-6 rounded-card border border-hairline bg-surface p-5">
-              <Text className="mb-1 font-sans-semibold text-meta text-muted">AWAITING PAYOUT</Text>
+              <Text className="mb-1 font-sans-bold text-body text-ink">Awaiting payout</Text>
               <Text className="font-sans text-body text-ink">
                 {formatGhs(pendingTotal)} is settled by the Wave team directly. There's nothing to
                 request here.

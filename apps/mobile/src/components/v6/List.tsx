@@ -1,6 +1,6 @@
 import { Image, Pressable, Text, View } from "react-native";
 import { Children, type ReactNode } from "react";
-import { ChevronRightIcon } from "../icons";
+import { BoxIcon, ChevronRightIcon } from "../icons";
 import { colors } from "../../theme/tokens";
 import { useLayout } from "../../hooks/useLayout";
 
@@ -38,7 +38,7 @@ export function Row({
     >
       {leading}
       <View className="flex-1">
-        <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
+        <Text className="font-sans-bold text-body text-ink" numberOfLines={1}>
           {title}
         </Text>
         {meta ? (
@@ -78,16 +78,16 @@ export function ListError({ message, onRetry }: { message?: string; onRetry: () 
       accessibilityLiveRegion="assertive"
       role="alert"
     >
-      <Text className="mb-1 font-sans-medium text-body text-ink">Couldn&apos;t load</Text>
+      <Text className="mb-1 font-sans-bold text-body text-ink">Couldn&apos;t load</Text>
       <Text className="mb-4 font-sans text-body text-muted">
         {message ?? "Check your connection and try again."}
       </Text>
       <Pressable
         onPress={onRetry}
         accessibilityRole="button"
-        className="min-h-[44px] justify-center self-start rounded-pill bg-lime px-4 active:bg-lime-600"
+        className="min-h-[44px] justify-center self-start rounded-input border-b-4 border-lime-edge bg-lime px-4"
       >
-        <Text className="font-sans-medium text-body text-ink">Retry</Text>
+        <Text className="font-sans-bold text-body text-ink">Retry</Text>
       </Pressable>
     </View>
   );
@@ -110,13 +110,18 @@ export function Thumb({ uri, size = 44 }: { uri?: string | null; size?: number }
   return (
     <View
       style={{ width: size, height: size }}
-      className="overflow-hidden rounded-input bg-surface-muted"
+      className={`items-center justify-center overflow-hidden rounded-input ${uri ? "bg-surface-muted" : "bg-wash"}`}
       // The row's own label already carries the shop name; letting the image
       // through only adds an unlabelled stop to the swipe order.
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      {uri ? <Image source={{ uri }} className="h-full w-full" resizeMode="cover" /> : null}
+      {uri ? (
+        <Image source={{ uri }} className="h-full w-full" resizeMode="cover" />
+      ) : (
+        // v7: no photo (a pickup has no shop) shows the parcel glyph on wash.
+        <BoxIcon size={Math.round(size * 0.5)} color={colors.ink} strokeWidth={1.9} />
+      )}
     </View>
   );
 }

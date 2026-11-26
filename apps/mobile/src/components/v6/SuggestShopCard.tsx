@@ -13,7 +13,7 @@ import { Button } from "./Button";
 export function SuggestShopCard({ onSuggest }: { onSuggest: () => void }) {
   return (
     <View className="rounded-card border border-hairline bg-surface p-5">
-      <Text className="font-sans-medium text-body text-ink">Can&apos;t find your shop?</Text>
+      <Text className="font-sans-bold text-body text-ink">Can&apos;t find your shop?</Text>
       <Text className="mt-1 font-sans text-body text-muted">
         Tell us where you buy and we&apos;ll send a runner. The places the most people ask for get
         their own menu.

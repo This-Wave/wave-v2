@@ -129,7 +129,7 @@ export function ShopDashboardScreen() {
         {shop && !shop.isVerified ? (
           <Gutter className="pb-4">
             <View className="rounded-card border border-hairline bg-surface px-4 py-3.5">
-              <Text className="mb-1 font-sans-medium text-body text-ink">
+              <Text className="mb-1 font-sans-bold text-body text-ink">
                 Waiting for approval
               </Text>
               <Text className="font-sans text-body text-muted">

@@ -139,7 +139,7 @@ export function SuggestShopScreen() {
             />
           </View>
 
-          <Text className="mb-1 font-sans-medium text-body text-ink">What do you need?</Text>
+          <Text className="mb-1 font-sans-bold text-body text-ink">What do you need?</Text>
           <Text className="mb-4 font-sans text-caption text-muted">
             Be specific — your runner buys exactly what you write, and they can't ask the shop what
             you meant.
@@ -166,7 +166,7 @@ export function SuggestShopScreen() {
                   >
                     <MinusIcon size={14} color={colors.ink} />
                   </Stepper>
-                  <Text className="w-6 text-center font-sans-medium text-body text-ink">
+                  <Text className="w-6 text-center font-sans-bold text-body text-ink">
                     {item.quantity}
                   </Text>
                   <Stepper
@@ -187,7 +187,7 @@ export function SuggestShopScreen() {
               accessibilityRole="button"
               className="mt-3 self-start rounded-pill px-1 py-2"
             >
-              <Text className="font-sans-medium text-body text-ink">+ Add another item</Text>
+              <Text className="font-sans-bold text-body text-ink">+ Add another item</Text>
             </Pressable>
           ) : null}
         </Gutter>

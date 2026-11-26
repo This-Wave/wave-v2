@@ -24,7 +24,7 @@ export function DeliveryPinSnippet({
 
   return (
     <View className="mb-6 rounded-card border border-hairline bg-surface p-4">
-      <Text className="mb-1 font-sans-semibold text-meta text-muted">DELIVERY CODE</Text>
+      <Text className="mb-1 font-sans-bold text-body text-ink">Delivery code</Text>
       {isLoading ? (
         <Text className="font-sans text-body text-muted">Loading code…</Text>
       ) : isError || !pin ? (
@@ -56,7 +56,7 @@ export function DeliveryPinSnippet({
           accessibilityLabel="Full code screen"
           accessibilityHint="Opens the PIN large enough to read at arm's length"
           className="mt-3 min-h-[44px] justify-center">
-          <Text className="font-sans-medium text-body text-ink">Full code screen</Text>
+          <Text className="font-sans-bold text-body text-ink">Full code screen</Text>
         </Pressable>
       ) : null}
     </View>

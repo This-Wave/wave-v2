@@ -38,7 +38,7 @@ export function LoyaltyProgress({ compact = false }: { compact?: boolean }) {
       accessibilityLabel={label}
       accessibilityValue={{ min: 0, max: progress.threshold, now: progress.completed }}
     >
-      <Text className="font-sans-medium text-body text-ink">{label}</Text>
+      <Text className="font-sans-bold text-body text-ink">{label}</Text>
       <Text className="mt-0.5 font-sans text-meta text-muted">
         {/* Once earned the ratio stops meaning anything and reads as a bug —
             the first run of this rendered "7 of 6 deliveries". */}

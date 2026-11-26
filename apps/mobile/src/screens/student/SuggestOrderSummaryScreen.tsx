@@ -99,7 +99,7 @@ export function SuggestOrderSummaryScreen() {
         <Gutter>
           <Text className="mb-8 font-display text-heading text-ink">Check this over</Text>
 
-          <Text className="mb-2 font-sans-medium text-body text-ink">Your list</Text>
+          <Text className="mb-2 font-sans-bold text-body text-ink">Your list</Text>
           <View className="mb-6 rounded-card border border-hairline bg-surface p-4">
             {params.manualItems.map((item, i) => (
               <View
@@ -128,7 +128,7 @@ export function SuggestOrderSummaryScreen() {
             <Row title={formatFullDay(scheduledDate)} meta="On this Wave" chevron={false} />
           </RowGroup>
 
-          <Text className="mb-3 mt-8 font-sans-medium text-subheading text-ink">
+          <Text className="mb-3 mt-8 font-sans-bold text-subheading text-ink">
             What you pay now
           </Text>
           <View className="rounded-card border border-hairline bg-surface p-5">

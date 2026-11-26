@@ -14,7 +14,7 @@ export function WaveContextBanner({
   const day = formatFullDay(new Date(scheduledDate));
   return (
     <View className="mb-6 rounded-card border border-hairline bg-surface px-4 py-3">
-      <Text className="font-sans-medium text-body text-ink">
+      <Text className="font-sans-bold text-body text-ink">
         {day}
         {isSpecialOrder ? " · Rush Wave" : ""}
       </Text>

@@ -106,7 +106,7 @@ export function MenuScreen() {
               }`}
             >
               <PlusIcon size={16} color={colors.ink} strokeWidth={2.2} />
-              <Text className="font-sans-medium text-body text-ink">Add</Text>
+              <Text className="font-sans-bold text-body text-ink">Add</Text>
             </Pressable>
           </View>
         </Gutter>
@@ -135,9 +135,9 @@ export function MenuScreen() {
             <>
               <View className="overflow-hidden rounded-card border border-hairline bg-surface">
                 <View className="flex-row border-b border-hairline px-5 py-3">
-                  <Text className="flex-[2] font-sans-semibold text-meta text-muted">ITEM</Text>
-                  <Text className="flex-1 font-sans-semibold text-meta text-muted">PRICE</Text>
-                  <Text className="w-36 font-sans-semibold text-meta text-muted">STATUS</Text>
+                  <Text className="flex-[2] font-sans-bold text-body text-ink">Item</Text>
+                  <Text className="flex-1 font-sans-bold text-body text-ink">Price</Text>
+                  <Text className="w-36 font-sans-bold text-body text-ink">Status</Text>
                 </View>
                 {filtered.map((product, i) => (
                   <Pressable
@@ -150,7 +150,7 @@ export function MenuScreen() {
                     }`}
                   >
                     <Text
-                      className="flex-[2] pr-3 font-sans-medium text-body text-ink"
+                      className="flex-[2] pr-3 font-sans-bold text-body text-ink"
                       numberOfLines={1}
                     >
                       {product.name}
@@ -207,7 +207,7 @@ export function MenuScreen() {
                       accessibilityHint="Edit name, price or photo"
                       className="min-h-[44px] flex-1 justify-center"
                     >
-                      <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
+                      <Text className="font-sans-bold text-body text-ink" numberOfLines={1}>
                         {product.name}
                       </Text>
                       <Text className="font-sans text-body text-muted">
