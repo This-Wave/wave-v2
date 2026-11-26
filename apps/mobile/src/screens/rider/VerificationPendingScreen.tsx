@@ -52,7 +52,7 @@ export function VerificationPendingScreen() {
     <Screen>
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-16">
-          <Text className="mb-2 font-sans-bold text-heading text-ink">
+          <Text className="mb-2 font-display text-heading text-ink">
             {rejected ? "We couldn't verify you" : "Verification submitted"}
           </Text>
 

@@ -30,7 +30,7 @@ export function PaymentFailedScreen() {
             <AlertIcon size={26} color={colors.ink} strokeWidth={1.8} />
           </View>
 
-          <Text className="mb-2 font-sans-bold text-heading text-ink">
+          <Text className="mb-2 font-display text-heading text-ink">
             We couldn't confirm that
           </Text>
           <Text className="mb-8 font-sans text-body text-muted">

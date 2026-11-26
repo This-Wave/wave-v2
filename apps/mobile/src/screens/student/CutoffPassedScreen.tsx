@@ -27,7 +27,7 @@ export function CutoffPassedScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-8">
-          <Text className="mb-2 font-sans-bold text-heading text-ink">
+          <Text className="mb-2 font-display text-heading text-ink">
             Today's run is full
           </Text>
           <Text className="mb-8 font-sans text-body text-muted">

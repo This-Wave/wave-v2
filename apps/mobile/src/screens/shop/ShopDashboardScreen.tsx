@@ -65,7 +65,7 @@ export function ShopDashboardScreen() {
           <Gutter className="pb-8 pt-8">
             <View className="mb-2 flex-row items-start justify-between">
               <View className="flex-1 pr-3">
-                <Text className="font-sans-bold text-heading text-ink">
+                <Text className="font-display text-heading text-ink">
                   {shop?.name ?? "Your shop"}
                 </Text>
                 <Text className="mt-1 font-sans text-ui text-muted">

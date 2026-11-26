@@ -87,7 +87,7 @@ export function MenuScreen() {
             <View className="flex-1 pr-4">
               {isDesktop ? (
                 <>
-                  <Text className="font-sans-bold text-heading text-ink">Menu</Text>
+                  <Text className="font-display text-heading text-ink">Menu</Text>
                   <Text className="mt-1 font-sans text-ui text-muted">
                     What students can order from {shop?.name ?? "your shop"}.
                   </Text>

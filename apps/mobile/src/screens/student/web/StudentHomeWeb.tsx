@@ -87,7 +87,7 @@ export function StudentHomeWeb() {
       <ScreenBody bottomInset={48}>
         <Gutter className="flex-row items-end justify-between pb-8 pt-8">
           <View className="flex-1 pr-6">
-            <Text className="font-sans-bold text-heading text-ink">
+            <Text className="font-display text-heading text-ink">
               {buyForMeLaunched ? "Browse shops" : "Move a package"}
             </Text>
             <Text className="mt-1 font-sans text-ui text-muted">

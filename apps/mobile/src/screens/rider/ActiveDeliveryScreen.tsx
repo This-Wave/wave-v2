@@ -133,7 +133,7 @@ export function ActiveDeliveryScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-2">
-          <Text className="mb-8 font-sans-bold text-heading text-ink">
+          <Text className="mb-8 font-display text-heading text-ink">
             {step === "at_shop" ? "Go and collect it" : "Take it to the checkpoint"}
           </Text>
 

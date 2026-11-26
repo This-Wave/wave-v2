@@ -44,7 +44,7 @@ export function PickupPinScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-4">
-          <Text className="mb-2 font-sans-bold text-heading text-ink">Your delivery code</Text>
+          <Text className="mb-2 font-display text-heading text-ink">Your delivery code</Text>
           <Text className="mb-8 font-sans text-body text-muted">
             Read this out to your runner at {order?.checkpoint?.name ?? "your checkpoint"} — they
             type it in to close the delivery. We also text it to your phone.

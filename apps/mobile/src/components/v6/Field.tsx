@@ -114,7 +114,7 @@ export function BigNumberField({
         placeholderTextColor={colors.muted}
         keyboardType="numeric"
         accessibilityLabel={label}
-        className="min-w-[120px] font-sans-bold text-heading text-ink"
+        className="min-w-[120px] font-display text-heading text-ink"
       />
     </View>
   );

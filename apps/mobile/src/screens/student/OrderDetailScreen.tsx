@@ -67,7 +67,7 @@ export function OrderDetailScreen() {
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-2">
           <StatusPill label={pill.label} tone={pill.tone} />
-          <Text className="mt-3 font-sans-bold text-heading text-ink">
+          <Text className="mt-3 font-display text-heading text-ink">
             {order.shop?.name ?? "Package pickup"}
           </Text>
           {order.orderType === "pickup" && order.originCheckpoint ? (

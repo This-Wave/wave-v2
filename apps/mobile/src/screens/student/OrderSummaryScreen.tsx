@@ -141,7 +141,7 @@ export function OrderSummaryScreen() {
       <ScreenBody bottomInset={16}>
         <Gutter>
           <CheckoutProgress step={2} />
-          <Text className="mb-8 font-sans-bold text-heading text-ink">Check this over</Text>
+          <Text className="mb-8 font-display text-heading text-ink">Check this over</Text>
 
           <Text className="mb-2 font-sans-medium text-body text-ink">Delivery</Text>
           <RowGroup>
@@ -223,7 +223,7 @@ export function OrderSummaryScreen() {
               className="flex-row items-center justify-between pt-4"
             >
               <Text className="font-sans-medium text-ui text-ink">Total</Text>
-              <Text className="font-sans-bold text-heading-sm text-ink">
+              <Text className="font-display text-heading-sm text-ink">
                 {formatGhsCompact(estimate.total)}
               </Text>
             </View>

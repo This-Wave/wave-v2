@@ -74,7 +74,7 @@ export function OrderFeedScreen() {
         {isDesktop ? (
           <Gutter className="flex-row items-end justify-between pb-8 pt-8">
             <View className="flex-1 pr-4">
-              <Text className="font-sans-bold text-heading text-ink">Available</Text>
+              <Text className="font-display text-heading text-ink">Available</Text>
               <Text className="mt-1 font-sans text-ui text-muted">
                 {wave
                   ? `${wave.name} · closes in ${wave.countdown}. Claim what you can run.`

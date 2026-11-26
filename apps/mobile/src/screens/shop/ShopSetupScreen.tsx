@@ -69,7 +69,7 @@ export function ShopSetupScreen() {
     <Screen>
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-12">
-          <Text className="mb-2 font-sans-bold text-heading text-ink">Add your shop</Text>
+          <Text className="mb-2 font-display text-heading text-ink">Add your shop</Text>
           <Text className="mb-10 font-sans text-body text-muted">
             An admin checks this before students can see you. Nothing here is public yet.
           </Text>

@@ -60,7 +60,7 @@ export function WaveStrip({ wave, onPress }: { wave: WaveInfo | null; onPress: (
             the two read as a pair rather than a sentence. */}
         {closed ? null : (
           <View className="items-end">
-            <Text className="font-sans-bold text-heading-sm text-ink">{wave.countdown}</Text>
+            <Text className="font-display text-heading-sm text-ink">{wave.countdown}</Text>
             <Text className="font-sans text-meta text-ink-700">left to order</Text>
             {/* The one moment the solid accent is warranted here: under six
                 hours, "later" has stopped being a safe assumption. */}

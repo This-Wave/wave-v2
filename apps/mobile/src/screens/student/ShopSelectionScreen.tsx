@@ -85,7 +85,7 @@ export function ShopSelectionScreen() {
         <Gutter className={isDesktop ? "pb-6 pt-2" : "pb-5"}>
           {isDesktop ? (
             <>
-              <Text className="font-sans-bold text-heading text-ink">Where from?</Text>
+              <Text className="font-display text-heading text-ink">Where from?</Text>
               <Text className="mt-1 font-sans text-ui text-muted">
                 Pick a shop on this Wave. We’ll buy exactly what’s on their menu.
               </Text>

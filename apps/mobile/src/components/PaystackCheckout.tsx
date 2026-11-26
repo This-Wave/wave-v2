@@ -95,7 +95,7 @@ function WebCheckout({
     <View className="flex-1 bg-canvas">
       <TopBar title="Payment" onBack={() => onSettle("dismissed")} />
       <Gutter className="flex-1 pt-8">
-        <Text className="mb-2 font-sans-bold text-heading text-ink">Taking you to Paystack…</Text>
+        <Text className="mb-2 font-display text-heading text-ink">Taking you to Paystack…</Text>
         <Text className="mb-8 font-sans text-body text-muted">
           You’ll pay in this tab, then come straight back to Wave when you’re done.
         </Text>

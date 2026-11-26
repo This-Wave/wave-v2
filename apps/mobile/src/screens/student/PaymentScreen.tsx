@@ -313,7 +313,7 @@ export function PaymentScreen() {
         <TopBar onBack={backToChoosing} />
         <ScreenBody bottomInset={16}>
           <Gutter>
-            <Text className="font-sans-bold text-heading text-ink">Enter the SMS code</Text>
+            <Text className="font-display text-heading text-ink">Enter the SMS code</Text>
             <Text className="mb-7 mt-1.5 font-sans text-body text-muted">
               Sent to {maskMomoNumber(momo.payer)} · first payment from this number
             </Text>
@@ -352,7 +352,7 @@ export function PaymentScreen() {
         <ScreenBody bottomInset={16}>
           <Gutter className="pt-16 items-center">
             <ActivityIndicator color={colors.ink} />
-            <Text className="mb-2 mt-6 text-center font-sans-bold text-heading text-ink">
+            <Text className="mb-2 mt-6 text-center font-display text-heading text-ink">
               Confirming your payment
             </Text>
             <Text className="text-center font-sans text-body text-muted">

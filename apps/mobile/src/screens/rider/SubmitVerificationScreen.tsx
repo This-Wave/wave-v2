@@ -180,7 +180,7 @@ export function SubmitVerificationScreen() {
             <View className="mb-6 h-14 w-14 items-center justify-center rounded-pill bg-lime">
               <CheckIcon size={28} color={colors.ink} strokeWidth={2.4} />
             </View>
-            <Text className="mb-2 font-sans-bold text-heading text-ink">Sent for review</Text>
+            <Text className="mb-2 font-display text-heading text-ink">Sent for review</Text>
             <Text className="font-sans text-body text-muted">
               Wave will check your ID and selfie. You'll get a notification once it's approved, and
               you can start taking orders straight away.
@@ -200,7 +200,7 @@ export function SubmitVerificationScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-2">
-          <Text className="mb-2 font-sans-bold text-heading text-ink">Verify yourself</Text>
+          <Text className="mb-2 font-display text-heading text-ink">Verify yourself</Text>
           <Text className="mb-8 font-sans text-body text-muted">
             Wave checks every rider before they carry a student's order. This takes a minute.
           </Text>
@@ -249,7 +249,7 @@ export function SubmitVerificationScreen() {
           {isExternal ? (
             <>
               <View className="mt-9 mb-2">
-                <Text className="font-sans-bold text-heading-sm text-ink">A few more things</Text>
+                <Text className="font-display text-heading-sm text-ink">A few more things</Text>
                 <Text className="mt-1 font-sans text-body text-muted">
                   Riders who aren't students of the university are asked for more, because there's
                   no campus record of you to check against.

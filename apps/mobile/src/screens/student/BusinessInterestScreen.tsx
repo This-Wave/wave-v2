@@ -76,7 +76,7 @@ export function BusinessInterestScreen() {
         <TopBar onBack={() => navigation.goBack()} />
         <ScreenBody bottomInset={16}>
           <Gutter className="pt-6">
-            <Text accessibilityRole="header" className="font-sans-bold text-heading text-ink">
+            <Text accessibilityRole="header" className="font-display text-heading text-ink">
               Thanks, we'll call you
             </Text>
             <Text className="mt-2 font-sans text-body text-muted">
@@ -96,7 +96,7 @@ export function BusinessInterestScreen() {
       <TopBar onBack={() => navigation.goBack()} />
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-2">
-          <Text accessibilityRole="header" className="font-sans-bold text-heading text-ink">
+          <Text accessibilityRole="header" className="font-display text-heading text-ink">
             Run a business on {campus}?
           </Text>
           <Text className="mt-2 font-sans text-body text-muted">

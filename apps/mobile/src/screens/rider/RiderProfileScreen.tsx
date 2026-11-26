@@ -54,7 +54,7 @@ export function RiderProfileScreen() {
         <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-8 pt-4"}>
           {isDesktop ? (
             <>
-              <Text className="font-sans-bold text-heading text-ink">Account</Text>
+              <Text className="font-display text-heading text-ink">Account</Text>
               <Text className="mt-1 font-sans text-ui text-muted">
                 Your runner profile and verification status.
               </Text>
@@ -75,7 +75,7 @@ export function RiderProfileScreen() {
             >
               {isDesktop ? (
                 <>
-                  <Text className="font-sans-bold text-heading-sm text-ink">
+                  <Text className="font-display text-heading-sm text-ink">
                     {profile?.fullName ?? "Rider"}
                   </Text>
                   <Text className="mt-2 font-sans text-body text-muted">{profile?.phone ?? "—"}</Text>

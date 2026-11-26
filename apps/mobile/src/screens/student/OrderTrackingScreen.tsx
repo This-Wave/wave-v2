@@ -89,7 +89,7 @@ export function OrderTrackingScreen() {
         <Gutter>
           <View className="mb-6">
             {pill ? <StatusPill label={pill.label} tone={pill.tone} /> : null}
-            <Text className="mt-3 font-sans-bold text-heading text-ink">
+            <Text className="mt-3 font-display text-heading text-ink">
               {headline(order?.status)}
             </Text>
             <Text className="mt-1 font-sans text-body text-muted">

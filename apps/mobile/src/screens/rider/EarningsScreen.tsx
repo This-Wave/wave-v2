@@ -66,7 +66,7 @@ export function EarningsScreen() {
         <Gutter className={isDesktop ? "pb-8 pt-8" : "pb-6 pt-4"}>
           {isDesktop ? (
             <>
-              <Text className="font-sans-bold text-heading text-ink">Earnings</Text>
+              <Text className="font-display text-heading text-ink">Earnings</Text>
               <Text className="mt-1 font-sans text-ui text-muted">
                 What you’ve earned from closed deliveries.
               </Text>

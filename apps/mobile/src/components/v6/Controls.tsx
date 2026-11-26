@@ -140,7 +140,7 @@ export function SectionTitle({
 
 /** Page title, 28/700. One per screen, and never alongside a TopBar title. */
 export function PageTitle({ children }: { children: ReactNode }) {
-  return <Text className="font-sans-bold text-heading text-ink">{children}</Text>;
+  return <Text className="font-display text-heading text-ink">{children}</Text>;
 }
 
 /** Hairline divider between list rows. */

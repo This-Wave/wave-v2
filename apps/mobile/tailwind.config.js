@@ -93,7 +93,8 @@ module.exports = {
         ui: ["16px", { lineHeight: "20px" }],
         subheading: ["20px", { lineHeight: "24px", letterSpacing: "-0.18px" }],
         "heading-sm": ["22px", { lineHeight: "26px", letterSpacing: "-0.44px" }],
-        heading: ["28px", { lineHeight: "32px", letterSpacing: "-0.6px" }],
+        heading: ["30px", { lineHeight: "34px", letterSpacing: "-0.6px" }],
+        display: ["40px", { lineHeight: "44px", letterSpacing: "-0.8px" }],
       },
       borderRadius: {
         // Exactly three shapes: card, input, pill. Nothing else.

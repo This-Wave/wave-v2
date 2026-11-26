@@ -76,7 +76,7 @@ export function OtpVerifyScreen({ navigation, route }: Props) {
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-4">
-          <Text className="mb-2 font-sans-bold text-heading text-ink">Enter the code</Text>
+          <Text className="mb-2 font-display text-heading text-ink">Enter the code</Text>
           <Text className="mb-10 font-sans text-body text-muted">
             We sent six digits to <Text className="font-sans-medium text-ink">{phone}</Text>.
           </Text>

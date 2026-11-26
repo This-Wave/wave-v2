@@ -69,7 +69,7 @@ export function StudentProfileWeb() {
     <Screen>
       <ScreenBody bottomInset={48}>
         <Gutter className="pb-8 pt-8">
-          <Text className="font-sans-bold text-heading text-ink">Account</Text>
+          <Text className="font-display text-heading text-ink">Account</Text>
           <Text className="mt-1 font-sans text-ui text-muted">
             Your Wave profile and delivery preferences.
           </Text>
@@ -78,7 +78,7 @@ export function StudentProfileWeb() {
         <Gutter>
           <View className="flex-row flex-wrap" style={{ gap: 24 }}>
             <View className="rounded-card border border-hairline bg-surface p-6" style={{ flex: 1, minWidth: 280 }}>
-              <Text className="font-sans-bold text-heading-sm text-ink">
+              <Text className="font-display text-heading-sm text-ink">
                 {profile?.fullName ?? "Student"}
               </Text>
               <Text className="mt-2 font-sans text-body text-muted">

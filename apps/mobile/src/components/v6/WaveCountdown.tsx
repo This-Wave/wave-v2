@@ -66,7 +66,7 @@ export function WaveCountdown({ wave }: { wave: WaveInfo }) {
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
             >
-              <Text className="font-sans-bold text-heading text-ink">{part.value}</Text>
+              <Text className="font-display text-heading text-ink">{part.value}</Text>
               <Text className="font-sans text-meta text-ink-700">{part.unit}</Text>
             </View>
           ))}

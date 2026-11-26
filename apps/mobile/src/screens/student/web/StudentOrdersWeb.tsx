@@ -58,7 +58,7 @@ export function StudentOrdersWeb() {
         onRefresh={() => void refetch()}
       >
         <Gutter className="pb-8 pt-8">
-          <Text className="font-sans-bold text-heading text-ink">Orders</Text>
+          <Text className="font-display text-heading text-ink">Orders</Text>
           <Text className="mt-1 font-sans text-ui text-muted">
             Track live deliveries and review what you’ve already received.
           </Text>

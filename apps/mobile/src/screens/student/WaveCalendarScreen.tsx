@@ -50,7 +50,7 @@ export function WaveCalendarScreen() {
 
       <ScreenBody bottomInset={16}>
         <Gutter>
-          <Text accessibilityRole="header" className="mb-6 font-sans-bold text-heading text-ink">
+          <Text accessibilityRole="header" className="mb-6 font-display text-heading text-ink">
             When do you need it?
           </Text>
 
