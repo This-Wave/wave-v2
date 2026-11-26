@@ -231,7 +231,7 @@ function FeedRow({
     >
       <View className="flex-[2] flex-row items-center gap-3 pr-3">
         <Thumb uri={order.shop?.logoUrl} size={40} />
-        <Text className="flex-1 font-sans-medium text-body text-ink" numberOfLines={1}>
+        <Text className="flex-1 font-sans-bold text-body text-ink" numberOfLines={1}>
           {order.shop?.name ?? "Shop"}
         </Text>
       </View>

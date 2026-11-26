@@ -1,12 +1,12 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { StudentStackParamList } from "../../navigation/StudentNavigator";
-import { Button, Gutter, Row, RowGroup, Screen, ScreenBody } from "../../components/v6";
-import { CheckIcon } from "../../components/icons";
+import { ActionBar, Button, Gutter, Screen, ScreenBody } from "../../components/v6";
+import { Illustration, Rise } from "../../components/v7/Illustration";
+import { CodeTicket } from "../../components/v7/Signature";
 import { NotificationPrompt } from "../../components/NotificationSettings";
-import { colors } from "../../theme/tokens";
-import { useOrder } from "../../lib/orders";
+import { useDeliveryPin, useOrder } from "../../lib/orders";
 import { formatFullDay } from "../../lib/pricing";
 import {
   resetAfterOrderConfirmed,
@@ -17,70 +17,51 @@ import { shortOrderRef } from "./orderPresenters";
 type Route = RouteProp<StudentStackParamList, "OrderConfirmed">;
 
 /**
- * The moment after paying (canvas board 12): a green celebration, the same
- * shape as the rider's Delivered, so the peak of the flow feels like one
- * (Peak-End rule).
- *
- * The delivery code is deliberately NOT here any more. It is needed at the
- * checkpoint, hours later, and lives on Tracking, where the student will be
- * when they need it. Showing it now taught people to screenshot it.
+ * v7 "It's on." (canvas: Sent: the code). The peak of the flow (peak-end): the
+ * running illustration, who we're collecting from, and the code ticket. The
+ * code also stays on Tracking, where the student is when they need it.
  */
 export function OrderConfirmedScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<StudentStackParamList>>();
   const { params } = useRoute<Route>();
   const { data: order } = useOrder(params.orderId);
+  const { data: pin } = useDeliveryPin(params.orderId, { pollUntilReady: true });
+  const from = order?.senderName
+    ? `${order.senderName}${order.originCheckpoint?.name ? ` in ${order.originCheckpoint.name}` : ""}`
+    : (order?.originCheckpoint?.name ?? order?.shop?.name ?? null);
 
   return (
-    <Screen narrow className="bg-ink">
-      <View className="flex-1 bg-ink">
-        <ScreenBody bottomInset={16}>
-          <Gutter className="pt-16">
-            <View className="mb-8 h-20 w-20 items-center justify-center rounded-pill bg-lime">
-              <CheckIcon size={40} color={colors.ink} strokeWidth={2.6} />
-            </View>
-
-            <Text
-              accessibilityRole="header"
-              className="mb-2 font-sans-bold text-white"
-              style={{ fontSize: 40, lineHeight: 44, letterSpacing: -1.2 }}
-            >
-              Order placed
+    <Screen narrow>
+      <ScreenBody bottomInset={16}>
+        <Gutter className="items-center pt-10" style={{ gap: 16 }}>
+          <Rise>
+            <Illustration name="run" width={240} height={180} />
+          </Rise>
+          <Rise delay={80}>
+            <Text accessibilityRole="header" className="text-center font-display text-display text-ink">
+              It's on.
             </Text>
-            <Text className="mb-10 font-sans text-white" style={{ fontSize: 18, lineHeight: 24, opacity: 0.85 }}>
-              {order?.scheduledDate ? formatFullDay(new Date(order.scheduledDate)) : "On the next Wave"}
+          </Rise>
+          <Rise delay={140}>
+            <Text className="text-center font-sans text-ui text-muted" style={{ lineHeight: 24 }}>
+              {from ? `We'll pick it up from ${from}.` : "We've got it from here."}
+              {order?.scheduledDate ? ` Arrives ${formatFullDay(new Date(order.scheduledDate))}.` : ""}
             </Text>
+          </Rise>
+          <View className="w-full">
+            <CodeTicket pin={pin ?? null} note="Show it at your pickup point" />
+          </View>
+          <Text className="font-sans text-meta text-muted">{shortOrderRef(params.orderId)}</Text>
+          <NotificationPrompt />
+        </Gutter>
+      </ScreenBody>
 
-            <RowGroup>
-              <Row
-                title={order?.shop?.name ?? "Your order"}
-                meta={order?.itemDescription}
-                chevron={false}
-              />
-              <Row
-                title={order?.checkpoint?.name ?? "Your checkpoint"}
-                meta={shortOrderRef(params.orderId)}
-                chevron={false}
-              />
-            </RowGroup>
-            <NotificationPrompt />
-          </Gutter>
-        </ScreenBody>
-
-        <View className="gap-3 px-gutter pb-8 pt-3">
-          <Button
-            label="Track this order"
-            onPress={() => resetAfterOrderConfirmed(navigation, params.orderId, "tracking")}
-          />
-          <Pressable
-            onPress={() => resetStudentTabs(navigation, "Home")}
-            accessibilityRole="button"
-            className="min-h-[52px] items-center justify-center rounded-pill active:opacity-80"
-            style={{ borderWidth: 1.5, borderColor: "rgba(255,255,255,0.7)" }}
-          >
-            <Text className="font-sans-medium text-ui text-white">Back to home</Text>
-          </Pressable>
+      <ActionBar>
+        <View style={{ gap: 10 }}>
+          <Button label="Track it" onPress={() => resetAfterOrderConfirmed(navigation, params.orderId, "tracking")} />
+          <Button label="Done" variant="ghost" onPress={() => resetStudentTabs(navigation, "Home")} />
         </View>
-      </View>
+      </ActionBar>
     </Screen>
   );
 }

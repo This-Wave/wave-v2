@@ -104,7 +104,7 @@ export function OtpVerifyScreen({ navigation, route }: Props) {
               </Text>
             ) : (
               <Text
-                className="font-sans-medium text-body text-ink"
+                className="font-sans-bold text-body text-ink"
                 accessibilityRole="button"
                 onPress={handleResend}
               >

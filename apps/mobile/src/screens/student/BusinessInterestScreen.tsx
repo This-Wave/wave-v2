@@ -104,12 +104,12 @@ export function BusinessInterestScreen() {
           </Text>
 
           <View className="mt-4 rounded-card bg-lime-faint px-4 py-3">
-            <Text className="font-sans-medium text-body text-ink">
+            <Text className="font-sans-bold text-body text-ink">
               We don't deliver within campus. Every Wave delivery starts in Accra.
             </Text>
           </View>
 
-          <Text className="mb-2 mt-6 font-sans-medium text-body text-ink">What would help most?</Text>
+          <Text className="mb-2 mt-6 font-sans-bold text-body text-ink">What would help most?</Text>
           <View className="gap-2" accessibilityRole="radiogroup">
             {KINDS.map((k) => {
               const selected = kind === k.kind;

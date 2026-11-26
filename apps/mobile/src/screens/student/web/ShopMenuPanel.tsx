@@ -150,10 +150,10 @@ function MenuLine({
         <View className="h-12 w-12 rounded-input bg-surface-muted" />
       )}
       <View className="flex-1">
-        <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
+        <Text className="font-sans-bold text-body text-ink" numberOfLines={1}>
           {product.name}
         </Text>
-        <Text className="font-sans-medium text-body text-ink">{formatGhs(Number(product.price))}</Text>
+        <Text className="font-sans-bold text-body text-ink">{formatGhs(Number(product.price))}</Text>
       </View>
       {selected ? (
         <View className="flex-row items-center gap-1">
@@ -171,7 +171,7 @@ function MenuLine({
           </Pressable>
           <Text
             accessibilityLabel={`${quantity} in your basket`}
-            className="w-6 text-center font-sans-medium text-body text-ink"
+            className="w-6 text-center font-sans-bold text-body text-ink"
           >
             {quantity}
           </Text>
@@ -201,7 +201,7 @@ function MenuLine({
             canAdd ? "bg-lime" : "bg-surface-muted"
           }`}
         >
-          <Text className="font-sans-medium text-body text-ink">Add</Text>
+          <Text className="font-sans-bold text-body text-ink">Add</Text>
         </Pressable>
       )}
     </View>

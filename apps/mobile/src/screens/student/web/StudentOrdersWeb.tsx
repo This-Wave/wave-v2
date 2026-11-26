@@ -200,12 +200,12 @@ function PastRow({
     >
       <View className="flex-[2] flex-row items-center gap-3 pr-3">
         <Thumb uri={order.shop?.logoUrl} size={40} />
-        <Text className="flex-1 font-sans-medium text-body text-ink" numberOfLines={1}>
+        <Text className="flex-1 font-sans-bold text-body text-ink" numberOfLines={1}>
           {order.shop?.name ?? "Package pickup"}
         </Text>
       </View>
       <Text className="flex-1 font-sans text-body text-muted">{dayOf(order)}</Text>
-      <Text className="flex-1 font-sans-medium text-body text-ink">
+      <Text className="flex-1 font-sans-bold text-body text-ink">
         {formatGhsCompact(Number(order.totalAmount ?? 0))}
       </Text>
       <View className="w-28">

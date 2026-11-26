@@ -96,7 +96,7 @@ function ServiceRow({
         {icon}
       </View>
       <View className="flex-1">
-        <Text className="mb-1 font-sans-medium text-subheading text-ink">{title}</Text>
+        <Text className="mb-1 font-sans-bold text-subheading text-ink">{title}</Text>
         <Text className="font-sans text-body text-muted">{body}</Text>
       </View>
       <ChevronRightIcon size={16} color={colors.icon} />

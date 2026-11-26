@@ -387,7 +387,7 @@ export function PaymentScreen() {
           <View accessible accessibilityLabel={`You're paying ${formatGhs(params.totalAmount)}`}>
             <Text className="font-sans text-body text-muted">You&apos;re paying</Text>
             <Text
-              className="mb-10 mt-1 font-sans-bold text-ink"
+              className="mb-8 mt-1 font-display text-ink"
               // Off-scale on purpose: this is the figure the whole screen
               // exists to state. `formatGhsCompact` drops the decimals for the
               // display, so the accessible name above uses the exact amount —
@@ -399,7 +399,7 @@ export function PaymentScreen() {
             </Text>
           </View>
 
-          <Text className="mb-3 font-sans-medium text-subheading text-ink">How?</Text>
+          <Text accessibilityRole="header" className="mb-3 font-display text-heading-sm text-ink">How do you want to pay?</Text>
           <View className="gap-2" accessibilityRole="radiogroup" accessibilityLabel="Payment method">
             <MethodRow
               label="Mobile Money"
@@ -416,7 +416,7 @@ export function PaymentScreen() {
               <View className="gap-4 rounded-card border border-hairline bg-surface p-4">
                 <PhoneField label="MoMo number" value={momoDigits} onChangeText={changeMomoDigits} />
                 <View>
-                  <Text nativeID="momo-network" className="mb-2 font-sans-medium text-body text-ink">
+                  <Text nativeID="momo-network" className="mb-2 font-sans-bold text-body text-ink">
                     Network
                   </Text>
                   <View
@@ -504,14 +504,14 @@ function MethodRow({
       // reports on its own.
       accessible
       accessibilityLabel={`${label}, ${meta}`}
-      className={`min-h-[56px] flex-row items-center gap-3 rounded-card p-4 ${
-        selected ? "bg-lime-faint" : "bg-surface"
+      className={`min-h-[60px] flex-row items-center gap-3 rounded-card border-2 p-4 ${
+        selected ? "border-ink bg-wash" : "border-line bg-surface"
       }`}
     >
       {icon}
       <View className="flex-1">
-        <Text className="font-sans-medium text-body text-ink">{label}</Text>
-        <Text className="font-sans text-body text-muted">{meta}</Text>
+        <Text className="font-sans-bold text-ui text-ink">{label}</Text>
+        <Text className="font-sans text-meta text-muted">{meta}</Text>
       </View>
       {selected ? <CheckIcon size={18} color={colors.ink} strokeWidth={2.2} /> : null}
     </Pressable>

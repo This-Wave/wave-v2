@@ -106,7 +106,7 @@ export function MenuScreen() {
               }`}
             >
               <PlusIcon size={16} color={colors.ink} strokeWidth={2.2} />
-              <Text className="font-sans-medium text-body text-ink">Add</Text>
+              <Text className="font-sans-bold text-body text-ink">Add</Text>
             </Pressable>
           </View>
         </Gutter>
@@ -150,7 +150,7 @@ export function MenuScreen() {
                     }`}
                   >
                     <Text
-                      className="flex-[2] pr-3 font-sans-medium text-body text-ink"
+                      className="flex-[2] pr-3 font-sans-bold text-body text-ink"
                       numberOfLines={1}
                     >
                       {product.name}
@@ -207,7 +207,7 @@ export function MenuScreen() {
                       accessibilityHint="Edit name, price or photo"
                       className="min-h-[44px] flex-1 justify-center"
                     >
-                      <Text className="font-sans-medium text-body text-ink" numberOfLines={1}>
+                      <Text className="font-sans-bold text-body text-ink" numberOfLines={1}>
                         {product.name}
                       </Text>
                       <Text className="font-sans text-body text-muted">

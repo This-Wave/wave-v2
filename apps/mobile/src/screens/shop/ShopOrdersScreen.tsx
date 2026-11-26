@@ -112,14 +112,14 @@ function OrderRow({
     <>
       <View className="flex-[2] flex-row items-center gap-3 pr-3">
         <Thumb uri={order.shop?.logoUrl} size={40} />
-        <Text className="flex-1 font-sans-medium text-body text-ink" numberOfLines={1}>
+        <Text className="flex-1 font-sans-bold text-body text-ink" numberOfLines={1}>
           {order.student?.fullName ?? "Student"}
         </Text>
       </View>
       <Text className="flex-[2] pr-3 font-sans text-body text-muted" numberOfLines={1}>
         {order.itemDescription}
       </Text>
-      <Text className="flex-1 font-sans-medium text-body text-ink">
+      <Text className="flex-1 font-sans-bold text-body text-ink">
         {formatGhs(Number(order.totalAmount))}
       </Text>
       <View className="w-28">

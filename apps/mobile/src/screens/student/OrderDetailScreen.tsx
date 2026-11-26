@@ -77,7 +77,7 @@ export function OrderDetailScreen() {
           ) : null}
           <Text className="mb-7 mt-1 font-sans text-body text-muted">{whenLine(order)}</Text>
 
-          <Text className="mb-3 font-sans-medium text-subheading text-ink">What you ordered</Text>
+          <Text className="mb-3 font-sans-bold text-subheading text-ink">What you ordered</Text>
           <RowGroup>
             <Row
               title={order.itemDescription ?? "—"}
@@ -96,7 +96,7 @@ export function OrderDetailScreen() {
             ) : null}
           </RowGroup>
 
-          <Text className="mb-3 mt-7 font-sans-medium text-subheading text-ink">What it cost</Text>
+          <Text className="mb-3 mt-7 font-sans-bold text-subheading text-ink">What it cost</Text>
           <View className="rounded-card border border-hairline bg-surface p-5">
             <Ledger ledger={ledger} />
           </View>
@@ -107,7 +107,7 @@ export function OrderDetailScreen() {
             </Text>
           ) : null}
 
-          <Text className="mb-3 mt-7 font-sans-medium text-subheading text-ink">How it went</Text>
+          <Text className="mb-3 mt-7 font-sans-bold text-subheading text-ink">How it went</Text>
           <View className="rounded-card border border-hairline bg-surface p-5">
             <Steps steps={orderSteps(order)} currentIndex={currentStepIndex(order.status)} />
           </View>

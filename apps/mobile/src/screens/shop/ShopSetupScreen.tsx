@@ -83,7 +83,7 @@ export function ShopSetupScreen() {
             />
           </View>
 
-          <Text className="mb-2 font-sans-medium text-body text-ink">Category</Text>
+          <Text className="mb-2 font-sans-bold text-body text-ink">Category</Text>
           <Pressable
             onPress={() => setPicking(true)}
             accessibilityRole="button"
@@ -162,7 +162,7 @@ export function ShopSetupScreen() {
                 category === c ? "bg-lime-faint" : "bg-canvas"
               }`}
             >
-              <Text className="flex-1 font-sans-medium text-body text-ink">{c}</Text>
+              <Text className="flex-1 font-sans-bold text-body text-ink">{c}</Text>
               {category === c ? (
                 <CheckIcon size={18} color={colors.ink} strokeWidth={2.2} />
               ) : null}

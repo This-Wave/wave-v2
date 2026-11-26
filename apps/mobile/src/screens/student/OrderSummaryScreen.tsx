@@ -143,7 +143,7 @@ export function OrderSummaryScreen() {
           <CheckoutProgress step={2} />
           <Text className="mb-8 font-display text-heading text-ink">Check this over</Text>
 
-          <Text className="mb-2 font-sans-medium text-body text-ink">Delivery</Text>
+          <Text className="mb-2 font-sans-bold text-body text-ink">Delivery</Text>
           <RowGroup>
             <Row
               title={checkpoint?.name ?? "Choose a checkpoint"}
@@ -164,7 +164,7 @@ export function OrderSummaryScreen() {
             <Row title={params.shopName} meta="Buying from" chevron={false} />
           </RowGroup>
 
-          <Text className="mb-2 mt-8 font-sans-medium text-body text-ink">Your list</Text>
+          <Text className="mb-2 mt-8 font-sans-bold text-body text-ink">Your list</Text>
           <View className="mb-6 rounded-card border border-hairline bg-surface p-4">
             {params.itemsPreview.map((line, i) => (
               <View
@@ -193,14 +193,14 @@ export function OrderSummaryScreen() {
 
           {params.notes ? (
             <View className="mt-6">
-              <Text className="mb-2 font-sans-medium text-body text-ink">Your note</Text>
+              <Text className="mb-2 font-sans-bold text-body text-ink">Your note</Text>
               <View className="rounded-card border border-hairline bg-surface p-4">
                 <Text className="font-sans text-body text-ink">{params.notes}</Text>
               </View>
             </View>
           ) : null}
 
-          <Text className="mb-3 mt-8 font-sans-medium text-subheading text-ink">What you pay</Text>
+          <Text className="mb-3 mt-8 font-sans-bold text-subheading text-ink">What you pay</Text>
           <View className="rounded-card border border-hairline bg-surface p-5">
             <Line label="Items" value={formatGhs(basketTotal)} />
             <Line label="Delivery" value={formatGhs(estimate.deliveryFee)} />

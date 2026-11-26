@@ -99,7 +99,7 @@ export function Confirm({
           accessibilityRole="alert"
           accessibilityLabel={title}
         >
-          <Text className="mb-2 font-sans-medium text-subheading text-ink">{title}</Text>
+          <Text className="mb-2 font-sans-bold text-subheading text-ink">{title}</Text>
           {body ? <Text className="mb-6 font-sans text-body text-muted">{body}</Text> : null}
           <View className="gap-2">
             <Pressable

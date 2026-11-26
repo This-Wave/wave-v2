@@ -356,7 +356,7 @@ function Option({
       }`}
     >
       <View className="flex-1">
-        <Text className="font-sans-medium text-body text-ink">{title}</Text>
+        <Text className="font-sans-bold text-body text-ink">{title}</Text>
         {meta ? <Text className="font-sans text-body text-muted">{meta}</Text> : null}
       </View>
       {selected ? <CheckIcon size={18} color={colors.ink} strokeWidth={2.2} /> : null}
