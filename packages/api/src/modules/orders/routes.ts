@@ -35,7 +35,7 @@ import {
   perAccount,
 } from "../../plugins/rateLimit";
 import { riderEarningFor, riderEarningPct } from "../riders/earningRate";
-import { resolveFeature } from "@wave/shared";
+import { normalizeGhanaLocalDigits, resolveFeature, toGhanaE164 } from "@wave/shared";
 import { pausedFor, pausedReply } from "../switches/routes";
 import { isBetaTester } from "../beta/access";
 import { activeDelivery } from "../companies/mode";
@@ -249,6 +249,16 @@ export async function orderRoutes(fastify: FastifyInstance) {
           checkpointId: input.checkpointId,
           universityId,
           itemDescription: basket.description,
+          ...(input.orderType === "pickup"
+            ? {
+                senderName: input.senderName ?? null,
+                senderPhone: input.senderPhone
+                  ? toGhanaE164(normalizeGhanaLocalDigits(input.senderPhone))
+                  : null,
+                pickupNotes: input.pickupNotes || null,
+                packageSize: input.packageSize ?? null,
+              }
+            : {}),
           itemPrice: chargeableItemsTotal,
           deliveryFee,
           discountApplied: discountPct,

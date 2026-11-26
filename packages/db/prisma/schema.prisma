@@ -453,6 +453,15 @@ model Order {
   orderType OrderType @default(buy_for_me) @map("order_type")
 
   itemDescription  String   @map("item_description")
+  /// Pickup only (since 2026-11-26): the person in Accra handing the package
+  /// over. Wave's student is always the receiver, so the rider needs whoever
+  /// is on the other end. Null on older pickups and on other order types.
+  senderName       String?  @map("sender_name")
+  senderPhone      String?  @map("sender_phone")
+  /// Where exactly to meet the sender: landmark, gate, shop counter.
+  pickupNotes      String?  @map("pickup_notes")
+  /// small | medium | large. Tells the rider what to bring; does not change the fee.
+  packageSize      String?  @map("package_size")
   productId        String?  @map("product_id")
   itemPrice        Decimal? @map("item_price") @db.Decimal(10, 2)
   deliveryFee      Decimal  @map("delivery_fee") @db.Decimal(10, 2)

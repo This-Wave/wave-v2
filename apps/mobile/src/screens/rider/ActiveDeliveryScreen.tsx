@@ -166,6 +166,30 @@ export function ActiveDeliveryScreen() {
             )}
           </View>
 
+          {order?.senderName ? (
+            <View className="mb-7 rounded-card bg-surface p-4">
+              <Text className="font-sans text-meta text-muted">Collect from</Text>
+              <Text className="mt-1 font-sans-medium text-body text-ink">{order.senderName}</Text>
+              {order.senderPhone ? (
+                <Text
+                  accessibilityRole="link"
+                  onPress={() => void Linking.openURL(`tel:${order.senderPhone}`)}
+                  className="mt-0.5 font-sans text-body text-ink underline"
+                >
+                  Call {order.senderPhone}
+                </Text>
+              ) : null}
+              {order.pickupNotes ? (
+                <Text className="mt-2 font-sans text-body text-muted">{order.pickupNotes}</Text>
+              ) : null}
+              {order.packageSize ? (
+                <Text className="mt-2 font-sans text-body text-muted">
+                  Package: {order.packageSize}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+
           {isShopPickup ? (
             <View className="mb-7 rounded-card bg-warning-bg p-4">
               <Text className="font-sans-medium text-body text-warning">

@@ -21,7 +21,7 @@ import { pickupFeeFor, useCheckpoints } from "../../lib/checkpoints";
 import { useCreateOrder } from "../../lib/orders";
 import { useIsGuest, useViewerUniversityId } from "../../store/authStore";
 import type { Checkpoint } from "../../types";
-import { DEFAULT_DELIVERY_FEE_GHS } from "@wave/shared";
+import { DEFAULT_DELIVERY_FEE_GHS, type PackageSize } from "@wave/shared";
 import {
   deliveryDayFor,
   formatFullDay,
@@ -55,25 +55,24 @@ export function PickupRequestScreen() {
   const [description, setDescription] = useState(params?.description ?? "");
   const isGuest = useIsGuest();
   const [accountPrompt, setAccountPrompt] = useState<ResumeTarget | null>(null);
-  // Pre-chosen when arriving from "Move it again"; both are still editable.
   const [fromId, setFromId] = useState<string | null>(params?.fromId ?? null);
   const [toId, setToId] = useState<string | null>(params?.toId ?? null);
   const [dayIndex, setDayIndex] = useState(0);
-  const [picker, setPicker] = useState<"from" | "to" | "day" | null>(null);
+  const [picker, setPicker] = useState<"from" | "to" | "day" | "sender" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [size, setSize] = useState<PackageSize | null>(null);
+  // The student is always the receiver, so the one person the rider needs is
+  // whoever hands it over in Accra.
+  const [senderName, setSenderName] = useState("");
+  const [senderPhone, setSenderPhone] = useState("");
+  const [pickupNotes, setPickupNotes] = useState("");
+  const [showRules, setShowRules] = useState(false);
   const createOrder = useCreateOrder();
 
-  /**
-   * A date chosen on the calendar wins outright and the day picker disappears —
-   * asking twice would let the two answers disagree. Entering straight from
-   * Home's Pickup tile keeps the old inline picker.
-   */
   const chosenDate = params?.scheduledDate ? new Date(params.scheduledDate) : null;
   const days = useMemo(() => upcomingRunDays(new Date(), 4), []);
   const scheduled = chosenDate ?? days[dayIndex];
   const isSpecialOrder = params?.isSpecialOrder ?? (scheduled ? !isStandardRunDay(scheduled) : false);
-  // Collection can be an Accra zone or the campus; a delivery always ends on
-  // campus, so "Deliver to" only ever offers campus checkpoints.
   const zonePoints = (checkpoints ?? []).filter((c) => c.zone);
   const campusPoints = (checkpoints ?? []).filter((c) => !c.zone);
   const from = checkpoints?.find((c) => c.id === fromId) ?? zonePoints[0] ?? campusPoints[0];
@@ -82,14 +81,17 @@ export function PickupRequestScreen() {
     campusPoints.find((c) => c.id !== from?.id) ??
     campusPoints[0];
   const fee = pickupFeeFor(from, DEFAULT_DELIVERY_FEE_GHS);
+  const senderReady = senderName.trim().length >= 2 && senderPhone.replace(/\D/g, "").length >= 9;
+
+  const ready =
+    description.trim().length >= 3 && !!size && senderReady && !!from && !!to && from.id !== to.id && !!scheduled;
 
   async function handleContinue() {
-    if (!from || !to) return;
+    if (!from || !to || !scheduled) return;
     if (from.id === to.id) {
-      setError("Collection and drop-off have to be different checkpoints.");
+      setError("Pickup and drop-off have to be different places.");
       return;
     }
-    if (!scheduled) return;
     setError(null);
     if (isGuest) {
       setAccountPrompt({
@@ -104,6 +106,10 @@ export function PickupRequestScreen() {
         originCheckpointId: from.id,
         checkpointId: to.id,
         itemDescription: description.trim(),
+        senderName: senderName.trim(),
+        senderPhone: senderPhone.trim(),
+        pickupNotes: pickupNotes.trim() || undefined,
+        packageSize: size ?? undefined,
         deliveryDay: deliveryDayFor(scheduled, isSpecialOrder),
         scheduledDate: toApiDate(scheduled),
         isSpecialOrder,
@@ -113,88 +119,179 @@ export function PickupRequestScreen() {
         totalAmount: Number(order.totalAmount),
       });
     } catch {
-      setError("Couldn't create your pickup. Please try again.");
+      setError("Couldn't create your delivery. Please try again.");
     }
   }
 
   return (
     <Screen narrow>
-      <TopBar onBack={() => navigation.goBack()} />
+      <TopBar title="Send a package" onBack={() => navigation.goBack()} />
 
       <ScreenBody bottomInset={16}>
         <Gutter>
-          <Text className="mb-1 font-sans-bold text-heading text-ink">Send a package</Text>
-          <Text className="mb-6 font-sans text-body text-muted">
-            Collected anywhere in our Accra zones and brought to campus on the next Wave.
-            The zone sets the fee, and the fee is the whole price.
+          <Text className="mb-5 font-sans text-body text-muted">
+            Someone in Accra hands it over. We bring it to you on campus.
           </Text>
 
-          {/* Pickup & delivery first: the route is the decision, and the two
-              ends read as one thing when they sit in one card. */}
+          {/* The route as one card, like a ride: pickup with its sender above,
+              you below, joined by a line. */}
           <View className="mb-3 rounded-card bg-surface p-4">
-            <Text className="mb-3 font-sans-medium text-ui text-ink">Pickup &amp; delivery</Text>
             <PickerRow
               icon={<PinIcon size={18} color={colors.ink} strokeWidth={1.9} />}
-              label="Collect from"
+              label="Pickup in Accra"
               value={from ? checkpointLabel(from) : undefined}
-              placeholder="Choose a pickup point"
+              placeholder="Choose a pickup area"
               onPress={() => setPicker("from")}
             />
+            <Pressable
+              onPress={() => setPicker("sender")}
+              accessibilityRole="button"
+              accessibilityLabel={senderReady ? `Sender ${senderName}, ${senderPhone}. Edit` : "Add sender details"}
+              className="ml-11 mt-1 rounded-input py-1 active:bg-hairline"
+            >
+              {senderReady ? (
+                <Text className="font-sans text-body text-muted" numberOfLines={1}>
+                  {senderName.trim()} · {senderPhone.trim()}
+                </Text>
+              ) : (
+                <Text className="font-sans-medium text-body text-ink underline">Add sender details</Text>
+              )}
+              {pickupNotes.trim() ? (
+                <Text className="font-sans text-meta text-muted" numberOfLines={1}>
+                  {pickupNotes.trim()}
+                </Text>
+              ) : null}
+            </Pressable>
             <View className="my-1 ml-4 h-4 border-l border-dashed border-hairline" />
             <PickerRow
               icon={<PinDotIcon size={18} color={colors.ink} strokeWidth={1.9} />}
-              label="Deliver to"
+              label="You, at"
               value={to?.name}
-              placeholder="Choose a drop-off"
+              placeholder="Choose where you collect"
               onPress={() => setPicker("to")}
             />
-            <View className="my-3 border-t border-hairline" />
+          </View>
+
+          <View className="mb-3 rounded-card bg-surface p-4">
+            <Text className="mb-3 font-sans-medium text-ui text-ink">Package size</Text>
+            <View className="gap-2" accessibilityRole="radiogroup">
+              {SIZES.map((s) => (
+                <Option
+                  key={s.key}
+                  title={s.title}
+                  meta={s.meta}
+                  selected={size === s.key}
+                  onPress={() => setSize(s.key)}
+                />
+              ))}
+            </View>
+            <View className="mt-4">
+              <Field
+                label="What is it?"
+                value={description}
+                onChangeText={setDescription}
+                placeholder="A black backpack with my laptop charger"
+                multiline
+                maxLength={500}
+              />
+            </View>
+          </View>
+
+          <View className="mb-3 rounded-card bg-surface p-4">
             <PickerRow
               icon={<CalendarIcon size={18} color={colors.ink} strokeWidth={1.9} />}
-              label={`Delivery fee ${formatGhs(fee)}`}
+              label="Arrives on"
               value={scheduled ? formatFullDay(scheduled) : undefined}
               placeholder="Choose a day"
               onPress={chosenDate ? undefined : () => setPicker("day")}
             />
           </View>
 
+          <View className="mb-3 rounded-card bg-surface p-4">
+            <Text className="font-sans-medium text-ui text-ink">Your 6-digit code</Text>
+            <Text className="mt-1 font-sans text-body text-muted">
+              Only you can collect. We send the code when your order is confirmed.
+            </Text>
+          </View>
+
           <View className="rounded-card bg-surface p-4">
-            <Field
-              label="What are we moving?"
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Blue bag left with the security guard at the main gate."
-              multiline
-            />
+            <Pressable
+              onPress={() => setShowRules((v) => !v)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showRules }}
+              className="flex-row items-center justify-between"
+            >
+              <Text className="font-sans-medium text-ui text-ink">Before you send</Text>
+              <Text className="font-sans-medium text-body text-ink underline">{showRules ? "Hide" : "Read"}</Text>
+            </Pressable>
+            {showRules ? (
+              <View className="mt-3 gap-3">
+                <Rule title="Ready to go" body="Sealed, labelled with your name, and ready when the rider arrives." />
+                <Rule
+                  title="We can't carry"
+                  body="Cash, alcohol, medication, drugs, weapons, anything illegal, live animals, or anything you couldn't replace."
+                />
+                <Rule
+                  title="If we can't collect"
+                  body="If the sender can't be reached, we call you. The pickup can move to the next Wave."
+                />
+              </View>
+            ) : null}
           </View>
         </Gutter>
       </ScreenBody>
 
       <ActionBar>
-        {error ? (
-          <Text className="mb-3 font-sans text-body text-danger">{error}</Text>
-        ) : null}
+        {error ? <Text className="mb-3 font-sans text-body text-danger">{error}</Text> : null}
         <Button
-          label={`${isGuest ? "Continue to pay" : "Pay"} ${formatGhs(fee)}`}
+          label={`${isGuest ? "Continue" : "Confirm delivery"} · ${formatGhs(fee)}`}
           onPress={handleContinue}
           loading={createOrder.isPending}
-          disabled={description.trim().length < 3 || !from || !to || from.id === to.id || !scheduled}
+          disabled={!ready}
         />
       </ActionBar>
 
       <Sheet
+        visible={picker === "sender"}
+        onClose={() => setPicker(null)}
+        title="Who's sending it?"
+        footer={<Button label="Save" disabled={!senderReady} onPress={() => setPicker(null)} />}
+      >
+        <View className="gap-4">
+          <Field label="Sender's name" value={senderName} onChangeText={setSenderName} maxLength={80} autoFocus />
+          <Field
+            label="Sender's phone"
+            value={senderPhone}
+            onChangeText={setSenderPhone}
+            keyboardType="phone-pad"
+            maxLength={15}
+            placeholder="024 123 4567"
+            hint="The rider calls this number to collect."
+          />
+          <Field
+            label="Where to meet them (optional)"
+            value={pickupNotes}
+            onChangeText={setPickupNotes}
+            multiline
+            maxLength={300}
+            placeholder="Shell station by the Legon main gate"
+          />
+        </View>
+      </Sheet>
+
+      <Sheet
         visible={picker === "from" || picker === "to"}
         onClose={() => setPicker(null)}
-        title={picker === "from" ? "Collect from" : "Deliver to"}
+        title={picker === "from" ? "Pickup in Accra" : "Where you collect"}
       >
         <View className="gap-1">
-          {(picker === "from" ? [...zonePoints, ...campusPoints] : campusPoints).map((c) => (
+          {(picker === "from" ? zonePoints : campusPoints).map((c) => (
             <Option
               key={c.id}
               title={checkpointLabel(c)}
               meta={
                 picker === "from"
-                  ? `${c.zone ? `Accra zone ${c.zone.code}` : "On campus"} · ${formatGhs(pickupFeeFor(c, DEFAULT_DELIVERY_FEE_GHS))}`
+                  ? formatGhs(pickupFeeFor(c, DEFAULT_DELIVERY_FEE_GHS))
                   : (c.description ?? undefined)
               }
               selected={(picker === "from" ? from?.id : to?.id) === c.id}
@@ -208,7 +305,7 @@ export function PickupRequestScreen() {
         </View>
       </Sheet>
 
-      <Sheet visible={picker === "day"} onClose={() => setPicker(null)} title="Which run?">
+      <Sheet visible={picker === "day"} onClose={() => setPicker(null)} title="Which day?">
         <View className="gap-1">
           {days.map((d, i) => (
             <Option
@@ -225,6 +322,22 @@ export function PickupRequestScreen() {
       </Sheet>
       <GuestAccountSheet target={accountPrompt} onClose={() => setAccountPrompt(null)} />
     </Screen>
+  );
+}
+
+/** Sizes guide the rider. The fee comes from the pickup zone, not the size. */
+const SIZES: Array<{ key: PackageSize; title: string; meta: string }> = [
+  { key: "small", title: "Small", meta: "Documents, phone, charger. Fits in a bag." },
+  { key: "medium", title: "Medium", meta: "Clothes, shoes, a laptop. A shoebox or so." },
+  { key: "large", title: "Large", meta: "Food trays, a small appliance. Carried in both arms." },
+];
+
+function Rule({ title, body }: { title: string; body: string }) {
+  return (
+    <View>
+      <Text className="font-sans-medium text-body text-ink">{title}</Text>
+      <Text className="mt-0.5 font-sans text-body text-muted">{body}</Text>
+    </View>
   );
 }
 

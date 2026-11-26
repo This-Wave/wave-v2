@@ -48,6 +48,10 @@ export type ManualItemInput = z.infer<typeof manualItemInputSchema>;
  * order with no origin, so they mirror the CHECK constraint in
  * 20260807170100_catalogue_and_suggestions exactly. Change one, change both.
  */
+/** Package sizes for a pickup. Informational: the zone sets the fee. */
+export const PACKAGE_SIZES = ["small", "medium", "large"] as const;
+export type PackageSize = (typeof PACKAGE_SIZES)[number];
+
 export const createOrderSchema = z
   .object({
     orderType: z.enum(ORDER_TYPES).default("buy_for_me"),
@@ -68,6 +72,16 @@ export const createOrderSchema = z
      * basket.
      */
     itemDescription: z.string().min(1).max(500).optional(),
+    /**
+     * Pickup only: who hands the package over in Accra, where to meet them, and
+     * roughly how big it is. Optional on the wire so an app already open on a
+     * phone keeps working through a deploy; the Send a package screen requires
+     * the sender's name and phone.
+     */
+    senderName: z.string().trim().min(2).max(80).optional(),
+    senderPhone: z.string().trim().min(9).max(15).optional(),
+    pickupNotes: z.string().trim().max(300).optional(),
+    packageSize: z.enum(PACKAGE_SIZES).optional(),
   })
   // --- buy_for_me -----------------------------------------------------------
   .refine((v) => (v.orderType === "buy_for_me" ? !!v.shopId : true), {
