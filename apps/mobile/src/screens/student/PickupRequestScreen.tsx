@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { usePickupPointStore } from "../../store/pickupPointStore";
 import { GuestAccountSheet } from "../../components/GuestAccountSheet";
 import type { ResumeTarget } from "../../store/authStore";
 import { Platform, Pressable, Text, View } from "react-native";
@@ -59,7 +60,8 @@ export function PickupRequestScreen() {
   const [senderName, setSenderName] = useState("");
   const [senderPhone, setSenderPhone] = useState("");
   const [fromId, setFromId] = useState<string | null>(params?.fromId ?? null);
-  const [toId, setToId] = useState<string | null>(params?.toId ?? null);
+  const defaultTo = usePickupPointStore((st) => st.defaultId);
+  const [toId, setToId] = useState<string | null>(params?.toId ?? defaultTo ?? null);
   const [building, setBuilding] = useState("");
   const [floor, setFloor] = useState("");
   const [landmark, setLandmark] = useState("");
