@@ -11,8 +11,10 @@ import {
   PlusIcon,
   SettingsIcon,
   UserIcon,
+  WaveMarkIcon,
   type IconProps,
 } from "../icons";
+import { useWave } from "../../lib/wave";
 import { colors } from "../../theme/tokens";
 import { layout } from "../../theme/layout";
 import { navigationRef } from "../../lib/navigationRef";
@@ -91,18 +93,14 @@ export function SideNav({ role }: { role: AppRole }) {
       }}
     >
       <View>
-        <View className="mb-12 flex-row items-center gap-2.5 px-2">
-          <View className="h-9 w-9 items-center justify-center rounded-input bg-ink">
-            <Text className="font-display text-ui text-lime">w</Text>
-          </View>
-          <View>
-            <Text className="font-sans-bold text-subheading text-ink">wave</Text>
-            <Text className="font-sans text-caption text-muted">{menu.subtitle}</Text>
-          </View>
+        {/* v7 canvas: the mark and wordmark, then the menu as capitalised
+            keys; the active one sits on wash inside an ink edge. */}
+        <View className="mb-8 flex-row items-center px-1" style={{ gap: 8 }} accessible accessibilityLabel="Wave">
+          <WaveMarkIcon size={34} />
+          <Text className="font-sans-bold text-ink" style={{ fontSize: 24, letterSpacing: -0.8 }}>wave</Text>
         </View>
 
-        <Text className="mb-3 px-2 font-sans-bold text-body text-ink">Menu</Text>
-        <View className="gap-1">
+        <View style={{ gap: 8 }}>
           {menu.items.map(({ label, tab, Icon }) => {
             const focused = activeTab === tab;
             return (
@@ -110,26 +108,47 @@ export function SideNav({ role }: { role: AppRole }) {
                 key={tab}
                 accessibilityRole="button"
                 accessibilityState={focused ? { selected: true } : {}}
+                accessibilityLabel={label}
                 onPress={() => goToTab(tab)}
-                className={`flex-row items-center gap-3 rounded-input border-2 px-3 py-3 ${
+                className={`min-h-[52px] flex-row items-center rounded-input border-2 px-4 ${
                   focused ? "border-ink bg-wash" : "border-transparent"
                 }`}
+                style={{ gap: 14 }}
               >
-                <Icon size={20} color={focused ? colors.ink : colors.muted} strokeWidth={1.7} />
-                <Text
-                  className={`font-sans-bold text-ui ${focused ? "text-ink" : "text-muted"}`}
-                >
+                <Icon size={20} color={focused ? colors.ink : colors.muted} strokeWidth={1.9} />
+                <Text className={`font-sans-bold text-ui uppercase tracking-wider ${focused ? "text-ink" : "text-muted"}`}>
                   {label}
                 </Text>
-
               </Pressable>
             );
           })}
         </View>
       </View>
 
-      <Text className="px-2 font-sans text-caption text-muted">{menu.footer}</Text>
+      {role === "student" || role === "rider" ? <WaveCard /> : (
+        <Text className="px-2 font-sans text-caption text-muted">{menu.footer}</Text>
+      )}
     </View>
+  );
+}
+
+/** v7 canvas: today's Wave and its countdown, pinned to the foot of the menu. */
+function WaveCard() {
+  const wave = useWave();
+  const closed = !wave || wave.closed;
+  return (
+    <Pressable
+      onPress={() => {
+        if (navigationRef.isReady()) navigationRef.dispatch(CommonActions.navigate({ name: "WaveCalendar" }));
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={closed ? "Today's Wave has left. Pick another day" : `${wave.name}, ${wave.countdown} left to order`}
+      className="rounded-card border border-hairline bg-surface p-4"
+    >
+      <Text className="font-sans-bold text-ui text-ink">{closed ? "Today's Wave has left" : wave.name}</Text>
+      <Text className="font-sans text-body text-muted">{closed ? "Pick another day" : "Order by 12 noon"}</Text>
+      {closed ? null : <Text className="mt-2 font-display text-heading text-ink">{wave.countdown}</Text>}
+    </Pressable>
   );
 }
 
@@ -164,6 +183,8 @@ function readActiveTab(
   }
 
   const name = current?.name;
+  // The Send flow is a stack screen, but on desktop it is a menu destination.
+  if (name === "PickupRequest" && tabNames.includes("Send")) return "Send";
   if (name && tabNames.includes(name)) return name;
   return null;
 }

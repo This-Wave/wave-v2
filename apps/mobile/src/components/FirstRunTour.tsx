@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
+import { useLayout } from "../hooks/useLayout";
 import type { SelfServeProfileRole } from "@wave/shared";
 import { Button, Gutter } from "./v6";
 import { useAuthStore } from "../store/authStore";
@@ -73,6 +74,7 @@ export function FirstRunTour({ role }: { role: SelfServeProfileRole }) {
   const profileId = useAuthStore((s) => s.profile?.id);
   const [visible, setVisible] = useState(false);
   const [index, setIndex] = useState(0);
+  const { isDesktop } = useLayout();
 
   useEffect(() => {
     if (!profileId) return;
@@ -103,14 +105,21 @@ export function FirstRunTour({ role }: { role: SelfServeProfileRole }) {
       {/* Scrim and top radius copied from the `Sheet` primitive rather than
           re-invented — this is sheet-shaped, and a second, slightly different
           sheet is exactly the kind of drift a design system exists to stop. */}
-      <View className="flex-1 justify-end" style={{ backgroundColor: "rgba(8,52,0,0.45)" }}>
+      <View
+        className={`flex-1 ${isDesktop ? "items-center justify-center" : "justify-end"}`}
+        style={{ backgroundColor: "rgba(15,28,24,0.35)" }}
+      >
         <View
           className="bg-surface pb-8 pt-6"
-          style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
+          style={
+            isDesktop
+              ? { width: 480, maxWidth: "92%", borderRadius: 16 }
+              : { borderTopLeftRadius: 24, borderTopRightRadius: 24 }
+          }
         >
           <Gutter>
             <View className="mb-6 flex-row items-center justify-between">
-              <View className="flex-row gap-1.5">
+              <View className="flex-row" style={{ gap: 6 }}>
                 {cards.map((c, i) => (
                   <View
                     key={c.title}
@@ -121,7 +130,7 @@ export function FirstRunTour({ role }: { role: SelfServeProfileRole }) {
                 ))}
               </View>
               <Pressable onPress={dismiss} accessibilityRole="button" hitSlop={8}>
-                <Text className="font-sans text-body text-muted">Skip</Text>
+                <Text className="font-sans-bold text-body text-ink-700">Skip</Text>
               </Pressable>
             </View>
 

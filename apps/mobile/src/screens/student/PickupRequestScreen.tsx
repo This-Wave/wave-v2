@@ -11,7 +11,8 @@ import { CalendarIcon, CheckIcon, GiftIcon, ChevronDownIcon, ChevronRightIcon, P
 import { RouteLine } from "../../components/v7/Signature";
 import { colors } from "../../theme/tokens";
 import { pickupFeeFor, useCheckpoints, usePricing } from "../../lib/checkpoints";
-import { useCreateOrder } from "../../lib/orders";
+import { useCreateOrder, useMyOrders } from "../../lib/orders";
+import { useLayout } from "../../hooks/useLayout";
 import { useIsGuest, useViewerUniversityId } from "../../store/authStore";
 import { DEFAULT_DELIVERY_FEE_GHS, SIZE_INFO, normalizeGhanaLocalDigits, type PackageSize } from "@wave/shared";
 import { deliveryDayFor, formatFullDay, formatGhs, formatGhsCompact, isStandardRunDay, toApiDate, upcomingRunDays } from "../../lib/pricing";
@@ -52,14 +53,18 @@ export function PickupRequestScreen() {
   const { data: pricing } = usePricing();
   const isGuest = useIsGuest();
   const createOrder = useCreateOrder();
+  const { isDesktop } = useLayout();
+  const { data: myOrders } = useMyOrders();
 
   const [step, setStep] = useState<Step>(0);
   const [accountPrompt, setAccountPrompt] = useState<ResumeTarget | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [picker, setPicker] = useState<"zone" | "to" | "day" | null>(null);
 
-  const [senderName, setSenderName] = useState("");
-  const [senderPhone, setSenderPhone] = useState("");
+  const [senderName, setSenderName] = useState(params?.senderName ?? "");
+  const [senderPhone, setSenderPhone] = useState(
+    params?.senderPhone ? normalizeGhanaLocalDigits(params.senderPhone).slice(0, 9) : "",
+  );
   const [fromId, setFromId] = useState<string | null>(params?.fromId ?? null);
   const defaultTo = usePickupPointStore((st) => st.defaultId);
   const [toId, setToId] = useState<string | null>(params?.toId ?? defaultTo ?? null);
@@ -132,23 +137,7 @@ export function PickupRequestScreen() {
   const back = () => (step === 0 ? navigation.goBack() : setStep((s) => (s - 1) as Step));
   const next = () => (step === 3 ? void pay() : setStep((s) => (s + 1) as Step));
 
-  return (
-    <Screen narrow>
-      <TopBar title={step === 3 ? "Review" : "Send a package"} onBack={back} />
-      <View className="mx-gutter h-1.5 overflow-hidden rounded-pill bg-hairline" accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 4, now: step + 1 }}>
-        <View className="h-1.5 rounded-pill bg-lime" style={{ width: `${((step + 1) / 4) * 100}%` }} />
-      </View>
-
-      <ScreenBody bottomInset={16}>
-        <Gutter className="pt-4" style={{ gap: 16 }}>
-          <Rise key={step}>
-            <Text accessibilityRole="header" className="font-display text-heading text-ink">
-              {titles[step]}
-            </Text>
-          </Rise>
-
-          {step === 0 ? (
-            <Rise key="s0" delay={60}>
+  const senderBlock = (
               <View style={{ gap: 16 }}>
                 {contactsSupported() ? (
                   <Button
@@ -171,11 +160,8 @@ export function PickupRequestScreen() {
                   <Text className="mt-2 font-sans text-meta text-muted">The rider calls this number to collect.</Text>
                 </View>
               </View>
-            </Rise>
-          ) : null}
-
-          {step === 1 ? (
-            <Rise key="s1" delay={60}>
+  );
+  const collectBlock = (
               <View style={{ gap: 16 }}>
                 <View>
                   <Text className="mb-2 font-sans-bold text-body text-ink">Pickup area in Accra</Text>
@@ -219,6 +205,193 @@ export function PickupRequestScreen() {
                   onPress={() => setPicker("to")}
                 />
               </View>
+  );
+  const overlays = (
+    <>
+      <Sheet visible={picker === "zone" || picker === "to"} onClose={() => setPicker(null)} title={picker === "zone" ? "Pickup area in Accra" : "Where you collect"}>
+        <View style={{ gap: 4 }}>
+          {(picker === "zone" ? zonePoints : campusPoints).map((c) => (
+            <Option
+              key={c.id}
+              title={c.name}
+              meta={picker === "zone" ? (Number(c.zone?.deliveryFee ?? 0) > 0 ? `+${formatGhs(Number(c.zone?.deliveryFee))}` : "No extra charge") : (c.description ?? undefined)}
+              selected={(picker === "zone" ? from?.id : to?.id) === c.id}
+              onPress={() => {
+                if (picker === "zone") setFromId(c.id);
+                else setToId(c.id);
+                setPicker(null);
+              }}
+            />
+          ))}
+        </View>
+      </Sheet>
+      <Sheet visible={picker === "day"} onClose={() => setPicker(null)} title="Which day?">
+        <View style={{ gap: 4 }}>
+          {days.map((d, i) => (
+            <Option key={i} title={formatFullDay(d)} selected={dayIndex === i} onPress={() => { setDayIndex(i); setPicker(null); }} />
+          ))}
+        </View>
+      </Sheet>
+      <GuestAccountSheet target={accountPrompt} onClose={() => setAccountPrompt(null)} />
+    </>
+  );
+
+  // People who sent to this student before, for one-tap "Send again".
+  const pastSenders: { name: string; phone?: string | null; fromId?: string | null; label: string }[] = [];
+  for (const o of myOrders ?? []) {
+    if (!o.senderName || pastSenders.some((x) => x.name === o.senderName)) continue;
+    pastSenders.push({
+      name: o.senderName,
+      phone: o.senderPhone,
+      fromId: o.originCheckpointId,
+      label: [o.senderName, o.originCheckpoint?.name?.split(" & ")[0]].filter(Boolean).join(" · "),
+    });
+    if (pastSenders.length === 3) break;
+  }
+
+  if (isDesktop) {
+    // v7 canvas "Web send": the whole form on one page, the delivery summary
+    // and Pay in a right panel that stays in view.
+    return (
+      <View className="flex-1 flex-row bg-canvas" style={{ marginHorizontal: -28 }}>
+        <ScreenBody bottomInset={48}>
+          <View style={{ paddingHorizontal: 48, paddingTop: 40, gap: 28, maxWidth: 880 }}>
+            <Text accessibilityRole="header" className="font-display text-ink" style={{ fontSize: 48, lineHeight: 54 }}>
+              Send a package
+            </Text>
+            <View style={{ gap: 14 }}>
+              <Text className="font-sans-bold text-subheading text-ink">Who's sending it?</Text>
+              <View className="flex-row" style={{ gap: 12 }}>
+                <View className="flex-1">
+                  <Field label="Sender's name" value={senderName} onChangeText={setSenderName} placeholder="Full name" maxLength={80} />
+                </View>
+                <View className="flex-1">
+                  <PhoneField label="Sender's phone" value={senderPhone} onChangeText={(d) => setSenderPhone(d.slice(0, 9))} />
+                </View>
+              </View>
+              {pastSenders.length > 0 ? (
+                <View className="flex-row flex-wrap items-center" style={{ gap: 8 }}>
+                  <Text className="font-sans text-body text-muted">Send again</Text>
+                  {pastSenders.map((p) => (
+                    <Pressable
+                      key={p.name}
+                      onPress={() => {
+                        setSenderName(p.name);
+                        if (p.phone) setSenderPhone(normalizeGhanaLocalDigits(p.phone).slice(0, 9));
+                        if (p.fromId) setFromId(p.fromId);
+                      }}
+                      accessibilityRole="button"
+                      className="min-h-[36px] justify-center rounded-input border-2 border-line bg-surface px-3"
+                    >
+                      <Text className="font-sans-bold text-meta text-ink">{p.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+            <View style={{ gap: 14 }}>
+              <Text className="font-sans-bold text-subheading text-ink">Where do we collect?</Text>
+              {collectBlock}
+            </View>
+            <View style={{ gap: 14 }}>
+              <Text className="font-sans-bold text-subheading text-ink">What is it?</Text>
+              <View className="flex-row" style={{ gap: 12 }} accessibilityRole="radiogroup">
+                {sizes.map((x) => {
+                  const on = size === x.key;
+                  return (
+                    <Pressable
+                      key={x.key}
+                      onPress={() => setSize(x.key)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: on }}
+                      accessibilityLabel={`${x.label}, ${formatGhs(x.price + zoneAddOn)}`}
+                      className={`flex-1 rounded-card border-2 p-4 ${on ? "border-ink bg-wash" : "border-line bg-surface"}`}
+                    >
+                      <View className="flex-row items-baseline justify-between">
+                        <Text className="font-sans-bold text-subheading text-ink">{x.label}</Text>
+                        <Text className="font-sans-bold text-subheading text-ink">{formatGhsCompact(x.price + zoneAddOn)}</Text>
+                      </View>
+                      <Text className="mt-1 font-sans text-meta text-muted">
+                        {x.examples} · up to {x.maxKg} kg
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Field label="Description" value={description} onChangeText={setDescription} placeholder="A blue backpack" maxLength={200} />
+              <PickerRow
+                icon={<CalendarIcon size={18} color={colors.ink} strokeWidth={1.9} />}
+                label="Arrives on"
+                value={scheduled ? formatFullDay(scheduled) : undefined}
+                placeholder="Choose a day"
+                onPress={chosenDate ? undefined : () => setPicker("day")}
+              />
+            </View>
+          </View>
+        </ScreenBody>
+
+        <View className="border-l border-hairline" style={{ width: 400, paddingHorizontal: 32, paddingTop: 44, paddingBottom: 28, justifyContent: "space-between" }}>
+          <View style={{ gap: 16 }}>
+            <Text className="font-sans-bold text-ui text-ink">Your delivery</Text>
+            <View className="rounded-card border border-hairline bg-surface p-4">
+              <RouteLine
+                fromLabel={`Pickup · ${from?.name ?? ""}`}
+                from={senderName.trim() || "Who's sending it?"}
+                fromSub={senderPhone ? `0${senderPhone}` : null}
+                toLabel="You, at"
+                to={to?.name ?? "your pickup point"}
+                toSub={scheduled ? formatFullDay(scheduled) : null}
+              />
+            </View>
+            <View className="rounded-card bg-wash p-4">
+              <Text className="font-sans-bold text-body text-ink">Only you can collect</Text>
+              <Text className="font-sans text-meta text-ink-700">Your code comes after you pay.</Text>
+            </View>
+          </View>
+          <View style={{ gap: 12 }}>
+            {error ? <Text className="font-sans text-body text-danger">{error}</Text> : null}
+            <View className="flex-row items-end justify-between">
+              <Text className="font-sans text-ui text-muted">{size ? `${sizes.find((x) => x.key === size)?.label} size` : "Total"}</Text>
+              <Text className="font-display text-heading-sm text-ink">{formatGhs(fee)}</Text>
+            </View>
+            <Button
+              label={isGuest ? `Continue · ${formatGhs(fee)}` : `Pay ${formatGhs(fee)}`}
+              onPress={() => void pay()}
+              loading={createOrder.isPending}
+              disabled={!(senderOk && pickupOk && itemOk)}
+            />
+            <Text className="font-sans text-meta text-muted">We can't carry cash, alcohol, medication, weapons or anything illegal.</Text>
+          </View>
+        </View>
+        {overlays}
+      </View>
+    );
+  }
+
+  return (
+    <Screen narrow>
+      <TopBar title={step === 3 ? "Review" : "Send a package"} onBack={back} />
+      <View className="mx-gutter h-1.5 overflow-hidden rounded-pill bg-hairline" accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 4, now: step + 1 }}>
+        <View className="h-1.5 rounded-pill bg-lime" style={{ width: `${((step + 1) / 4) * 100}%` }} />
+      </View>
+
+      <ScreenBody bottomInset={16}>
+        <Gutter className="pt-4" style={{ gap: 16 }}>
+          <Rise key={step}>
+            <Text accessibilityRole="header" className="font-display text-heading text-ink">
+              {titles[step]}
+            </Text>
+          </Rise>
+
+          {step === 0 ? (
+            <Rise key="s0" delay={60}>
+              {senderBlock}
+            </Rise>
+          ) : null}
+
+          {step === 1 ? (
+            <Rise key="s1" delay={60}>
+              {collectBlock}
             </Rise>
           ) : null}
 
@@ -326,31 +499,7 @@ export function PickupRequestScreen() {
         />
       </ActionBar>
 
-      <Sheet visible={picker === "zone" || picker === "to"} onClose={() => setPicker(null)} title={picker === "zone" ? "Pickup area in Accra" : "Where you collect"}>
-        <View style={{ gap: 4 }}>
-          {(picker === "zone" ? zonePoints : campusPoints).map((c) => (
-            <Option
-              key={c.id}
-              title={c.name}
-              meta={picker === "zone" ? (Number(c.zone?.deliveryFee ?? 0) > 0 ? `+${formatGhs(Number(c.zone?.deliveryFee))}` : "No extra charge") : (c.description ?? undefined)}
-              selected={(picker === "zone" ? from?.id : to?.id) === c.id}
-              onPress={() => {
-                if (picker === "zone") setFromId(c.id);
-                else setToId(c.id);
-                setPicker(null);
-              }}
-            />
-          ))}
-        </View>
-      </Sheet>
-      <Sheet visible={picker === "day"} onClose={() => setPicker(null)} title="Which day?">
-        <View style={{ gap: 4 }}>
-          {days.map((d, i) => (
-            <Option key={i} title={formatFullDay(d)} selected={dayIndex === i} onPress={() => { setDayIndex(i); setPicker(null); }} />
-          ))}
-        </View>
-      </Sheet>
-      <GuestAccountSheet target={accountPrompt} onClose={() => setAccountPrompt(null)} />
+      {overlays}
     </Screen>
   );
 }

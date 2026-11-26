@@ -6,7 +6,7 @@
  * - Web wide: left nav + full-bleed main stage (+ optional right panel).
  */
 export const layout = {
-  sidebarWidth: 240,
+  sidebarWidth: 260,
   /** Right inspector panel on desktop. */
   rightPanelWidth: 420,
   /** Soft ceiling for optional centered marketing blocks — not the main stage. */

@@ -29,6 +29,7 @@ import { useMyOrders } from "../../../lib/orders";
 import { useWave } from "../../../lib/wave";
 import { useBuyForMeStatus, useServiceStatus } from "../../../lib/serviceStatus";
 import { formatGhsCompact, isStandardRunDay } from "../../../lib/pricing";
+import { PickupHomeWeb } from "./PickupHomeWeb";
 import { useDropoffPoints } from "../../../lib/checkpoints";
 import { useViewerUniversityId } from "../../../store/authStore";
 import { BusinessPromoCard } from "../../../components/BusinessPromoCard";
@@ -47,7 +48,13 @@ type Nav = NativeStackNavigationProp<StudentStackParamList>;
  * Desktop home — structured like a browse site, not a blown-up phone screen.
  * Mobile keeps `HomeScreen`'s original layout.
  */
+/** Pickup-only Wave gets the v7 canvas home; the shop catalogue keeps its own. */
 export function StudentHomeWeb() {
+  const { launched } = useBuyForMeStatus();
+  return launched ? <ShopsHomeWeb /> : <PickupHomeWeb />;
+}
+
+function ShopsHomeWeb() {
   const navigation = useNavigation<Nav>();
   const { cardWidth, shopColumns } = useLayout();
   const { launched: buyForMeLaunched, settled: serviceSettled } = useBuyForMeStatus();
