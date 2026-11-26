@@ -75,7 +75,7 @@ export function RoleSelectScreen({ navigation }: Props) {
                   }`}
                 >
                   <View className="flex-1">
-                    <Text className="font-sans-medium text-ui text-ink">{option.title}</Text>
+                    <Text className="font-sans-bold text-ui text-ink">{option.title}</Text>
                     <Text className="mt-1 font-sans text-body text-muted">{option.blurb}</Text>
                     {option.note ? (
                       <Text className="mt-1.5 font-sans text-body text-muted">{option.note}</Text>

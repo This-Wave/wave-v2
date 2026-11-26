@@ -65,7 +65,7 @@ export function ActiveDeliveryCard({
     >
       <View className="mb-4 flex-row items-start justify-between gap-3">
         <View className="min-w-0 flex-1">
-          <Text className="font-sans-medium text-ui text-ink" numberOfLines={1}>
+          <Text className="font-sans-bold text-ui text-ink" numberOfLines={1}>
             {title ?? (order.orderType === "pickup" ? "Package pickup" : (order.shop?.name ?? "Your order"))}
           </Text>
           <Text className="font-sans text-meta text-muted" numberOfLines={1}>

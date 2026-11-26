@@ -116,7 +116,7 @@ export function Confirm({
               accessibilityLabel="Cancel"
               className="h-12 items-center justify-center rounded-pill"
             >
-              <Text className="font-sans-medium text-ui text-ink">Cancel</Text>
+              <Text className="font-sans-bold text-ui text-ink">Cancel</Text>
             </Pressable>
           </View>
         </View>

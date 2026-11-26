@@ -222,7 +222,7 @@ export function OrderSummaryScreen() {
               accessibilityLabel={`Total, ${formatGhs(estimate.total)}`}
               className="flex-row items-center justify-between pt-4"
             >
-              <Text className="font-sans-medium text-ui text-ink">Total</Text>
+              <Text className="font-sans-bold text-ui text-ink">Total</Text>
               <Text className="font-display text-heading-sm text-ink">
                 {formatGhsCompact(estimate.total)}
               </Text>

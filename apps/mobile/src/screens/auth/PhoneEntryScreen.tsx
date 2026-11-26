@@ -12,6 +12,7 @@ import {
   ScreenBody,
   TopBar,
 } from "../../components/v6";
+import { Illustration } from "../../components/v7/Illustration";
 import { GHANA_LOCAL_PHONE_LENGTH, toGhanaE164 } from "@wave/shared";
 import { supabase } from "../../lib/supabase";
 
@@ -57,7 +58,10 @@ export function PhoneEntryScreen({ navigation }: Props) {
 
       <ScreenBody bottomInset={16}>
         <Gutter className="pt-4">
-          <Text className="mb-2 font-display text-heading text-ink">What's your number?</Text>
+          <View className="mb-2 items-center">
+            <Illustration name="stroll" width={200} height={130} />
+          </View>
+          <Text accessibilityRole="header" className="mb-2 font-display text-heading text-ink">What's your number?</Text>
           <Text className="mb-10 font-sans text-body text-muted">
             {fromGuest ? "Your basket is saved." : "We'll text you a six-digit code."}
           </Text>

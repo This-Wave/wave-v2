@@ -279,7 +279,7 @@ export function StudentHomeWeb() {
         <Gutter className="mt-12 mb-4">
           <View className="flex-row items-center justify-between rounded-card border border-hairline bg-surface p-5">
             <View className="flex-1 pr-4">
-              <Text className="font-sans-medium text-ui text-ink">Can’t find your shop?</Text>
+              <Text className="font-sans-bold text-ui text-ink">Can’t find your shop?</Text>
               <Text className="mt-1 font-sans text-body text-muted">
                 Suggest it — we’ll send a runner, and popular suggestions get onboarded.
               </Text>

@@ -211,7 +211,7 @@ export function ShopMenuScreen() {
               {chosen.reduce((n, l) => n + l.quantity, 0)} item
               {chosen.reduce((n, l) => n + l.quantity, 0) === 1 ? "" : "s"}
             </Text>
-            <Text className="font-sans-medium text-ui text-ink">{formatGhs(basketTotal)}</Text>
+            <Text className="font-sans-bold text-ui text-ink">{formatGhs(basketTotal)}</Text>
           </View>
           <Button
             label="Continue"

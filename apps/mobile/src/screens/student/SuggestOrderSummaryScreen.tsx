@@ -148,7 +148,7 @@ export function SuggestOrderSummaryScreen() {
             <Line label="The items" value="Not yet known" />
             <View className="mt-1 h-px bg-hairline" />
             <View className="flex-row items-center justify-between pt-4">
-              <Text className="font-sans-medium text-ui text-ink">Total now</Text>
+              <Text className="font-sans-bold text-ui text-ink">Total now</Text>
               <Text className="font-display text-heading-sm text-ink">
                 {formatGhsCompact(estimate.total)}
               </Text>

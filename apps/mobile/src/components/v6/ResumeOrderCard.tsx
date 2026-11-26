@@ -45,7 +45,7 @@ export function ResumeOrderCard({
       className="mb-6 flex-row items-center gap-4 rounded-card bg-lime-faint p-4 active:bg-lime/30"
     >
       <View className="min-w-0 flex-1">
-        <Text className="font-sans-medium text-ui text-ink">Finish paying</Text>
+        <Text className="font-sans-bold text-ui text-ink">Finish paying</Text>
         <Text className="mt-0.5 font-sans text-body text-ink-700" numberOfLines={1}>
           {where} · {amount}
         </Text>

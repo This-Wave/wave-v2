@@ -212,12 +212,12 @@ function StatTile({
         attention ? "border-danger-bg bg-danger-bg" : "border-border bg-surface"
       }`}
     >
-      <p className={`mb-1.5 text-[11px] ${attention ? "text-danger-text" : "text-muted"}`}>{label}</p>
+      <p className={`mb-1.5 text-[12.5px] font-bold ${attention ? "text-danger-text" : "text-ink"}`}>{label}</p>
       <p className={`text-[24px] font-display font-black ${attention ? "text-danger-text" : "text-ink"}`}>
         {value}
       </p>
       {hint ? (
-        <p className={`mt-1 text-[11px] ${attention ? "text-danger-text" : "text-muted"}`}>{hint}</p>
+        <p className={`mt-1 text-[12px] ${attention ? "text-danger-text" : "text-muted"}`}>{hint}</p>
       ) : null}
     </div>
   );
