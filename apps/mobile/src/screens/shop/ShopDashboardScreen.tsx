@@ -99,7 +99,7 @@ export function ShopDashboardScreen() {
           >
             <View className="flex-row items-center gap-3 rounded-card border border-hairline bg-surface px-4 py-3.5">
               <View className="min-w-0 flex-1">
-                <Text className="font-sans-medium text-ui text-ink">
+                <Text className="font-sans-bold text-ui text-ink">
                   {shop && !shop.isVerified
                     ? "Awaiting approval"
                     : shop?.isActive
@@ -195,7 +195,7 @@ export function ShopDashboardScreen() {
                   title={order.student?.fullName ?? "Student"}
                   meta={order.itemDescription}
                   trailing={
-                    <Text className="font-sans-semibold text-body text-ink">
+                    <Text className="font-sans-bold text-body text-ink">
                       {formatGhs(Number(order.totalAmount))}
                     </Text>
                   }

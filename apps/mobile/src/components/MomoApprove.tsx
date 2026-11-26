@@ -76,7 +76,7 @@ export function MomoApprove({
           onPress={() => Linking.openURL(`tel:${encodeURIComponent(net.ussd)}`).catch(() => undefined)}
           className="min-h-[44px] justify-center"
         >
-          <Text className="font-sans-semibold text-ui text-ink">No prompt? Dial {net.ussd}</Text>
+          <Text className="font-sans-bold text-ui text-ink">No prompt? Dial {net.ussd}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={onPayAnotherWay} className="min-h-[44px] justify-center">
           <Text className="font-sans-semibold text-ui text-muted">Pay another way</Text>

@@ -39,7 +39,7 @@ export function WaveCountdown({ wave }: { wave: WaveInfo }) {
             }`
       }
     >
-      <Text className="font-sans-medium text-ui text-ink" numberOfLines={1}>
+      <Text className="font-sans-bold text-ui text-ink" numberOfLines={1}>
         {wave.name}
       </Text>
       <Text className="font-sans text-body text-muted" numberOfLines={1}>

@@ -32,7 +32,7 @@ export function RightPanel({
       }}
     >
       <View className="flex-row items-center justify-between border-b border-hairline px-5 py-4">
-        <Text className="flex-1 pr-3 font-sans-semibold text-ui text-ink" numberOfLines={1}>
+        <Text className="flex-1 pr-3 font-sans-bold text-ui text-ink" numberOfLines={1}>
           {title}
         </Text>
         <IconCircle onPress={onClose} accessibilityLabel="Close panel">

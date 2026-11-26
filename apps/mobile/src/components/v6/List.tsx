@@ -143,7 +143,7 @@ export function Empty({
   const { gutter } = useLayout();
   return (
     <View className="items-center py-16" style={{ paddingHorizontal: gutter }}>
-      <Text className="mb-1 text-center font-sans-medium text-ui text-ink">{title}</Text>
+      <Text className="mb-1 text-center font-sans-bold text-ui text-ink">{title}</Text>
       {body ? (
         <Text className="mb-6 text-center font-sans text-body text-muted">{body}</Text>
       ) : null}

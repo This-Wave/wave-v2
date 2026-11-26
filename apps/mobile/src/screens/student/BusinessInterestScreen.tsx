@@ -122,7 +122,7 @@ export function BusinessInterestScreen() {
                   className={`flex-row items-start gap-3 rounded-card px-4 py-4 ${selected ? "bg-lime-faint" : "bg-surface"}`}
                 >
                   <View className="flex-1">
-                    <Text className="font-sans-medium text-ui text-ink">{k.title}</Text>
+                    <Text className="font-sans-bold text-ui text-ink">{k.title}</Text>
                     <Text className="mt-1 font-sans text-body text-muted">{k.body}</Text>
                   </View>
                   {selected ? <CheckIcon size={18} color={colors.ink} strokeWidth={2.2} /> : null}

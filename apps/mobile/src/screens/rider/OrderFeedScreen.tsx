@@ -103,7 +103,7 @@ export function OrderFeedScreen() {
           >
             <View className="flex-row items-center gap-3 rounded-card border border-hairline bg-surface px-4 py-3.5">
               <View className="min-w-0 flex-1">
-                <Text className="font-sans-medium text-ui text-ink">
+                <Text className="font-sans-bold text-ui text-ink">
                   {online ? "You're online" : "You're offline"}
                 </Text>
                 <Text className="font-sans text-body text-muted" numberOfLines={1}>
@@ -259,7 +259,7 @@ function FeedRow({
             number that is not theirs. Server-computed with the same rate that
             writes the earning on delivery, so it cannot quote a share the
             payment then contradicts. */}
-        <Text className="font-sans-semibold text-body text-ink">
+        <Text className="font-sans-bold text-body text-ink">
           {order.estimatedEarning
             ? formatGhs(Number(order.estimatedEarning))
             : formatGhs(Number(order.deliveryFee))}

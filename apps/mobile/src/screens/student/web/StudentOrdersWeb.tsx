@@ -75,7 +75,7 @@ export function StudentOrdersWeb() {
                 <Thumb uri={o.shop?.logoUrl} size={52} />
                 <View className="min-w-0 flex-1">
                   <View className="mb-1 flex-row items-center gap-2">
-                    <Text className="font-sans-medium text-ui text-ink" numberOfLines={1}>
+                    <Text className="font-sans-bold text-ui text-ink" numberOfLines={1}>
                       {o.shop?.name ?? "Package pickup"}
                     </Text>
                     <StatusPill {...statusPill(o.status, !!o.companyId)} />
@@ -105,7 +105,7 @@ export function StudentOrdersWeb() {
               >
                 <Thumb uri={o.shop?.logoUrl} size={52} />
                 <View className="min-w-0 flex-1">
-                  <Text className="font-sans-medium text-ui text-ink" numberOfLines={1}>
+                  <Text className="font-sans-bold text-ui text-ink" numberOfLines={1}>
                     {o.shop?.name ?? "Your order"}
                   </Text>
                   <Text className="font-sans text-body text-muted">

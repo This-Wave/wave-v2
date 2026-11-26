@@ -152,7 +152,7 @@ export function EarningsScreen() {
                   chevron={false}
                   trailing={
                     <View className="items-end gap-1">
-                      <Text className="font-sans-semibold text-body text-ink">
+                      <Text className="font-sans-bold text-body text-ink">
                         +{formatGhs(Number(earning.amount))}
                       </Text>
                       <StatusPill
