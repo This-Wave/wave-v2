@@ -107,3 +107,31 @@ describe("PATCH /orders/:id/cancel — after the runner has paid", () => {
     expect((await cancel(prisma)).statusCode).toBe(409);
   });
 });
+
+describe("PATCH /orders/:id/cancel — when the refund cannot be sent", () => {
+  test("the student gets a plain message, not the payment provider's", async () => {
+    endOrderWithRefund.mockResolvedValue({
+      ok: false,
+      code: 502,
+      error: "Insufficient balance in wallet 1234567",
+      refundFailed: true,
+    });
+
+    const res = await cancel(makePrisma({}));
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().refundFailed).toBe(true);
+    expect(res.json().error).toMatch(/still open/i);
+    expect(res.json().error).toMatch(/Wave support/);
+    expect(res.json().error).not.toMatch(/wallet|balance|Moolre/i);
+  });
+
+  test("other failures keep their own message", async () => {
+    endOrderWithRefund.mockResolvedValue({ ok: false, code: 409, error: "Order has already been refunded" });
+
+    const res = await cancel(makePrisma({}));
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe("Order has already been refunded");
+  });
+});

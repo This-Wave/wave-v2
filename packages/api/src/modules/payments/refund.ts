@@ -41,7 +41,10 @@ export interface EndOrderWithRefundArgs {
 
 export type EndOrderWithRefundResult =
   | { ok: true; order: unknown; refundIssued: boolean }
-  | { ok: false; code: number; error: string };
+  // `refundFailed`: the payment provider would not (or could not yet) return the
+  // money. The order is left as it was; callers show a plain message, not the
+  // provider's.
+  | { ok: false; code: number; error: string; refundFailed?: boolean };
 
 /**
  * Ends an order, returning the student's money if any was taken.
@@ -139,7 +142,7 @@ export async function endOrderWithRefund(
             },
             request,
           );
-          return { ok: false, code: failure.code, error: failure.error };
+          return { ok: false, code: failure.code, error: failure.error, refundFailed: true };
         }
         refundIssued = true;
         continue;
@@ -182,6 +185,7 @@ export async function endOrderWithRefund(
           ok: false,
           code: 502,
           error: providerMessage ?? "Refund could not be issued. The order was left unchanged.",
+          refundFailed: true,
         };
       }
     }

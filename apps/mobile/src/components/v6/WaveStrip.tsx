@@ -1,5 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import type { WaveInfo } from "../../lib/wave";
+import { CalendarIcon, ChevronRightIcon } from "../icons";
+import { colors } from "../../theme/tokens";
 
 /**
  * The next Wave, how long is left to join it, and the way to pick another day.
@@ -34,22 +36,27 @@ export function WaveStrip({ wave, onPress }: { wave: WaveInfo | null; onPress: (
           : `${wave.name}, ${wave.countdown} left to order. Tap to choose a different day`
       }
       accessibilityHint="Opens the Wave calendar"
-      className="rounded-card border border-hairline bg-surface px-4 py-3.5 active:bg-canvas"
+      // Sticker-key edge like the app's buttons, so the whole card reads as
+      // something to press.
+      className="rounded-card border-2 border-b-4 border-line bg-surface px-4 py-3 active:translate-y-0.5 active:border-b-2"
     >
-      {/* v7 canvas: the Wave's name, the noon rule, and the countdown as the
-          card's one figure. */}
       <View className="flex-row items-center" style={{ gap: 12 }}>
+        <View className="h-11 w-11 items-center justify-center rounded-pill bg-wash">
+          <CalendarIcon size={20} color={colors.ink} strokeWidth={1.9} />
+        </View>
         <View className="min-w-0 flex-1">
           <Text className="font-sans-bold text-ui text-ink" numberOfLines={1}>
             {closed ? "Today's Wave has left" : wave.name}
           </Text>
           <Text className="font-sans text-body text-muted" numberOfLines={1}>
-            {closed ? "Pick the next day" : "Order by 12 noon"}
+            {closed ? "Pick the next day" : `${wave.countdown} left to order`}
           </Text>
         </View>
-        {closed ? null : (
-          <Text className="font-display text-heading-sm text-ink">{wave.countdown}</Text>
-        )}
+        {/* The control, named: it says what tapping does. */}
+        <View className="flex-row items-center rounded-input bg-wash px-3 py-2" style={{ gap: 4 }}>
+          <Text className="font-sans-bold text-meta text-ink">Change day</Text>
+          <ChevronRightIcon size={14} color={colors.ink} strokeWidth={2.4} />
+        </View>
       </View>
     </Pressable>
   );

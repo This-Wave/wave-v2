@@ -351,3 +351,38 @@ export const ChevronDownIcon: Icon = ({ size = 18, color = colors.ink, strokeWid
     <Path d="M6 9l6 6 6-6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
+
+/** v7: size Ripple (documents, small things). */
+export const EnvelopeIcon: Icon = ({ size = 22, color = colors.ink, strokeWidth = 1.8 }) => (
+  <Svg {...box({ size })} fill="none">
+    <Rect x={3} y={5.5} width={18} height={13} rx={2.5} stroke={color} strokeWidth={strokeWidth} />
+    <Path d="M3.5 7.5 12 13.5l8.5-6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+/** v7: size Wave (clothes, shoes, a laptop). */
+export const BagIcon: Icon = ({ size = 22, color = colors.ink, strokeWidth = 1.8 }) => (
+  <Svg {...box({ size })} fill="none">
+    <Path d="M5 8.5h14l-1 11H6l-1-11Z" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />
+    <Path d="M9 8.5V7a3 3 0 0 1 6 0v1.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+  </Svg>
+);
+
+/** v7: size Swell (trays, gift boxes). A parcel with its tape. */
+export const ParcelIcon: Icon = ({ size = 22, color = colors.ink, strokeWidth = 1.8 }) => (
+  <Svg {...box({ size })} fill="none">
+    <Path d="M3.5 8 12 3.5 20.5 8v9L12 21.5 3.5 17V8Z" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />
+    <Path d="M3.5 8 12 12.5 20.5 8M12 12.5v9M7.8 5.8l8.4 4.4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+/** v7: size Tide (cartons, appliances). A stack of cartons on a trolley. */
+export const CartonsIcon: Icon = ({ size = 22, color = colors.ink, strokeWidth = 1.8 }) => (
+  <Svg {...box({ size })} fill="none">
+    <Rect x={4} y={4} width={9} height={8} rx={1.2} stroke={color} strokeWidth={strokeWidth} />
+    <Rect x={9} y={11} width={11} height={8} rx={1.2} stroke={color} strokeWidth={strokeWidth} />
+    <Path d="M8.5 4v3.5M14.5 11v3.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+    <Circle cx={7} cy={20.5} r={1.1} fill={color} />
+    <Circle cx={17} cy={20.5} r={1.1} fill={color} />
+  </Svg>
+);

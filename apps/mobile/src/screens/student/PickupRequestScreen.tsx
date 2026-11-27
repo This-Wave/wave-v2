@@ -13,6 +13,7 @@ import { colors } from "../../theme/tokens";
 import { pickupFeeFor, useCheckpoints, usePricing } from "../../lib/checkpoints";
 import { checkPromoCode, useCreateOrder, useMyOrders } from "../../lib/orders";
 import { PromoBox } from "../../components/v7/PromoBox";
+import { SizeBadge } from "../../components/v7/SizeBadge";
 import { useLayout } from "../../hooks/useLayout";
 import { useIsGuest, useViewerUniversityId } from "../../store/authStore";
 import {
@@ -363,10 +364,11 @@ export function PickupRequestScreen() {
                       accessibilityLabel={`${x.label}, ${formatGhs(x.price + zoneAddOn)}`}
                       className={`flex-1 rounded-card border-2 p-4 ${on ? "border-ink bg-wash" : "border-line bg-surface"}`}
                     >
-                      <View className="flex-row items-baseline justify-between">
-                        <Text className="font-sans-bold text-subheading text-ink">{x.label}</Text>
-                        <Text className="font-sans-bold text-subheading text-ink">{formatGhsCompact(x.price + zoneAddOn)}</Text>
+                      <View className="mb-3">
+                        <SizeBadge size={x.key} selected={on} />
                       </View>
+                      <Text className="font-sans-bold text-subheading text-ink">{x.label}</Text>
+                      <Text className="font-display text-heading-sm text-ink">{formatGhsCompact(x.price + zoneAddOn)}</Text>
                       <Text className="mt-1 font-sans text-meta text-muted">
                         {x.examples} · up to {x.maxKg} kg
                       </Text>
@@ -466,6 +468,7 @@ export function PickupRequestScreen() {
                         accessibilityState={{ checked: on }}
                         className={`flex-row items-center gap-3 rounded-card border-2 px-4 py-3.5 ${on ? "border-ink bg-wash" : "border-line bg-surface"}`}
                       >
+                        <SizeBadge size={x.key} selected={on} />
                         <View className="flex-1">
                           <Text className="font-sans-bold text-ui text-ink">{x.label}</Text>
                           <Text className="font-sans text-meta text-muted">

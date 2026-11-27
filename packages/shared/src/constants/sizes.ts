@@ -17,7 +17,7 @@ export interface SizeInfo {
 export const SIZE_INFO: readonly SizeInfo[] = [
   { key: "ripple", label: "Ripple", examples: "Documents, a charger, small items", maxKg: 3, defaultPrice: 50 },
   { key: "wave", label: "Wave", examples: "Clothes, shoes, a laptop", maxKg: 8, defaultPrice: 60 },
-  { key: "swell", label: "Swell", examples: "Food trays, gift boxes, small appliances", maxKg: 15, defaultPrice: 75 },
+  { key: "swell", label: "Swell", examples: "Food trays, gift boxes, small appliances", maxKg: 15, defaultPrice: 70 },
   { key: "tide", label: "Tide", examples: "Wholesale cartons, home appliances", maxKg: 25, defaultPrice: 150 },
 ];
 
