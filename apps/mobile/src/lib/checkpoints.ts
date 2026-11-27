@@ -44,10 +44,8 @@ export function pickupFeeFor(origin: Checkpoint | undefined, baseFee: number, si
 }
 
 export interface SizePrice {
-  key: "ripple" | "wave" | "swell" | "tide";
+  key: "small" | "medium" | "large";
   label: string;
-  examples: string;
-  maxKg: number;
   price: number;
 }
 

@@ -35,7 +35,7 @@ function makePrisma(checkpoints: { id: string; zone: ReturnType<typeof zone> | n
     platformConfig: {
       findUnique: vi.fn(({ where }: { where: { key: string } }) =>
         Promise.resolve(
-          where.key === "delivery_fee_base" ? { value: "50.00" } : where.key === "size_price_swell" ? { value: "75.00" } : null,
+          where.key === "delivery_fee_base" ? { value: "50.00" } : where.key === "size_price_large" ? { value: "75.00" } : null,
         ),
       ),
     },
@@ -97,12 +97,26 @@ describe("POST /orders — Accra zone pricing", () => {
         { id: ZONE_POINT, zone: zone("10.00") },
         { id: CAMPUS, zone: null },
       ],
-      { packageSize: "swell", senderName: "Auntie Esi", senderPhone: "0245550101" },
+      { packageSize: "large", senderName: "Auntie Esi", senderPhone: "0245550101" },
     );
     expect(res.statusCode).toBe(201);
     expect(created.deliveryFee).toBe(85);
     expect(created.senderPhone).toBe("+233245550101");
-    expect(created.packageSize).toBe("swell");
+    expect(created.packageSize).toBe("large");
+  });
+
+  test("an app still sending an old size name is mapped, not refused", async () => {
+    const { res, created } = await pickup(
+      ZONE_POINT,
+      CAMPUS,
+      [
+        { id: ZONE_POINT, zone: zone("0.00") },
+        { id: CAMPUS, zone: null },
+      ],
+      { packageSize: "ripple" },
+    );
+    expect(res.statusCode).toBe(201);
+    expect(created.packageSize).toBe("small");
   });
 
   test("a size with no configured price falls back to its default", async () => {
@@ -113,13 +127,13 @@ describe("POST /orders — Accra zone pricing", () => {
         { id: ZONE_POINT, zone: zone("0.00") },
         { id: CAMPUS, zone: null },
       ],
-      { packageSize: "tide" },
+      { packageSize: "medium" },
     );
-    expect(created.deliveryFee).toBe(150);
+    expect(created.deliveryFee).toBe(60);
   });
 
   test("an unknown size is refused", async () => {
-    const { res } = await pickup(ZONE_POINT, CAMPUS, [{ id: ZONE_POINT, zone: zone("0.00") }, { id: CAMPUS, zone: null }], { packageSize: "medium" });
+    const { res } = await pickup(ZONE_POINT, CAMPUS, [{ id: ZONE_POINT, zone: zone("0.00") }, { id: CAMPUS, zone: null }], { packageSize: "huge" });
     expect(res.statusCode).toBe(400);
   });
 
@@ -157,7 +171,7 @@ describe("POST /orders — first-order code", () => {
   ];
 
   test("HELLOHILL takes 25% off the delivery fee and is kept on the order", async () => {
-    const { res, created } = await pickup(ZONE_POINT, CAMPUS, points, { packageSize: "swell", promoCode: "hellohill" });
+    const { res, created } = await pickup(ZONE_POINT, CAMPUS, points, { packageSize: "large", promoCode: "hellohill" });
     expect(res.statusCode).toBe(201);
     expect(created.deliveryFee).toBe(85);
     expect(created.discountApplied).toBe(25);
@@ -166,14 +180,14 @@ describe("POST /orders — first-order code", () => {
   });
 
   test("a wrong code is refused before any order is made", async () => {
-    const { res, created } = await pickup(ZONE_POINT, CAMPUS, points, { packageSize: "swell", promoCode: "NOPE" });
+    const { res, created } = await pickup(ZONE_POINT, CAMPUS, points, { packageSize: "large", promoCode: "NOPE" });
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/doesn't exist/);
     expect(created).toBeUndefined();
   });
 
   test("no code, no discount", async () => {
-    const { created } = await pickup(ZONE_POINT, CAMPUS, points, { packageSize: "swell" });
+    const { created } = await pickup(ZONE_POINT, CAMPUS, points, { packageSize: "large" });
     expect(created.discountApplied).toBe(0);
     expect(created.promoCode).toBeNull();
   });

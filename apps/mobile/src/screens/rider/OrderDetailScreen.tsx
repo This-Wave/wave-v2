@@ -13,7 +13,6 @@ import {
 import { RouteLine } from "../../components/v7/Signature";
 import { InfoRow } from "../../components/v7/InfoRows";
 import { parsePickupNotes } from "../../lib/pickupNotes";
-import { SIZE_INFO } from "@wave/shared";
 import { shortOrderRef } from "../student/orderPresenters";
 import { useOrder } from "../../lib/orders";
 import { useAcceptOrder } from "../../lib/rider";
@@ -58,12 +57,11 @@ export function OrderDetailScreen() {
   }
 
   const d = parsePickupNotes(order?.pickupNotes);
-  const sizeInfo = SIZE_INFO.find((x) => x.key === order?.packageSize) ?? null;
   const rows: [string, string | null | undefined][] = [
     ["Building", d.building],
     ["Landmark", d.landmark],
     ["Handover", d.handover],
-    ["Package", order?.packageSize ? `${capitalise(order.packageSize)}${sizeInfo ? ` · up to ${sizeInfo.maxKg} kg` : ""}` : null],
+    ["Package", order?.packageSize ? capitalise(order.packageSize) : null],
     [order?.orderType === "pickup" ? "What it is" : "What to buy", order?.itemDescription],
   ];
   const earn = order ? Number(order.estimatedEarning ?? order.deliveryFee) : null;
