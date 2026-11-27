@@ -100,7 +100,7 @@ export function PickupRequestScreen() {
   const campusPoints = (checkpoints ?? []).filter((c) => !c.zone);
   const from = zonePoints.find((c) => c.id === fromId) ?? zonePoints[0];
   const to = campusPoints.find((c) => c.id === toId) ?? campusPoints[0];
-  const sizes = pricing?.sizes ?? SIZE_INFO.map((x) => ({ key: x.key, label: x.label, examples: x.examples, maxKg: x.maxKg, price: x.defaultPrice }));
+  const sizes = pricing?.sizes ?? SIZE_INFO.map((x) => ({ key: x.key, label: x.label, price: x.defaultPrice }));
   const sizePrice = sizes.find((x) => x.key === size)?.price ?? null;
   const baseFee = pricing?.baseFee ?? DEFAULT_DELIVERY_FEE_GHS;
   const fee = pickupFeeFor(from, baseFee, sizePrice);
@@ -369,9 +369,6 @@ export function PickupRequestScreen() {
                       </View>
                       <Text className="font-sans-bold text-subheading text-ink">{x.label}</Text>
                       <Text className="font-display text-heading-sm text-ink">{formatGhsCompact(x.price + zoneAddOn)}</Text>
-                      <Text className="mt-1 font-sans text-meta text-muted">
-                        {x.examples} · up to {x.maxKg} kg
-                      </Text>
                     </Pressable>
                   );
                 })}
@@ -471,9 +468,6 @@ export function PickupRequestScreen() {
                         <SizeBadge size={x.key} selected={on} />
                         <View className="flex-1">
                           <Text className="font-sans-bold text-ui text-ink">{x.label}</Text>
-                          <Text className="font-sans text-meta text-muted">
-                            {x.examples} · up to {x.maxKg} kg
-                          </Text>
                         </View>
                         <Text className="font-sans-bold text-ui text-ink">{formatGhs(x.price + zoneAddOn)}</Text>
                       </Pressable>
@@ -515,7 +509,7 @@ export function PickupRequestScreen() {
                 <View className="flex-row items-center justify-between rounded-card border border-hairline bg-surface p-4">
                   <View className="flex-1">
                     <Text className="font-sans-bold text-body text-ink">
-                      {sizes.find((x) => x.key === size)?.label} size · up to {sizes.find((x) => x.key === size)?.maxKg} kg
+                      {sizes.find((x) => x.key === size)?.label} size
                     </Text>
                     <Text className="font-sans text-meta text-muted" numberOfLines={1}>{description.trim()}</Text>
                   </View>

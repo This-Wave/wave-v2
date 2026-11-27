@@ -1,4 +1,4 @@
-import { PACKAGE_SIZES } from "../constants/sizes";
+import { LEGACY_SIZE_NAMES, PACKAGE_SIZES } from "../constants/sizes";
 import { z } from "zod";
 import {
   DELIVERY_DAYS,
@@ -80,7 +80,7 @@ export const createOrderSchema = z
     /** First-order code (FIRST_ORDER_PROMO_CODE). Checked and priced server-side. */
     promoCode: z.string().trim().max(32).optional(),
     pickupNotes: z.string().trim().max(300).optional(),
-    packageSize: z.enum(PACKAGE_SIZES).optional(),
+    packageSize: z.preprocess((v) => (typeof v === "string" ? (LEGACY_SIZE_NAMES[v] ?? v) : v), z.enum(PACKAGE_SIZES)).optional(),
   })
   // --- buy_for_me -----------------------------------------------------------
   .refine((v) => (v.orderType === "buy_for_me" ? !!v.shopId : true), {

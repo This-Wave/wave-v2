@@ -32,7 +32,7 @@ export async function universityRoutes(fastify: FastifyInstance) {
     const val = (k: string, d: number) => Number(rows.find((r) => r.key === k)?.value ?? d);
     return reply.send({
       baseFee: val("delivery_fee_base", DEFAULT_DELIVERY_FEE_GHS),
-      sizes: SIZE_INFO.map((x) => ({ key: x.key, label: x.label, examples: x.examples, maxKg: x.maxKg, price: val(sizeConfigKey(x.key), x.defaultPrice) })),
+      sizes: SIZE_INFO.map((x) => ({ key: x.key, label: x.label, price: val(sizeConfigKey(x.key), x.defaultPrice) })),
     });
   });
 

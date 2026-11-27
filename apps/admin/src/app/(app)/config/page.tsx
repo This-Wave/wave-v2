@@ -36,10 +36,9 @@ const GROUPS: { title: string; keys: { key: string; label: string; suffix?: stri
   {
     title: "Package sizes",
     keys: [
-      { key: "size_price_ripple", label: "Ripple · clothes, shoes, a laptop · up to 8 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
-      { key: "size_price_wave", label: "Wave · food trays, gift boxes · up to 15 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
-      { key: "size_price_swell", label: "Swell · wholesale cartons, home appliances · up to 25 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
-      { key: "size_price_tide", label: "Tide · bulk cartons, large appliances · up to 40 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
+      { key: "size_price_small", label: "Small", suffix: "GH₵", hint: "Price before the zone add-on." },
+      { key: "size_price_medium", label: "Medium", suffix: "GH₵", hint: "Price before the zone add-on." },
+      { key: "size_price_large", label: "Large", suffix: "GH₵", hint: "Price before the zone add-on." },
     ],
   },
   {
@@ -168,10 +167,9 @@ export default function ConfigPage() {
 
   const other = rows?.filter((r) => !KNOWN_KEYS.includes(r.key)) ?? [];
   const SIZES = [
-    { key: "size_price_ripple", name: "Ripple", for: "Clothes, shoes, a laptop", kg: 8 },
-    { key: "size_price_wave", name: "Wave", for: "Food trays, gift boxes, small appliances", kg: 15 },
-    { key: "size_price_swell", name: "Swell", for: "Wholesale cartons, home appliances", kg: 25 },
-    { key: "size_price_tide", name: "Tide", for: "Bulk cartons, large appliances", kg: 40 },
+    { key: "size_price_small", name: "Small" },
+    { key: "size_price_medium", name: "Medium" },
+    { key: "size_price_large", name: "Large" },
   ];
   const input = (key: string, prefix?: string, suffix?: string) => (
     <div className="flex h-10 w-[130px] items-center gap-1 rounded-control border-2 border-line bg-surface px-3 focus-within:border-ink">
@@ -238,8 +236,6 @@ export default function ConfigPage() {
                   <thead>
                     <tr className="border-b border-border text-[12.5px] font-bold text-ink">
                       <th className="h-10 px-4">Size</th>
-                      <th className="h-10 px-4">For</th>
-                      <th className="h-10 px-4">Up to</th>
                       <th className="h-10 px-4">Price</th>
                     </tr>
                   </thead>
@@ -247,8 +243,6 @@ export default function ConfigPage() {
                     {SIZES.map((sz) => (
                       <tr key={sz.key} className="border-b border-border/70 last:border-b-0">
                         <td className="h-14 px-4 font-bold text-ink">{sz.name}</td>
-                        <td className="px-4 text-ink">{sz.for}</td>
-                        <td className="px-4 text-ink">{sz.kg} kg</td>
                         <td className="px-4">{input(sz.key, "GH₵")}</td>
                       </tr>
                     ))}
