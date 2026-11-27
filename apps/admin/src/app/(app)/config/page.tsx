@@ -36,9 +36,10 @@ const GROUPS: { title: string; keys: { key: string; label: string; suffix?: stri
   {
     title: "Package sizes",
     keys: [
-      { key: "size_price_small", label: "Small", suffix: "GH₵", hint: "Price before the zone add-on." },
-      { key: "size_price_medium", label: "Medium", suffix: "GH₵", hint: "Price before the zone add-on." },
-      { key: "size_price_large", label: "Large", suffix: "GH₵", hint: "Price before the zone add-on." },
+      { key: "size_price_ripple", label: "Ripple", suffix: "GH₵", hint: "Price before the zone add-on." },
+      { key: "size_price_wave", label: "Wave", suffix: "GH₵", hint: "Price before the zone add-on." },
+      { key: "size_price_swell", label: "Swell", suffix: "GH₵", hint: "Price before the zone add-on." },
+      { key: "size_price_tide", label: "Tide", suffix: "GH₵", hint: "Price before the zone add-on." },
     ],
   },
   {
@@ -167,9 +168,10 @@ export default function ConfigPage() {
 
   const other = rows?.filter((r) => !KNOWN_KEYS.includes(r.key)) ?? [];
   const SIZES = [
-    { key: "size_price_small", name: "Small" },
-    { key: "size_price_medium", name: "Medium" },
-    { key: "size_price_large", name: "Large" },
+    { key: "size_price_ripple", name: "Ripple" },
+    { key: "size_price_wave", name: "Wave" },
+    { key: "size_price_swell", name: "Swell" },
+    { key: "size_price_tide", name: "Tide" },
   ];
   const input = (key: string, prefix?: string, suffix?: string) => (
     <div className="flex h-10 w-[130px] items-center gap-1 rounded-control border-2 border-line bg-surface px-3 focus-within:border-ink">

@@ -30,9 +30,10 @@ export const PLATFORM_CONFIG_KEYS = {
   rider_earning_pct_student: { min: 0, max: 100, integer: false, label: "Student rider share of the delivery fee (%)" },
   rider_earning_pct_external: { min: 0, max: 100, integer: false, label: "External rider share of the delivery fee (%)" },
   buy_for_me_min_shops: { min: 0, max: 500, integer: true, label: "Shops needed before Buy for me opens" },
-  size_price_small: { min: 0, max: 1000, integer: false, label: "Small size price (GH₵)" },
-  size_price_medium: { min: 0, max: 1000, integer: false, label: "Medium size price (GH₵)" },
-  size_price_large: { min: 0, max: 1000, integer: false, label: "Large size price (GH₵)" },
+  size_price_ripple: { min: 0, max: 1000, integer: false, label: "Ripple size price (GH₵)" },
+  size_price_wave: { min: 0, max: 1000, integer: false, label: "Wave size price (GH₵)" },
+  size_price_swell: { min: 0, max: 1000, integer: false, label: "Swell size price (GH₵)" },
+  size_price_tide: { min: 0, max: 1000, integer: false, label: "Tide size price (GH₵)" },
   // 0 turns the first-order code off.
   promo_first_order_pct: { min: 0, max: 100, integer: false, label: "First-order code discount on delivery (%)" },
 } as const;

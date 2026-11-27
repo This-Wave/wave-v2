@@ -352,7 +352,7 @@ export const ChevronDownIcon: Icon = ({ size = 18, color = colors.ink, strokeWid
   </Svg>
 );
 
-/** v7: Small size (documents, small things). */
+/** v7: size Ripple (documents, small things). */
 export const EnvelopeIcon: Icon = ({ size = 22, color = colors.ink, strokeWidth = 1.8 }) => (
   <Svg {...box({ size })} fill="none">
     <Rect x={3} y={5.5} width={18} height={13} rx={2.5} stroke={color} strokeWidth={strokeWidth} />
@@ -376,7 +376,7 @@ export const ParcelIcon: Icon = ({ size = 22, color = colors.ink, strokeWidth = 
   </Svg>
 );
 
-/** v7: a stack of cartons on a trolley (no longer a size; kept for reuse). */
+/** v7: size Tide (cartons, appliances). A stack of cartons on a trolley. */
 export const CartonsIcon: Icon = ({ size = 22, color = colors.ink, strokeWidth = 1.8 }) => (
   <Svg {...box({ size })} fill="none">
     <Rect x={4} y={4} width={9} height={8} rx={1.2} stroke={color} strokeWidth={strokeWidth} />
