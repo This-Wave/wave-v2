@@ -20,7 +20,8 @@ import { colors } from "../../theme/tokens";
 import { useCancelOrder, useOrder } from "../../lib/orders";
 import { resetStudentTabs } from "../../lib/navigationFlows";
 import { showToast } from "../../store/toastStore";
-import { apiErrorMessage } from "../../lib/apiError";
+import { apiErrorMessage, isRefundFailed } from "../../lib/apiError";
+import { openSupportContact } from "../../lib/support";
 import { currentStepIndex, orderSteps, shortOrderRef, trackerSteps } from "./orderPresenters";
 
 type Route = RouteProp<StudentStackParamList, "OrderTracking">;
@@ -35,6 +36,7 @@ export function OrderTrackingScreen() {
   const { data: order } = useOrder(params.orderId, { poll: true });
   const cancelOrder = useCancelOrder();
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [needsSupport, setNeedsSupport] = useState(false);
 
   const { data: pin } = useDeliveryPin(order?.status === "at_checkpoint" && !order.companyId ? params.orderId : undefined);
   // Wave packs and delivers this one (company mode): the student shows the
@@ -70,6 +72,9 @@ export function OrderTrackingScreen() {
     } catch (err) {
       showToast(apiErrorMessage(err, "Couldn't cancel right now. Check your connection and try again."), "danger");
       setConfirmCancel(false);
+      // A refund the server could not send: the order is still open, so give a
+      // way to reach a person right here.
+      if (isRefundFailed(err)) setNeedsSupport(true);
     }
   }
 
@@ -168,9 +173,11 @@ export function OrderTrackingScreen() {
                 onPress={() => setConfirmCancel(true)}
                 loading={cancelOrder.isPending}
               />
-              <Text className="text-center font-sans text-meta text-muted">
-                Paid orders are refunded automatically.
-              </Text>
+              {needsSupport ? (
+                <View className="mt-2">
+                  <Button label="Message Wave support" variant="ghost" onPress={() => void openSupportContact()} />
+                </View>
+              ) : null}
             </View>
           ) : null}
         </Gutter>

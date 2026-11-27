@@ -7,6 +7,7 @@ import {
   DashboardIcon,
   GiftIcon,
   HomeIcon,
+  ChevronRightIcon,
   ListIcon,
   PlusIcon,
   SettingsIcon,
@@ -143,11 +144,15 @@ function WaveCard() {
       }}
       accessibilityRole="button"
       accessibilityLabel={closed ? "Today's Wave has left. Pick another day" : `${wave.name}, ${wave.countdown} left to order`}
-      className="rounded-card border border-hairline bg-surface p-4"
+      className="rounded-card border-2 border-b-4 border-line bg-surface p-4"
     >
       <Text className="font-sans-bold text-ui text-ink">{closed ? "Today's Wave has left" : wave.name}</Text>
       <Text className="font-sans text-body text-muted">{closed ? "Pick another day" : "Order by 12 noon"}</Text>
       {closed ? null : <Text className="mt-2 font-display text-heading text-ink">{wave.countdown}</Text>}
+      <View className="mt-3 flex-row items-center self-start rounded-input bg-wash px-3 py-2" style={{ gap: 4 }}>
+        <Text className="font-sans-bold text-meta text-ink">Change day</Text>
+        <ChevronRightIcon size={14} color={colors.ink} strokeWidth={2.4} />
+      </View>
     </Pressable>
   );
 }
