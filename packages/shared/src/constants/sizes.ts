@@ -1,10 +1,10 @@
 /**
- * Package sizes (owner 2026-11-27): three, plain names, no weights or examples.
+ * Package sizes (owner 2026-11-27): four, our own names, no weights or examples.
  * Price = the size's price + the pickup zone's add-on. Prices live in
  * platform_config (`size_price_<key>`); these are only the fallback for an
  * unseeded row.
  */
-export const PACKAGE_SIZES = ["small", "medium", "large"] as const;
+export const PACKAGE_SIZES = ["ripple", "wave", "swell", "tide"] as const;
 export type PackageSize = (typeof PACKAGE_SIZES)[number];
 
 export interface SizeInfo {
@@ -14,22 +14,21 @@ export interface SizeInfo {
 }
 
 export const SIZE_INFO: readonly SizeInfo[] = [
-  { key: "small", label: "Small", defaultPrice: 50 },
-  { key: "medium", label: "Medium", defaultPrice: 60 },
-  { key: "large", label: "Large", defaultPrice: 70 },
+  { key: "ripple", label: "Ripple", defaultPrice: 60 },
+  { key: "wave", label: "Wave", defaultPrice: 70 },
+  { key: "swell", label: "Swell", defaultPrice: 80 },
+  { key: "tide", label: "Tide", defaultPrice: 160 },
 ];
 
 /**
- * The four names used before 2026-11-27. An app bundle cached on a phone can
- * still send these, so the API maps them onto the new three rather than
- * refusing the order. Tide (the old 150 tier) has no equivalent and maps to
- * the largest size.
+ * Names used for a few hours on 2026-11-27 (Small / Medium / Large). An app
+ * bundle cached on a phone can still send them, so the API maps them back
+ * rather than refusing the order.
  */
 export const LEGACY_SIZE_NAMES: Record<string, PackageSize> = {
-  ripple: "small",
-  wave: "medium",
-  swell: "large",
-  tide: "large",
+  small: "ripple",
+  medium: "wave",
+  large: "swell",
 };
 
 export function sizeConfigKey(size: PackageSize): `size_price_${PackageSize}` {
