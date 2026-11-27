@@ -9,6 +9,7 @@ import { paystackMatchesGhs } from "./amounts";
 import { confirmDeliveryFeePaid, confirmGoodsPaid } from "./confirm";
 import { lookupCharge, type ChargeState } from "./charges";
 import { registerMoolreRoutes } from "./moolreRoutes";
+import { isMoolreReference } from "./moolre";
 import { capturePaymentError, capturePaymentIssue } from "../../lib/sentry";
 import { parseCorsOrigins } from "../../config/cors";
 import { PAYMENT_INITIATE_RATE_LIMIT, perAccount } from "../../plugins/rateLimit";
@@ -494,8 +495,8 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     orderId: string;
     expectedGhs: number;
     log: typeof fastify.log;
-  }): Promise<void> {
-    await confirmIfAlreadyPaid(args);
+  }): Promise<ChargeState | "unknown"> {
+    return checkCharge(args);
   }
 
   /**
@@ -593,9 +594,10 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     }
 
     const settled = isGoods ? !!order.goodsPaidAt : !!order.paidAt;
+    let declined = false;
     if (!settled) {
       const expectedGhs = isGoods ? Number(order.itemPrice ?? 0) : Number(order.totalAmount);
-      await reconcileWithPaystack({
+      const state = await reconcileWithPaystack({
         reference: ref,
         isGoods,
         orderId: order.id,
@@ -604,11 +606,17 @@ export async function paymentRoutes(fastify: FastifyInstance) {
       });
       const refreshed = await fastify.prisma.order.findUnique({ where: { id: order.id } });
       if (refreshed) order = refreshed;
+      // A MoMo charge the network declined (low balance, wallet limit, not
+      // allowed) never becomes paid and no prompt ever reaches the phone. Say so
+      // instead of letting the app wait out its full window (2026-11-27). Only
+      // for Moolre: a Paystack "failed" can still be retried inside its page.
+      declined = state === "failed" && isMoolreReference(ref) && !(isGoods ? order.goodsPaidAt : order.paidAt);
     }
 
     return reply.send({
       status: order.status,
       paidAt: isGoods ? order.goodsPaidAt : order.paidAt,
+      ...(declined ? { declined: true } : {}),
     });
   });
 

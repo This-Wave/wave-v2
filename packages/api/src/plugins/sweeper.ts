@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import { sweepAbandonedCheckouts } from "../modules/payments/sweepAbandoned";
+import { sweepStuckMomo } from "../modules/payments/stuckMomo";
 import { sweepReminders, sweepRiderWaiting } from "../modules/notifications/reminders";
 import { resumeExpiredPauses } from "../modules/switches/routes";
 import { archiveAuditEvents } from "../modules/audit/archive";
@@ -56,6 +57,20 @@ export default fp(async function sweeperPlugin(fastify: FastifyInstance) {
   }
 
   let running = false;
+  let checkingMomo = false;
+
+  /** Every 2 minutes: alert on a MoMo charge that was started but never paid. */
+  async function momoTick() {
+    if (checkingMomo) return;
+    checkingMomo = true;
+    try {
+      await sweepStuckMomo({ fastify, log: fastify.log });
+    } catch (err) {
+      fastify.log.error({ err }, "Stuck-MoMo check failed");
+    } finally {
+      checkingMomo = false;
+    }
+  }
 
   async function tick() {
     // A sweep that outruns its own interval — a big backlog, a slow Paystack —
@@ -118,6 +133,8 @@ export default fp(async function sweeperPlugin(fastify: FastifyInstance) {
   const timer = setInterval(() => void tick(), SWEEP_INTERVAL_MS);
   const waitingTimer = setInterval(() => void waitingTick(), RIDER_WAITING_INTERVAL_MS);
   waitingTimer.unref();
+  const momoTimer = setInterval(() => void momoTick(), RIDER_WAITING_INTERVAL_MS);
+  momoTimer.unref();
   const archiveTimer = setInterval(() => void archiveTick(), AUDIT_ARCHIVE_INTERVAL_MS);
   archiveTimer.unref();
   // Do not hold the event loop open: `index.ts` drains and exits on SIGTERM, and
@@ -128,6 +145,7 @@ export default fp(async function sweeperPlugin(fastify: FastifyInstance) {
     clearInterval(timer);
     clearInterval(archiveTimer);
     clearInterval(waitingTimer);
+    clearInterval(momoTimer);
   });
 
   fastify.log.info({ intervalMs: SWEEP_INTERVAL_MS }, "Abandoned-checkout sweep scheduled");

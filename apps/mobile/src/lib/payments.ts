@@ -52,7 +52,8 @@ export function useInitiatePayment() {
   });
 }
 
-export type PaymentStatus = { status: string; paidAt: string | null };
+/** `declined`: the MoMo network refused the charge, so no prompt will ever come. */
+export type PaymentStatus = { status: string; paidAt: string | null; declined?: boolean };
 
 /**
  * Asks the API whether the order actually got paid.
@@ -99,11 +100,14 @@ export async function waitForPayment(
     intervalMs = 1500,
     onTick,
     signal,
+    onDecline,
   }: {
     attempts?: number;
     intervalMs?: number;
     onTick?: (elapsedMs: number) => void;
     signal?: { cancelled: boolean };
+    /** When set, a declined MoMo charge ends the wait early (returns null after calling this). */
+    onDecline?: () => void;
   } = {},
 ): Promise<PaymentStatus | null> {
   for (let i = 0; i < attempts; i += 1) {
@@ -111,6 +115,10 @@ export async function waitForPayment(
     try {
       const status = await fetchPaymentStatus(reference);
       if (isPaid(status)) return status;
+      if (status.declined && onDecline) {
+        onDecline();
+        return null;
+      }
     } catch {
       // A network blip shouldn't end the wait — the next attempt may succeed.
     }

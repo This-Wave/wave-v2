@@ -83,9 +83,13 @@ export function registerMoolreRoutes(fastify: FastifyInstance, deps: { checkChar
     switch (outcome.kind) {
       case "prompt_sent":
       case "duplicate":
+        return reply.send({ ...base, next: "approve", prompt: "sent" as const });
+      // Moolre did not say the prompt went out (an ambiguous code, or the
+      // verified-code answer where a send was expected). The app still waits,
+      // but tells the student we could not confirm and offers a resend.
       case "unknown":
       case "otp_verified":
-        return reply.send({ ...base, next: "approve" });
+        return reply.send({ ...base, next: "approve", prompt: "unconfirmed" as const });
       case "otp_required":
         return reply.send({ ...base, next: "otp" });
       case "otp_wrong":
@@ -93,6 +97,32 @@ export function registerMoolreRoutes(fastify: FastifyInstance, deps: { checkChar
       case "rejected":
         return reply.code(502).send({ error: outcome.message, code: outcome.code });
     }
+  }
+
+  /**
+   * Writes what Moolre answered, so "why did no prompt arrive" is a grep and
+   * not a guess. Answers that mean the prompt may not have gone out also go to
+   * Sentry (2026-11-27: a student got the SMS code, entered it, and no
+   * approval prompt followed, with nothing in the logs to say why).
+   */
+  function noteOutcome(
+    request: FastifyRequest,
+    step: "start" | "otp",
+    outcome: CollectOutcome,
+    meta: { orderId: string; reference: string },
+  ) {
+    const code = "code" in outcome ? outcome.code : undefined;
+    const fields = { step, orderId: meta.orderId, reference: meta.reference, outcome: outcome.kind, code };
+    if (outcome.kind === "unknown" || outcome.kind === "otp_verified" || outcome.kind === "rejected") {
+      request.log.warn(fields, "Moolre collect: prompt not confirmed");
+      capturePaymentIssue(`Moolre collect ${outcome.kind}${code ? ` (${code})` : ""}: MoMo prompt not confirmed`, {
+        phase: step === "otp" ? "otp_moolre" : "initiate_moolre",
+        orderId: meta.orderId,
+        reference: meta.reference,
+      });
+      return;
+    }
+    request.log.info(fields, "Moolre collect outcome");
   }
 
   function failed(reply: FastifyReply, request: FastifyRequest, err: unknown, meta: { phase: string; orderId: string; reference: string }) {
@@ -162,6 +192,7 @@ export function registerMoolreRoutes(fastify: FastifyInstance, deps: { checkChar
           idempotencyKey: `${reference}-send`,
         });
       }
+      noteOutcome(request, "start", outcome, { orderId: args.orderId, reference });
       return replyFor(reply, outcome, { reference, payer, channel });
     } catch (err) {
       return failed(reply, request, err, {
@@ -237,6 +268,7 @@ export function registerMoolreRoutes(fastify: FastifyInstance, deps: { checkChar
             idempotencyKey: `${reference}-send`,
           });
         }
+        noteOutcome(request, "otp", outcome, { orderId: order.id, reference });
         return replyFor(reply, outcome, { reference, payer, channel });
       } catch (err) {
         return failed(reply, request, err, { phase: "otp_moolre", orderId: order.id, reference });

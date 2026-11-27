@@ -59,6 +59,8 @@ export interface MoolreStart {
   provider: "moolre";
   reference: string;
   next: "approve" | "otp";
+  /** "unconfirmed": Moolre did not say the prompt went out, so do not promise it. */
+  prompt?: "sent" | "unconfirmed";
   payer: string;
   network: MomoNetwork;
 }

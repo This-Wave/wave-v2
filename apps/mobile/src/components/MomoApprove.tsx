@@ -19,6 +19,10 @@ export function MomoApprove({
   payer,
   onPayAnotherWay,
   seconds = 120,
+  unconfirmed = false,
+  onResend,
+  resending = false,
+  resendNote = null,
 }: {
   amountLabel: string;
   network: MomoNetwork;
@@ -26,6 +30,12 @@ export function MomoApprove({
   onPayAnotherWay: () => void;
   /** How long the prompt stays live, for the countdown. */
   seconds?: number;
+  /** Moolre did not confirm the prompt went out: say so, and offer a resend at once. */
+  unconfirmed?: boolean;
+  onResend?: () => void;
+  resending?: boolean;
+  /** Why a resend was refused or failed. */
+  resendNote?: string | null;
 }) {
   const pulse = useRef(new Animated.Value(0)).current;
   const reduce = useReducedMotion();
@@ -48,6 +58,11 @@ export function MomoApprove({
     return () => clearInterval(t);
   }, []);
 
+  // After a minute with nothing, or straight away when we could not confirm the
+  // prompt was sent, a resend is offered. The API still refuses inside two
+  // minutes of the last send, so offering it early cannot double-charge.
+  const showResend = !!onResend && (unconfirmed || seconds - left >= 60);
+
   const net = MOMO_NETWORKS.find((n) => n.id === network) ?? MOMO_NETWORKS[0]!;
   const clock = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
 
@@ -64,7 +79,9 @@ export function MomoApprove({
             Approve on your phone
           </Text>
           <Text className="text-center font-sans text-ui text-muted">
-            Check {maskMomoNumber(payer)} for the {net.label} MoMo prompt and enter your PIN to pay {amountLabel}.
+            {unconfirmed
+              ? `We could not confirm the ${net.label} request reached ${maskMomoNumber(payer)}. Wait a moment, or send it again.`
+              : `Check ${maskMomoNumber(payer)} for the ${net.label} MoMo prompt and enter your PIN to pay ${amountLabel}.`}
           </Text>
           <Text
             className="mt-2 font-display text-ink"
@@ -78,6 +95,25 @@ export function MomoApprove({
       </View>
 
       <View style={{ gap: 4 }}>
+        {showResend ? (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              disabled={resending}
+              onPress={onResend}
+              className="min-h-[56px] items-center justify-center rounded-input border-2 border-b-4 border-line bg-surface"
+            >
+              <Text className="font-sans-bold text-ui uppercase tracking-wider text-ink">
+                {resending ? "Sending…" : "Send it again"}
+              </Text>
+            </Pressable>
+            {resendNote ? (
+              <Text accessibilityLiveRegion="polite" className="mb-2 text-center font-sans text-meta text-muted">
+                {resendNote}
+              </Text>
+            ) : null}
+          </>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           onPress={() => Linking.openURL(`tel:${encodeURIComponent(net.ussd)}`).catch(() => undefined)}
@@ -87,7 +123,7 @@ export function MomoApprove({
         </Pressable>
         <Text className="text-center font-sans text-meta text-muted">Opens {net.ussd} to approve it yourself.</Text>
         <Pressable accessibilityRole="button" onPress={onPayAnotherWay} className="min-h-[44px] items-center justify-center">
-          <Text className="font-sans-bold text-ui text-ink-700">Cancel</Text>
+          <Text className="font-sans-bold text-ui text-ink-700">Pay another way</Text>
         </Pressable>
       </View>
     </View>

@@ -82,7 +82,7 @@ describe("POST /initiate with Moolre MoMo", () => {
 
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body).toMatchObject({ provider: "moolre", next: "approve", payer: "0501234567", network: "TELECEL" });
+    expect(body).toMatchObject({ provider: "moolre", next: "approve", prompt: "sent", payer: "0501234567", network: "TELECEL" });
     expect(body.reference).toMatch(new RegExp(`^WAVEM-${ORDER_ID}-\\d+$`));
     expect(prisma.order.update).toHaveBeenCalledWith({
       where: { id: ORDER_ID },
@@ -97,6 +97,14 @@ describe("POST /initiate with Moolre MoMo", () => {
     const app = await buildTestApp(paymentRoutes, { prisma: prismaFor(order()), user: STUDENT, env: MOOLRE_ENV });
     const res = await app.inject({ method: "POST", url: "/initiate", payload: { orderId: ORDER_ID, method: "momo" } });
     expect(res.json()).toMatchObject({ payer: "0241234567", network: "MTN" });
+  });
+
+  test("an ambiguous Moolre answer is passed on as unconfirmed", async () => {
+    moolreCollect.mockResolvedValue({ kind: "unknown", code: "TR01" });
+    const app = await buildTestApp(paymentRoutes, { prisma: prismaFor(order()), user: STUDENT, env: MOOLRE_ENV });
+    const res = await app.inject({ method: "POST", url: "/initiate", payload: { orderId: ORDER_ID, method: "momo" } });
+    expect(res.json()).toMatchObject({ next: "approve", prompt: "unconfirmed" });
+    expect(capturePaymentIssue).toHaveBeenCalled();
   });
 
   test("asks for the SMS code when Moolre wants one", async () => {
@@ -197,12 +205,27 @@ describe("POST /momo/otp", () => {
     const app = await buildTestApp(paymentRoutes, { prisma: prismaFor(pending), user: STUDENT, env: MOOLRE_ENV });
     const res = await app.inject({ method: "POST", url: "/momo/otp", payload: { reference: ref, code: "123 456" } });
 
-    expect(res.json()).toMatchObject({ next: "approve", reference: ref });
+    expect(res.json()).toMatchObject({ next: "approve", reference: ref, prompt: "sent" });
+    expect(capturePaymentIssue).not.toHaveBeenCalled();
     expect(moolreCollect.mock.calls[0]![1]).toMatchObject({ reference: ref, otpCode: "123456" });
     expect(moolreCollect.mock.calls[1]![1]).toMatchObject({ reference: ref });
     expect(moolreCollect.mock.calls[1]![1].otpCode).toBeUndefined();
     // Distinct keys, or Moolre would replay the first step's answer.
     expect(moolreCollect.mock.calls[0]![1].idempotencyKey).not.toBe(moolreCollect.mock.calls[1]![1].idempotencyKey);
+  });
+
+  test("if the send after the code is not confirmed, the app is told and an alert is raised", async () => {
+    // 2026-11-27: the code was accepted and no prompt followed. The app must
+    // not claim a prompt is on the phone when Moolre never said so.
+    moolreCollect.mockResolvedValueOnce({ kind: "otp_verified" }).mockResolvedValueOnce({ kind: "unknown", code: "SYS500" });
+    const app = await buildTestApp(paymentRoutes, { prisma: prismaFor(pending), user: STUDENT, env: MOOLRE_ENV });
+    const res = await app.inject({ method: "POST", url: "/momo/otp", payload: { reference: ref, code: "123456" } });
+
+    expect(res.json()).toMatchObject({ next: "approve", prompt: "unconfirmed" });
+    expect(capturePaymentIssue).toHaveBeenCalledWith(
+      expect.stringContaining("SYS500"),
+      expect.objectContaining({ orderId: ORDER_ID, reference: ref }),
+    );
   });
 
   test("a wrong code says so", async () => {
@@ -333,5 +356,26 @@ describe("GET /options", () => {
     const app = await buildTestApp(paymentRoutes, { prisma: prismaFor(null), user: null, env: MOOLRE_ENV });
     const res = await app.inject({ method: "GET", url: "/options" });
     expect(res.json()).toEqual({ momo: { provider: "moolre", ready: true }, card: true });
+  });
+});
+
+describe("GET /verify with a declined Moolre charge", () => {
+  const ref = `WAVEM-${ORDER_ID}-1763640000000`;
+  const pending = order({ paystackRef: ref, momoPayer: "0241234567", momoNetwork: "MTN", status: "payment_pending" });
+
+  test("tells the app the charge was declined so it stops waiting", async () => {
+    // 2026-11-27: MTN answered LOW_BALANCE_OR_PAYEE_LIMIT_REACHED_OR_NOT_ALLOWED
+    // and the app kept polling for the full window.
+    moolreCollectionStatus.mockResolvedValue({ state: "failed", amount: "0" });
+    const app = await buildTestApp(paymentRoutes, { prisma: prismaFor(pending), user: STUDENT, env: MOOLRE_ENV });
+    const res = await app.inject({ method: "GET", url: `/verify/${ref}` });
+    expect(res.json()).toMatchObject({ declined: true });
+  });
+
+  test("a still-pending charge is not reported as declined", async () => {
+    moolreCollectionStatus.mockResolvedValue({ state: "pending" });
+    const app = await buildTestApp(paymentRoutes, { prisma: prismaFor(pending), user: STUDENT, env: MOOLRE_ENV });
+    const res = await app.inject({ method: "GET", url: `/verify/${ref}` });
+    expect(res.json().declined).toBeUndefined();
   });
 });
