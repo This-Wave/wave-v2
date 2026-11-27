@@ -1,6 +1,6 @@
 "use client";
 
-import { SIZE_INFO, orderRef } from "@wave/shared";
+import { orderRef } from "@wave/shared";
 import { OrderStatusPill } from "../../../../components/ui/StatusPill";
 
 import Link from "next/link";
@@ -113,7 +113,7 @@ export default function OrderDetailPage() {
     ["Landmark", notes.landmark],
     ["Handover", notes.handover],
     ["Instructions", notes.instructions],
-    ["Size", order.packageSize ? `${order.packageSize[0]!.toUpperCase()}${order.packageSize.slice(1)}${SIZE_INFO.find((x) => x.key === order.packageSize) ? ` · up to ${SIZE_INFO.find((x) => x.key === order.packageSize)!.maxKg} kg` : ""}` : null],
+    ["Size", order.packageSize ? `${order.packageSize[0]!.toUpperCase()}${order.packageSize.slice(1)}` : null],
     ["Description", order.itemDescription],
     ["Total", formatGhs(Number(order.totalAmount))],
     ["Delivery fee", formatGhs(Number(order.deliveryFee))],

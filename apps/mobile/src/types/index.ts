@@ -169,7 +169,7 @@ export interface Order {
   senderName?: string | null;
   senderPhone?: string | null;
   pickupNotes?: string | null;
-  packageSize?: "ripple" | "wave" | "swell" | "tide" | null;
+  packageSize?: "small" | "medium" | "large" | null;
   itemPrice: string | null;
   deliveryFee: string;
   discountApplied: string;
