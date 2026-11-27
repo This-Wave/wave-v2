@@ -6,6 +6,8 @@ import type { RiderStackParamList } from "../../navigation/RiderNavigator";
 import { useDesktopPanelStore } from "../../store/desktopPanelStore";
 import { useCancelOrder, useOrder } from "../../lib/orders";
 import { showToast } from "../../store/toastStore";
+import { apiErrorMessage, isRefundFailed } from "../../lib/apiError";
+import { openSupportContact } from "../../lib/support";
 import { useAcceptOrder } from "../../lib/rider";
 import { useShopAcceptOrder, useShopCancelOrder } from "../../lib/shopOwner";
 import { buildOrderLedger } from "../../lib/ledger";
@@ -68,6 +70,7 @@ function OrderTrackingPanel({ orderId, onClose }: { orderId: string; onClose: ()
   const { data: order } = useOrder(orderId, { poll: true });
   const cancelOrder = useCancelOrder();
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [needsSupport, setNeedsSupport] = useState(false);
   const pill = order ? statusPill(order.status, !!order.companyId) : null;
   const rider = order?.rider;
   const ledger = order ? buildOrderLedger(order) : null;
@@ -89,6 +92,9 @@ function OrderTrackingPanel({ orderId, onClose }: { orderId: string; onClose: ()
           />
           {canCancel ? (
             <Button label="Cancel order" variant="ghost" onPress={() => setConfirmCancel(true)} />
+          ) : null}
+          {needsSupport ? (
+            <Button label="Message Wave support" variant="quiet" onPress={() => void openSupportContact()} />
           ) : null}
         </View>
       }
@@ -163,9 +169,10 @@ function OrderTrackingPanel({ orderId, onClose }: { orderId: string; onClose: ()
               "success",
             );
             onClose();
-          } catch {
-            showToast("Couldn't cancel right now. Check your connection and try again.", "danger");
+          } catch (err) {
+            showToast(apiErrorMessage(err, "Couldn't cancel right now. Check your connection and try again."), "danger");
             setConfirmCancel(false);
+            if (isRefundFailed(err)) setNeedsSupport(true);
           }
         }}
         onCancel={() => setConfirmCancel(false)}

@@ -17,3 +17,8 @@ export function apiErrorMessage(err: unknown, fallback: string): string {
   const message = (err as { response?: { data?: { error?: unknown } } })?.response?.data?.error;
   return typeof message === "string" && message.trim().length > 0 ? message : fallback;
 }
+
+/** The server could not send a cancelled order's money back, and left the order open. */
+export function isRefundFailed(err: unknown): boolean {
+  return (err as { response?: { data?: { refundFailed?: unknown } } })?.response?.data?.refundFailed === true;
+}

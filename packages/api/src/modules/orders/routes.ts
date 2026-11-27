@@ -975,7 +975,19 @@ export async function orderRoutes(fastify: FastifyInstance) {
         failureReason: "student_cancelled",
         request,
       });
-      if (!result.ok) return reply.code(result.code).send({ error: result.error });
+      if (!result.ok) {
+        // The provider's own words ("insufficient balance", a Moolre dashboard
+        // hint) are for staff and are in the log and audit trail. A student is
+        // told what happened to their order and what to do next.
+        if (result.refundFailed) {
+          return reply.code(409).send({
+            error:
+              "We couldn't send your refund automatically, so your order is still open. Message Wave support and we'll refund it by hand.",
+            refundFailed: true,
+          });
+        }
+        return reply.code(result.code).send({ error: result.error });
+      }
 
       return reply.send({ order: result.order, refundIssued: result.refundIssued });
     },
