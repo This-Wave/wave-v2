@@ -15,10 +15,10 @@ export interface SizeInfo {
 }
 
 export const SIZE_INFO: readonly SizeInfo[] = [
-  { key: "ripple", label: "Ripple", examples: "Documents, a charger, small items", maxKg: 3, defaultPrice: 50 },
-  { key: "wave", label: "Wave", examples: "Clothes, shoes, a laptop", maxKg: 8, defaultPrice: 60 },
-  { key: "swell", label: "Swell", examples: "Food trays, gift boxes, small appliances", maxKg: 15, defaultPrice: 70 },
-  { key: "tide", label: "Tide", examples: "Wholesale cartons, home appliances", maxKg: 25, defaultPrice: 150 },
+  { key: "ripple", label: "Ripple", examples: "Clothes, shoes, a laptop", maxKg: 8, defaultPrice: 50 },
+  { key: "wave", label: "Wave", examples: "Food trays, gift boxes, small appliances", maxKg: 15, defaultPrice: 60 },
+  { key: "swell", label: "Swell", examples: "Wholesale cartons, home appliances", maxKg: 25, defaultPrice: 70 },
+  { key: "tide", label: "Tide", examples: "Bulk cartons, large appliances", maxKg: 40, defaultPrice: 150 },
 ];
 
 export function sizeConfigKey(size: PackageSize): `size_price_${PackageSize}` {

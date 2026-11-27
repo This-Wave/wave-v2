@@ -36,10 +36,10 @@ const GROUPS: { title: string; keys: { key: string; label: string; suffix?: stri
   {
     title: "Package sizes",
     keys: [
-      { key: "size_price_ripple", label: "Ripple · documents, charger · up to 3 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
-      { key: "size_price_wave", label: "Wave · clothes, a laptop · up to 8 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
-      { key: "size_price_swell", label: "Swell · food trays, gift boxes · up to 15 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
-      { key: "size_price_tide", label: "Tide · cartons, appliances · up to 25 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
+      { key: "size_price_ripple", label: "Ripple · clothes, shoes, a laptop · up to 8 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
+      { key: "size_price_wave", label: "Wave · food trays, gift boxes · up to 15 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
+      { key: "size_price_swell", label: "Swell · wholesale cartons, home appliances · up to 25 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
+      { key: "size_price_tide", label: "Tide · bulk cartons, large appliances · up to 40 kg", suffix: "GH₵", hint: "Price before the zone add-on." },
     ],
   },
   {
@@ -168,10 +168,10 @@ export default function ConfigPage() {
 
   const other = rows?.filter((r) => !KNOWN_KEYS.includes(r.key)) ?? [];
   const SIZES = [
-    { key: "size_price_ripple", name: "Ripple", for: "Documents, charger, small items", kg: 3 },
-    { key: "size_price_wave", name: "Wave", for: "Clothes, shoes, a laptop", kg: 8 },
-    { key: "size_price_swell", name: "Swell", for: "Food trays, gift boxes, small appliances", kg: 15 },
-    { key: "size_price_tide", name: "Tide", for: "Wholesale cartons, home appliances", kg: 25 },
+    { key: "size_price_ripple", name: "Ripple", for: "Clothes, shoes, a laptop", kg: 8 },
+    { key: "size_price_wave", name: "Wave", for: "Food trays, gift boxes, small appliances", kg: 15 },
+    { key: "size_price_swell", name: "Swell", for: "Wholesale cartons, home appliances", kg: 25 },
+    { key: "size_price_tide", name: "Tide", for: "Bulk cartons, large appliances", kg: 40 },
   ];
   const input = (key: string, prefix?: string, suffix?: string) => (
     <div className="flex h-10 w-[130px] items-center gap-1 rounded-control border-2 border-line bg-surface px-3 focus-within:border-ink">
