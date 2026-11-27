@@ -99,6 +99,9 @@ export function PaymentScreen() {
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState<string | null>(null);
   const submitCode = useSubmitMomoCode();
+  const [promptUnconfirmed, setPromptUnconfirmed] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendNote, setResendNote] = useState<string | null>(null);
 
   function changeMomoDigits(next: string) {
     setMomoDigits(next);
@@ -156,11 +159,25 @@ export function PaymentScreen() {
     if (phase !== "approve" || !momo) return;
     let stopped = false;
     (async () => {
+      let declined = false;
       const status = await waitForPayment(momo.reference, {
         attempts: APPROVE_WAIT_ATTEMPTS,
         signal: cancel.current,
+        onDecline: () => {
+          declined = true;
+        },
       });
       if (stopped || cancel.current.cancelled) return;
+      // The network refused the charge (low balance, wallet limit, not allowed):
+      // no prompt is coming, so say so now rather than after the full wait.
+      if (declined) {
+        setError(
+          "Your Mobile Money payment was declined. Check your balance and wallet limit, or pay another way.",
+        );
+        setMomo(null);
+        setPhase("choosing");
+        return;
+      }
       resetAfterPaymentOutcome(
         navigation,
         status
@@ -197,6 +214,8 @@ export function PaymentScreen() {
         setMomo({ reference: result.reference, payer: result.payer, network: result.network });
         setCode("");
         setCodeError(null);
+        setPromptUnconfirmed(result.prompt === "unconfirmed");
+        setResendNote(null);
         setPhase(result.next === "otp" ? "otp" : "approve");
         return;
       }
@@ -208,6 +227,7 @@ export function PaymentScreen() {
       const pending = pendingPromptReference(err);
       if (pending && usingMoolre && network) {
         setMomo({ reference: pending, payer: `0${momoDigits}`, network });
+        setPromptUnconfirmed(false);
         setPhase("approve");
         return;
       }
@@ -225,6 +245,8 @@ export function PaymentScreen() {
         setCodeError("That code has expired. We've sent a new one.");
         return;
       }
+      setPromptUnconfirmed(result.prompt === "unconfirmed");
+      setResendNote(null);
       setPhase("approve");
     } catch (err) {
       setCode("");
@@ -233,6 +255,43 @@ export function PaymentScreen() {
           ? "That code is not right. Check the SMS and try again."
           : paymentInitiateErrorMessage(err),
       );
+    }
+  }
+
+  /**
+   * "Send it again" from the approve screen. The API refuses while a prompt
+   * from the last two minutes may still be live (two live prompts is how a
+   * student pays twice), so this is safe to offer.
+   */
+  async function handleResend() {
+    if (!momo || resending) return;
+    setResending(true);
+    setResendNote(null);
+    try {
+      const result = await initiatePayment.mutateAsync({
+        orderId: params.orderId,
+        method: "momo",
+        returnOrigin: webAppOrigin(),
+        payerPhone: momo.payer,
+        network: momo.network,
+      });
+      if (result.provider === "moolre") {
+        setMomo({ reference: result.reference, payer: result.payer, network: result.network });
+        setPromptUnconfirmed(result.prompt === "unconfirmed");
+        if (result.next === "otp") {
+          setCode("");
+          setCodeError(null);
+          setPhase("otp");
+        }
+      }
+    } catch (err) {
+      setResendNote(
+        pendingPromptReference(err)
+          ? "A request is already on your phone. Approve it, or try again in a minute."
+          : paymentInitiateErrorMessage(err),
+      );
+    } finally {
+      setResending(false);
     }
   }
 
@@ -300,6 +359,11 @@ export function PaymentScreen() {
     return (
       <Screen narrow>
         <MomoApprove
+          key={momo.reference}
+          unconfirmed={promptUnconfirmed}
+          onResend={handleResend}
+          resending={resending}
+          resendNote={resendNote}
           amountLabel={formatGhs(params.totalAmount)}
           network={momo.network}
           payer={momo.payer}
